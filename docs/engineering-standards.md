@@ -87,4 +87,4 @@ The bar for every change in this repository. Rules marked **[gate]** are enforce
 pnpm verify
 ```
 
-Runs, in order: Prettier check, type-check, lint, tests with coverage, duplicate-code detection, dependency-boundary rules, production dependency audit. Each step can also be run on its own (`format:check`, `typecheck`, `lint`, `test:coverage`, `dup`, `deps:check`, `audit:prod`).
+Runs, in order: Prettier check, type-check, lint, tests with coverage, build of every app, duplicate-code detection, dependency-boundary rules, production dependency audit. Each step can also be run on its own (`format:check`, `typecheck`, `lint`, `test:coverage`, `build`, `dup`, `deps:check`, `audit:prod`).
