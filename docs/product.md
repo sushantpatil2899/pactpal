@@ -8,11 +8,11 @@ People paid through PayPal for services and digital work keep losing disputes fo
 
 ## Users
 
-| User | What they get |
-|---|---|
+| User                                                                   | What they get                                                                                                                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Seller** (primary): freelancer, artist, creator, small online seller | Clear scope, a signed agreement, PayPal invoices per milestone, tracked delivery and approvals, a ready evidence packet and deadline tracking when a dispute opens |
-| **Buyer** (secondary, advisory) | A copy of what was agreed, pages to approve or request changes, answers about the agreement. No account needed: buyers use links. |
-| **AI agents and developers** | An MCP server to read deals and prepare drafts; any sensitive action needs a human confirm token |
+| **Buyer** (secondary, advisory)                                        | A copy of what was agreed, pages to approve or request changes, answers about the agreement. No account needed: buyers use links.                                  |
+| **AI agents and developers**                                           | An MCP server to read deals and prepare drafts; any sensitive action needs a human confirm token                                                                   |
 
 ## End-to-end flow
 
@@ -47,17 +47,17 @@ Every step writes events to the evidence ledger.
 
 AI output is always a draft, stored apart from evidence, and every sentence or field cites a source line or ledger event id or stays blank. High-stakes tasks use the **council**: several models from different families answer, code validation drops answers with invalid citations, the rest are anonymized and ranked by every member, a Borda count picks one whole answer, and low agreement flags it for human review.
 
-| Task | When | Engine |
-|---|---|---|
-| Scope drafting from the conversation, with citations | Capture | Council |
-| Category check: what is actually being sold vs. the seller's chosen category | Capture | Council (part of scope drafting) |
-| Vague-word detection and measurable rewrites | Capture | Council (part of scope drafting) |
-| Pre-delivery check: does the file match the objective scope lines? Code checks format, size and transparency; a vision model checks content. Advisory to the seller only. | Before delivery | Single model (council optional) |
-| Message watcher: new buyer messages labelled within scope, extra revision or out of scope, with a drafted reply or change order | During the deal | Single model |
-| Buyer Q&A on the acceptance page, answered only from the agreement with citations; otherwise forwarded to the seller | Before signing | Single model |
-| Claim-vs-record: each statement in the buyer's claim matched to scope lines and ledger events, or marked "no record covers this" | Dispute | Council |
-| Neutral packet summary, every sentence tied to event ids | Dispute | Council (from the claim-vs-record table) |
-| Appeal statement explaining genuinely new evidence | Appeal | Council |
+| Task                                                                                                                                                                      | When            | Engine                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------- |
+| Scope drafting from the conversation, with citations                                                                                                                      | Capture         | Council                                  |
+| Category check: what is actually being sold vs. the seller's chosen category                                                                                              | Capture         | Council (part of scope drafting)         |
+| Vague-word detection and measurable rewrites                                                                                                                              | Capture         | Council (part of scope drafting)         |
+| Pre-delivery check: does the file match the objective scope lines? Code checks format, size and transparency; a vision model checks content. Advisory to the seller only. | Before delivery | Single model (council optional)          |
+| Message watcher: new buyer messages labelled within scope, extra revision or out of scope, with a drafted reply or change order                                           | During the deal | Single model                             |
+| Buyer Q&A on the acceptance page, answered only from the agreement with citations; otherwise forwarded to the seller                                                      | Before signing  | Single model                             |
+| Claim-vs-record: each statement in the buyer's claim matched to scope lines and ledger events, or marked "no record covers this"                                          | Dispute         | Council                                  |
+| Neutral packet summary, every sentence tied to event ids                                                                                                                  | Dispute         | Council (from the claim-vs-record table) |
+| Appeal statement explaining genuinely new evidence                                                                                                                        | Appeal          | Council                                  |
 
 ## Evidence ledger
 
@@ -69,19 +69,19 @@ Event types include: `SOURCE_ADDED`, `SCOPE_CONFIRMED`, `ACCEPTED`, `RECEIPT_SEN
 
 A 0–100 measure of how complete a deal's records are, with "what is helping" and "what is missing and how to fix it". **Never a prediction of any outcome.**
 
-| Item | Points |
-|---|---|
-| Scope confirmed with citations | 10 |
-| Exclusions listed | 8 |
-| Checkable lines (objective or process; subjective lines tied to approvals) | 12 |
-| Buyer acceptance recorded, receipt sent | 15 |
-| Payment through a PayPal invoice | 10 |
-| Coverage notice shown | 3 |
-| Delivery sent to the buyer's recorded email | 10 |
-| Delivery access logged with file hash | 12 |
-| Milestone approvals | 12 |
-| Delivery email matches the PayPal transaction email | 4 |
-| Retention settings in place | 4 |
+| Item                                                                       | Points |
+| -------------------------------------------------------------------------- | ------ |
+| Scope confirmed with citations                                             | 10     |
+| Exclusions listed                                                          | 8      |
+| Checkable lines (objective or process; subjective lines tied to approvals) | 12     |
+| Buyer acceptance recorded, receipt sent                                    | 15     |
+| Payment through a PayPal invoice                                           | 10     |
+| Coverage notice shown                                                      | 3      |
+| Delivery sent to the buyer's recorded email                                | 10     |
+| Delivery access logged with file hash                                      | 12     |
+| Milestone approvals                                                        | 12     |
+| Delivery email matches the PayPal transaction email                        | 4      |
+| Retention settings in place                                                | 4      |
 
 ## Evidence packet
 
@@ -98,29 +98,29 @@ PDF or image files under 10 MB each, within PayPal's total size limit.
 
 ## Screens
 
-| Screen | Purpose |
-|---|---|
-| Dashboard | All deals, completeness score, next action, upcoming deadlines (AG Grid) |
-| New deal | Paste, upload, forward address, or form |
-| Scope editor | Source and structured scope side by side with citations, flags, category check |
-| Buyer acceptance page | One screen, all key terms, typed name, "I agree and sign", Q&A |
-| Deal timeline | Ledger events with hashes and a verify button; milestone Gantt (Bryntum) |
-| Deliver | Upload, pre-delivery check, delivery link, access log |
-| Buyer delivery page | Preview or download, approve or request changes |
-| Dispute workspace | Reason, countdown, allowed actions, claim-vs-record, packet preview, confirm and upload |
-| Appeal workspace | New evidence list, draft statement, countdown |
-| Council panel | Each model's answer, the votes, the winner and the agreement level |
-| Settings | Connect PayPal, retention, disclaimers |
+| Screen                | Purpose                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| Dashboard             | All deals, completeness score, next action, upcoming deadlines (AG Grid)                |
+| New deal              | Paste, upload, forward address, or form                                                 |
+| Scope editor          | Source and structured scope side by side with citations, flags, category check          |
+| Buyer acceptance page | One screen, all key terms, typed name, "I agree and sign", Q&A                          |
+| Deal timeline         | Ledger events with hashes and a verify button; milestone Gantt (Bryntum)                |
+| Deliver               | Upload, pre-delivery check, delivery link, access log                                   |
+| Buyer delivery page   | Preview or download, approve or request changes                                         |
+| Dispute workspace     | Reason, countdown, allowed actions, claim-vs-record, packet preview, confirm and upload |
+| Appeal workspace      | New evidence list, draft statement, countdown                                           |
+| Council panel         | Each model's answer, the votes, the winner and the agreement level                      |
+| Settings              | Connect PayPal, retention, disclaimers                                                  |
 
 ## PayPal integration
 
-| API | Used for |
-|---|---|
+| API               | Used for                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------- |
 | Partner Referrals | "Connect with PayPal" for sellers (fallback: the seller connects their own sandbox app) |
-| Invoicing v2 | Milestone invoices |
-| Webhooks | Payments and disputes, signature-verified |
-| Disputes v1 | List, get, provide evidence, make offer, accept claim, appeal |
-| Orders v2 | Shipment tracking for physical goods |
+| Invoicing v2      | Milestone invoices                                                                      |
+| Webhooks          | Payments and disputes, signature-verified                                               |
+| Disputes v1       | List, get, provide evidence, make offer, accept claim, appeal                           |
+| Orders v2         | Shipment tracking for physical goods                                                    |
 
 Every operation tries a PayPal MCP tool first and falls back to REST; the transport used is shown in the timeline. See [sandbox-notes.md](sandbox-notes.md).
 

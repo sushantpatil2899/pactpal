@@ -44,6 +44,12 @@ describe("canonicalJson", () => {
     expect(canonicalJson({ a: 1, b: undefined })).toBe('{"a":1}');
     expect(() => canonicalJson({ a: Number.NaN })).toThrow();
   });
+
+  it("encodes booleans and rejects values JSON cannot represent", () => {
+    expect(canonicalJson([true, false, null])).toBe("[true,false,null]");
+    expect(() => canonicalJson({ a: () => 1 })).toThrow(/function/);
+    expect(() => canonicalJson({ a: 1n })).toThrow(/bigint/);
+  });
 });
 
 describe("appendEvent", () => {
@@ -84,7 +90,10 @@ describe("verifyChain", () => {
   it("detects an edited payload and names the entry", () => {
     const chain = buildChain(sampleEvents);
     const tampered = chain.map((e) => ({ ...e }));
-    tampered[2] = { ...tampered[2]!, payload: { typedName: "Someone Else", pageVersionHash: "ghi" } };
+    tampered[2] = {
+      ...tampered[2]!,
+      payload: { typedName: "Someone Else", pageVersionHash: "ghi" },
+    };
     expect(verifyChain(tampered)).toEqual({
       valid: false,
       brokenAt: 2,
@@ -106,7 +115,12 @@ describe("verifyChain", () => {
     // Rewrite entry 1 as if it were appended fresh with different content.
     const forged = appendEvent(
       chain.slice(0, 1),
-      { dealId: "deal-1", type: "SCOPE_CONFIRMED", actor: "seller", payload: { scopeHash: "zzz", version: 1 } },
+      {
+        dealId: "deal-1",
+        type: "SCOPE_CONFIRMED",
+        actor: "seller",
+        payload: { scopeHash: "zzz", version: 1 },
+      },
       new Date(t0.getTime() + 60_000),
     );
     const tampered = [chain[0]!, forged, chain[2]!, chain[3]!];
@@ -116,6 +130,17 @@ describe("verifyChain", () => {
       expect(result.brokenAt).toBe(2);
       expect(result.reason).toMatch(/prevHash/);
     }
+  });
+
+  it("detects an entry spliced in from another deal", () => {
+    const chain = buildChain(sampleEvents);
+    const other = buildChain(sampleEvents, "deal-2");
+    const result = verifyChain([chain[0]!, other[1]!]);
+    expect(result).toEqual({
+      valid: false,
+      brokenAt: 1,
+      reason: "entry belongs to a different deal",
+    });
   });
 
   it("detects a deleted entry", () => {

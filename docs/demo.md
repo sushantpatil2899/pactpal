@@ -27,15 +27,15 @@ The same kind of deal with no acceptance, no approvals and a Friends and Family 
 
 ## Video script (under 3 minutes)
 
-| Time | Scene | Voiceover idea |
-|---|---|---|
-| 0:00–0:20 | A seller reads "I disputed the payment" | "Sellers lose disputes not because they did the work wrong, but because they can't prove what was agreed." |
-| 0:20–0:50 | Paste chat → council drafts scope with citations; council panel shows the votes | "Three independent models draft the agreement. Every line cites the chat, and gaps stay blank." |
-| 0:50–1:20 | Buyer asks a question, signs; PayPal invoice paid | "One clear screen. A hashed receipt. A real PayPal invoice." |
-| 1:20–1:50 | Pre-delivery check, sketch approval, final download; score rises | "Delivery and approval are recorded as they happen." |
-| 1:50–2:30 | Dispute arrives; claim-vs-record table; packet uploaded via PayPal | "The evidence already exists. The AI only matches the claim to the record." |
-| 2:30–2:50 | Appeal check finds one new exhibit | "Appeals need new evidence. PactPal checks first." |
-| 2:50–3:00 | Logo and tagline | "PactPal: AI that seals the deal." |
+| Time      | Scene                                                                           | Voiceover idea                                                                                             |
+| --------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 0:00–0:20 | A seller reads "I disputed the payment"                                         | "Sellers lose disputes not because they did the work wrong, but because they can't prove what was agreed." |
+| 0:20–0:50 | Paste chat → council drafts scope with citations; council panel shows the votes | "Three independent models draft the agreement. Every line cites the chat, and gaps stay blank."            |
+| 0:50–1:20 | Buyer asks a question, signs; PayPal invoice paid                               | "One clear screen. A hashed receipt. A real PayPal invoice."                                               |
+| 1:20–1:50 | Pre-delivery check, sketch approval, final download; score rises                | "Delivery and approval are recorded as they happen."                                                       |
+| 1:50–2:30 | Dispute arrives; claim-vs-record table; packet uploaded via PayPal              | "The evidence already exists. The AI only matches the claim to the record."                                |
+| 2:30–2:50 | Appeal check finds one new exhibit                                              | "Appeals need new evidence. PactPal checks first."                                                         |
+| 2:50–3:00 | Logo and tagline                                                                | "PactPal: AI that seals the deal."                                                                         |
 
 ## Seed script
 

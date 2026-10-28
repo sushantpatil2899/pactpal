@@ -8,25 +8,26 @@ Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.d
 
 Early development. What exists today:
 
-| Part | State |
-|---|---|
-| `packages/ledger` | Hash-chained, append-only evidence ledger with tamper verification |
+| Part               | State                                                               |
+| ------------------ | ------------------------------------------------------------------- |
+| `packages/ledger`  | Hash-chained, append-only evidence ledger with tamper verification  |
 | `packages/council` | Vote aggregation for the LLM council (Borda count, agreement score) |
-| `packages/paypal` | Interface for the PayPal access layer (MCP first, REST fallback) |
-| `apps/server` | Fastify server with a health check |
-| `apps/web` | React app placeholder |
+| `packages/paypal`  | Interface for the PayPal access layer (MCP first, REST fallback)    |
+| `apps/server`      | Fastify server with a health check                                  |
+| `apps/web`         | React app placeholder                                               |
 
 ## Docs
 
-| Doc | What it covers |
-|---|---|
-| [`docs/product.md`](docs/product.md) | Product spec: flow, AI roles, ledger, evidence packet, screens |
-| [`docs/scope.md`](docs/scope.md) | Supported deals, what is out of scope and why, roadmap |
-| [`docs/build-plan.md`](docs/build-plan.md) | End-to-end build phases, dependencies and decision gates |
-| [`docs/decisions.md`](docs/decisions.md) | Design decisions and their reasons |
-| [`docs/sandbox-notes.md`](docs/sandbox-notes.md) | PayPal sandbox lessons learned |
-| [`docs/spike-results.md`](docs/spike-results.md) | Sandbox feasibility tests |
-| [`docs/demo.md`](docs/demo.md) | Demo stories, video script, seed script |
+| Doc                                                              | What it covers                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| [`docs/product.md`](docs/product.md)                             | Product spec: flow, AI roles, ledger, evidence packet, screens |
+| [`docs/scope.md`](docs/scope.md)                                 | Supported deals, what is out of scope and why, roadmap         |
+| [`docs/engineering-standards.md`](docs/engineering-standards.md) | Engineering standards and the verify gate                      |
+| [`docs/build-plan.md`](docs/build-plan.md)                       | End-to-end build phases, dependencies and decision gates       |
+| [`docs/decisions.md`](docs/decisions.md)                         | Design decisions and their reasons                             |
+| [`docs/sandbox-notes.md`](docs/sandbox-notes.md)                 | PayPal sandbox lessons learned                                 |
+| [`docs/spike-results.md`](docs/spike-results.md)                 | Sandbox feasibility tests                                      |
+| [`docs/demo.md`](docs/demo.md)                                   | Demo stories, video script, seed script                        |
 
 ## Running locally
 
@@ -40,6 +41,16 @@ pnpm dev               # server on :3000, web on Vite's default port
 ```
 
 `GET /health` reports which environment variables are still missing.
+
+## Quality
+
+Every change must pass one command, locally and in CI:
+
+```bash
+pnpm verify
+```
+
+It checks formatting, types, strict linting, tests with coverage, duplicate code, architecture boundaries and known vulnerabilities. The rules are in [`docs/engineering-standards.md`](docs/engineering-standards.md).
 
 ## Disclaimer
 

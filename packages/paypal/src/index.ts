@@ -61,7 +61,10 @@ export interface EvidenceFile {
 }
 
 export interface PayPalClient {
-  createAndSendInvoice(actor: Actor, draft: InvoiceDraft): Promise<PayPalResult<{ invoiceId: string }>>;
+  createAndSendInvoice(
+    actor: Actor,
+    draft: InvoiceDraft,
+  ): Promise<PayPalResult<{ invoiceId: string }>>;
   listDisputes(actor: Actor): Promise<PayPalResult<DisputeSummary[]>>;
   getDispute(actor: Actor, disputeId: string): Promise<PayPalResult<DisputeSummary>>;
   provideEvidence(
@@ -79,5 +82,8 @@ export interface PayPalClient {
     disputeId: string,
     input: { notes: string; files: EvidenceFile[] },
   ): Promise<PayPalResult<{ accepted: boolean }>>;
-  verifyWebhook(rawBody: string, headers: Record<string, string>): Promise<PayPalResult<{ valid: boolean }>>;
+  verifyWebhook(
+    rawBody: string,
+    headers: Record<string, string>,
+  ): Promise<PayPalResult<{ valid: boolean }>>;
 }

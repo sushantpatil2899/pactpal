@@ -87,12 +87,12 @@ export function aggregate<T>(
     if (counted.length < 2) continue;
     counted.forEach((label, pos) => {
       // Normalized so 1 = first place and 0 = last, whatever the ballot length.
-      positions.get(label)!.push(1 - pos / (counted.length - 1));
+      positions.get(label)?.push(1 - pos / (counted.length - 1));
     });
   }
 
   const scores: CandidateScore[] = labelled.map(({ label, answer }) => {
-    const points = positions.get(label)!;
+    const points = positions.get(label) ?? [];
     const votes = points.length;
     const score = votes ? points.reduce((a, b) => a + b, 0) / votes : 0;
     const rankVariance = votes ? points.reduce((a, p) => a + (p - score) ** 2, 0) / votes : 0;
@@ -117,8 +117,10 @@ export function aggregate<T>(
 
   const agreement = kendallW(accepted.map((b) => b.ranking));
 
-  if (labelled.length === 1) reviewReasons.push("only one answer passed validation, so nothing was cross-checked");
-  if (accepted.length < 2 && labelled.length > 1) reviewReasons.push("fewer than two valid ballots");
+  if (labelled.length === 1)
+    reviewReasons.push("only one answer passed validation, so nothing was cross-checked");
+  if (accepted.length < 2 && labelled.length > 1)
+    reviewReasons.push("fewer than two valid ballots");
   if (labelled.length > 1 && accepted.length >= 2 && agreement < minAgreement) {
     reviewReasons.push(`low agreement between voters (${agreement.toFixed(2)})`);
   }
@@ -128,7 +130,7 @@ export function aggregate<T>(
   }
 
   return {
-    winner: byLabel.get(scores[0]!.label) ?? null,
+    winner: first ? (byLabel.get(first.label) ?? null) : null,
     scores,
     agreement,
     needsReview: reviewReasons.length > 0,

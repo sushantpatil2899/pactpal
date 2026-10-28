@@ -1,0 +1,8 @@
+{
+  "threshold": 0,
+  "minTokens": 50,
+  "format": ["typescript", "tsx", "javascript"],
+  "ignore": ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
+  "reporters": ["console"],
+  "gitignore": true
+}

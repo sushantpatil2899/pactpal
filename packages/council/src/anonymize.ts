@@ -31,11 +31,13 @@ function labelFor(index: number): string {
  * Shuffles answers and gives them neutral labels so voters cannot tell which
  * answer is their own from its position or name.
  */
-export function anonymize<T>(answers: CandidateAnswer<T>[], rng: Rng = Math.random): LabelledAnswer<T>[] {
-  const shuffled = [...answers];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-  }
-  return shuffled.map((answer, i) => ({ label: labelFor(i), answer }));
+export function anonymize<T>(
+  answers: CandidateAnswer<T>[],
+  rng: Rng = Math.random,
+): LabelledAnswer<T>[] {
+  // Sorting by independent random keys is an unbiased shuffle; the index breaks exact ties.
+  return answers
+    .map((answer, index) => ({ answer, index, key: rng() }))
+    .sort((a, b) => a.key - b.key || a.index - b.index)
+    .map(({ answer }, i) => ({ label: labelFor(i), answer }));
 }

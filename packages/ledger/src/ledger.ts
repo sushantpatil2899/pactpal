@@ -97,7 +97,9 @@ export function appendEvent(
 ): LedgerEntry {
   const last = chain[chain.length - 1];
   if (last && last.dealId !== event.dealId) {
-    throw new Error(`Event for deal ${event.dealId} cannot extend the chain of deal ${last.dealId}`);
+    throw new Error(
+      `Event for deal ${event.dealId} cannot extend the chain of deal ${last.dealId}`,
+    );
   }
   const base = {
     dealId: event.dealId,
@@ -120,10 +122,11 @@ export type VerifyResult =
 /** Recomputes every hash and link; reports the first entry that does not match. */
 export function verifyChain(entries: readonly LedgerEntry[]): VerifyResult {
   let prevHash = GENESIS_HASH;
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i]!;
-    if (e.seq !== i) return { valid: false, brokenAt: i, reason: `expected seq ${i}, found ${e.seq}` };
-    if (e.dealId !== entries[0]!.dealId) {
+  const dealId = entries[0]?.dealId;
+  for (const [i, e] of entries.entries()) {
+    if (e.seq !== i)
+      return { valid: false, brokenAt: i, reason: `expected seq ${i}, found ${e.seq}` };
+    if (e.dealId !== dealId) {
       return { valid: false, brokenAt: i, reason: "entry belongs to a different deal" };
     }
     if (e.prevHash !== prevHash) {

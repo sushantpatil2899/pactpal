@@ -13,13 +13,22 @@
     "dev": "pnpm --parallel --filter ./apps/* dev",
     "build": "pnpm -r build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dup": "jscpd apps packages",
+    "deps:check": "depcruise apps packages",
+    "audit:prod": "pnpm audit --prod",
+    "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm dup && pnpm deps:check && pnpm audit:prod"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "dependency-cruiser": "^16.10.4",
     "eslint": "^9.17.0",
+    "jscpd": "^4.3.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.1",

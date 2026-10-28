@@ -4,8 +4,8 @@ export function App() {
       <h1>PactPal</h1>
       <p>AI that seals the deal. Coming soon.</p>
       <p style={{ color: "#666", fontSize: 14 }}>
-        Sandbox only. Not legal advice. PactPal records what was agreed and delivered; it does
-        not guarantee any dispute outcome.
+        Sandbox only. Not legal advice. PactPal records what was agreed and delivered; it does not
+        guarantee any dispute outcome.
       </p>
     </main>
   );

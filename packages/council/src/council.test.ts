@@ -9,7 +9,12 @@ import {
   type LabelledAnswer,
 } from "./index.js";
 
-function answer(modelName: string, score = 1, valid = true, errors: string[] = []): CandidateAnswer<string> {
+function answer(
+  modelName: string,
+  score = 1,
+  valid = true,
+  errors: string[] = [],
+): CandidateAnswer<string> {
   return { modelName, content: `answer from ${modelName}`, validation: { valid, score, errors } };
 }
 
@@ -35,27 +40,47 @@ describe("anonymize", () => {
   it("labels every answer once, in shuffled order", () => {
     const seq = [0.9, 0.1, 0.5];
     let i = 0;
-    const result = anonymize([answer("llama"), answer("mistral"), answer("qwen")], () => seq[i++ % seq.length]!);
+    const result = anonymize(
+      [answer("llama"), answer("mistral"), answer("qwen")],
+      () => seq[i++ % seq.length]!,
+    );
     expect(result.map((r) => r.label)).toEqual(["A", "B", "C"]);
     expect(result.map((r) => r.answer.modelName).sort()).toEqual(["llama", "mistral", "qwen"]);
     expect(result.map((r) => r.answer.modelName)).not.toEqual(["llama", "mistral", "qwen"]);
+  });
+
+  it("keeps the original order when random keys tie", () => {
+    const result = anonymize([answer("llama"), answer("mistral")], () => 0.5);
+    expect(result.map((r) => r.answer.modelName)).toEqual(["llama", "mistral"]);
   });
 });
 
 describe("kendallW", () => {
   it("is 1 for identical rankings and 0 for opposite ones", () => {
-    expect(kendallW([["A", "B", "C"], ["A", "B", "C"], ["A", "B", "C"]])).toBeCloseTo(1);
-    expect(kendallW([["A", "B", "C"], ["C", "B", "A"]])).toBeCloseTo(0);
+    expect(
+      kendallW([
+        ["A", "B", "C"],
+        ["A", "B", "C"],
+        ["A", "B", "C"],
+      ]),
+    ).toBeCloseTo(1);
+    expect(
+      kendallW([
+        ["A", "B", "C"],
+        ["C", "B", "A"],
+      ]),
+    ).toBeCloseTo(0);
   });
 });
 
+const vote = (voter: string, ...ranking: string[]): Ballot => ({ voter, ranking });
+
+/** Three voters who each prefer a different answer: A>B>C, B>C>A, C>A>B. */
+const cycle = [vote("v1", "A", "B", "C"), vote("v2", "B", "C", "A"), vote("v3", "C", "A", "B")];
+
 describe("aggregate", () => {
   it("picks the clear winner and does not flag it", () => {
-    const ballots: Ballot[] = [
-      { voter: "llama", ranking: ["B", "A", "C"] },
-      { voter: "mistral", ranking: ["B", "A", "C"] },
-      { voter: "qwen", ranking: ["B", "A", "C"] },
-    ];
+    const ballots = ["llama", "mistral", "qwen"].map((voter) => vote(voter, "B", "A", "C"));
     const result = aggregate(council, ballots);
     expect(result.winner?.answer.modelName).toBe("mistral");
     expect(result.agreement).toBeCloseTo(1);
@@ -64,10 +89,10 @@ describe("aggregate", () => {
 
   it("ignores a model's vote for its own answer", () => {
     // llama ranks itself first; the other two prefer mistral.
-    const ballots: Ballot[] = [
-      { voter: "llama", ranking: ["A", "B", "C"] },
-      { voter: "mistral", ranking: ["A", "B", "C"] },
-      { voter: "qwen", ranking: ["B", "A", "C"] },
+    const ballots = [
+      vote("llama", "A", "B", "C"),
+      vote("mistral", "A", "B", "C"),
+      vote("qwen", "B", "A", "C"),
     ];
     const result = aggregate(council, ballots);
     expect(result.winner?.answer.modelName).toBe("mistral");
@@ -76,12 +101,12 @@ describe("aggregate", () => {
   });
 
   it("lets a steady second place beat split first places", () => {
-    const ballots: Ballot[] = [
-      { voter: "v1", ranking: ["A", "B", "C"] },
-      { voter: "v2", ranking: ["A", "B", "C"] },
-      { voter: "v3", ranking: ["C", "B", "A"] },
-      { voter: "v4", ranking: ["C", "B", "A"] },
-      { voter: "v5", ranking: ["B", "A", "C"] },
+    const ballots = [
+      vote("v1", "A", "B", "C"),
+      vote("v2", "A", "B", "C"),
+      vote("v3", "C", "B", "A"),
+      vote("v4", "C", "B", "A"),
+      vote("v5", "B", "A", "C"),
     ];
     const result = aggregate(council, ballots);
     expect(result.winner?.label).toBe("B");
@@ -94,12 +119,7 @@ describe("aggregate", () => {
       ["B", answer("mistral", 0.9)],
       ["C", answer("qwen", 0.8)],
     );
-    const ballots: Ballot[] = [
-      { voter: "v1", ranking: ["A", "B", "C"] },
-      { voter: "v2", ranking: ["B", "C", "A"] },
-      { voter: "v3", ranking: ["C", "A", "B"] },
-    ];
-    const result = aggregate(withScores, ballots);
+    const result = aggregate(withScores, cycle);
     expect(result.winner?.answer.modelName).toBe("mistral");
     expect(result.agreement).toBeCloseTo(0);
     expect(result.needsReview).toBe(true);
@@ -107,25 +127,27 @@ describe("aggregate", () => {
   });
 
   it("falls back to the default model when everything else ties", () => {
-    const ballots: Ballot[] = [
-      { voter: "v1", ranking: ["A", "B", "C"] },
-      { voter: "v2", ranking: ["B", "C", "A"] },
-      { voter: "v3", ranking: ["C", "A", "B"] },
-    ];
-    const result = aggregate(council, ballots, { defaultModel: "qwen" });
+    const result = aggregate(council, cycle, { defaultModel: "qwen" });
     expect(result.winner?.answer.modelName).toBe("qwen");
   });
 
   it("rejects ballots that skip or repeat a label", () => {
-    const ballots: Ballot[] = [
-      { voter: "llama", ranking: ["B", "C"] },
-      { voter: "mistral", ranking: ["A", "A", "C"] },
-      { voter: "qwen", ranking: ["B", "A", "C"] },
-      { voter: "v4", ranking: ["B", "A", "C"] },
+    const ballots = [
+      vote("llama", "B", "C"),
+      vote("mistral", "A", "A", "C"),
+      vote("qwen", "B", "A", "C"),
+      vote("v4", "B", "A", "C"),
     ];
     const result = aggregate(council, ballots);
     expect(result.rejectedBallots.map((r) => r.voter)).toEqual(["llama", "mistral"]);
     expect(result.winner?.answer.modelName).toBe("mistral");
+  });
+
+  it("skips a ballot left with one answer once its own vote is removed", () => {
+    const pair = labelled(["A", answer("llama")], ["B", answer("mistral")]);
+    const result = aggregate(pair, [vote("llama", "A", "B"), vote("mistral", "A", "B")]);
+    expect(result.scores.every((s) => s.votes === 0)).toBe(true);
+    expect(result.needsReview).toBe(true);
   });
 
   it("returns no winner when nothing passed validation", () => {
@@ -135,7 +157,7 @@ describe("aggregate", () => {
   });
 
   it("flags a single surviving answer because nothing cross-checked it", () => {
-    const result = aggregate(labelled(["A", answer("llama")]), [{ voter: "mistral", ranking: ["A"] }]);
+    const result = aggregate(labelled(["A", answer("llama")]), [vote("mistral", "A")]);
     expect(result.winner?.answer.modelName).toBe("llama");
     expect(result.needsReview).toBe(true);
   });
