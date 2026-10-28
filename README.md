@@ -16,7 +16,16 @@ Early development. What exists today:
 | `apps/server` | Fastify server with a health check |
 | `apps/web` | React app placeholder |
 
-See [`docs/decisions.md`](docs/decisions.md) for the design decisions and [`docs/spike-results.md`](docs/spike-results.md) for sandbox feasibility tests.
+## Docs
+
+| Doc | What it covers |
+|---|---|
+| [`docs/product.md`](docs/product.md) | Product spec: flow, AI roles, ledger, evidence packet, screens |
+| [`docs/scope.md`](docs/scope.md) | Supported deals, what is out of scope and why, roadmap |
+| [`docs/decisions.md`](docs/decisions.md) | Design decisions and their reasons |
+| [`docs/sandbox-notes.md`](docs/sandbox-notes.md) | PayPal sandbox lessons learned |
+| [`docs/spike-results.md`](docs/spike-results.md) | Sandbox feasibility tests |
+| [`docs/demo.md`](docs/demo.md) | Demo stories, video script, seed script |
 
 ## Running locally
 
