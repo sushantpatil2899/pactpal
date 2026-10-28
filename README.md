@@ -22,6 +22,7 @@ Early development. What exists today:
 |---|---|
 | [`docs/product.md`](docs/product.md) | Product spec: flow, AI roles, ledger, evidence packet, screens |
 | [`docs/scope.md`](docs/scope.md) | Supported deals, what is out of scope and why, roadmap |
+| [`docs/build-plan.md`](docs/build-plan.md) | End-to-end build phases, dependencies and decision gates |
 | [`docs/decisions.md`](docs/decisions.md) | Design decisions and their reasons |
 | [`docs/sandbox-notes.md`](docs/sandbox-notes.md) | PayPal sandbox lessons learned |
 | [`docs/spike-results.md`](docs/spike-results.md) | Sandbox feasibility tests |
