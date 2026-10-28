@@ -1,0 +1,116 @@
+import { describe, expect, it } from "vitest";
+import {
+  SETTING_NAMES,
+  formatErrors,
+  formatReport,
+  loadConfig,
+  missingSettings,
+} from "./config.js";
+
+// Each value is unique so a leak of any one of them is detectable.
+const fullEnv = Object.fromEntries(
+  SETTING_NAMES.map((name, index) => [name, `value-${index}-${name.toLowerCase()}`]),
+);
+
+function expectLoaded(env: NodeJS.ProcessEnv) {
+  const result = loadConfig(env);
+  if (!result.ok) throw new Error(`expected settings to load: ${result.errors.join("; ")}`);
+  return result;
+}
+
+function expectErrors(env: NodeJS.ProcessEnv): string[] {
+  const result = loadConfig(env);
+  if (result.ok) throw new Error("expected settings to be rejected");
+  return result.errors;
+}
+
+describe("loadConfig", () => {
+  it("loads every app, the webhook id and a custom port when all are set", () => {
+    const { config, report } = expectLoaded({ ...fullEnv, PORT: "4000" });
+    expect(config.port).toBe(4000);
+    expect(config.paypal.apps.seller?.clientId).toBe(fullEnv.PAYPAL_SELLER_CLIENT_ID);
+    expect(config.paypal.apps.seller?.clientSecret.reveal()).toBe(
+      fullEnv.PAYPAL_SELLER_CLIENT_SECRET,
+    );
+    expect(Object.keys(config.paypal.apps).sort()).toEqual(["buyerBiz", "platform", "seller"]);
+    expect(config.paypal.webhookId).toBe(fullEnv.PAYPAL_WEBHOOK_ID);
+    expect(missingSettings(report)).toEqual([]);
+    expect(report.features.every((feature) => feature.missing.length === 0)).toBe(true);
+  });
+
+  it("treats missing and empty values as not set, without failing", () => {
+    const { config, report } = expectLoaded({ PAYPAL_WEBHOOK_ID: "" });
+    expect(config.port).toBe(3000);
+    expect(config.paypal).toEqual({ apps: {} });
+    expect(missingSettings(report)).toEqual(SETTING_NAMES);
+  });
+
+  it("marks only the features whose settings are missing as not ready", () => {
+    const { report } = expectLoaded({
+      PAYPAL_SELLER_CLIENT_ID: "id",
+      PAYPAL_SELLER_CLIENT_SECRET: "secret",
+    });
+    const missingByFeature = Object.fromEntries(
+      report.features.map(({ name, missing }) => [name, missing]),
+    );
+    expect(missingByFeature).toEqual({
+      "Invoices and disputes (seller app)": [],
+      Webhooks: ["PAYPAL_WEBHOOK_ID"],
+      "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
+      "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
+    });
+  });
+
+  it.each([
+    ["PAYPAL_SELLER_CLIENT_ID", "PAYPAL_SELLER_CLIENT_SECRET"],
+    ["PAYPAL_PLATFORM_CLIENT_SECRET", "PAYPAL_PLATFORM_CLIENT_ID"],
+  ])("rejects %s without %s", (set, unset) => {
+    expect(expectErrors({ [set]: "value" })).toEqual([
+      `${set} is set but ${unset} is missing; set both or neither`,
+    ]);
+  });
+
+  it.each([
+    [" padded", "contains spaces or line breaks"],
+    ["two words", "contains spaces or line breaks"],
+    ["line\nbreak", "contains spaces or line breaks"],
+    ['"quoted"', "is wrapped in quote marks"],
+    ["'quoted'", "is wrapped in quote marks"],
+  ])("rejects a value like %j", (value, message) => {
+    expect(expectErrors({ PAYPAL_WEBHOOK_ID: value })).toEqual([`PAYPAL_WEBHOOK_ID ${message}`]);
+  });
+
+  it.each(["abc", "0", "65536", "-1", "3000.5"])("rejects PORT=%j", (port) => {
+    expect(expectErrors({ PORT: port })).toEqual(["PORT must be a whole number from 1 to 65535"]);
+  });
+
+  it("never puts values in error messages", () => {
+    const leaky = Object.fromEntries(SETTING_NAMES.map((name) => [name, `"leak-${name}"`]));
+    const errors = expectErrors(leaky);
+    expect(errors).toHaveLength(SETTING_NAMES.length);
+    expect(formatErrors(errors)).not.toMatch(/leak-/);
+  });
+});
+
+describe("formatReport", () => {
+  it("shows set and missing settings and feature readiness, never values", () => {
+    const { report } = expectLoaded({
+      PAYPAL_SELLER_CLIENT_ID: "seller-id-value",
+      PAYPAL_SELLER_CLIENT_SECRET: "seller-secret-value",
+    });
+    const text = formatReport(report);
+    expect(text).toMatch(/PAYPAL_SELLER_CLIENT_SECRET\s+set\n/);
+    expect(text).toMatch(/PAYPAL_WEBHOOK_ID\s+missing\n/);
+    expect(text).toMatch(/Invoices and disputes \(seller app\)\s+ready\n/);
+    expect(text).toMatch(/Webhooks\s+not ready: missing PAYPAL_WEBHOOK_ID\n/);
+    expect(text).not.toMatch(/seller-(id|secret)-value/);
+  });
+});
+
+describe("formatErrors", () => {
+  it("lists each error on its own line", () => {
+    expect(formatErrors(["A is wrong", "B is wrong"])).toBe(
+      "Settings are invalid:\n  - A is wrong\n  - B is wrong\n",
+    );
+  });
+});

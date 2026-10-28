@@ -1,11 +1,20 @@
 import { buildApp } from "./app.js";
-import { loadConfig } from "./config.js";
+import { formatErrors, loadConfig } from "./config.js";
 
-const config = loadConfig();
-const app = buildApp(config);
+const result = loadConfig(process.env);
+if (!result.ok) {
+  // The logger lives on the app, which cannot be built without valid settings.
+  process.stderr.write(formatErrors(result.errors));
+  process.exit(1);
+}
 
-if (config.missing.length > 0) {
-  app.log.warn(`Missing environment variables: ${config.missing.join(", ")}`);
+const { config, report } = result;
+const app = buildApp(report);
+
+for (const feature of report.features) {
+  if (feature.missing.length > 0) {
+    app.log.warn(`${feature.name} not ready: missing ${feature.missing.join(", ")}`);
+  }
 }
 
 try {

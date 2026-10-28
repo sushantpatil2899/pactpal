@@ -11,6 +11,8 @@
  * Interface only for now; implementations come once the sandbox is reachable.
  */
 
+export { SANDBOX_API_BASE_URL, Secret, type PayPalAppCredentials } from "./credentials.js";
+
 export type Transport = "mcp" | "rest";
 
 export interface PayPalResult<T> {
