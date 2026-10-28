@@ -1,5 +1,6 @@
 import { Secret, type PayPalAppCredentials } from "@pactpal/paypal";
 import { z } from "zod";
+import { rows } from "./format.js";
 
 /**
  * Environment settings, read and checked once at startup.
@@ -17,7 +18,7 @@ const PAYPAL_APPS = {
   platform: "PAYPAL_PLATFORM",
 } as const;
 
-type PayPalApp = keyof typeof PAYPAL_APPS;
+export type PayPalApp = keyof typeof PAYPAL_APPS;
 type Part = PayPalApp | "webhook";
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
@@ -34,7 +35,8 @@ function partVars(part: Part): string[] {
   return [id, secret];
 }
 
-const APP_KEYS = Object.keys(PAYPAL_APPS) as PayPalApp[];
+/** Every PayPal app PactPal uses, in report order. */
+export const APP_KEYS = Object.keys(PAYPAL_APPS) as PayPalApp[];
 
 /** Every setting in report order. */
 export const SETTING_NAMES: readonly string[] = [...APP_KEYS, "webhook" as const].flatMap(partVars);
@@ -137,11 +139,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
 /** Names of settings that are not set. */
 export function missingSettings(report: ConfigReport): string[] {
   return report.settings.filter((setting) => !setting.set).map((setting) => setting.name);
-}
-
-function rows(entries: [string, string][]): string {
-  const width = Math.max(...entries.map(([label]) => label.length)) + 2;
-  return entries.map(([label, status]) => `  ${label.padEnd(width)}${status}\n`).join("");
 }
 
 /** Plain-text report of which settings are set and which features are ready. Never shows values. */

@@ -8,10 +8,29 @@
  * verification) go straight to REST. Every result records which transport
  * served it so the UI can show it.
  *
- * Interface only for now; implementations come once the sandbox is reachable.
+ * The REST layer below (token cache, retries, response checks) is in place;
+ * the operations of `PayPalClient` are built on top of it.
  */
 
 export { SANDBOX_API_BASE_URL, Secret, type PayPalAppCredentials } from "./credentials.js";
+export {
+  PayPalApiError,
+  PayPalNetworkError,
+  PayPalResponseError,
+  type PayPalErrorDetail,
+} from "./errors.js";
+export { defaultHttpDeps, type HttpDeps } from "./http.js";
+export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
+export { AccessTokenProvider, type AccessToken, type AccessTokenOptions } from "./token.js";
+export {
+  PayPalRestClient,
+  type ReadRequest,
+  type RestClientOptions,
+  type RestRequest,
+  type RestResponse,
+  type WriteRequest,
+} from "./rest.js";
+export { FEATURE_SCOPES, grantedFeatures } from "./scopes.js";
 
 export type Transport = "mcp" | "rest";
 
