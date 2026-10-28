@@ -16,6 +16,11 @@ describe("formatSandboxReport", () => {
               "https://uri.paypal.com/services/disputes/read-seller",
             ],
           },
+          mcp: {
+            connected: true,
+            tools: 43,
+            testCall: { ok: false, error: "MCP list_invoices failed: PAYPAL_API_SETUP_ERROR: x" },
+          },
         },
         buyerBiz: {
           status: "failed",
@@ -33,6 +38,8 @@ describe("formatSandboxReport", () => {
         "  Invoicing           yes",
         "  Disputes            yes",
         "  Transaction search  no",
+        "  MCP connection      ok, 43 tools",
+        "  MCP list_invoices   failed: MCP list_invoices failed: PAYPAL_API_SETUP_ERROR: x",
         "  Permissions (2)",
         "    https://uri.paypal.com/services/invoicing",
         "    https://uri.paypal.com/services/disputes/read-seller",
@@ -50,7 +57,11 @@ describe("formatSandboxReport", () => {
   it("omits the app id when PayPal does not send one", () => {
     const text = formatSandboxReport(
       {
-        seller: { status: "ok", token: { expiresAt: 0, appId: undefined, scopes: [] } },
+        seller: {
+          status: "ok",
+          token: { expiresAt: 0, appId: undefined, scopes: [] },
+          mcp: { connected: false, error: "MCP tools/list failed: CONNECT_FAILED: refused" },
+        },
         buyerBiz: { status: "skipped" },
         platform: { status: "skipped" },
       },
@@ -58,5 +69,9 @@ describe("formatSandboxReport", () => {
     );
     expect(text.startsWith("Seller app\n")).toBe(true);
     expect(text).toContain("Permissions (0)\n");
+    expect(text).toContain(
+      "MCP connection      failed: MCP tools/list failed: CONNECT_FAILED: refused\n",
+    );
+    expect(text).not.toContain("MCP list_invoices");
   });
 });

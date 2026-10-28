@@ -39,6 +39,28 @@ export class PayPalNetworkError extends Error {
   }
 }
 
+/**
+ * A PayPal MCP call did not succeed. `outcome` says whether PayPal could have
+ * done the work anyway: "failed" means it certainly did not (no connection, or
+ * PayPal answered with an error); "unknown" means the call was sent but no
+ * usable answer came back, so a write may have happened.
+ */
+export class PayPalMcpError extends Error {
+  override readonly name = "PayPalMcpError";
+
+  constructor(
+    /** The MCP tool, e.g. "list_invoices". */
+    readonly tool: string,
+    /** PayPal's error code, or CONNECT_FAILED / NO_ANSWER / TOOL_ERROR. */
+    readonly code: string,
+    readonly outcome: "failed" | "unknown",
+    detail: string,
+    options?: { cause?: unknown },
+  ) {
+    super(`MCP ${tool} failed: ${code}: ${detail}`, options);
+  }
+}
+
 /** PayPal answered successfully, but not in the shape the caller expects. */
 export class PayPalResponseError extends Error {
   override readonly name = "PayPalResponseError";

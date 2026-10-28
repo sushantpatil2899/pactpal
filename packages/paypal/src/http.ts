@@ -124,11 +124,11 @@ export async function parseResponse<T>(
     if (json === undefined) throw new PayPalResponseError(operation, ["body is not JSON"], debugId);
   }
   const result = schema.safeParse(json);
-  if (!result.success) {
-    const issues = result.error.issues.map(
-      (issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`,
-    );
-    throw new PayPalResponseError(operation, issues, debugId);
-  }
+  if (!result.success) throw new PayPalResponseError(operation, issueList(result.error), debugId);
   return result.data;
+}
+
+/** Paths and messages of a schema mismatch; zod messages name types, never the values. */
+export function issueList(error: z.ZodError): string[] {
+  return error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`);
 }

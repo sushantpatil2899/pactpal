@@ -8,9 +8,17 @@ const APP_LABELS: Record<PayPalApp, string> = {
   platform: "Platform app",
 };
 
+/** The read-only test call made through PayPal's MCP server. */
+export const MCP_TEST_TOOL = "list_invoices";
+
+/** Outcome of connecting to PayPal's MCP server with one app; errors are message text. */
+export type McpCheck =
+  | { connected: false; error: string }
+  | { connected: true; tools: number; testCall: { ok: true } | { ok: false; error: string } };
+
 /** Outcome of logging in with one app. */
 export type LoginCheck =
-  | { status: "ok"; token: Pick<AccessToken, "expiresAt" | "scopes" | "appId"> }
+  | { status: "ok"; token: Pick<AccessToken, "expiresAt" | "scopes" | "appId">; mcp: McpCheck }
   | { status: "failed"; error: string }
   | { status: "skipped" };
 
@@ -24,6 +32,7 @@ function appSection(app: PayPalApp, check: LoginCheck, now: number): string {
       return `${APP_LABELS[app]}\n${rows([["Login", `failed: ${check.error}`]])}`;
     case "ok": {
       const { expiresAt, scopes, appId } = check.token;
+      const { mcp } = check;
       const hours = ((expiresAt - now) / HOUR_MS).toFixed(1);
       const title = appId === undefined ? APP_LABELS[app] : `${APP_LABELS[app]} (${appId})`;
       const features = grantedFeatures(scopes).map(({ feature, granted }): [string, string] => [
@@ -33,7 +42,19 @@ function appSection(app: PayPalApp, check: LoginCheck, now: number): string {
       const permissions = scopes.map((scope) => `    ${scope}\n`).join("");
       return (
         `${title}\n` +
-        rows([["Login", `ok, token valid for ${hours} hours`], ...features]) +
+        rows([
+          ["Login", `ok, token valid for ${hours} hours`],
+          ...features,
+          ["MCP connection", mcp.connected ? `ok, ${mcp.tools} tools` : `failed: ${mcp.error}`],
+          ...(mcp.connected
+            ? [
+                [
+                  `MCP ${MCP_TEST_TOOL}`,
+                  mcp.testCall.ok ? "ok" : `failed: ${mcp.testCall.error}`,
+                ] as [string, string],
+              ]
+            : []),
+        ]) +
         `  Permissions (${scopes.length})\n${permissions}`
       );
     }

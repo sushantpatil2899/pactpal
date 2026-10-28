@@ -15,6 +15,7 @@
 export { SANDBOX_API_BASE_URL, Secret, type PayPalAppCredentials } from "./credentials.js";
 export {
   PayPalApiError,
+  PayPalMcpError,
   PayPalNetworkError,
   PayPalResponseError,
   type PayPalErrorDetail,
@@ -31,17 +32,22 @@ export {
   type WriteRequest,
 } from "./rest.js";
 export { FEATURE_SCOPES, grantedFeatures } from "./scopes.js";
+import type { PayPalResult } from "./types.js";
 
-export type Transport = "mcp" | "rest";
-
-export interface PayPalResult<T> {
-  data: T;
-  transport: Transport;
-  /** Set when MCP was tried first and REST had to take over. */
-  fallbackReason?: string;
-  /** PayPal-Debug-Id header from REST responses, for support threads. */
-  debugId?: string;
-}
+export type { PayPalResult, Transport } from "./types.js";
+export {
+  SANDBOX_MCP_SSE_URL,
+  PayPalMcpClient,
+  sseTransport,
+  type McpClientOptions,
+  type McpTransportFactory,
+} from "./mcp.js";
+export {
+  DEFAULT_FALLBACK_POLICY,
+  McpFallback,
+  type FallbackPolicy,
+  type FallbackRequest,
+} from "./fallback.js";
 
 /** Who the call is made for: the platform itself, or a connected seller. */
 export type Actor = { kind: "platform" } | { kind: "seller"; merchantId: string };

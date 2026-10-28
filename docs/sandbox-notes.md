@@ -37,6 +37,8 @@ Practical lessons about the PayPal sandbox, gathered from the hackathon communit
 ## MCP and REST
 
 - The hosted sandbox MCP server (`mcp.sandbox.paypal.com`) loads its tools, but in early October 2026 every call failed with `PAYPAL_API_SETUP_ERROR` "Unsupported cache mode: default" while REST calls with the same token worked. PactPal falls back to REST automatically.
+- Re-checked on 28 October 2026 with each app's client-credentials token: the documented streamable HTTP address `https://mcp.sandbox.paypal.com/http` returns 404, while `https://mcp.sandbox.paypal.com/sse` connects (server "PayPal MCP Agent") and lists 46 tools for the seller, buyer business and platform apps. Tool calls (`list_invoices`, `list_disputes`) still fail with `PAYPAL_API_SETUP_ERROR` "Unsupported cache mode: default". `pnpm sandbox:check` repeats this check.
+- PayPal's MCP tools take no request id, so a write sent over MCP cannot be recognised as a repeat by REST. PactPal therefore falls back to REST for a write only when MCP certainly did not do the work.
 - The official toolkit's dispute tools cover list, get and accept claim. There are no MCP tools for evidence, offers, appeals or messages; PactPal uses REST for those.
 - Using the REST API directly is acceptable for the hackathon; PayPal invites feedback on missing MCP tools.
 
