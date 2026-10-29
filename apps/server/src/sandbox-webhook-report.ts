@@ -91,7 +91,7 @@ export function formatEvents(events: readonly WebhookEventRecord[]): string {
     .map((e) => {
       const deliveries =
         e.deliveries.length === 0
-          ? "    deliveries: not reported\n"
+          ? "    delivery: PayPal does not report it here; check the server's logs\n"
           : e.deliveries
               .map((d) => `    ${d.status ?? "-"} ${d.httpStatus ?? "-"} ${d.url ?? "-"}\n`)
               .join("");

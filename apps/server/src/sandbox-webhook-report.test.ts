@@ -96,7 +96,7 @@ describe("webhook output", () => {
     ).toBe(
       "Recent notifications: 3\n" +
         "  2026-10-29T10:00:00Z  INVOICING.INVOICE.CREATED  WH-1\n    SUCCESS 200 https://x.example/w\n" +
-        "  -  X  WH-2\n    deliveries: not reported\n" +
+        "  -  X  WH-2\n    delivery: PayPal does not report it here; check the server's logs\n" +
         "  -  Y  WH-3\n    - - -\n",
     );
   });

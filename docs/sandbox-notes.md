@@ -43,6 +43,12 @@ Practical lessons about the PayPal sandbox, gathered from the hackathon communit
 - The official toolkit's dispute tools cover list, get and accept claim. There are no MCP tools for evidence, offers, appeals or messages; PactPal uses REST for those.
 - Using the REST API directly is acceptable for the hackathon; PayPal invites feedback on missing MCP tools.
 
+## Webhooks
+
+- PactPal's server on Render, `https://pactpal-server.onrender.com/webhooks/paypal`, is registered for the seller app (webhook id `4RE47127PE423000W`, not a secret) for invoice, payment and dispute events. `pnpm sandbox:webhook --list` shows it.
+- The first live notification arrived 14 seconds after PayPal created the event, and passed verification.
+- PayPal's sandbox event record (`GET /v1/notifications/webhooks-events` and the single-event lookup) has no delivery results, so confirm delivery in the server's logs on Render (search for the event id).
+
 ## Reliability
 
 - Refunds on invoice captures intermittently returned `500 INTERNAL_SERVICE_ERROR`. Retry with a stable `PayPal-Request-Id` so retries never duplicate.
