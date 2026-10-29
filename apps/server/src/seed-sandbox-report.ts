@@ -2,6 +2,8 @@ import {
   TEST_DISPUTE_REASONS,
   type DisputeDetails,
   type MinorAmount,
+  TEST_DISPUTE_ITEMS,
+  type TestDisputeItem,
   type TestDisputeReason,
 } from "@pactpal/paypal";
 import { z } from "zod";
@@ -13,6 +15,8 @@ export interface SeedArgs {
   to: string | undefined;
   amount: MinorAmount;
   reason: TestDisputeReason;
+  /** Whether the test purchase was a service or a product. */
+  item: TestDisputeItem;
   /** Resume with an invoice that already exists instead of creating one. */
   invoiceId: string | undefined;
   /** Skip the search when the buyer's transaction id is already known. */
@@ -21,7 +25,8 @@ export interface SeedArgs {
 
 export const USAGE =
   "Usage: pnpm seed:sandbox --to <buyer email> [--amount 1.00] [--currency USD] " +
-  "[--reason not-as-described|not-received] [--invoice <id>] [--buyer-transaction <id>]";
+  "[--reason not-as-described|not-received] [--item service|product] " +
+  "[--invoice <id>] [--buyer-transaction <id>]";
 
 const id = (option: string) =>
   z
@@ -38,6 +43,11 @@ const argsSchema = z.object({
       error: "--reason must be not-as-described or not-received",
     })
     .default("not-as-described"),
+  item: z
+    .enum(Object.keys(TEST_DISPUTE_ITEMS) as [TestDisputeItem, ...TestDisputeItem[]], {
+      error: "--item must be service or product",
+    })
+    .default("service"),
   invoice: id("--invoice"),
   "buyer-transaction": id("--buyer-transaction"),
 });
@@ -49,6 +59,7 @@ export function parseSeedArgs(argv: readonly string[]): Checked<SeedArgs> {
     {
       to: { type: "string" },
       reason: { type: "string" },
+      item: { type: "string" },
       invoice: { type: "string" },
       "buyer-transaction": { type: "string" },
       ...AMOUNT_OPTIONS,
@@ -68,6 +79,7 @@ export function parseSeedArgs(argv: readonly string[]): Checked<SeedArgs> {
       to: v.to,
       amount: amount.value,
       reason: v.reason,
+      item: v.item,
       invoiceId: v.invoice,
       buyerTransactionId: v["buyer-transaction"],
     },

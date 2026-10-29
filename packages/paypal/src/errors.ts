@@ -21,8 +21,13 @@ export class PayPalApiError extends Error {
     readonly debugId: string | undefined,
   ) {
     const reason = [errorName, errorMessage].filter(Boolean).join(": ");
+    // Field names and issue codes only: PayPal's descriptions can echo submitted values.
+    const issues = details
+      .map(({ field, issue }) => [field, issue].filter(Boolean).join(" "))
+      .filter(Boolean);
+    const listed = issues.length === 0 ? "" : ` [${issues.join("; ")}]`;
     const debug = debugId === undefined ? "" : ` (debug id ${debugId})`;
-    super(`${operation} failed with ${status}${reason ? ` ${reason}` : ""}${debug}`);
+    super(`${operation} failed with ${status}${reason ? ` ${reason}` : ""}${listed}${debug}`);
   }
 }
 

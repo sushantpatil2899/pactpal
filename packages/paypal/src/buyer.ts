@@ -14,6 +14,11 @@ export const TEST_DISPUTE_REASONS = {
 
 export type TestDisputeReason = keyof typeof TEST_DISPUTE_REASONS;
 
+/** What was bought, as PayPal's dispute form asks; PactPal focuses on services. */
+export const TEST_DISPUTE_ITEMS = { service: "SERVICE", product: "PRODUCT" } as const;
+
+export type TestDisputeItem = keyof typeof TEST_DISPUTE_ITEMS;
+
 /** One payment as the buyer's account records it. */
 export interface BuyerPayment {
   transactionId: string;
@@ -104,6 +109,7 @@ export class PayPalBuyerTestActions {
   async openDispute(input: {
     buyerTransactionId: string;
     reason: TestDisputeReason;
+    item: TestDisputeItem;
     amount: MinorAmount;
     message: string;
     requestId: string;
@@ -118,6 +124,13 @@ export class PayPalBuyerTestActions {
         reason: TEST_DISPUTE_REASONS[input.reason],
         dispute_amount: toPayPalMoney(input.amount),
         message: input.message,
+        // Required by PayPal (MISSING_ISSUE_TYPE without it); the test story is
+        // a buyer who contacted the seller and got no answer.
+        extensions: {
+          merchant_contacted: true,
+          merchant_contacted_outcome: "NO_RESPONSE",
+          merchandize_dispute_properties: { issue_type: TEST_DISPUTE_ITEMS[input.item] },
+        },
       },
       schema: openedDispute,
     });

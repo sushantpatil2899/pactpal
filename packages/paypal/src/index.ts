@@ -69,8 +69,10 @@ export {
 } from "./disputes.js";
 export {
   PayPalBuyerTestActions,
+  TEST_DISPUTE_ITEMS,
   TEST_DISPUTE_REASONS,
   type BuyerPayment,
+  type TestDisputeItem,
   type TestDisputeReason,
 } from "./buyer.js";
 export { waitFor, type WaitOptions, type WaitResult } from "./waiting.js";

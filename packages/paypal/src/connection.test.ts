@@ -326,6 +326,10 @@ describe("PayPalRestClient", () => {
       debugId: "dbg-body",
       details: [{ field: "/amount", issue: "INVALID_AMOUNT", description: "Too low" }],
     });
+    // Field and issue names appear in the message; descriptions (which may echo values) do not.
+    expect(String(error)).toBe(
+      "PayPalApiError: POST /v1/y failed with 422 UNPROCESSABLE_ENTITY: The requested action could not be performed. [/amount INVALID_AMOUNT] (debug id dbg-body)",
+    );
     expect(apiCalls()).toHaveLength(1);
   });
 

@@ -63,6 +63,7 @@ describe("PayPalBuyerTestActions.openDispute", () => {
   const input = {
     buyerTransactionId: "BUYER-TX",
     reason: "not-as-described" as const,
+    item: "service" as const,
     amount: dollar,
     message: "Not what was agreed.",
     requestId: "seed-dispute-INV2-1",
@@ -80,6 +81,11 @@ describe("PayPalBuyerTestActions.openDispute", () => {
         reason: "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
         dispute_amount: { currency_code: "USD", value: "1.00" },
         message: "Not what was agreed.",
+        extensions: {
+          merchant_contacted: true,
+          merchant_contacted_outcome: "NO_RESPONSE",
+          merchandize_dispute_properties: { issue_type: "SERVICE" },
+        },
       },
     });
   });

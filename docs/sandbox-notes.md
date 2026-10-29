@@ -17,6 +17,12 @@ Practical lessons about the PayPal sandbox, gathered from the hackathon communit
 - **What works:** a second sandbox **business** account acts as the buyer, has its own REST app, pays the seller, then calls `POST /v1/customer/disputes` with the buyer-side transaction id, a reason and the dispute amount. This is sandbox-only.
 - Opening a case by hand in the sandbox Resolution Center also works.
 
+- The create request must include `extensions.merchandize_dispute_properties.issue_type` (`SERVICE` or `PRODUCT`; "merchandize" is PayPal's spelling); without it PayPal answers `400 INVALID_REQUEST` with the detail `MISSING_ISSUE_TYPE`. A plain JSON body works. `pnpm seed:sandbox` sends `merchant_contacted: true`, `merchant_contacted_outcome: "NO_RESPONSE"` and `issue_type: SERVICE` by default.
+- A new dispute starts as `OPEN` / `UNDER_PAYPAL_REVIEW` at the `INQUIRY` stage with no seller actions or due date, and did not appear in the seller's dispute list straight away; the single-dispute lookup works at once and shows both transaction ids and the invoice id.
+- The buyer's `message` sent with the create request did not appear in the dispute's messages.
+- Transaction search lags by hours: on 29 October its data was last refreshed at 14:29:59 UTC, after which a payment made later in the afternoon was not found. Copy the buyer's transaction id from the buyer's sandbox Activity page instead.
+- Pay sandbox invoices in a browser on a computer: on a phone the PayPal app takes over the pay button and cannot open sandbox links.
+
 ## Moving a dispute to a verdict
 
 - When a card-funded dispute is escalated it can become a **chargeback**, where the sandbox adjudicate action may never appear and require-evidence may fail. Use **PayPal balance** as the funding source when a verdict is needed (for example to test appeals).

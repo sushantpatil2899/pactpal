@@ -16,6 +16,7 @@ describe("parseSeedArgs", () => {
         to: "buyer@example.com",
         amount: { minor: 100, currency: "USD" },
         reason: "not-as-described",
+        item: "service",
         invoiceId: undefined,
         buyerTransactionId: undefined,
       },
@@ -33,6 +34,8 @@ describe("parseSeedArgs", () => {
         "not-received",
         "--amount",
         "2.50",
+        "--item",
+        "product",
       ]),
     ).toMatchObject({
       ok: true,
@@ -41,6 +44,7 @@ describe("parseSeedArgs", () => {
         invoiceId: "INV2-AAAA",
         buyerTransactionId: "9AB12345CD678901E",
         reason: "not-received",
+        item: "product",
         amount: { minor: 250, currency: "USD" },
       },
     });
@@ -54,6 +58,7 @@ describe("parseSeedArgs", () => {
       /--reason must be not-as-described or not-received/,
     ],
     [["--invoice", "../x"], /--invoice must be a PayPal id/],
+    [["--to", "b@example.com", "--item", "car"], /--item must be service or product/],
     [["--to", "b@example.com", "--amount", "1.234"], /--amount: "1.234" is not a valid USD amount/],
     [["--to", "b@example.com", "--colour", "red"], /Unknown option '--colour'/],
   ])("rejects %j", (argv, message) => {

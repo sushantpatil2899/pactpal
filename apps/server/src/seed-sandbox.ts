@@ -93,6 +93,7 @@ try {
   const { disputeId } = await buyerActions.openDispute({
     buyerTransactionId,
     reason: args.reason,
+    item: args.item,
     amount,
     message: "PactPal sandbox test: the delivered work is not what was agreed.",
     requestId: `seed-dispute-${invoiceId}`,
