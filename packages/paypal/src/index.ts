@@ -68,6 +68,13 @@ export {
   type OfferInput,
 } from "./disputes.js";
 export {
+  PayPalBuyerTestActions,
+  TEST_DISPUTE_REASONS,
+  type BuyerPayment,
+  type TestDisputeReason,
+} from "./buyer.js";
+export { waitFor, type WaitOptions, type WaitResult } from "./waiting.js";
+export {
   PayPalWebhooks,
   WEBHOOK_EVENT_TYPES,
   type WebhookEventRecord,

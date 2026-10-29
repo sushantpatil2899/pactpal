@@ -13,7 +13,8 @@
     "sandbox:invoice": "tsx src/sandbox-invoice.ts",
     "sandbox:disputes": "tsx src/sandbox-disputes.ts",
     "sandbox:respond": "tsx src/sandbox-respond.ts",
-    "sandbox:webhook": "tsx src/sandbox-webhook.ts"
+    "sandbox:webhook": "tsx src/sandbox-webhook.ts",
+    "seed:sandbox": "tsx src/seed-sandbox.ts"
   },
   "dependencies": {
     "@pactpal/paypal": "workspace:*",
