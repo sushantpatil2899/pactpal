@@ -8,13 +8,13 @@ Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.d
 
 Early development. What exists today:
 
-| Part               | State                                                               |
-| ------------------ | ------------------------------------------------------------------- |
-| `packages/ledger`  | Hash-chained, append-only evidence ledger with tamper verification  |
-| `packages/council` | Vote aggregation for the LLM council (Borda count, agreement score) |
-| `packages/paypal`  | Interface for the PayPal access layer (MCP first, REST fallback)    |
-| `apps/server`      | Fastify server with a health check                                  |
-| `apps/web`         | React app placeholder                                               |
+| Part               | State                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `packages/ledger`  | Hash-chained, append-only evidence ledger with tamper verification                         |
+| `packages/council` | Vote aggregation for the LLM council (Borda count, agreement score)                        |
+| `packages/paypal`  | PayPal access: login, invoices, disputes, answers, notifications; MCP first, REST fallback |
+| `apps/server`      | Fastify server: health check, verified PayPal notifications, sandbox commands              |
+| `apps/web`         | React app placeholder                                                                      |
 
 ## Docs
 
@@ -41,6 +41,20 @@ pnpm dev               # server on :3000, web on Vite's default port
 ```
 
 `GET /health` reports which environment variables are still missing.
+
+## Deploying to Render
+
+The server is described in [`render.yaml`](render.yaml) (a Render Blueprint).
+
+1. In Render, choose **New → Blueprint**, pick this repository and the `dev` branch.
+2. Enter the values Render asks for: `PAYPAL_SELLER_CLIENT_ID` and `PAYPAL_SELLER_CLIENT_SECRET` (leave `PAYPAL_WEBHOOK_ID` empty at first).
+3. Register the service's notification address with PayPal, then set the printed id as `PAYPAL_WEBHOOK_ID` in Render:
+
+```bash
+pnpm sandbox:webhook --register https://<your-service>.onrender.com/webhooks/paypal --send
+```
+
+`pnpm sandbox:webhook --events` shows PayPal's record of recent notifications and whether they were delivered.
 
 ## Quality
 

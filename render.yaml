@@ -1,0 +1,23 @@
+# Render Blueprint: how Render builds and runs PactPal. See docs/decisions.md (Hosting).
+# Secrets are marked sync: false, so Render asks for them in its dashboard; no values live here.
+services:
+  - type: web
+    name: pactpal-server
+    runtime: node
+    # Starter: always on (0.5 CPU, 512 MB), so PayPal notifications never wait for a cold start.
+    plan: starter
+    region: frankfurt
+    branch: dev
+    autoDeployTrigger: commit
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/server build
+    startCommand: node apps/server/dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PAYPAL_SELLER_CLIENT_ID
+        sync: false
+      - key: PAYPAL_SELLER_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false

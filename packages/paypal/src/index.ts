@@ -44,6 +44,7 @@ import type {
   OfferInput,
 } from "./disputes.js";
 import type { PayPalResult } from "./types.js";
+import type { WebhookVerification } from "./webhooks.js";
 
 export type { PayPalResult, Transport } from "./types.js";
 export {
@@ -66,6 +67,13 @@ export {
   type EvidenceInput,
   type OfferInput,
 } from "./disputes.js";
+export {
+  PayPalWebhooks,
+  WEBHOOK_EVENT_TYPES,
+  type WebhookEventRecord,
+  type WebhookRegistration,
+  type WebhookVerification,
+} from "./webhooks.js";
 export {
   MAX_EVIDENCE_FILE_BYTES,
   checkEvidenceFiles,
@@ -127,6 +135,7 @@ export interface PayPalClient {
   ): Promise<PayPalResult<DisputeAnswer>>;
   verifyWebhook(
     rawBody: string,
-    headers: Record<string, string>,
-  ): Promise<PayPalResult<{ valid: boolean }>>;
+    headers: Readonly<Record<string, string | undefined>>,
+    webhookId: string,
+  ): Promise<WebhookVerification>;
 }

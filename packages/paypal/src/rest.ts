@@ -33,9 +33,11 @@ export type WriteRequest<T> = RequestBase<T> & {
   method: "POST" | "PUT" | "PATCH" | "DELETE";
   requestId: string;
 } & (
-    | { body?: unknown; form?: never }
+    | { body?: unknown; form?: never; rawJson?: never }
     /** A file upload; the same form is resent unchanged on retries. */
-    | { form: FormData; body?: never }
+    | { form: FormData; body?: never; rawJson?: never }
+    /** JSON text sent byte for byte, for when PayPal must see exactly what it sent us. */
+    | { rawJson: string; body?: never; form?: never }
   );
 
 export type RestRequest<T> = ReadRequest<T> | WriteRequest<T>;
@@ -90,7 +92,10 @@ export class PayPalRestClient {
         headers["PayPal-Request-Id"] = request.requestId;
         // fetch sets the multipart Content-Type, including its boundary, for a form.
         if (request.form !== undefined) body = request.form;
-        else if (request.body !== undefined) {
+        else if (request.rawJson !== undefined) {
+          headers["Content-Type"] = "application/json";
+          body = request.rawJson;
+        } else if (request.body !== undefined) {
           headers["Content-Type"] = "application/json";
           body = JSON.stringify(request.body);
         }

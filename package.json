@@ -26,7 +26,8 @@
     "sandbox:check": "pnpm --filter @pactpal/server sandbox:check",
     "sandbox:invoice": "pnpm --filter @pactpal/server sandbox:invoice",
     "sandbox:disputes": "pnpm --filter @pactpal/server sandbox:disputes",
-    "sandbox:respond": "pnpm --filter @pactpal/server sandbox:respond"
+    "sandbox:respond": "pnpm --filter @pactpal/server sandbox:respond",
+    "sandbox:webhook": "pnpm --filter @pactpal/server sandbox:webhook"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

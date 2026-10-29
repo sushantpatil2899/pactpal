@@ -257,6 +257,14 @@ describe("PayPalRestClient", () => {
     expect(header(apiCalls()[0], "Content-Type")).toBeNull();
   });
 
+  it("sends raw JSON text unchanged", async () => {
+    const { client, apiCalls } = setup({ api: [json(200, { id: "V" })] });
+    const rawJson = '{"b":1,  "a":2}';
+    await client.request({ method: "POST", path: "/v1/v", rawJson, requestId: "r", schema: item });
+    expect(apiCalls()[0]?.init.body).toBe(rawJson);
+    expect(header(apiCalls()[0], "Content-Type")).toBe("application/json");
+  });
+
   it("sends a write without a body and accepts an empty 204 answer", async () => {
     const { client, apiCalls } = setup({ api: [new Response(null, { status: 204 })] });
     const result = await client.request({

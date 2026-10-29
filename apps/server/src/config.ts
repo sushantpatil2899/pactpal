@@ -49,6 +49,11 @@ export const FEATURES: readonly { name: string; needs: readonly Part[] }[] = [
   { name: "Connect with PayPal tests", needs: ["platform"] },
 ];
 
+/** The setting names a feature needs, e.g. "Webhooks" -> seller app keys and webhook id. */
+export function settingsFor(featureName: string): string[] {
+  return FEATURES.find(({ name }) => name === featureName)?.needs.flatMap(partVars) ?? [];
+}
+
 // PayPal ids, secrets and webhook ids never contain spaces; quotes usually come from copy-paste.
 const settingValue = z
   .string()
