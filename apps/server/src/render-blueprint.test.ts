@@ -27,6 +27,8 @@ describe("render.yaml", () => {
     expect(field("healthCheckPath")).toBe("/health");
     expect(field("branch")).toBe("dev");
     expect(field("plan")).toBe("starter");
+    // Render cannot move a service to another region after it is created.
+    expect(field("region")).toBe("virginia");
     expect(PAYPAL_WEBHOOK_PATH.startsWith("/")).toBe(true);
   });
 

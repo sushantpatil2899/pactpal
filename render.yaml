@@ -6,7 +6,7 @@ services:
     runtime: node
     # Starter: always on (0.5 CPU, 512 MB), so PayPal notifications never wait for a cold start.
     plan: starter
-    region: frankfurt
+    region: virginia
     branch: dev
     autoDeployTrigger: commit
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/server build
