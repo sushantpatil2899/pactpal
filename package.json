@@ -23,7 +23,8 @@
     "audit:prod": "pnpm audit --prod",
     "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build && pnpm dup && pnpm deps:check && pnpm audit:prod",
     "env:check": "pnpm --filter @pactpal/server env:check",
-    "sandbox:check": "pnpm --filter @pactpal/server sandbox:check"
+    "sandbox:check": "pnpm --filter @pactpal/server sandbox:check",
+    "sandbox:invoice": "pnpm --filter @pactpal/server sandbox:invoice"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

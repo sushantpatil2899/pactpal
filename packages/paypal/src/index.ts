@@ -32,9 +32,20 @@ export {
   type WriteRequest,
 } from "./rest.js";
 export { FEATURE_SCOPES, grantedFeatures } from "./scopes.js";
+import type { InvoiceDraft } from "./invoices.js";
+import type { MinorAmount, PayPalMoney } from "./money.js";
 import type { PayPalResult } from "./types.js";
 
 export type { PayPalResult, Transport } from "./types.js";
+export { fromPayPalMoney, toPayPalMoney, type MinorAmount, type PayPalMoney } from "./money.js";
+export {
+  InvoiceSendError,
+  PayPalInvoices,
+  type InvoiceDetails,
+  type InvoiceDraft,
+  type Route,
+  type SentInvoice,
+} from "./invoices.js";
 export {
   SANDBOX_MCP_SSE_URL,
   PayPalMcpClient,
@@ -52,27 +63,12 @@ export {
 /** Who the call is made for: the platform itself, or a connected seller. */
 export type Actor = { kind: "platform" } | { kind: "seller"; merchantId: string };
 
-export interface Money {
-  currency_code: string;
-  value: string;
-}
-
-export interface InvoiceDraft {
-  recipientEmail: string;
-  amount: Money;
-  description: string;
-  /** Scope version id and hash, written into the invoice note and terms. */
-  scopeReference: string;
-  /** Stable key so retries never create duplicate invoices. */
-  requestId: string;
-}
-
 export interface DisputeSummary {
   disputeId: string;
   reason: string;
   status: string;
   stage?: string;
-  amount: Money;
+  amount: PayPalMoney;
   sellerResponseDueDate?: string;
   /** Actions PayPal currently allows, read from the HATEOAS links. */
   allowedActions: string[];
@@ -102,7 +98,7 @@ export interface PayPalClient {
   makeOffer(
     actor: Actor,
     disputeId: string,
-    input: { offerType: string; amount: Money; note: string },
+    input: { offerType: string; amount: MinorAmount; note: string },
   ): Promise<PayPalResult<{ accepted: boolean }>>;
   appeal(
     actor: Actor,
