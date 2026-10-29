@@ -3,48 +3,29 @@
  * real sandbox invoice from the seller app, then reads it back.
  */
 import { randomUUID } from "node:crypto";
-import {
-  AccessTokenProvider,
-  McpFallback,
-  PayPalInvoices,
-  PayPalMcpClient,
-  PayPalRestClient,
-} from "@pactpal/paypal";
-import { formatErrors, loadConfig } from "./config.js";
+import { PayPalInvoices } from "@pactpal/paypal";
+import { fail, sellerClients } from "./sandbox-clients.js";
 import { formatInvoiceReport, parseInvoiceArgs } from "./sandbox-invoice-report.js";
-
-function fail(message: string): never {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
-}
-
-const config = loadConfig(process.env);
-if (!config.ok) fail(formatErrors(config.errors));
-const credentials = config.config.paypal.apps.seller;
-if (credentials === undefined) fail("The seller app keys are not set; run pnpm env:check.");
 
 const parsed = parseInvoiceArgs(process.argv.slice(2));
 if (!parsed.ok) fail(`${parsed.error}\nUsage: pnpm sandbox:invoice --to <email> --amount 1.00`);
 
-{
-  const tokens = new AccessTokenProvider(credentials);
-  const mcp = new PayPalMcpClient(tokens);
-  const invoices = new PayPalInvoices(new PayPalRestClient(tokens), mcp, new McpFallback());
-  try {
-    const sent = await invoices.createAndSend({
-      recipientEmail: parsed.args.to,
-      amount: parsed.args.amount,
-      itemName: "PactPal sandbox test",
-      description: "Test invoice created by pnpm sandbox:invoice",
-      scopeReference: "sandbox test, no scope",
-      requestId: `sandbox-invoice-${randomUUID()}`,
-    });
-    const read = await invoices.get(sent.invoiceId);
-    process.stdout.write(formatInvoiceReport(sent, read.data, read));
-  } catch (error) {
-    process.exitCode = 1;
-    process.stderr.write(`${String(error)}\n`);
-  } finally {
-    await mcp.close();
-  }
+const { rest, mcp, fallback } = sellerClients();
+const invoices = new PayPalInvoices(rest, mcp, fallback);
+try {
+  const sent = await invoices.createAndSend({
+    recipientEmail: parsed.args.to,
+    amount: parsed.args.amount,
+    itemName: "PactPal sandbox test",
+    description: "Test invoice created by pnpm sandbox:invoice",
+    scopeReference: "sandbox test, no scope",
+    requestId: `sandbox-invoice-${randomUUID()}`,
+  });
+  const read = await invoices.get(sent.invoiceId);
+  process.stdout.write(formatInvoiceReport(sent, read.data, read));
+} catch (error) {
+  process.exitCode = 1;
+  process.stderr.write(`${String(error)}\n`);
+} finally {
+  await mcp.close();
 }

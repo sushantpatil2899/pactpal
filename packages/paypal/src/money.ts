@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /** An amount in the currency's smallest unit (1050 = 10.50 USD), as stored by PactPal. */
 export interface MinorAmount {
   minor: number;
@@ -9,6 +11,11 @@ export interface PayPalMoney {
   currency_code: string;
   value: string;
 }
+
+/** Checks a PayPal amount object in an answer and converts it to minor units. */
+export const payPalAmount = z
+  .looseObject({ currency_code: z.string(), value: z.string() })
+  .transform((money) => fromPayPalMoney(money));
 
 // PayPal does not support decimals for these currencies.
 const ZERO_DECIMAL = new Set(["JPY", "HUF", "TWD"]);

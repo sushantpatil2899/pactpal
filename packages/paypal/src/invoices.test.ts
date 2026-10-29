@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { PayPalApiError, PayPalMcpError } from "./errors.js";
-import { DEFAULT_FALLBACK_POLICY, McpFallback } from "./fallback.js";
+import { PayPalApiError } from "./errors.js";
 import { InvoiceSendError, PayPalInvoices, type InvoiceDraft } from "./invoices.js";
-import type { RestRequest, RestResponse } from "./rest.js";
+import { fakeClients } from "./test-fakes.js";
 
 const draft: InvoiceDraft = {
   recipientEmail: "buyer@example.com",
@@ -12,13 +11,6 @@ const draft: InvoiceDraft = {
   scopeReference: "scope v1 sha256:ab12",
   requestId: "deal-1-m1",
 };
-
-const setupError = new PayPalMcpError(
-  "x",
-  "PAYPAL_API_SETUP_ERROR",
-  "failed",
-  "Unsupported cache mode",
-);
 
 const invoiceBody = {
   id: "INV2-AAAA",
@@ -32,35 +24,9 @@ const invoiceBody = {
   amount: { currency_code: "USD", value: "10.50" },
 };
 
-/** Fake REST client: answers from a queue, checking answers with the request's schema like the real one. */
-function setup(options: { rest?: unknown[]; mcp?: unknown[] | "none" } = {}) {
-  const restReplies = [...(options.rest ?? [])];
-  const mcpReplies = options.mcp === "none" ? [] : [...(options.mcp ?? [])];
-  const restCalls: RestRequest<unknown>[] = [];
-  const mcpCalls: { tool: string; args: Record<string, unknown> }[] = [];
-
-  const rest = {
-    request: <T>(request: RestRequest<T>): Promise<RestResponse<T>> => {
-      restCalls.push(request);
-      const reply = restReplies.shift();
-      if (reply instanceof Error) return Promise.reject(reply);
-      return Promise.resolve({
-        data: request.schema.parse(reply),
-        status: 200,
-        debugId: "dbg-rest",
-      });
-    },
-  };
-  const mcp = {
-    callTool: (tool: string, args: Record<string, unknown>) => {
-      mcpCalls.push({ tool, args });
-      const reply = mcpReplies.shift() ?? setupError;
-      return reply instanceof Error ? Promise.reject(reply) : Promise.resolve(reply);
-    },
-  };
-  const fallback = new McpFallback({ policy: { ...DEFAULT_FALLBACK_POLICY, mcpTimeoutMs: 50 } });
-  const invoices = new PayPalInvoices(rest, options.mcp === "none" ? undefined : mcp, fallback);
-  return { invoices, restCalls, mcpCalls };
+function setup(options: Parameters<typeof fakeClients>[0] = {}) {
+  const { rest, mcp, fallback, restCalls, mcpCalls } = fakeClients(options);
+  return { invoices: new PayPalInvoices(rest, mcp, fallback), restCalls, mcpCalls };
 }
 
 describe("PayPalInvoices.createAndSend", () => {

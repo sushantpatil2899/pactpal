@@ -7,7 +7,7 @@ import {
   type SentInvoice,
 } from "@pactpal/paypal";
 import { z } from "zod";
-import { rows } from "./format.js";
+import { describeRoute, formatAmount, rows } from "./format.js";
 
 export interface InvoiceArgs {
   to: string;
@@ -55,24 +55,16 @@ export function parseInvoiceArgs(
   }
 }
 
-function describeRoute({ transport, fallbackReason }: Route): string {
-  return fallbackReason === undefined ? transport : `${transport} (MCP skipped: ${fallbackReason})`;
-}
-
 /** Plain-text result of the sandbox invoice run. */
 export function formatInvoiceReport(
   sent: SentInvoice,
   details: InvoiceDetails,
   read: Route,
 ): string {
-  const amount =
-    details.amount === undefined
-      ? "unknown"
-      : `${details.amount.minor} minor ${details.amount.currency}`;
   return `Sandbox invoice\n${rows([
     ["Invoice", details.invoiceId],
     ["Status", details.status],
-    ["Amount", amount],
+    ["Amount", formatAmount(details.amount)],
     ["Recipient", details.recipientEmail ?? "unknown"],
     ["Note", details.note ?? "none"],
     ["Payment link", details.payerViewUrl ?? "not provided"],

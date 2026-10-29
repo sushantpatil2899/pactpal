@@ -46,7 +46,7 @@ describe("formatInvoiceReport", () => {
       { transport: "rest", fallbackReason: "MCP paused after 3 failures in a row" },
     );
     expect(text).toContain("  Status        SENT\n");
-    expect(text).toContain("  Amount        100 minor USD\n");
+    expect(text).toContain("  Amount        1.00 USD\n");
     expect(text).toContain("  Created via   rest (MCP skipped: MCP setup error)\n");
     expect(text).toContain("  Sent via      mcp\n");
     expect(text).toContain(

@@ -1,8 +1,6 @@
 import { z } from "zod";
-import type { McpFallback } from "./fallback.js";
-import type { PayPalMcpClient } from "./mcp.js";
-import { fromPayPalMoney, toPayPalMoney, type MinorAmount } from "./money.js";
-import type { PayPalRestClient } from "./rest.js";
+import { payPalAmount, toPayPalMoney, type MinorAmount } from "./money.js";
+import { PayPalOperations } from "./operations.js";
 import type { PayPalResult } from "./types.js";
 
 const INVOICES_PATH = "/v2/invoicing/invoices";
@@ -67,8 +65,6 @@ const createdInvoice = z
 // Send answers with a link, or with nothing at all; either means it was accepted.
 const sentInvoice = z.unknown();
 
-const paypalMoney = z.looseObject({ currency_code: z.string(), value: z.string() });
-
 const invoiceDetails = z
   .looseObject({
     id: z.string(),
@@ -86,12 +82,12 @@ const invoiceDetails = z
         }),
       )
       .optional(),
-    amount: paypalMoney.optional(),
+    amount: payPalAmount.optional(),
   })
   .transform((invoice): InvoiceDetails => ({
     invoiceId: invoice.id,
     status: invoice.status,
-    amount: invoice.amount && fromPayPalMoney(invoice.amount),
+    amount: invoice.amount,
     recipientEmail: invoice.primary_recipients?.[0]?.billing_info?.email_address,
     note: invoice.detail?.note,
     payerViewUrl: invoice.detail?.metadata?.recipient_view_url,
@@ -105,21 +101,7 @@ function route<T>({ transport, fallbackReason, debugId }: PayPalResult<T>): Rout
  * Milestone invoices for one PayPal app. Each step tries PayPal's MCP tool
  * first and falls back to the REST API through `McpFallback`.
  */
-export class PayPalInvoices {
-  readonly #rest: Pick<PayPalRestClient, "request">;
-  readonly #mcp: Pick<PayPalMcpClient, "callTool"> | undefined;
-  readonly #fallback: McpFallback;
-
-  constructor(
-    rest: Pick<PayPalRestClient, "request">,
-    mcp: Pick<PayPalMcpClient, "callTool"> | undefined,
-    fallback: McpFallback,
-  ) {
-    this.#rest = rest;
-    this.#mcp = mcp;
-    this.#fallback = fallback;
-  }
-
+export class PayPalInvoices extends PayPalOperations {
   /** Creates the invoice, then sends it to the recipient. */
   async createAndSend(draft: InvoiceDraft): Promise<SentInvoice> {
     const unitAmount = toPayPalMoney(draft.amount);
@@ -134,17 +116,17 @@ export class PayPalInvoices {
       },
     ];
 
-    const created = await this.#fallback.run({
+    const created = await this.fallback.run({
       operation: "create invoice",
       kind: "write",
-      mcp: this.#mcpCall("create_invoice", createdInvoice, {
+      mcp: this.mcpCall("create_invoice", createdInvoice, {
         currency_code: unitAmount.currency_code,
         note,
         primary_recipients,
         items,
       }),
       rest: () =>
-        this.#rest.request({
+        this.rest.request({
           method: "POST",
           path: INVOICES_PATH,
           body: {
@@ -160,15 +142,15 @@ export class PayPalInvoices {
 
     let sent: PayPalResult<unknown>;
     try {
-      sent = await this.#fallback.run({
+      sent = await this.fallback.run({
         operation: "send invoice",
         kind: "write",
-        mcp: this.#mcpCall("send_invoice", sentInvoice, {
+        mcp: this.mcpCall("send_invoice", sentInvoice, {
           invoice_id: invoiceId,
           send_to_recipient: true,
         }),
         rest: () =>
-          this.#rest.request({
+          this.rest.request({
             method: "POST",
             path: `${INVOICES_PATH}/${encodeURIComponent(invoiceId)}/send`,
             body: { send_to_recipient: true, send_to_invoicer: false },
@@ -184,21 +166,16 @@ export class PayPalInvoices {
 
   /** Reads an invoice's current status, amount and payment link. */
   async get(invoiceId: string): Promise<PayPalResult<InvoiceDetails>> {
-    return this.#fallback.run({
+    return this.fallback.run({
       operation: "get invoice",
       kind: "read",
-      mcp: this.#mcpCall("get_invoice", invoiceDetails, { invoice_id: invoiceId }),
+      mcp: this.mcpCall("get_invoice", invoiceDetails, { invoice_id: invoiceId }),
       rest: () =>
-        this.#rest.request({
+        this.rest.request({
           method: "GET",
           path: `${INVOICES_PATH}/${encodeURIComponent(invoiceId)}`,
           schema: invoiceDetails,
         }),
     });
-  }
-
-  #mcpCall<T>(tool: string, schema: z.ZodType<T>, args: Record<string, unknown>) {
-    const mcp = this.#mcp;
-    return mcp && { call: () => mcp.callTool(tool, args), schema };
   }
 }

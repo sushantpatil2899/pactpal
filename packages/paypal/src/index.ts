@@ -33,11 +33,26 @@ export {
 } from "./rest.js";
 export { FEATURE_SCOPES, grantedFeatures } from "./scopes.js";
 import type { InvoiceDraft } from "./invoices.js";
-import type { MinorAmount, PayPalMoney } from "./money.js";
+import type { DisputeDetails, DisputeList } from "./disputes.js";
+import type { MinorAmount } from "./money.js";
 import type { PayPalResult } from "./types.js";
 
 export type { PayPalResult, Transport } from "./types.js";
-export { fromPayPalMoney, toPayPalMoney, type MinorAmount, type PayPalMoney } from "./money.js";
+export {
+  fromPayPalMoney,
+  payPalAmount,
+  toPayPalMoney,
+  type MinorAmount,
+  type PayPalMoney,
+} from "./money.js";
+export {
+  MAX_DISPUTE_PAGES,
+  PayPalDisputes,
+  type DisputeDetails,
+  type DisputeList,
+  type DisputeMessage,
+  type DisputeSummary,
+} from "./disputes.js";
 export {
   InvoiceSendError,
   PayPalInvoices,
@@ -63,20 +78,6 @@ export {
 /** Who the call is made for: the platform itself, or a connected seller. */
 export type Actor = { kind: "platform" } | { kind: "seller"; merchantId: string };
 
-export interface DisputeSummary {
-  disputeId: string;
-  reason: string;
-  status: string;
-  stage?: string;
-  amount: PayPalMoney;
-  sellerResponseDueDate?: string;
-  /** Actions PayPal currently allows, read from the HATEOAS links. */
-  allowedActions: string[];
-  /** Offer types PayPal currently accepts, if an offer is allowed. */
-  allowedOfferTypes: string[];
-  transactionIds: string[];
-}
-
 export interface EvidenceFile {
   filename: string;
   contentType: "application/pdf" | "image/png" | "image/jpeg" | "image/gif";
@@ -88,8 +89,8 @@ export interface PayPalClient {
     actor: Actor,
     draft: InvoiceDraft,
   ): Promise<PayPalResult<{ invoiceId: string }>>;
-  listDisputes(actor: Actor): Promise<PayPalResult<DisputeSummary[]>>;
-  getDispute(actor: Actor, disputeId: string): Promise<PayPalResult<DisputeSummary>>;
+  listDisputes(actor: Actor): Promise<PayPalResult<DisputeList>>;
+  getDispute(actor: Actor, disputeId: string): Promise<PayPalResult<DisputeDetails>>;
   provideEvidence(
     actor: Actor,
     disputeId: string,
