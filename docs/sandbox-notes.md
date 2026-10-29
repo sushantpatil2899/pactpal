@@ -18,7 +18,7 @@ Practical lessons about the PayPal sandbox, gathered from the hackathon communit
 - Opening a case by hand in the sandbox Resolution Center also works.
 
 - The create request must include `extensions.merchandize_dispute_properties.issue_type` (`SERVICE` or `PRODUCT`; "merchandize" is PayPal's spelling); without it PayPal answers `400 INVALID_REQUEST` with the detail `MISSING_ISSUE_TYPE`. A plain JSON body works. `pnpm seed:sandbox` sends `merchant_contacted: true`, `merchant_contacted_outcome: "NO_RESPONSE"` and `issue_type: SERVICE` by default.
-- A new dispute starts as `OPEN` / `UNDER_PAYPAL_REVIEW` at the `INQUIRY` stage with no seller actions or due date, and did not appear in the seller's dispute list straight away; the single-dispute lookup works at once and shows both transaction ids and the invoice id.
+- A new dispute starts as `OPEN` / `UNDER_PAYPAL_REVIEW` at the `INQUIRY` stage with no seller actions or due date, and is not in the seller's dispute list yet; the single-dispute lookup works at once and shows both transaction ids and the invoice id. After PayPal's short review (about 3½ minutes on 29 October) it becomes `WAITING_FOR_SELLER_RESPONSE` with a 20-day seller due date, appears in the list, and allows `escalate`, `accept_claim`, `send_message` and `make_offer`, but not `provide_evidence`.
 - The buyer's `message` sent with the create request did not appear in the dispute's messages.
 - Transaction search lags by hours: on 29 October its data was last refreshed at 14:29:59 UTC, after which a payment made later in the afternoon was not found. Copy the buyer's transaction id from the buyer's sandbox Activity page instead.
 - Pay sandbox invoices in a browser on a computer: on a phone the PayPal app takes over the pay button and cannot open sandbox links.
@@ -53,6 +53,9 @@ Practical lessons about the PayPal sandbox, gathered from the hackathon communit
 
 - PactPal's server on Render, `https://pactpal-server.onrender.com/webhooks/paypal`, is registered for the seller app (webhook id `4RE47127PE423000W`, not a secret) for invoice, payment and dispute events. `pnpm sandbox:webhook --list` shows it.
 - The first live notification arrived 14 seconds after PayPal created the event, and passed verification.
+- The invoice paid notification arrived 12 seconds after PayPal created it, and passed verification.
+- **No `CUSTOMER.DISPUTE.CREATED` was created for the seller app** when a buyer opened a dispute through the API on 29 October: PayPal's event record had only the invoice events 48 minutes later, and the server logged nothing. PactPal must also poll the seller's disputes, not rely on dispute notifications alone.
+- When searching Render's Logs, choose "Last 24 hours" or Live tail: a fixed time range hides newer entries.
 - PayPal's sandbox event record (`GET /v1/notifications/webhooks-events` and the single-event lookup) has no delivery results, so confirm delivery in the server's logs on Render (search for the event id).
 
 ## Reliability
