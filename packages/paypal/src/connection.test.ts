@@ -238,6 +238,25 @@ describe("PayPalRestClient", () => {
     expect(header(call, "PayPal-Request-Id")).toBe("req-1");
   });
 
+  it("sends a file form as-is, without a JSON content type, and resends the same form on retry", async () => {
+    const form = new FormData();
+    form.append("input", new Blob(["{}"], { type: "application/json" }));
+    const { client, apiCalls } = setup({ api: [json(500, {}), json(200, { id: "E-1" })] });
+    await client.request({
+      method: "POST",
+      path: "/v1/e",
+      form,
+      requestId: "req-form",
+      schema: item,
+    });
+    expect(apiCalls().map((call) => call.init.body)).toEqual([form, form]);
+    expect(apiCalls().map((call) => header(call, "PayPal-Request-Id"))).toEqual([
+      "req-form",
+      "req-form",
+    ]);
+    expect(header(apiCalls()[0], "Content-Type")).toBeNull();
+  });
+
   it("sends a write without a body and accepts an empty 204 answer", async () => {
     const { client, apiCalls } = setup({ api: [new Response(null, { status: 204 })] });
     const result = await client.request({

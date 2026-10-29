@@ -74,3 +74,32 @@ export class PayPalResponseError extends Error {
     super(`${operation} returned an unexpected response: ${issues.join("; ")}`);
   }
 }
+
+/** PayPal does not currently allow this answer on the dispute; nothing was sent. */
+export class DisputeActionNotAllowed extends Error {
+  override readonly name = "DisputeActionNotAllowed";
+
+  constructor(
+    readonly disputeId: string,
+    /** e.g. "make_offer", or "make_offer REFUND" for an offer type. */
+    readonly action: string,
+    /** What PayPal allows instead. */
+    readonly allowed: readonly string[],
+  ) {
+    super(
+      `PayPal does not allow ${action} on dispute ${disputeId} right now; allowed: ${allowed.length === 0 ? "none" : allowed.join(", ")}`,
+    );
+  }
+}
+
+/** An evidence or appeal file was rejected before upload; nothing was sent. */
+export class EvidenceFileError extends Error {
+  override readonly name = "EvidenceFileError";
+
+  constructor(
+    readonly filename: string,
+    reason: string,
+  ) {
+    super(`${filename}: ${reason}`);
+  }
+}

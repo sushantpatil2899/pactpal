@@ -14,6 +14,8 @@
 
 export { SANDBOX_API_BASE_URL, Secret, type PayPalAppCredentials } from "./credentials.js";
 export {
+  DisputeActionNotAllowed,
+  EvidenceFileError,
   PayPalApiError,
   PayPalMcpError,
   PayPalNetworkError,
@@ -33,8 +35,14 @@ export {
 } from "./rest.js";
 export { FEATURE_SCOPES, grantedFeatures } from "./scopes.js";
 import type { InvoiceDraft } from "./invoices.js";
-import type { DisputeDetails, DisputeList } from "./disputes.js";
-import type { MinorAmount } from "./money.js";
+import type {
+  AcceptClaimInput,
+  DisputeAnswer,
+  DisputeDetails,
+  DisputeList,
+  EvidenceInput,
+  OfferInput,
+} from "./disputes.js";
 import type { PayPalResult } from "./types.js";
 
 export type { PayPalResult, Transport } from "./types.js";
@@ -48,11 +56,23 @@ export {
 export {
   MAX_DISPUTE_PAGES,
   PayPalDisputes,
+  type AcceptClaimInput,
+  type DisputeAction,
+  type DisputeAnswer,
   type DisputeDetails,
   type DisputeList,
   type DisputeMessage,
   type DisputeSummary,
+  type EvidenceInput,
+  type OfferInput,
 } from "./disputes.js";
+export {
+  MAX_EVIDENCE_FILE_BYTES,
+  checkEvidenceFiles,
+  type CheckedEvidenceFile,
+  type EvidenceContentType,
+  type EvidenceFile,
+} from "./evidence-files.js";
 export {
   InvoiceSendError,
   PayPalInvoices,
@@ -78,12 +98,6 @@ export {
 /** Who the call is made for: the platform itself, or a connected seller. */
 export type Actor = { kind: "platform" } | { kind: "seller"; merchantId: string };
 
-export interface EvidenceFile {
-  filename: string;
-  contentType: "application/pdf" | "image/png" | "image/jpeg" | "image/gif";
-  bytes: Uint8Array;
-}
-
 export interface PayPalClient {
   createAndSendInvoice(
     actor: Actor,
@@ -94,18 +108,23 @@ export interface PayPalClient {
   provideEvidence(
     actor: Actor,
     disputeId: string,
-    input: { evidenceType: string; notes: string; files: EvidenceFile[] },
-  ): Promise<PayPalResult<{ accepted: boolean }>>;
+    input: EvidenceInput,
+  ): Promise<PayPalResult<DisputeAnswer>>;
   makeOffer(
     actor: Actor,
     disputeId: string,
-    input: { offerType: string; amount: MinorAmount; note: string },
-  ): Promise<PayPalResult<{ accepted: boolean }>>;
+    input: OfferInput,
+  ): Promise<PayPalResult<DisputeAnswer>>;
+  acceptClaim(
+    actor: Actor,
+    disputeId: string,
+    input: AcceptClaimInput,
+  ): Promise<PayPalResult<DisputeAnswer>>;
   appeal(
     actor: Actor,
     disputeId: string,
-    input: { notes: string; files: EvidenceFile[] },
-  ): Promise<PayPalResult<{ accepted: boolean }>>;
+    input: EvidenceInput,
+  ): Promise<PayPalResult<DisputeAnswer>>;
   verifyWebhook(
     rawBody: string,
     headers: Record<string, string>,

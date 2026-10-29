@@ -29,11 +29,14 @@ export interface ReadRequest<T> extends RequestBase<T> {
  * Writes must carry a stable PayPal-Request-Id: PayPal treats repeats with
  * the same id as one request, which is what makes retrying them safe.
  */
-export interface WriteRequest<T> extends RequestBase<T> {
+export type WriteRequest<T> = RequestBase<T> & {
   method: "POST" | "PUT" | "PATCH" | "DELETE";
-  body?: unknown;
   requestId: string;
-}
+} & (
+    | { body?: unknown; form?: never }
+    /** A file upload; the same form is resent unchanged on retries. */
+    | { form: FormData; body?: never }
+  );
 
 export type RestRequest<T> = ReadRequest<T> | WriteRequest<T>;
 
@@ -50,7 +53,7 @@ export interface RestClientOptions {
   policy?: RetryPolicy;
 }
 
-/** Sends authenticated JSON requests to the PayPal REST API for one app. */
+/** Sends authenticated JSON requests and file uploads to the PayPal REST API for one app. */
 export class PayPalRestClient {
   readonly #tokens: AccessTokenProvider;
   readonly #baseUrl: string;
@@ -82,10 +85,12 @@ export class PayPalRestClient {
         Authorization: `Bearer ${token.value.reveal()}`,
         Accept: "application/json",
       };
-      let body: string | undefined;
+      let body: string | FormData | undefined;
       if (request.method !== "GET") {
         headers["PayPal-Request-Id"] = request.requestId;
-        if (request.body !== undefined) {
+        // fetch sets the multipart Content-Type, including its boundary, for a form.
+        if (request.form !== undefined) body = request.form;
+        else if (request.body !== undefined) {
           headers["Content-Type"] = "application/json";
           body = JSON.stringify(request.body);
         }

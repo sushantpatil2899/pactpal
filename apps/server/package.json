@@ -11,7 +11,8 @@
     "env:check": "tsx src/check-env.ts",
     "sandbox:check": "tsx src/sandbox-check.ts",
     "sandbox:invoice": "tsx src/sandbox-invoice.ts",
-    "sandbox:disputes": "tsx src/sandbox-disputes.ts"
+    "sandbox:disputes": "tsx src/sandbox-disputes.ts",
+    "sandbox:respond": "tsx src/sandbox-respond.ts"
   },
   "dependencies": {
     "@pactpal/paypal": "workspace:*",

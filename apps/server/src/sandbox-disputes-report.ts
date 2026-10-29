@@ -1,24 +1,18 @@
-import { parseArgs } from "node:util";
 import type { DisputeDetails, DisputeList, Route } from "@pactpal/paypal";
 import { z } from "zod";
+import { disputeIdOption, readChecked } from "./cli-args.js";
 import { describeRoute, formatAmount, rows } from "./format.js";
-
-const disputeId = z.string().regex(/^[A-Za-z0-9_-]{1,255}$/, "--id must be a PayPal dispute id");
 
 /** Reads the optional `--id <dispute id>`. */
 export function parseDisputeArgs(
   argv: readonly string[],
 ): { ok: true; id: string | undefined } | { ok: false; error: string } {
-  try {
-    const { values } = parseArgs({ args: [...argv], options: { id: { type: "string" } } });
-    if (values.id === undefined) return { ok: true, id: undefined };
-    const parsed = disputeId.safeParse(values.id);
-    return parsed.success
-      ? { ok: true, id: parsed.data }
-      : { ok: false, error: parsed.error.issues.map((issue) => issue.message).join("; ") };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
+  const parsed = readChecked(
+    argv,
+    { id: { type: "string" } },
+    z.object({ id: disputeIdOption.optional() }),
+  );
+  return parsed.ok ? { ok: true, id: parsed.value.id } : parsed;
 }
 
 /** The seller's disputes, one line each. */

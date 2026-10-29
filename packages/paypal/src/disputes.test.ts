@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_DISPUTE_PAGES, PayPalDisputes } from "./disputes.js";
-import { PayPalResponseError } from "./errors.js";
+import { DisputeActionNotAllowed, EvidenceFileError, PayPalResponseError } from "./errors.js";
 import { fakeClients } from "./test-fakes.js";
 
 function setup(options: Parameters<typeof fakeClients>[0] = {}) {
@@ -208,5 +208,197 @@ describe("PayPalDisputes.get", () => {
         outcome: "RESOLVED_SELLER_FAVOUR",
       },
     });
+  });
+});
+
+/** The full dispute with only the given actions allowed. */
+function allowing(actions: string[]) {
+  return {
+    ...fullDispute,
+    links: [
+      { href: `${API}/v1/customer/disputes/PP-D-1`, rel: "self", method: "GET" },
+      ...actions.map((rel) => ({
+        href: `${API}/v1/customer/disputes/PP-D-1/${rel}`,
+        rel,
+        method: "POST",
+      })),
+    ],
+  };
+}
+
+const accepted = {
+  links: [{ href: `${API}/v1/customer/disputes/PP-D-1`, rel: "self", method: "GET" }],
+};
+const pdfFile = {
+  filename: "delivery.pdf",
+  bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]),
+};
+const offer = {
+  offerType: "REFUND",
+  amount: { minor: 50, currency: "USD" },
+  note: "Half refund",
+  requestId: "r-offer",
+};
+
+describe("PayPalDisputes answers", () => {
+  it("makes an allowed offer after re-reading the dispute", async () => {
+    const { disputes, restCalls } = setup({ mcp: "none", rest: [fullDispute, accepted] });
+    const result = await disputes.makeOffer("PP-D-1", offer);
+
+    expect(result).toEqual({
+      data: { disputeId: "PP-D-1" },
+      transport: "rest",
+      debugId: "dbg-rest",
+    });
+    expect(restCalls.map(({ method, path }) => `${method} ${path}`)).toEqual([
+      "GET /v1/customer/disputes/PP-D-1",
+      "POST /v1/customer/disputes/PP-D-1/make-offer",
+    ]);
+    expect(restCalls[1]).toMatchObject({
+      requestId: "r-offer",
+      body: {
+        note: "Half refund",
+        offer_type: "REFUND",
+        offer_amount: { currency_code: "USD", value: "0.50" },
+      },
+    });
+  });
+
+  it.each([
+    [
+      "an offer type PayPal does not allow",
+      fullDispute,
+      { ...offer, offerType: "REPLACEMENT" },
+      "make_offer REPLACEMENT",
+      ["REFUND", "REFUND_WITH_RETURN"],
+    ],
+    [
+      "an offer when offers are not allowed",
+      allowing(["provide_evidence"]),
+      offer,
+      "make_offer",
+      ["provide_evidence"],
+    ],
+  ])("refuses %s without sending anything", async (_label, dispute, input, action, allowed) => {
+    const { disputes, restCalls } = setup({ mcp: "none", rest: [dispute] });
+    const error = await disputes.makeOffer("PP-D-1", input).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(DisputeActionNotAllowed);
+    expect(error).toMatchObject({ disputeId: "PP-D-1", action, allowed });
+    expect(restCalls).toHaveLength(1);
+  });
+
+  it("sends evidence as PayPal's multipart form", async () => {
+    const { disputes, restCalls } = setup({
+      mcp: "none",
+      rest: [allowing(["provide_evidence"]), accepted],
+    });
+    await disputes.provideEvidence("PP-D-1", {
+      evidenceType: "PROOF_OF_FULFILLMENT",
+      notes: "Delivered on 1 Nov",
+      files: [pdfFile],
+      requestId: "r-evidence",
+    });
+
+    const send = restCalls[1];
+    expect(send).toMatchObject({
+      path: "/v1/customer/disputes/PP-D-1/provide-evidence",
+      requestId: "r-evidence",
+    });
+    const form = (send as { form: FormData }).form;
+    const input = form.get("input") as Blob;
+    expect(input.type).toBe("application/json");
+    expect(JSON.parse(await input.text())).toEqual({
+      evidences: [
+        {
+          evidence_type: "PROOF_OF_FULFILLMENT",
+          notes: "Delivered on 1 Nov",
+          documents: [{ name: "delivery.pdf" }],
+        },
+      ],
+    });
+    const file = form.get("file1") as File;
+    expect([file.name, file.type, file.size]).toEqual(["delivery.pdf", "application/pdf", 6]);
+  });
+
+  it("rejects a bad file before reading the dispute or sending", async () => {
+    const { disputes, restCalls } = setup({ mcp: "none" });
+    await expect(
+      disputes.provideEvidence("PP-D-1", {
+        evidenceType: "OTHER",
+        notes: "x",
+        files: [{ filename: "a.txt", bytes: new Uint8Array([1, 2]) }],
+        requestId: "r",
+      }),
+    ).rejects.toBeInstanceOf(EvidenceFileError);
+    expect(restCalls).toEqual([]);
+  });
+
+  it("appeals with notes and files when PayPal allows it", async () => {
+    const { disputes, restCalls } = setup({ mcp: "none", rest: [allowing(["appeal"]), accepted] });
+    await disputes.appeal("PP-D-1", {
+      evidenceType: "OTHER",
+      notes: "New proof",
+      files: [pdfFile],
+      requestId: "r-appeal",
+    });
+    expect(restCalls[1]).toMatchObject({
+      path: "/v1/customer/disputes/PP-D-1/appeal",
+      requestId: "r-appeal",
+    });
+  });
+
+  it("accepts a full-refund claim over MCP when MCP works", async () => {
+    const { disputes, restCalls, mcpCalls } = setup({ mcp: [fullDispute, { ok: true }] });
+    const result = await disputes.acceptClaim("PP-D-1", {
+      note: "accepted_by_seller",
+      requestId: "r-accept",
+    });
+    expect(result.transport).toBe("mcp");
+    expect(mcpCalls.map((call) => call.tool)).toEqual(["get_dispute", "accept_dispute_claim"]);
+    expect(mcpCalls[1]?.args).toEqual({ dispute_id: "PP-D-1", note: "accepted_by_seller" });
+    expect(restCalls).toEqual([]);
+  });
+
+  it("falls back to REST to accept a claim when MCP clearly failed", async () => {
+    const { disputes, restCalls } = setup({ rest: [fullDispute, accepted] });
+    const result = await disputes.acceptClaim("PP-D-1", {
+      note: "accepted_by_seller",
+      requestId: "r-accept",
+    });
+    expect(result.transport).toBe("rest");
+    expect(result.fallbackReason).toContain("PAYPAL_API_SETUP_ERROR");
+    expect(restCalls[1]).toMatchObject({
+      path: "/v1/customer/disputes/PP-D-1/accept-claim",
+      requestId: "r-accept",
+      body: { note: "accepted_by_seller" },
+    });
+  });
+
+  it.each([
+    [
+      "a partial refund",
+      { note: "partial", refundAmount: { minor: 25, currency: "USD" } },
+      { note: "partial", refund_amount: { currency_code: "USD", value: "0.25" } },
+    ],
+    ["a note MCP cannot take", { note: "Refunding in full." }, { note: "Refunding in full." }],
+  ])("accepts %s over REST only", async (_label, input, body) => {
+    const { disputes, restCalls, mcpCalls } = setup({ rest: [fullDispute, accepted] });
+    const result = await disputes.acceptClaim("PP-D-1", { ...input, requestId: "r" });
+    expect(result.transport).toBe("rest");
+    expect(mcpCalls.map((call) => call.tool)).toEqual(["get_dispute"]);
+    expect(restCalls[1]).toMatchObject({ body });
+  });
+
+  it("sends answers to the same dispute one at a time, even after a refused one", async () => {
+    const { disputes, restCalls } = setup({
+      mcp: "none",
+      rest: [fullDispute, fullDispute, accepted],
+    });
+    const results = await Promise.allSettled([
+      disputes.makeOffer("PP-D-1", { ...offer, offerType: "REPLACEMENT" }),
+      disputes.makeOffer("PP-D-1", offer),
+    ]);
+    expect(results.map((r) => r.status)).toEqual(["rejected", "fulfilled"]);
+    expect(restCalls.map(({ method }) => method)).toEqual(["GET", "GET", "POST"]);
   });
 });

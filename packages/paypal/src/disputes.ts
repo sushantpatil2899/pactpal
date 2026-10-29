@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { PayPalResponseError } from "./errors.js";
+import { DisputeActionNotAllowed, PayPalResponseError } from "./errors.js";
+import { checkEvidenceFiles, type EvidenceFile } from "./evidence-files.js";
 import { issueList } from "./http.js";
-import { payPalAmount, type MinorAmount } from "./money.js";
+import { payPalAmount, toPayPalMoney, type MinorAmount } from "./money.js";
 import { PayPalOperations } from "./operations.js";
 import type { PayPalResult } from "./types.js";
 
@@ -171,11 +172,82 @@ function parseItems(operation: string, items: unknown[]): DisputeSummary[] {
   return parsed.data;
 }
 
+/** Seller answers to a dispute, by the action name PayPal uses in its links. */
+export type DisputeAction = "provide_evidence" | "make_offer" | "accept_claim" | "appeal";
+
+export interface EvidenceInput {
+  /** PayPal's evidence type, e.g. "PROOF_OF_FULFILLMENT" or "OTHER". */
+  evidenceType: string;
+  notes: string;
+  files: readonly EvidenceFile[];
+  /** Stable key so retries never send the answer twice. */
+  requestId: string;
+}
+
+export interface OfferInput {
+  /** Must be one of the dispute's allowed offer types, e.g. "REFUND". */
+  offerType: string;
+  amount: MinorAmount;
+  note: string;
+  requestId: string;
+}
+
+export interface AcceptClaimInput {
+  note: string;
+  /** A partial refund; omitted for a full refund. */
+  refundAmount?: MinorAmount;
+  requestId: string;
+}
+
+/** PayPal accepted the answer; its reply only links back to the dispute. */
+export interface DisputeAnswer {
+  disputeId: string;
+}
+
+// PayPal answers a dispute write with links back to the dispute; nothing else is needed from it.
+const answered = (disputeId: string) =>
+  z
+    .looseObject({ links: z.array(link).default([]) })
+    .transform((): DisputeAnswer => ({ disputeId }));
+
+// PayPal's MCP accept tool only takes a short note of letters, digits, "_" and "-".
+const MCP_NOTE = /^[A-Za-z0-9_-]{1,255}$/;
+
+/** PayPal's multipart layout: an "input" JSON part describing the evidence, then file1, file2, ... */
+function evidenceForm(
+  evidenceType: string,
+  notes: string,
+  files: readonly EvidenceFile[],
+): FormData {
+  const checked = checkEvidenceFiles(files);
+  const input = {
+    evidences: [
+      {
+        evidence_type: evidenceType,
+        notes,
+        documents: checked.map(({ filename }) => ({ name: filename })),
+      },
+    ],
+  };
+  const form = new FormData();
+  form.append("input", new Blob([JSON.stringify(input)], { type: "application/json" }));
+  checked.forEach(({ filename, bytes, contentType }, i) => {
+    form.append(`file${i + 1}`, new Blob([new Uint8Array(bytes)], { type: contentType }), filename);
+  });
+  return form;
+}
+
 /**
  * The seller's disputes, read from PayPal every time. Each read tries
  * PayPal's MCP tool first and falls back to the REST API.
+ *
+ * Answers (evidence, offers, accepting a claim, appeals) re-read the dispute
+ * first and are refused unless PayPal allows them right now, and answers to
+ * the same dispute are sent one at a time.
  */
 export class PayPalDisputes extends PayPalOperations {
+  readonly #queues = new Map<string, Promise<unknown>>();
+
   /** All disputes, newest first as PayPal returns them, up to the page limit. */
   async list(): Promise<PayPalResult<DisputeList>> {
     const mcp = this.mcp;
@@ -220,5 +292,129 @@ export class PayPalDisputes extends PayPalOperations {
           schema: disputeDetails,
         }),
     });
+  }
+
+  /** Sends evidence: notes plus PDF, PNG, JPEG or GIF files (checked before upload). */
+  async provideEvidence(
+    disputeId: string,
+    input: EvidenceInput,
+  ): Promise<PayPalResult<DisputeAnswer>> {
+    const form = evidenceForm(input.evidenceType, input.notes, input.files);
+    return this.#answer(disputeId, "provide_evidence", undefined, () =>
+      this.#restOnly(this.#post(disputeId, "provide-evidence", input.requestId, { form })),
+    );
+  }
+
+  /** Offers the buyer a refund of the given type, if PayPal allows that type now. */
+  async makeOffer(disputeId: string, input: OfferInput): Promise<PayPalResult<DisputeAnswer>> {
+    const body = {
+      note: input.note,
+      offer_type: input.offerType,
+      offer_amount: toPayPalMoney(input.amount),
+    };
+    return this.#answer(disputeId, "make_offer", input.offerType, () =>
+      this.#restOnly(this.#post(disputeId, "make-offer", input.requestId, { body })),
+    );
+  }
+
+  /**
+   * Accepts the claim and refunds the buyer. A full refund with a short note
+   * tries PayPal's MCP tool first; otherwise only REST can do it.
+   */
+  async acceptClaim(
+    disputeId: string,
+    input: AcceptClaimInput,
+  ): Promise<PayPalResult<DisputeAnswer>> {
+    const body = {
+      note: input.note,
+      ...(input.refundAmount && { refund_amount: toPayPalMoney(input.refundAmount) }),
+    };
+    const mcpUsable = input.refundAmount === undefined && MCP_NOTE.test(input.note);
+    return this.#answer(disputeId, "accept_claim", undefined, () =>
+      this.fallback.run({
+        operation: "accept claim",
+        kind: "write",
+        mcp: mcpUsable
+          ? this.mcpCall(
+              "accept_dispute_claim",
+              z.unknown().transform(() => ({ disputeId })),
+              {
+                dispute_id: disputeId,
+                note: input.note,
+              },
+            )
+          : undefined,
+        rest: () => this.#post(disputeId, "accept-claim", input.requestId, { body }),
+      }),
+    );
+  }
+
+  /** Appeals a decision against the seller, with notes and files like evidence. */
+  async appeal(disputeId: string, input: EvidenceInput): Promise<PayPalResult<DisputeAnswer>> {
+    const form = evidenceForm(input.evidenceType, input.notes, input.files);
+    return this.#answer(disputeId, "appeal", undefined, () =>
+      this.#restOnly(this.#post(disputeId, "appeal", input.requestId, { form })),
+    );
+  }
+
+  /**
+   * Runs one answer: waits for earlier answers to the same dispute, re-reads
+   * the dispute, and sends only if PayPal allows the action (and offer type).
+   */
+  async #answer(
+    disputeId: string,
+    action: DisputeAction,
+    offerType: string | undefined,
+    send: () => Promise<PayPalResult<DisputeAnswer>>,
+  ): Promise<PayPalResult<DisputeAnswer>> {
+    return this.#oneAtATime(disputeId, async () => {
+      const { data: dispute } = await this.get(disputeId);
+      if (!dispute.allowedActions.includes(action)) {
+        throw new DisputeActionNotAllowed(disputeId, action, dispute.allowedActions);
+      }
+      if (offerType !== undefined && !dispute.allowedOfferTypes.includes(offerType)) {
+        throw new DisputeActionNotAllowed(
+          disputeId,
+          `${action} ${offerType}`,
+          dispute.allowedOfferTypes,
+        );
+      }
+      return send();
+    });
+  }
+
+  #post(
+    disputeId: string,
+    action: string,
+    requestId: string,
+    payload: { body: unknown } | { form: FormData },
+  ) {
+    return this.rest.request({
+      method: "POST",
+      path: `${DISPUTES_PATH}/${encodeURIComponent(disputeId)}/${action}`,
+      requestId,
+      schema: answered(disputeId),
+      ...payload,
+    });
+  }
+
+  /** Evidence, offers and appeals have no MCP tool, so they go to REST directly. */
+  async #restOnly(
+    sending: Promise<{ data: DisputeAnswer; debugId: string | undefined }>,
+  ): Promise<PayPalResult<DisputeAnswer>> {
+    const { data, debugId } = await sending;
+    return { data, transport: "rest", debugId };
+  }
+
+  async #oneAtATime<T>(disputeId: string, work: () => Promise<T>): Promise<T> {
+    const previous = this.#queues.get(disputeId) ?? Promise.resolve();
+    // A failed earlier answer must not block later ones, so its error is ignored here.
+    const run = previous.catch(() => undefined).then(work);
+    this.#queues.set(disputeId, run);
+    try {
+      return await run;
+    } finally {
+      if (this.#queues.get(disputeId) === run) this.#queues.delete(disputeId);
+    }
   }
 }
