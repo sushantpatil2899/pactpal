@@ -4,6 +4,7 @@ import {
   canonicalJson,
   GENESIS_HASH,
   hashFile,
+  nextEntry,
   verifyChain,
   verifyFile,
   type LedgerEntry,
@@ -73,6 +74,67 @@ describe("appendEvent", () => {
     expect(() =>
       appendEvent(chain, { dealId: "deal-2", type: "NOTE_ADDED", actor: "system", payload: {} }),
     ).toThrow(/deal-2/);
+  });
+});
+
+describe("nextEntry", () => {
+  const first: NewEvent = {
+    dealId: "deal-1",
+    type: "DEAL_CREATED",
+    actor: "seller",
+    actorId: "user-1",
+    payload: { title: "Logo" },
+  };
+
+  it("starts a chain from nothing and continues from the previous entry only", () => {
+    const one = nextEntry(undefined, first, t0);
+    expect(one.seq).toBe(0);
+    expect(one.prevHash).toBe(GENESIS_HASH);
+    const two = nextEntry(one, { ...first, type: "NOTE_ADDED" }, t0);
+    expect(two.seq).toBe(1);
+    expect(two.prevHash).toBe(one.entryHash);
+    expect(verifyChain([one, two]).valid).toBe(true);
+  });
+
+  it("gives the same entry as appendEvent", () => {
+    const chain = buildChain(sampleEvents);
+    const event = { dealId: "deal-1", type: "NOTE_ADDED", actor: "system", payload: {} } as const;
+    expect(nextEntry(chain.at(-1), event, t0)).toEqual(appendEvent(chain, event, t0));
+  });
+
+  it("refuses an event for another deal", () => {
+    const one = nextEntry(undefined, first, t0);
+    expect(() => nextEntry(one, { ...first, dealId: "deal-2" }, t0)).toThrow(/deal-2/);
+  });
+
+  it("covers the acting user in the hash", () => {
+    const one = nextEntry(undefined, first, t0);
+    expect(one.actorId).toBe("user-1");
+    const swapped = { ...one, actorId: "user-2" };
+    expect(verifyChain([swapped])).toEqual({
+      valid: false,
+      brokenAt: 0,
+      reason: "entry fields do not match entryHash",
+    });
+  });
+
+  it("hashes an entry without an acting user exactly as before the field existed", () => {
+    // Pinned from the code as it was before `actorId` was added.
+    const entry = nextEntry(
+      undefined,
+      {
+        dealId: "deal-1",
+        type: "ACCEPTED",
+        actor: "buyer",
+        payload: { typedName: "Chris Doe" },
+        ip: "203.0.113.7",
+        userAgent: "Mozilla/5.0",
+      },
+      t0,
+    );
+    expect(entry.entryHash).toBe(
+      "1f4c3082b2d287c5ad36adc52a6518b95671dddfa9b3cd4f352d14f1067982d8",
+    );
   });
 });
 

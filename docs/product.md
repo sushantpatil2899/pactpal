@@ -8,11 +8,11 @@ People paid through PayPal for services and digital work keep losing disputes fo
 
 ## Users
 
-| User                                                                   | What they get                                                                                                                                                      |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Seller** (primary): freelancer, artist, creator, small online seller | Clear scope, a signed agreement, PayPal invoices per milestone, tracked delivery and approvals, a ready evidence packet and deadline tracking when a dispute opens |
-| **Buyer** (secondary, advisory)                                        | A copy of what was agreed, pages to approve or request changes, answers about the agreement. No account needed: buyers use links.                                  |
-| **AI agents and developers**                                           | An MCP server to read deals and prepare drafts; any sensitive action needs a human confirm token                                                                   |
+| User                                                                   | What they get                                                                                                                                                       |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Seller** (primary): freelancer, artist, creator, small online seller | Clear scope, a signed agreement, PayPal invoices per milestone, tracked delivery and approvals, a ready evidence packet and deadline tracking when a dispute opens  |
+| **Buyer** (secondary, advisory)                                        | A copy of what was agreed, pages to approve or request changes, answers about the agreement. No account needed: buyers use links, and can also sign in with PayPal. |
+| **AI agents and developers**                                           | An MCP server to read deals and prepare drafts; any sensitive action needs a human confirm token                                                                    |
 
 ## End-to-end flow
 
@@ -63,7 +63,7 @@ AI output is always a draft, stored apart from evidence, and every sentence or f
 
 An append-only, hash-chained log per deal (`packages/ledger`). Each entry stores the event type, actor (seller, buyer, system), payload, payload hash, previous entry hash, entry hash, server time and, where relevant, IP address and user agent. Editing, backdating or deleting any entry breaks the chain at that entry. Files are fingerprinted with SHA-256 and size.
 
-Event types include: `SOURCE_ADDED`, `SCOPE_CONFIRMED`, `ACCEPTED`, `RECEIPT_SENT`, `COVERAGE_NOTICE_SHOWN`, `INVOICE_SENT`, `PAYMENT_RECEIVED`, `DELIVERY_SENT`, `DELIVERY_VIEWED`, `DELIVERY_DOWNLOADED`, `MILESTONE_APPROVED`, `CHANGE_REQUESTED`, `CHANGE_ORDER_ACCEPTED`, `DISPUTE_OPENED`, `CLAIM_ANALYZED`, `PACKET_CONFIRMED`, `EVIDENCE_UPLOADED`, `DISPUTE_RESOLVED`, `APPEAL_SUBMITTED`.
+Event types include: `DEAL_CREATED`, `SOURCE_ADDED`, `SCOPE_CONFIRMED`, `ACCEPTED`, `RECEIPT_SENT`, `COVERAGE_NOTICE_SHOWN`, `INVOICE_SENT`, `PAYMENT_RECEIVED`, `DELIVERY_SENT`, `DELIVERY_VIEWED`, `DELIVERY_DOWNLOADED`, `MILESTONE_APPROVED`, `CHANGE_REQUESTED`, `CHANGE_ORDER_ACCEPTED`, `DISPUTE_OPENED`, `CLAIM_ANALYZED`, `PACKET_CONFIRMED`, `EVIDENCE_UPLOADED`, `DISPUTE_RESOLVED`, `APPEAL_SUBMITTED`.
 
 ## Evidence completeness score
 

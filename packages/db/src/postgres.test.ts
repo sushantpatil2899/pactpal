@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { Row } from "./database.js";
 import {
   MIGRATIONS,
+  appendLedgerEvent,
   connectPostgres,
+  createDeal,
   databaseFromPool,
   migrate,
   migrationStatus,
+  verifyStoredLedger,
   type PgClient,
   type PgPool,
 } from "./index.js";
+import { TEST_NOW, createTestParties, testDeal, testId } from "./testing.js";
 
 type Call = [string, unknown[] | undefined];
 
@@ -124,6 +128,40 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       await expect(db.query("DELETE FROM log")).rejects.toThrow(/append-only/);
       expect(await db.query("SELECT note FROM log")).toEqual([{ note: "kept" }]);
       expect(errors).toEqual([]);
+    } finally {
+      await db.close();
+    }
+  });
+
+  it("keeps one unbroken ledger when many writers append to the same deal at once", async () => {
+    const db = connectPostgres({ url: realUrl ?? "", onError: () => undefined });
+    try {
+      await db.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public");
+      await migrate(db, MIGRATIONS);
+      const { seller } = await createTestParties(db);
+      await createDeal(db, testDeal(seller.id), TEST_NOW);
+
+      const writers = Array.from({ length: 20 }, (_, n) =>
+        db.transaction((tx) =>
+          appendLedgerEvent(
+            tx,
+            {
+              dealId: testId(100),
+              type: "NOTE_ADDED",
+              actor: "seller",
+              actorId: seller.id,
+              payload: { n },
+            },
+            new Date(TEST_NOW.getTime() + n),
+          ),
+        ),
+      );
+      const entries = await Promise.all(writers);
+
+      expect(entries.map((entry) => entry.seq).sort((a, b) => a - b)).toEqual(
+        Array.from({ length: 20 }, (_, n) => n + 1),
+      );
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 21 });
     } finally {
       await db.close();
     }

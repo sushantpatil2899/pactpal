@@ -1,6 +1,7 @@
 export { canonicalJson, sha256Hex, type JsonValue } from "./canonical.js";
 export {
   appendEvent,
+  nextEntry,
   verifyChain,
   EVENT_TYPES,
   GENESIS_HASH,

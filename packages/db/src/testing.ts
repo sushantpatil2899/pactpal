@@ -1,6 +1,10 @@
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, beforeAll, beforeEach } from "vitest";
 import type { Database, Queryable, Row } from "./database.js";
+import { migrate } from "./migrate.js";
+import { MIGRATIONS } from "./migrations.js";
+import { createUser, type User } from "./users.js";
+import type { NewDeal } from "./deals.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
 interface Engine {
@@ -63,3 +67,46 @@ export function useTestDatabase(): TestDatabase {
     close: () => open().close(),
   };
 }
+
+/** Like `useTestDatabase`, and every migration is applied before each test. */
+export function useMigratedTestDatabase(): TestDatabase {
+  const db = useTestDatabase();
+  beforeEach(async () => {
+    await migrate(db, MIGRATIONS);
+  });
+  return db;
+}
+
+/** A fixed moment, so tests can compare server times exactly. */
+export const TEST_NOW = new Date("2026-10-02T10:00:00.000Z");
+
+/** A valid id for test number `n` (ids are uuids). */
+export const testId = (n: number): string =>
+  `00000000-0000-4000-8000-${n.toString().padStart(12, "0")}`;
+
+/** A seller and a buyer, both users, for tests that need a deal. */
+export async function createTestParties(q: Queryable): Promise<{ seller: User; buyer: User }> {
+  const seller = await createUser(
+    q,
+    {
+      id: testId(1),
+      email: "maya@example.com",
+      displayName: "Maya Seller",
+      paypalPayerId: "PAYER1",
+    },
+    TEST_NOW,
+  );
+  const buyer = await createUser(q, { id: testId(2), email: "chris@example.com" }, TEST_NOW);
+  return { seller, buyer };
+}
+
+/** A valid new deal for `sellerId`; override any field to test a rule. */
+export const testDeal = (sellerId: string, overrides: Partial<NewDeal> = {}): NewDeal => ({
+  id: testId(100),
+  sellerId,
+  title: "Logo design",
+  kind: "service",
+  category: "art-and-design",
+  currency: "USD",
+  ...overrides,
+});

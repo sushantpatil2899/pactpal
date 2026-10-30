@@ -45,4 +45,4 @@ The prohibited list is checked against PayPal's current Acceptable Use Policy be
 - Hold, reserve and account-limitation appeal pack
 - Card issuer and ombudsman escalation summaries
 - More languages and jurisdiction-specific acceptance text, reviewed by a lawyer
-- A buyer account experience
+- A fuller buyer account experience (a dashboard of the buyer's own deals; the data model already lets one person be a buyer in some deals and a seller in others)

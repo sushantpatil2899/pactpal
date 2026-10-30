@@ -7,6 +7,7 @@ export type Actor = "seller" | "buyer" | "system";
 
 /** Event types recorded by the server. AI drafts are never ledger events. */
 export const EVENT_TYPES = [
+  "DEAL_CREATED",
   "SOURCE_ADDED",
   "SCOPE_DRAFTED",
   "SCOPE_CONFIRMED",
@@ -52,6 +53,8 @@ export interface LedgerEntry {
   seq: number;
   type: EventType;
   actor: Actor;
+  /** The person who acted (a user id); absent for `system` events. Covered by the entry hash. */
+  actorId?: string;
   payload: JsonValue;
   payloadHash: string;
   prevHash: string;
@@ -66,6 +69,7 @@ export interface NewEvent {
   dealId: string;
   type: EventType;
   actor: Actor;
+  actorId?: string;
   payload: JsonValue;
   ip?: string;
   userAgent?: string;
@@ -77,6 +81,7 @@ function computeEntryHash(e: Omit<LedgerEntry, "entryHash" | "payload">): string
     seq: e.seq,
     type: e.type,
     actor: e.actor,
+    actorId: e.actorId,
     payloadHash: e.payloadHash,
     prevHash: e.prevHash,
     serverTime: e.serverTime,
@@ -87,15 +92,15 @@ function computeEntryHash(e: Omit<LedgerEntry, "entryHash" | "payload">): string
 }
 
 /**
- * Builds the next entry of a deal's chain. Pure: the caller persists it.
+ * Builds the entry that follows `last` (or the first entry when there is none). Pure: the
+ * caller persists it. Needs only the previous entry, so a database can load just that one.
  * Corrections are new events that reference earlier ones; nothing is edited.
  */
-export function appendEvent(
-  chain: readonly LedgerEntry[],
+export function nextEntry(
+  last: LedgerEntry | undefined,
   event: NewEvent,
   now: Date = new Date(),
 ): LedgerEntry {
-  const last = chain[chain.length - 1];
   if (last && last.dealId !== event.dealId) {
     throw new Error(
       `Event for deal ${event.dealId} cannot extend the chain of deal ${last.dealId}`,
@@ -103,9 +108,10 @@ export function appendEvent(
   }
   const base = {
     dealId: event.dealId,
-    seq: chain.length,
+    seq: last ? last.seq + 1 : 0,
     type: event.type,
     actor: event.actor,
+    actorId: event.actorId,
     payloadHash: sha256Hex(canonicalJson(event.payload)),
     prevHash: last ? last.entryHash : GENESIS_HASH,
     serverTime: now.toISOString(),
@@ -113,6 +119,15 @@ export function appendEvent(
     userAgent: event.userAgent,
   };
   return { ...base, payload: event.payload, entryHash: computeEntryHash(base) };
+}
+
+/** Builds the next entry of a deal's chain from the whole chain so far. */
+export function appendEvent(
+  chain: readonly LedgerEntry[],
+  event: NewEvent,
+  now: Date = new Date(),
+): LedgerEntry {
+  return nextEntry(chain[chain.length - 1], event, now);
 }
 
 export type VerifyResult =
