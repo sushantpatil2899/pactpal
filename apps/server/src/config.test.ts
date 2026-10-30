@@ -65,7 +65,7 @@ describe("loadConfig", () => {
     );
     expect(missingByFeature).toEqual({
       "Invoices and disputes (seller app)": [],
-      Webhooks: ["PAYPAL_WEBHOOK_ID"],
+      Webhooks: ["PAYPAL_WEBHOOK_ID", "DATABASE_URL"],
       Database: ["DATABASE_URL"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
@@ -155,7 +155,7 @@ describe("formatReport", () => {
     expect(text).toMatch(/PAYPAL_SELLER_CLIENT_SECRET\s+set\n/);
     expect(text).toMatch(/PAYPAL_WEBHOOK_ID\s+missing\n/);
     expect(text).toMatch(/Invoices and disputes \(seller app\)\s+ready\n/);
-    expect(text).toMatch(/Webhooks\s+not ready: missing PAYPAL_WEBHOOK_ID\n/);
+    expect(text).toMatch(/Webhooks\s+not ready: missing PAYPAL_WEBHOOK_ID, DATABASE_URL\n/);
     expect(text).not.toMatch(/seller-(id|secret)-value/);
   });
 });

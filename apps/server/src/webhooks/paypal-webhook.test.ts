@@ -1,8 +1,9 @@
+import { recordWebhookEvent, type NewWebhookEvent, type RecordResult } from "@pactpal/db";
+import { useMigratedTestDatabase } from "@pactpal/db/testing";
 import type { WebhookVerification } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../app.js";
 import type { ConfigReport } from "../config.js";
-import { MemorySeenEvents } from "./seen-events.js";
 
 const report: ConfigReport = { settings: [], features: [] };
 
@@ -28,6 +29,9 @@ function setup(
     answer?: WebhookVerification | Error;
     webhookId?: string | undefined;
     noVerifier?: boolean;
+    noEvents?: boolean;
+    failSaving?: boolean;
+    events?: { record(event: NewWebhookEvent): Promise<RecordResult> };
   } = {},
 ) {
   const logs: string[] = [];
@@ -43,25 +47,47 @@ function setup(
       return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
     },
   };
+  const saved: NewWebhookEvent[] = [];
+  const known = new Set<string>();
+  const events = options.events ?? {
+    record: (e: NewWebhookEvent) => {
+      if (options.failSaving) return Promise.reject(new Error("database down"));
+      const repeat = known.has(e.eventId);
+      known.add(e.eventId);
+      if (!repeat) saved.push(e);
+      return Promise.resolve<RecordResult>(repeat ? "repeat" : "new");
+    },
+  };
   const app = buildApp(report, {
     logger: { stream: { write: (line) => logs.push(line) } },
     webhooks: {
       verifier: options.noVerifier ? undefined : verifier,
       webhookId: "webhookId" in options ? options.webhookId : "WEBHOOK-1",
-      seen: new MemorySeenEvents(),
+      events: options.noEvents ? undefined : events,
     },
   });
   const post = (payload = rawBody) =>
     app.inject({ method: "POST", url: "/webhooks/paypal", headers, payload });
-  return { app, post, calls, logs };
+  return { app, post, calls, logs, saved };
 }
 
 describe("POST /webhooks/paypal", () => {
   it("verifies the exact bytes received, then accepts the notification", async () => {
-    const { app, post, calls, logs } = setup();
+    const { app, post, calls, logs, saved } = setup();
     const res = await post();
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ status: "received" });
+    expect(saved).toEqual([
+      {
+        source: "paypal",
+        eventId: "WH-1",
+        eventType: "INVOICING.INVOICE.CREATED",
+        resourceType: undefined,
+        eventCreatedAt: new Date("2026-10-29T10:00:00Z"),
+        body: event,
+      },
+    ]);
+    expect(logs.join("")).toContain("PayPal notification stored");
     expect(calls).toHaveLength(1);
     expect(calls[0]?.rawBody).toBe(rawBody);
     expect(calls[0]?.webhookId).toBe("WEBHOOK-1");
@@ -70,12 +96,35 @@ describe("POST /webhooks/paypal", () => {
     await app.close();
   });
 
-  it("acknowledges a repeat without handling it again", async () => {
-    const { app, post } = setup();
+  it("acknowledges a repeat without saving it again", async () => {
+    const { app, post, saved } = setup();
     await post();
     const res = await post();
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ status: "repeat" });
+    expect(saved).toHaveLength(1);
+    await app.close();
+  });
+
+  it("keeps a genuine event whose creation time is not a date, leaving the time out", async () => {
+    const { app, post, saved } = setup();
+    const odd = JSON.stringify({
+      ...event,
+      create_time: "yesterday-ish",
+      resource_type: "invoices",
+    });
+    expect((await post(odd)).statusCode).toBe(200);
+    expect(saved[0]).toMatchObject({ eventCreatedAt: undefined, resourceType: "invoices" });
+    await app.close();
+  });
+
+  it("does not acknowledge an event it could not save, so PayPal sends it again", async () => {
+    const { app, post, saved, logs } = setup({ failSaving: true });
+    const res = await post();
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ error: "could not save" });
+    expect(saved).toEqual([]);
+    expect(logs.join("")).toContain("could not be saved");
     await app.close();
   });
 
@@ -113,6 +162,7 @@ describe("POST /webhooks/paypal", () => {
     ],
     ["no webhook id", { webhookId: undefined }, rawBody, 503, "not configured"],
     ["no seller keys", { noVerifier: true }, rawBody, 503, "not configured"],
+    ["no database", { noEvents: true }, rawBody, 503, "not configured"],
   ])("answers %s", async (_label, options, payload, status, error) => {
     const { app, post } = setup(options);
     const res = await post(payload);
@@ -130,6 +180,29 @@ describe("POST /webhooks/paypal", () => {
       payload: rawBody,
     });
     expect(res.statusCode).toBe(503);
+    await app.close();
+  });
+});
+
+describe("POST /webhooks/paypal with the real event log", () => {
+  const db = useMigratedTestDatabase();
+
+  it("saves the event once in the database and recognises the repeat", async () => {
+    const { app, post } = setup({
+      events: { record: (e) => recordWebhookEvent(db, e, new Date("2026-10-29T10:00:05Z")) },
+    });
+    expect((await post()).json()).toEqual({ status: "received" });
+    expect((await post()).json()).toEqual({ status: "repeat" });
+    expect(
+      await db.query("SELECT source, event_id, received_at, body FROM webhook_events"),
+    ).toEqual([
+      {
+        source: "paypal",
+        event_id: "WH-1",
+        received_at: new Date("2026-10-29T10:00:05Z"),
+        body: event,
+      },
+    ]);
     await app.close();
   });
 });

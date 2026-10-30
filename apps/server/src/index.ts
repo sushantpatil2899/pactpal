@@ -1,8 +1,7 @@
-import { connectPostgres } from "@pactpal/db";
+import { connectPostgres, recordWebhookEvent } from "@pactpal/db";
 import { AccessTokenProvider, PayPalRestClient, PayPalWebhooks } from "@pactpal/paypal";
 import { buildApp, closeOnSignals } from "./app.js";
 import { formatErrors, loadConfig } from "./config.js";
-import { MemorySeenEvents } from "./webhooks/seen-events.js";
 
 const result = loadConfig(process.env);
 if (!result.ok) {
@@ -25,7 +24,9 @@ const app = buildApp(report, {
   webhooks: {
     verifier: seller && new PayPalWebhooks(new PayPalRestClient(new AccessTokenProvider(seller))),
     webhookId: config.paypal.webhookId,
-    seen: new MemorySeenEvents(),
+    events: database && {
+      record: (event) => recordWebhookEvent(database, event, new Date()),
+    },
   },
 });
 

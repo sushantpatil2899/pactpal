@@ -107,4 +107,20 @@ CREATE TRIGGER artifacts_append_only BEFORE UPDATE OR DELETE ON artifacts
 CREATE TRIGGER artifacts_no_truncate BEFORE TRUNCATE ON artifacts
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0004_webhook_events",
+    // Notifications as received. No append-only guard: later phases mark events processed,
+    // and a retention purge may need to delete (docs/decisions.md).
+    sql: `CREATE TABLE webhook_events (
+  source text NOT NULL CHECK (source <> ''),
+  event_id text NOT NULL CHECK (event_id <> ''),
+  event_type text NOT NULL CHECK (event_type <> ''),
+  resource_type text,
+  event_created_at timestamptz,
+  received_at timestamptz NOT NULL,
+  body jsonb NOT NULL,
+  PRIMARY KEY (source, event_id)
+);
+CREATE INDEX webhook_events_received_idx ON webhook_events (received_at)`,
+  },
 ];

@@ -2,7 +2,6 @@ import { MIGRATIONS, migrationStatus, type Database, type Migration } from "@pac
 import Fastify, { type FastifyInstance } from "fastify";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
-import { MemorySeenEvents } from "./webhooks/seen-events.js";
 
 export interface AppOptions {
   /** Off, on (to standard output), or into a given stream (used by tests to read the logs). */
@@ -50,7 +49,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
 
   void app.register(
     paypalWebhookRoutes,
-    opts.webhooks ?? { verifier: undefined, webhookId: undefined, seen: new MemorySeenEvents() },
+    opts.webhooks ?? { verifier: undefined, webhookId: undefined, events: undefined },
   );
 
   return app;

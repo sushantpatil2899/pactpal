@@ -53,7 +53,7 @@ export const SETTING_NAMES: readonly string[] = [
  */
 export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime: boolean }[] = [
   { name: "Invoices and disputes (seller app)", needs: ["seller"], runtime: true },
-  { name: "Webhooks", needs: ["seller", "webhook"], runtime: true },
+  { name: "Webhooks", needs: ["seller", "webhook", "database"], runtime: true },
   { name: "Database", needs: ["database"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },

@@ -39,7 +39,8 @@ describe("render.yaml", () => {
 
   it("asks in the dashboard for every setting the Webhooks feature needs, and stores no values", () => {
     const keys = [...blueprint.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
-    expect(keys).toEqual(settingsFor("Webhooks"));
+    // The database address is the exception: Render fills it in from the database itself.
+    expect(keys).toEqual(settingsFor("Webhooks").filter((name) => name !== "DATABASE_URL"));
     expect(blueprint).not.toMatch(/key: PAYPAL_\w+\n\s+value:/);
   });
 

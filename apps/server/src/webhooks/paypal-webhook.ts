@@ -1,7 +1,7 @@
+import type { NewWebhookEvent, RecordResult } from "@pactpal/db";
 import type { PayPalWebhooks } from "@pactpal/paypal";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import type { SeenEvents } from "./seen-events.js";
 
 export const PAYPAL_WEBHOOK_PATH = "/webhooks/paypal";
 
@@ -10,7 +10,8 @@ export interface PayPalWebhookOptions {
   verifier: Pick<PayPalWebhooks, "verify"> | undefined;
   /** PayPal's id for this registered address; undefined until it is configured. */
   webhookId: string | undefined;
-  seen: SeenEvents;
+  /** Saves each notification; undefined until `DATABASE_URL` is set. */
+  events: { record(event: NewWebhookEvent): Promise<RecordResult> } | undefined;
 }
 
 // Only the envelope is read; the event's contents are used by later phases.
@@ -21,22 +22,31 @@ const envelope = z.looseObject({
   resource_type: z.string().optional(),
 });
 
-function isJson(text: string): boolean {
+type ParsedJson = { ok: true; value: z.infer<ReturnType<typeof z.json>> } | { ok: false };
+
+function parseJson(text: string): ParsedJson {
   try {
-    JSON.parse(text);
-    return true;
+    return { ok: true, value: z.json().parse(JSON.parse(text)) };
   } catch {
-    return false;
+    return { ok: false };
   }
+}
+
+/** PayPal's time as a date; a value that is not a date is left out rather than refusing a genuine event. */
+function toDate(value: string | undefined): Date | undefined {
+  const date = value === undefined ? undefined : new Date(value);
+  return date === undefined || Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 /**
  * `POST /webhooks/paypal`: receives PayPal notifications. Each is verified
- * with PayPal against the exact bytes received before anything in it is used;
- * repeats are acknowledged without being handled again.
+ * with PayPal against the exact bytes received before anything in it is used,
+ * then saved in full; only then is it acknowledged, so an event we have not
+ * saved is never acknowledged. Repeats are acknowledged without being saved again.
  *
- * Answers: 200 handled or repeat; 400 not genuine or malformed (PayPal stops);
- * 500 PayPal could not be asked (PayPal retries); 503 not configured yet.
+ * Answers: 200 saved or repeat; 400 not genuine or malformed (PayPal stops);
+ * 500 PayPal could not be asked or the event could not be saved (PayPal retries);
+ * 503 not configured yet (no seller keys, webhook id or database).
  * Bodies, signatures and personal data are never logged.
  */
 export const paypalWebhookRoutes: FastifyPluginAsync<PayPalWebhookOptions> = (app, options) => {
@@ -46,13 +56,14 @@ export const paypalWebhookRoutes: FastifyPluginAsync<PayPalWebhookOptions> = (ap
   });
 
   app.post(PAYPAL_WEBHOOK_PATH, async (request, reply) => {
-    const { verifier, webhookId, seen } = options;
-    if (verifier === undefined || webhookId === undefined) {
+    const { verifier, webhookId, events } = options;
+    if (verifier === undefined || webhookId === undefined || events === undefined) {
       request.log.warn("PayPal notification refused: webhooks are not configured");
       return reply.code(503).send({ error: "not configured" });
     }
     const rawBody = typeof request.body === "string" ? request.body : "";
-    if (!isJson(rawBody)) return reply.code(400).send({ error: "body is not JSON" });
+    const body = parseJson(rawBody);
+    if (!body.ok) return reply.code(400).send({ error: "body is not JSON" });
 
     const headers = Object.fromEntries(
       Object.entries(request.headers).map(([name, value]) => [
@@ -72,15 +83,28 @@ export const paypalWebhookRoutes: FastifyPluginAsync<PayPalWebhookOptions> = (ap
       return reply.code(400).send({ error: "not verified" });
     }
 
-    const event = envelope.safeParse(JSON.parse(rawBody));
+    const event = envelope.safeParse(body.value);
     if (!event.success) return reply.code(400).send({ error: "not a PayPal event" });
-    const { id, event_type: eventType, create_time: createdAt } = event.data;
-    if (seen.has(id)) {
+    const { id, event_type: eventType, create_time: createdAt, resource_type } = event.data;
+    let result: RecordResult;
+    try {
+      result = await events.record({
+        source: "paypal",
+        eventId: id,
+        eventType,
+        resourceType: resource_type,
+        eventCreatedAt: toDate(createdAt),
+        body: body.value,
+      });
+    } catch (error) {
+      request.log.error({ err: error, eventId: id }, "PayPal notification could not be saved");
+      return reply.code(500).send({ error: "could not save" });
+    }
+    if (result === "repeat") {
       request.log.info({ eventId: id, eventType }, "PayPal notification repeated; ignored");
       return reply.code(200).send({ status: "repeat" });
     }
-    seen.add(id);
-    request.log.info({ eventId: id, eventType, createdAt }, "PayPal notification received");
+    request.log.info({ eventId: id, eventType, createdAt }, "PayPal notification stored");
     return reply.code(200).send({ status: "received" });
   });
 

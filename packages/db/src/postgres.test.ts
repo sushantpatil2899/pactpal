@@ -13,6 +13,7 @@ import {
   migrate,
   migrationStatus,
   postgresContentStore,
+  recordWebhookEvent,
   verifyStoredLedger,
   type PgClient,
   type PgPool,
@@ -219,6 +220,23 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       for (const r of refused) expect(r.reason).toBeInstanceOf(ArtifactRejectedError);
       expect(await listArtifacts(db, testId(100))).toHaveLength(4);
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 5 });
+    });
+  });
+
+  it("counts one new event, and the rest repeats, when the same notification arrives ten times at once", async () => {
+    await withRealDatabase(async (db) => {
+      const event = {
+        source: "paypal",
+        eventId: "WH-1",
+        eventType: "INVOICING.INVOICE.PAID",
+        body: { id: "WH-1" },
+      };
+      const results = await Promise.all(
+        Array.from({ length: 10 }, () => recordWebhookEvent(db, event, TEST_NOW)),
+      );
+      expect(results.filter((result) => result === "new")).toHaveLength(1);
+      expect(results.filter((result) => result === "repeat")).toHaveLength(9);
+      expect(await db.query("SELECT 1 FROM webhook_events")).toHaveLength(1);
     });
   });
 });

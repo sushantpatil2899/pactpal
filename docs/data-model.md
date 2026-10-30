@@ -12,6 +12,7 @@ erDiagram
   deals ||--o{ milestones : "planned 2f"
   deals ||--o{ artifacts : "has files"
   ledger_entries |o--o| artifacts : "recorded by"
+  webhook_events }o--o{ deals : "matched later (Phase 4 and 5)"
   users ||--o{ sessions : "planned 2e"
   users ||--o{ link_tokens : "planned 2e"
   deals ||--o{ link_tokens : "planned 2e"
@@ -25,7 +26,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b and 2c)
+## Built (sub-phases 2b, 2c and 2d)
 
 ### `users`: everyone
 
@@ -98,6 +99,21 @@ A file is stored once, by the SHA-256 of its bytes, in `file_contents`; `artifac
 | `created_at`             | Server time                                                                 |
 
 `artifacts` has no database link to `file_contents`, so the bytes can move to object storage later by changing one adapter. Limits protect the 1 GB database: 10 MB per file and 50 MB per deal.
+
+### `webhook_events`: notifications as received
+
+A webhook is a message PayPal posts to our server when something happens (an invoice created or paid). Each genuine one is saved here in full, exactly once, before the server answers "got it", so a repeat is recognised even after a restart and nothing PayPal tells us is lost. Handling the contents (a milestone paid, a dispute matched) comes in Phases 4 and 5; this table is not the evidence record, the ledger is.
+
+| Column               | Meaning                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `source`, `event_id` | Who sent it (`paypal`) and its own id for the event. Together the key: the same pair again is a repeat |
+| `event_type`         | What happened, in PayPal's words (for example `INVOICING.INVOICE.PAID`)                                |
+| `resource_type`      | What it is about (for example `invoices`); may be empty                                                |
+| `event_created_at`   | When PayPal says it happened; empty if PayPal's value was not a date                                   |
+| `received_at`        | When our server received it (UTC)                                                                      |
+| `body`               | The whole event as received. Contains buyer details, so the retention rule (Phase 8) applies           |
+
+Unlike the ledger it can be changed and deleted: later phases will mark events as processed, and a retention purge may need to remove old ones.
 
 ## Planned
 
