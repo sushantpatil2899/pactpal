@@ -9,7 +9,8 @@ services:
     region: virginia
     branch: dev
     autoDeployTrigger: commit
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/server build
+    # The server also serves the built web pages from its own address (docs/decisions.md).
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/web build && pnpm --filter @pactpal/server build
     startCommand: node apps/server/dist/index.js
     # Applies database changes before each deploy; if it fails, the deploy stops and the running version stays.
     preDeployCommand: node apps/server/dist/migrate.js
@@ -17,6 +18,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # The site's own address, from which PayPal's return address is built. Not a secret.
+      - key: PUBLIC_BASE_URL
+        value: https://pactpal-server.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: pactpal-db

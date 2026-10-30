@@ -123,4 +123,17 @@ CREATE TRIGGER artifacts_no_truncate BEFORE TRUNCATE ON artifacts
 );
 CREATE INDEX webhook_events_received_idx ON webhook_events (received_at)`,
   },
+  {
+    id: "0005_sessions",
+    // Only the SHA-256 of each sign-in token is stored, so a leaked table cannot be used to sign in.
+    sql: `CREATE TABLE sessions (
+  token_hash text PRIMARY KEY CHECK (token_hash ~ '^[0-9a-f]{64}$'),
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
+  CONSTRAINT sessions_expire_after_creation CHECK (expires_at > created_at)
+);
+CREATE INDEX sessions_user_idx ON sessions (user_id);
+CREATE INDEX sessions_expires_idx ON sessions (expires_at)`,
+  },
 ];

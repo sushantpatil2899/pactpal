@@ -12,6 +12,7 @@ import { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
 const TOKEN_PATH = "/v1/oauth2/token";
 const OPERATION = `POST ${TOKEN_PATH}`;
 
+/** PayPal's answer from the token address, shared by app and person sign-in. */
 const tokenResponse = z.object({
   access_token: z.string().min(1),
   token_type: z.string(),
@@ -36,6 +37,38 @@ export interface AccessTokenOptions {
   policy?: RetryPolicy;
   /** Renew this long before expiry, so a token never runs out mid-request. */
   renewBeforeMs?: number;
+}
+
+/**
+ * Asks PayPal's token address for a token, authenticating as the app (its id and secret).
+ * Shared by the app's own login and by person sign-in ("Log in with PayPal").
+ */
+export async function requestToken(
+  credentials: PayPalAppCredentials,
+  form: Record<string, string>,
+  options: { baseUrl: string; deps: HttpDeps; policy: RetryPolicy; idempotent: boolean },
+): Promise<z.infer<typeof tokenResponse>> {
+  const { clientId, clientSecret } = credentials;
+  const response = await sendWithRetry(
+    {
+      operation: OPERATION,
+      url: `${options.baseUrl}${TOKEN_PATH}`,
+      init: {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`${clientId}:${clientSecret.reveal()}`)}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+        body: new URLSearchParams(form).toString(),
+      },
+      idempotent: options.idempotent,
+    },
+    options.deps,
+    options.policy,
+  );
+  if (!response.ok) throw await toApiError(OPERATION, response);
+  return parseResponse(OPERATION, response, tokenResponse);
 }
 
 /**
@@ -77,28 +110,12 @@ export class AccessTokenProvider {
 
   async #login(): Promise<AccessToken> {
     const startedAt = this.#deps.now();
-    const { clientId, clientSecret } = this.#credentials;
-    const response = await sendWithRetry(
-      {
-        operation: OPERATION,
-        url: `${this.#baseUrl}${TOKEN_PATH}`,
-        init: {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${btoa(`${clientId}:${clientSecret.reveal()}`)}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-            Accept: "application/json",
-          },
-          body: "grant_type=client_credentials",
-        },
-        // Logging in has no side effects, so it is safe to repeat.
-        idempotent: true,
-      },
-      this.#deps,
-      this.#policy,
+    const body = await requestToken(
+      this.#credentials,
+      { grant_type: "client_credentials" },
+      // Logging in has no side effects, so it is safe to repeat.
+      { baseUrl: this.#baseUrl, deps: this.#deps, policy: this.#policy, idempotent: true },
     );
-    if (!response.ok) throw await toApiError(OPERATION, response);
-    const body = await parseResponse(OPERATION, response, tokenResponse);
     this.#current = {
       value: new Secret(body.access_token),
       expiresAt: startedAt + body.expires_in * 1000,

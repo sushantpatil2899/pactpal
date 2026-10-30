@@ -26,6 +26,13 @@ export { defaultHttpDeps, type HttpDeps } from "./http.js";
 export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
 export { AccessTokenProvider, type AccessToken, type AccessTokenOptions } from "./token.js";
 export {
+  LOGIN_SCOPES,
+  PayPalLogin,
+  SANDBOX_LOGIN_URL,
+  type PayPalIdentity,
+  type PayPalLoginOptions,
+} from "./login.js";
+export {
   PayPalRestClient,
   type ReadRequest,
   type RestClientOptions,

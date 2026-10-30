@@ -19,10 +19,11 @@ const PAYPAL_APPS = {
 } as const;
 
 export type PayPalApp = keyof typeof PAYPAL_APPS;
-type Part = PayPalApp | "webhook" | "database";
+type Part = PayPalApp | "webhook" | "database" | "publicUrl";
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
 const DATABASE_URL = "DATABASE_URL";
+const PUBLIC_BASE_URL = "PUBLIC_BASE_URL";
 const DEFAULT_PORT = 3000;
 
 function appVars(app: PayPalApp): { id: string; secret: string } {
@@ -33,6 +34,7 @@ function appVars(app: PayPalApp): { id: string; secret: string } {
 function partVars(part: Part): string[] {
   if (part === "webhook") return [WEBHOOK_ID];
   if (part === "database") return [DATABASE_URL];
+  if (part === "publicUrl") return [PUBLIC_BASE_URL];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
@@ -45,6 +47,7 @@ export const SETTING_NAMES: readonly string[] = [
   ...APP_KEYS,
   "webhook" as const,
   "database" as const,
+  "publicUrl" as const,
 ].flatMap(partVars);
 
 /**
@@ -55,6 +58,7 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Invoices and disputes (seller app)", needs: ["seller"], runtime: true },
   { name: "Webhooks", needs: ["seller", "webhook", "database"], runtime: true },
   { name: "Database", needs: ["database"], runtime: true },
+  { name: "Sign in with PayPal", needs: ["seller", "publicUrl", "database"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
 ];
@@ -70,12 +74,40 @@ const settingValue = z
   .regex(/^\S+$/, "contains spaces or line breaks")
   .refine((value) => !/^["']|["']$/.test(value), "is wrapped in quote marks");
 
-function isPostgresUrl(value: string): boolean {
+function parseUrl(value: string): URL | undefined {
   try {
-    return ["postgres:", "postgresql:"].includes(new URL(value).protocol);
+    return new URL(value);
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+const isLocalhost = (url: URL) => ["localhost", "127.0.0.1"].includes(url.hostname);
+
+/** Rules for settings that are addresses; the messages never repeat the value. */
+const ADDRESS_RULES: Record<string, { valid: (url: URL) => boolean; message: string }> = {
+  // Render and most hosts hand out postgres:// addresses; the password is inside.
+  [DATABASE_URL]: {
+    valid: (url) => ["postgres:", "postgresql:"].includes(url.protocol),
+    message: "must be a postgres:// address",
+  },
+  // The site's own address, from which PayPal's return address is built; https except locally.
+  [PUBLIC_BASE_URL]: {
+    valid: (url) =>
+      (url.protocol === "https:" || (url.protocol === "http:" && isLocalhost(url))) &&
+      url.pathname === "/" &&
+      url.search === "" &&
+      url.hash === "",
+    message:
+      "must be the site's https:// address with nothing after the host (http only for localhost)",
+  },
+};
+
+/** True unless the setting is an address that breaks its rule. */
+function addressAllowed(name: string, value: string): boolean {
+  const rule = ADDRESS_RULES[name];
+  const url = parseUrl(value);
+  return rule === undefined || (url !== undefined && rule.valid(url));
 }
 
 const portValue = z
@@ -93,6 +125,8 @@ export interface Config {
   };
   /** Absent until `DATABASE_URL` is set. */
   database?: { url: Secret };
+  /** The site's own address without a trailing slash, e.g. https://pactpal-server.onrender.com. */
+  publicBaseUrl?: string;
 }
 
 export interface ConfigReport {
@@ -123,9 +157,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     const parsed = settingValue.safeParse(raw);
     if (!parsed.success) {
       errors.push(`${name} ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
-    } else if (name === DATABASE_URL && !isPostgresUrl(parsed.data)) {
-      // The address holds the password, so the message never repeats it.
-      errors.push(`${name} must be a postgres:// address`);
+    } else if (!addressAllowed(name, parsed.data)) {
+      errors.push(`${name} ${ADDRESS_RULES[name]?.message ?? ""}`);
     } else {
       values.set(name, parsed.data);
     }
@@ -167,6 +200,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     paypal: webhookId === undefined ? { apps } : { apps, webhookId },
   };
   if (databaseValue !== undefined) config.database = { url: new Secret(databaseValue) };
+  const publicBaseUrl = values.get(PUBLIC_BASE_URL);
+  if (publicBaseUrl !== undefined) config.publicBaseUrl = new URL(publicBaseUrl).origin;
   return { ok: true, config, report };
 }
 

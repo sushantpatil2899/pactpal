@@ -1,6 +1,11 @@
+import { randomUUID } from "node:crypto";
+import fastifyCookie from "@fastify/cookie";
+import fastifyHelmet from "@fastify/helmet";
 import { MIGRATIONS, migrationStatus, type Database, type Migration } from "@pactpal/db";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
+import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
 
 export interface AppOptions {
@@ -11,10 +16,38 @@ export interface AppOptions {
   database?: Database;
   /** The migrations the database must have; defaults to all of them. */
   migrations?: readonly Migration[];
+  /** Sign in with PayPal; off (every sign-in "unavailable") when not given. */
+  signIn?: SignInOptions;
+  /** Folder of the built web app; when absent only the server's own routes exist. */
+  webDir?: string;
 }
 
+/**
+ * Request logs show the path without its query string: sign-in returns carry PayPal's one-time
+ * code and state there, which must never reach the logs.
+ */
+const requestLog = (request: FastifyRequest) => ({
+  method: request.method,
+  url: request.url.split("?")[0],
+  host: request.host,
+  remoteAddress: request.ip,
+});
+
 export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: opts.logger ?? true });
+  const { logger = true } = opts;
+  const app = Fastify({
+    logger:
+      logger === false
+        ? false
+        : { ...(logger === true ? {} : logger), serializers: { req: requestLog } },
+  });
+
+  // Security headers on every answer: scripts, styles and frames only from this site. Upgrading
+  // http requests is left off so the app also works on http://localhost; Render serves only https.
+  void app.register(fastifyHelmet, {
+    contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
+  });
+  void app.register(fastifyCookie);
 
   // Liveness only: it must stay green when the database is down, or the host would restart a
   // healthy server. /ready is the check that includes the database.
@@ -46,6 +79,18 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     return reply.send({ status: "ready", database: "ok", migrations: status.applied });
   });
   if (database) app.addHook("onClose", () => database.close());
+
+  void app.register(
+    signInRoutes,
+    opts.signIn ?? {
+      login: undefined,
+      database: undefined,
+      publicBaseUrl: undefined,
+      clock: () => new Date(),
+      newId: randomUUID,
+    },
+  );
+  if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 
   void app.register(
     paypalWebhookRoutes,

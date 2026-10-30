@@ -15,6 +15,7 @@ const fullEnv: Record<string, string> = {
     SETTING_NAMES.map((name, index) => [name, `value-${index}-${name.toLowerCase()}`]),
   ),
   DATABASE_URL,
+  PUBLIC_BASE_URL: "https://pactpal.example.com",
 };
 
 const unsetSettings = (report: ConfigReport) =>
@@ -43,6 +44,7 @@ describe("loadConfig", () => {
     expect(Object.keys(config.paypal.apps).sort()).toEqual(["buyerBiz", "platform", "seller"]);
     expect(config.paypal.webhookId).toBe(fullEnv.PAYPAL_WEBHOOK_ID);
     expect(config.database?.url.reveal()).toBe(DATABASE_URL);
+    expect(config.publicBaseUrl).toBe("https://pactpal.example.com");
     expect(unsetSettings(report)).toEqual([]);
     expect(report.features.every((feature) => feature.missing.length === 0)).toBe(true);
   });
@@ -67,6 +69,7 @@ describe("loadConfig", () => {
       "Invoices and disputes (seller app)": [],
       Webhooks: ["PAYPAL_WEBHOOK_ID", "DATABASE_URL"],
       Database: ["DATABASE_URL"],
+      "Sign in with PayPal": ["PUBLIC_BASE_URL", "DATABASE_URL"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
     });
@@ -100,6 +103,26 @@ describe("loadConfig", () => {
     },
   );
 
+  it.each([
+    ["https://pactpal.example.com", "https://pactpal.example.com"],
+    ["https://pactpal.example.com/", "https://pactpal.example.com"],
+    ["http://localhost:3000", "http://localhost:3000"],
+  ])("accepts PUBLIC_BASE_URL=%s as %s", (value, origin) => {
+    expect(expectLoaded({ PUBLIC_BASE_URL: value }).config.publicBaseUrl).toBe(origin);
+  });
+
+  it.each([
+    "http://pactpal.example.com",
+    "https://pactpal.example.com/app",
+    "https://pactpal.example.com?x=1",
+    "ftp://pactpal.example.com",
+    "pactpal.example.com",
+  ])("rejects PUBLIC_BASE_URL=%s", (value) => {
+    expect(expectErrors({ PUBLIC_BASE_URL: value })).toEqual([
+      "PUBLIC_BASE_URL must be the site's https:// address with nothing after the host (http only for localhost)",
+    ]);
+  });
+
   it("accepts the postgresql:// spelling", () => {
     const { config } = expectLoaded({ DATABASE_URL: "postgresql://u:p@host/db" });
     expect(config.database?.url.reveal()).toBe("postgresql://u:p@host/db");
@@ -131,6 +154,7 @@ describe("missingRuntimeSettings", () => {
       "PAYPAL_SELLER_CLIENT_SECRET",
       "PAYPAL_WEBHOOK_ID",
       "DATABASE_URL",
+      "PUBLIC_BASE_URL",
     ]);
   });
 
@@ -140,6 +164,7 @@ describe("missingRuntimeSettings", () => {
       PAYPAL_SELLER_CLIENT_SECRET: "secret",
       PAYPAL_WEBHOOK_ID: "hook",
       DATABASE_URL,
+      PUBLIC_BASE_URL: "https://pactpal.example.com",
     });
     expect(missingRuntimeSettings(report)).toEqual([]);
   });

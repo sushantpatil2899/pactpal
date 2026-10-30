@@ -13,9 +13,9 @@ erDiagram
   deals ||--o{ artifacts : "has files"
   ledger_entries |o--o| artifacts : "recorded by"
   webhook_events }o--o{ deals : "matched later (Phase 4 and 5)"
-  users ||--o{ sessions : "planned 2e"
-  users ||--o{ link_tokens : "planned 2e"
-  deals ||--o{ link_tokens : "planned 2e"
+  users ||--o{ sessions : "signed in"
+  users ||--o{ link_tokens : "planned 2e-2"
+  deals ||--o{ link_tokens : "planned 2e-2"
 ```
 
 ## Rules that apply everywhere
@@ -26,7 +26,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b, 2c and 2d)
+## Built (sub-phases 2b to 2e-1)
 
 ### `users`: everyone
 
@@ -115,12 +115,24 @@ A webhook is a message PayPal posts to our server when something happens (an inv
 
 Unlike the ledger it can be changed and deleted: later phases will mark events as processed, and a retention purge may need to remove old ones.
 
+### `sessions`: who is signed in
+
+One row per sign-in. The browser holds a random 43-character token in a cookie that page scripts cannot read; the table stores only the token's SHA-256, so the table itself cannot be used to sign in.
+
+| Column                     | Meaning                                                            |
+| -------------------------- | ------------------------------------------------------------------ |
+| `token_hash`               | SHA-256 of the cookie's token (the key)                            |
+| `user_id`                  | Who is signed in. Deleting a user deletes their sessions           |
+| `created_at`, `expires_at` | When the sign-in happened and when it stops working (7 days later) |
+
+An expired session is refused and removed when it is next used; signing out deletes it.
+
 ## Planned
 
 | Table                               | Sub-phase | What it will hold                                                                                                              |
 | ----------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | `artifacts` and their file contents | 2c        | Uploaded files: name, type, size, SHA-256, who added it and the ledger entry that recorded it; the bytes in a separate table   |
 | `webhook_events`                    | 2d        | PayPal notifications as received, one row per event id, so repeats are skipped even after a restart                            |
-| `sessions`, `link_tokens`           | 2e        | Signed-in sessions, and single-purpose expiring links tied to one deal and one person; only hashes of secrets are stored       |
+| `link_tokens`                       | 2e-2      | Single-purpose expiring links tied to one deal and one person, for buyers who do not sign in; only hashes are stored           |
 | `scope_versions`, `milestones`      | 2f        | The agreed scope (each version kept, never edited) and the milestones with amounts in minor units and their PayPal invoice ids |
 | disputes and evidence packets       | Phase 5   | Created when Phase 5 is designed                                                                                               |

@@ -18,6 +18,9 @@
     "seed:sandbox": "tsx src/seed-sandbox.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/helmet": "^13.2.0",
+    "@fastify/static": "^10.1.8",
     "@pactpal/db": "workspace:*",
     "@pactpal/paypal": "workspace:*",
     "fastify": "^5.12.7",

@@ -15,7 +15,14 @@ export {
   readLedger,
   verifyStoredLedger,
 } from "./ledger-store.js";
-export { UserConflictError, createUser, newUserSchema } from "./users.js";
+export {
+  UserConflictError,
+  createUser,
+  findUserByEmail,
+  findUserByPayPalId,
+  linkPayPal,
+  newUserSchema,
+} from "./users.js";
 export type { NewUser, User } from "./users.js";
 export { DEAL_KINDS, DEAL_STATUSES, createDeal, newDealSchema } from "./deals.js";
 export type { Deal, NewDeal } from "./deals.js";
@@ -41,3 +48,12 @@ export type {
 } from "./artifacts.js";
 export { newWebhookEventSchema, recordWebhookEvent } from "./webhook-events.js";
 export type { NewWebhookEvent, RecordResult } from "./webhook-events.js";
+export {
+  SESSION_LIFETIME_MS,
+  createSession,
+  deleteSession,
+  findSessionUser,
+  newSessionToken,
+} from "./sessions.js";
+export { signInWithPayPal } from "./sign-in.js";
+export type { SignInResult, SignedInPerson } from "./sign-in.js";

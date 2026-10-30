@@ -19,8 +19,9 @@ function field(name: string, section = blueprint): string | undefined {
 }
 
 describe("render.yaml", () => {
-  it("builds the server package and starts the same file as its start script", () => {
+  it("builds the web pages and the server package, and starts the same file as its start script", () => {
     expect(field("buildCommand")).toContain(`pnpm --filter ${serverPackage.name} build`);
+    expect(field("buildCommand")).toContain("pnpm --filter @pactpal/web build");
     expect(field("buildCommand")).toContain("pnpm install --frozen-lockfile");
     // Render runs from the repository root; the package's start script runs inside apps/server.
     expect(field("startCommand")).toBe(
@@ -41,7 +42,16 @@ describe("render.yaml", () => {
     const keys = [...blueprint.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
     // The database address is the exception: Render fills it in from the database itself.
     expect(keys).toEqual(settingsFor("Webhooks").filter((name) => name !== "DATABASE_URL"));
+    // Sign-in needs nothing secret beyond those.
+    for (const name of settingsFor("Sign in with PayPal")) {
+      expect(blueprint).toContain(`key: ${name}`);
+    }
     expect(blueprint).not.toMatch(/key: PAYPAL_\w+\n\s+value:/);
+  });
+
+  it("tells the server its own public address, which is the service's Render address", () => {
+    const address = /- key: PUBLIC_BASE_URL\n\s+value: (\S+)\n/.exec(serviceSection)?.[1];
+    expect(address).toBe(`https://${field("name", serviceSection) ?? "missing"}.onrender.com`);
   });
 
   it("runs the built migration command before each deploy", () => {
