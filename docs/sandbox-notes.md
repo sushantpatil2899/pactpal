@@ -32,10 +32,12 @@ What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run
 3. Wait for the sandbox-only links `adjudicate` and `require_evidence`: they appeared 12–25 minutes after the evidence, while the dispute was `UNDER_REVIEW`. Earlier community advice that they never appear for chargebacks did not hold here.
 4. **Adjudicate** (`--settle seller|buyer`). The outcome was recorded within about a minute: `RESOLVED_SELLER_FAVOUR` released the seller's hold; `BUYER_FAVOR` refunded the buyer from the seller.
 5. **Appeal** (only after a buyer-favour verdict, and only when the buyer's email contains `allowappeal`): the dispute moved to `PRE_ARBITRATION` with `appeal` as the only action and about 27 hours to respond. `--appeal --file ...` was accepted.
+6. **Decide the appeal** (`--settle seller|buyer`): the `adjudicate` link reappeared about 10 minutes after the appeal. Deciding for the seller did not close the case; it moved to `WAITING_FOR_BUYER_RESPONSE` (still `PRE_ARBITRATION`) with about 27 hours for the buyer to respond, and the refund stayed with the buyer meanwhile.
 
 - Appeal availability is controlled with special text in the buyer's email address (`allowappeal`, `noappeal`), per PayPal's dispute testing guide.
 - A new sandbox **personal** buyer can pay invoices and open disputes by hand on `sandbox.paypal.com` (Resolution Center → Report a problem); no REST app is needed. PayPal balance was shown as "unavailable at this time" for a brand-new personal account; a linked bank account worked.
 - A dispute opened by hand shows the buyer's text as a `BUYER` message; one opened through the API does not.
+- The buyer's view on the sandbox website stops at the first verdict ("closed in your favor") and never shows the appeal or offers a way to respond to it.
 
 ## Responding to disputes
 
