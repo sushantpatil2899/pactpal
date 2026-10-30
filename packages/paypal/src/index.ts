@@ -40,6 +40,7 @@ import type {
   DisputeAnswer,
   DisputeDetails,
   DisputeList,
+  EscalateInput,
   EvidenceInput,
   OfferInput,
 } from "./disputes.js";
@@ -64,9 +65,12 @@ export {
   type DisputeList,
   type DisputeMessage,
   type DisputeSummary,
+  type EscalateInput,
   type EvidenceInput,
   type OfferInput,
+  type SandboxDisputeAction,
 } from "./disputes.js";
+export { PayPalSandboxDisputes, type DisputeParty } from "./sandbox-disputes.js";
 export {
   PayPalBuyerTestActions,
   TEST_DISPUTE_ITEMS,
@@ -136,6 +140,11 @@ export interface PayPalClient {
     actor: Actor,
     disputeId: string,
     input: AcceptClaimInput,
+  ): Promise<PayPalResult<DisputeAnswer>>;
+  escalate(
+    actor: Actor,
+    disputeId: string,
+    input: EscalateInput,
   ): Promise<PayPalResult<DisputeAnswer>>;
   appeal(
     actor: Actor,

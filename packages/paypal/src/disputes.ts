@@ -173,7 +173,11 @@ function parseItems(operation: string, items: unknown[]): DisputeSummary[] {
 }
 
 /** Seller answers to a dispute, by the action name PayPal uses in its links. */
-export type DisputeAction = "provide_evidence" | "make_offer" | "accept_claim" | "appeal";
+export type DisputeAction =
+  "provide_evidence" | "make_offer" | "accept_claim" | "appeal" | "escalate";
+
+/** Sandbox-only actions that stand in for PayPal's own staff; see `PayPalSandboxDisputes`. */
+export type SandboxDisputeAction = "require_evidence" | "adjudicate";
 
 export interface EvidenceInput {
   /** PayPal's evidence type, e.g. "PROOF_OF_FULFILLMENT" or "OTHER". */
@@ -192,6 +196,11 @@ export interface OfferInput {
   requestId: string;
 }
 
+export interface EscalateInput {
+  note: string;
+  requestId: string;
+}
+
 export interface AcceptClaimInput {
   note: string;
   /** A partial refund; omitted for a full refund. */
@@ -204,10 +213,12 @@ export interface DisputeAnswer {
   disputeId: string;
 }
 
-// PayPal answers a dispute write with links back to the dispute; nothing else is needed from it.
+// PayPal answers a dispute write with links back to the dispute (or, for some sandbox
+// actions, an empty body); nothing else is needed from it.
 const answered = (disputeId: string) =>
   z
     .looseObject({ links: z.array(link).default([]) })
+    .optional()
     .transform((): DisputeAnswer => ({ disputeId }));
 
 // PayPal's MCP accept tool only takes a short note of letters, digits, "_" and "-".
@@ -241,7 +252,7 @@ function evidenceForm(
  * The seller's disputes, read from PayPal every time. Each read tries
  * PayPal's MCP tool first and falls back to the REST API.
  *
- * Answers (evidence, offers, accepting a claim, appeals) re-read the dispute
+ * Answers (evidence, offers, accepting a claim, escalating, appeals) re-read the dispute
  * first and are refused unless PayPal allows them right now, and answers to
  * the same dispute are sent one at a time.
  */
@@ -300,8 +311,8 @@ export class PayPalDisputes extends PayPalOperations {
     input: EvidenceInput,
   ): Promise<PayPalResult<DisputeAnswer>> {
     const form = evidenceForm(input.evidenceType, input.notes, input.files);
-    return this.#answer(disputeId, "provide_evidence", undefined, () =>
-      this.#restOnly(this.#post(disputeId, "provide-evidence", input.requestId, { form })),
+    return this.answer(disputeId, "provide_evidence", undefined, () =>
+      this.restOnly(this.post(disputeId, "provide-evidence", input.requestId, { form })),
     );
   }
 
@@ -312,8 +323,8 @@ export class PayPalDisputes extends PayPalOperations {
       offer_type: input.offerType,
       offer_amount: toPayPalMoney(input.amount),
     };
-    return this.#answer(disputeId, "make_offer", input.offerType, () =>
-      this.#restOnly(this.#post(disputeId, "make-offer", input.requestId, { body })),
+    return this.answer(disputeId, "make_offer", input.offerType, () =>
+      this.restOnly(this.post(disputeId, "make-offer", input.requestId, { body })),
     );
   }
 
@@ -330,7 +341,7 @@ export class PayPalDisputes extends PayPalOperations {
       ...(input.refundAmount && { refund_amount: toPayPalMoney(input.refundAmount) }),
     };
     const mcpUsable = input.refundAmount === undefined && MCP_NOTE.test(input.note);
-    return this.#answer(disputeId, "accept_claim", undefined, () =>
+    return this.answer(disputeId, "accept_claim", undefined, () =>
       this.fallback.run({
         operation: "accept claim",
         kind: "write",
@@ -344,16 +355,24 @@ export class PayPalDisputes extends PayPalOperations {
               },
             )
           : undefined,
-        rest: () => this.#post(disputeId, "accept-claim", input.requestId, { body }),
+        rest: () => this.post(disputeId, "accept-claim", input.requestId, { body }),
       }),
+    );
+  }
+
+  /** Turns an inquiry into a PayPal claim, which PayPal then decides. */
+  async escalate(disputeId: string, input: EscalateInput): Promise<PayPalResult<DisputeAnswer>> {
+    const body = { note: input.note };
+    return this.answer(disputeId, "escalate", undefined, () =>
+      this.restOnly(this.post(disputeId, "escalate", input.requestId, { body })),
     );
   }
 
   /** Appeals a decision against the seller, with notes and files like evidence. */
   async appeal(disputeId: string, input: EvidenceInput): Promise<PayPalResult<DisputeAnswer>> {
     const form = evidenceForm(input.evidenceType, input.notes, input.files);
-    return this.#answer(disputeId, "appeal", undefined, () =>
-      this.#restOnly(this.#post(disputeId, "appeal", input.requestId, { form })),
+    return this.answer(disputeId, "appeal", undefined, () =>
+      this.restOnly(this.post(disputeId, "appeal", input.requestId, { form })),
     );
   }
 
@@ -361,9 +380,9 @@ export class PayPalDisputes extends PayPalOperations {
    * Runs one answer: waits for earlier answers to the same dispute, re-reads
    * the dispute, and sends only if PayPal allows the action (and offer type).
    */
-  async #answer(
+  protected async answer(
     disputeId: string,
-    action: DisputeAction,
+    action: DisputeAction | SandboxDisputeAction,
     offerType: string | undefined,
     send: () => Promise<PayPalResult<DisputeAnswer>>,
   ): Promise<PayPalResult<DisputeAnswer>> {
@@ -383,7 +402,7 @@ export class PayPalDisputes extends PayPalOperations {
     });
   }
 
-  #post(
+  protected post(
     disputeId: string,
     action: string,
     requestId: string,
@@ -398,8 +417,8 @@ export class PayPalDisputes extends PayPalOperations {
     });
   }
 
-  /** Evidence, offers and appeals have no MCP tool, so they go to REST directly. */
-  async #restOnly(
+  /** Evidence, offers, escalation and appeals have no MCP tool, so they go to REST directly. */
+  protected async restOnly(
     sending: Promise<{ data: DisputeAnswer; debugId: string | undefined }>,
   ): Promise<PayPalResult<DisputeAnswer>> {
     const { data, debugId } = await sending;

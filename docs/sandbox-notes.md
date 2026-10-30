@@ -25,16 +25,25 @@ Practical lessons about the PayPal sandbox, gathered from the hackathon communit
 
 ## Moving a dispute to a verdict
 
-- When a card-funded dispute is escalated it can become a **chargeback**, where the sandbox adjudicate action may never appear and require-evidence may fail. Use **PayPal balance** as the funding source when a verdict is needed (for example to test appeals).
-- The sandbox escalation timing depends on the amount; small test amounts escalate within days.
-- Appeal availability can be controlled in tests with special text in the buyer's email address (`allowappeal`, `noappeal`), per PayPal's dispute testing guide.
+What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run unless `--send`):
+
+1. Wait for PayPal's first review (about 3½ minutes), then **escalate** (`--escalate`, a real seller action). The dispute moved to stage `CHARGEBACK`, not `ARBITRATION`, for a balance-funded and a bank-funded payment alike, with only `provide_evidence` and `accept_claim` allowed, and no offers.
+2. **Provide evidence** (`--evidence OTHER --file ...`). Use a type the dispute requests from the seller (its `evidences` entries with `source: REQUESTED_FROM_SELLER`); others fail with `EVIDENCE_TYPE_IS_NOT_ALLOWED`.
+3. Wait for the sandbox-only links `adjudicate` and `require_evidence`: they appeared 12–25 minutes after the evidence, while the dispute was `UNDER_REVIEW`. Earlier community advice that they never appear for chargebacks did not hold here.
+4. **Adjudicate** (`--settle seller|buyer`). The outcome was recorded within about a minute: `RESOLVED_SELLER_FAVOUR` released the seller's hold; `BUYER_FAVOR` refunded the buyer from the seller.
+5. **Appeal** (only after a buyer-favour verdict, and only when the buyer's email contains `allowappeal`): the dispute moved to `PRE_ARBITRATION` with `appeal` as the only action and about 27 hours to respond. `--appeal --file ...` was accepted.
+
+- Appeal availability is controlled with special text in the buyer's email address (`allowappeal`, `noappeal`), per PayPal's dispute testing guide.
+- A new sandbox **personal** buyer can pay invoices and open disputes by hand on `sandbox.paypal.com` (Resolution Center → Report a problem); no REST app is needed. PayPal balance was shown as "unavailable at this time" for a brand-new personal account; a linked bank account worked.
+- A dispute opened by hand shows the buyer's text as a `BUYER` message; one opened through the API does not.
 
 ## Responding to disputes
 
 - **Read allowed actions from the dispute every time** (the HATEOAS links). They change with the dispute's state.
 - Offer types are limited: at the inquiry stage of a "not as described" dispute, only `REFUND` and `REFUND_WITH_RETURN` were offered; other types return `INVALID_OFFER_TYPE`.
 - After any seller write (message, offer), the dispute can enter a short `UNDER_REVIEW` window that refuses a second write. **Send dispute writes one at a time.**
-- Evidence files: PDF, JPG, GIF or PNG, under 10 MB each; a total size limit applies. Exact limits are to be confirmed in the sandbox.
+- Evidence files: PDF, JPG, GIF or PNG, under 10 MB each; a total size limit applies. A 604-byte PDF was accepted; the exact limits were not tested.
+- Allowed offer types by stage ("not as described"): inquiry `REFUND`, `REFUND_WITH_RETURN`; chargeback none; pre-arbitration none (appeal only).
 
 ## Acting on behalf of a seller
 
@@ -54,7 +63,7 @@ Practical lessons about the PayPal sandbox, gathered from the hackathon communit
 - PactPal's server on Render, `https://pactpal-server.onrender.com/webhooks/paypal`, is registered for the seller app (webhook id `4RE47127PE423000W`, not a secret) for invoice, payment and dispute events. `pnpm sandbox:webhook --list` shows it.
 - The first live notification arrived 14 seconds after PayPal created the event, and passed verification.
 - The invoice paid notification arrived 12 seconds after PayPal created it, and passed verification.
-- **No `CUSTOMER.DISPUTE.CREATED` was created for the seller app** when a buyer opened a dispute through the API on 29 October: PayPal's event record had only the invoice events 48 minutes later, and the server logged nothing. PactPal must also poll the seller's disputes, not rely on dispute notifications alone.
+- **No `CUSTOMER.DISPUTE.*` notification was created for the seller app** for either test dispute (opened through the API or on the website, escalated, decided, appealed), while invoice notifications arrived. PactPal must poll the seller's disputes, not rely on dispute notifications alone.
 - When searching Render's Logs, choose "Last 24 hours" or Live tail: a fixed time range hides newer entries.
 - PayPal's sandbox event record (`GET /v1/notifications/webhooks-events` and the single-event lookup) has no delivery results, so confirm delivery in the server's logs on Render (search for the event id).
 

@@ -25,10 +25,21 @@ describe("parseRespondArgs", () => {
       { kind: "accept", refundAmount: { minor: 500, currency: "JPY" } },
     ],
     [[...base, "--appeal"], { kind: "appeal", files: [] }],
+    [[...base, "--escalate"], { kind: "escalate" }],
   ])("reads %j", (argv, answer) => {
     expect(parseRespondArgs(argv)).toEqual({
       ok: true,
       value: { id: "PP-D-1", note: "Delivered", answer, send: false },
+    });
+  });
+
+  it.each([
+    [["--require-evidence", "seller"], { kind: "require-evidence", from: "seller" }],
+    [["--settle", "buyer"], { kind: "settle", winner: "buyer" }],
+  ])("reads the sandbox step %j, which takes no note", (argv, answer) => {
+    expect(parseRespondArgs(["--id", "PP-D-1", ...argv])).toEqual({
+      ok: true,
+      value: { id: "PP-D-1", note: "", answer, send: false },
     });
   });
 
@@ -53,6 +64,10 @@ describe("parseRespondArgs", () => {
     [[...base, "--accept", "--file", "a.pdf"], /--file is only used with --evidence or --appeal/],
     [[...base, "--appeal", "--amount", "1"], /--amount is only used with --offer or --accept/],
     [[...base, "--accept", "--colour", "red"], /Unknown option '--colour'/],
+    [["--id", "PP-D-1", "--escalate"], /--note is required/],
+    [[...base, "--settle", "seller"], /--note is not used with --require-evidence or --settle/],
+    [["--id", "PP-D-1", "--settle", "nobody"], /must be seller or buyer/],
+    [[...base, "--escalate", "--accept"], /exactly one of/],
   ])("rejects %j", (argv, message) => {
     const result = parseRespondArgs(argv);
     expect(result.ok).toBe(false);
@@ -118,6 +133,20 @@ describe("formatPlan", () => {
     expect(formatPlan(args(["--evidence", "OTHER"]), none)).toContain(
       "evidence OTHER, files: none",
     );
+    expect(formatPlan(args(["--escalate"]), none)).toContain(
+      "  Answer           escalate the inquiry to a PayPal claim\n",
+    );
+    const step = (argv: string[]) => {
+      const parsed = parseRespondArgs(["--id", "PP-D-1", ...argv]);
+      if (!parsed.ok) throw new Error(parsed.error);
+      return formatPlan(parsed.value, { ...none, stage: undefined });
+    };
+    expect(step(["--require-evidence", "seller"])).toContain(
+      "  Answer           sandbox: ask the seller for evidence\n  Note             -\n",
+    );
+    expect(step(["--settle", "buyer"])).toContain("sandbox: settle in the buyer's favour");
+    expect(step(["--settle", "buyer"])).toContain("  Stage            -\n");
+    expect(step(["--settle", "buyer"])).toContain("no: PayPal does not allow adjudicate now");
     expect(formatPlan(args(["--accept", "--send"]), none)).not.toContain("Dry run");
     expect(formatPlan(args(["--accept"]), none)).toContain("  Allowed actions  none\n");
   });

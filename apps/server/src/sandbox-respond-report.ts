@@ -2,8 +2,10 @@ import type {
   DisputeAction,
   DisputeAnswer,
   DisputeDetails,
+  DisputeParty,
   MinorAmount,
   PayPalResult,
+  SandboxDisputeAction,
 } from "@pactpal/paypal";
 import { z } from "zod";
 import {
@@ -20,36 +22,51 @@ export type PlannedAnswer =
   | { kind: "evidence"; evidenceType: string; files: string[] }
   | { kind: "offer"; offerType: string; amount: MinorAmount }
   | { kind: "accept"; refundAmount: MinorAmount | undefined }
-  | { kind: "appeal"; files: string[] };
+  | { kind: "appeal"; files: string[] }
+  | { kind: "escalate" }
+  // Sandbox-only steps that stand in for PayPal's staff; they send no note.
+  | { kind: "require-evidence"; from: DisputeParty }
+  | { kind: "settle"; winner: DisputeParty };
 
 export interface RespondArgs {
   id: string;
   answer: PlannedAnswer;
+  /** Empty for the sandbox steps, which send no note. */
   note: string;
   /** False means a dry run: show what would be sent and send nothing. */
   send: boolean;
 }
 
 export const USAGE =
-  "Usage: pnpm sandbox:respond --id <dispute id> --note <text> " +
+  "Usage: pnpm sandbox:respond --id <dispute id> [--note <text>] " +
   "(--evidence <TYPE> [--file <path>]... | --offer <TYPE> --amount <decimal> | " +
-  "--accept [--amount <decimal>] | --appeal [--file <path>]...) [--currency USD] [--send]";
+  "--accept [--amount <decimal>] | --appeal [--file <path>]... | --escalate | " +
+  "--require-evidence seller|buyer | --settle seller|buyer) [--currency USD] [--send]\n" +
+  "--note is required except with --require-evidence and --settle (sandbox-only steps).";
 
 /** PayPal's action name for each answer, as it appears in the dispute's links. */
-export const ACTION_OF: Record<PlannedAnswer["kind"], DisputeAction> = {
+export const ACTION_OF: Record<PlannedAnswer["kind"], DisputeAction | SandboxDisputeAction> = {
   evidence: "provide_evidence",
   offer: "make_offer",
   accept: "accept_claim",
   appeal: "appeal",
+  escalate: "escalate",
+  "require-evidence": "require_evidence",
+  settle: "adjudicate",
 };
+
+const party = z.enum(["seller", "buyer"], "must be seller or buyer");
 
 const argsSchema = z.object({
   id: z.string("--id is required").pipe(disputeIdOption),
-  note: z.string("--note is required").min(1, "--note is required"),
+  note: z.string().default(""),
   evidence: z.string().min(1).optional(),
   offer: z.string().min(1).optional(),
   accept: z.boolean().default(false),
   appeal: z.boolean().default(false),
+  escalate: z.boolean().default(false),
+  "require-evidence": party.optional(),
+  settle: party.optional(),
   file: z.array(z.string().min(1)).default([]),
   amount: z.string().optional(),
   currency: z.string().default("USD"),
@@ -64,9 +81,22 @@ function plan(values: Values): Checked<PlannedAnswer> {
     values.offer !== undefined && "--offer",
     values.accept && "--accept",
     values.appeal && "--appeal",
+    values.escalate && "--escalate",
+    values["require-evidence"] !== undefined && "--require-evidence",
+    values.settle !== undefined && "--settle",
   ].filter((flag) => flag !== false);
   if (chosen.length !== 1) {
-    return { ok: false, error: "give exactly one of --evidence, --offer, --accept or --appeal" };
+    return {
+      ok: false,
+      error:
+        "give exactly one of --evidence, --offer, --accept, --appeal, --escalate, " +
+        "--require-evidence or --settle",
+    };
+  }
+  const sandboxStep = values["require-evidence"] !== undefined || values.settle !== undefined;
+  if (!sandboxStep && values.note === "") return { ok: false, error: "--note is required" };
+  if (sandboxStep && values.note !== "") {
+    return { ok: false, error: "--note is not used with --require-evidence or --settle" };
   }
   const takesFiles = values.evidence !== undefined || values.appeal;
   if (!takesFiles && values.file.length > 0) {
@@ -91,7 +121,14 @@ function plan(values: Values): Checked<PlannedAnswer> {
     return { ok: true, value: { kind: "offer", offerType: values.offer, amount: amount.value } };
   }
   if (values.accept) return { ok: true, value: { kind: "accept", refundAmount: amount?.value } };
-  return { ok: true, value: { kind: "appeal", files: values.file } };
+  if (values.appeal) return { ok: true, value: { kind: "appeal", files: values.file } };
+  if (values["require-evidence"] !== undefined) {
+    return { ok: true, value: { kind: "require-evidence", from: values["require-evidence"] } };
+  }
+  if (values.settle !== undefined) {
+    return { ok: true, value: { kind: "settle", winner: values.settle } };
+  }
+  return { ok: true, value: { kind: "escalate" } };
 }
 
 /** Reads and checks the command line; exactly one answer must be chosen. */
@@ -105,6 +142,9 @@ export function parseRespondArgs(argv: readonly string[]): Checked<RespondArgs> 
       offer: { type: "string" },
       accept: { type: "boolean" },
       appeal: { type: "boolean" },
+      escalate: { type: "boolean" },
+      "require-evidence": { type: "string" },
+      settle: { type: "string" },
       file: { type: "string", multiple: true },
       send: { type: "boolean" },
       ...AMOUNT_OPTIONS,
@@ -138,6 +178,12 @@ function describeAnswer(answer: PlannedAnswer): string {
         : `accept the claim with a refund of ${formatAmount(answer.refundAmount)}`;
     case "appeal":
       return `appeal, files: ${answer.files.join(", ") || "none"}`;
+    case "escalate":
+      return "escalate the inquiry to a PayPal claim";
+    case "require-evidence":
+      return `sandbox: ask the ${answer.from} for evidence`;
+    case "settle":
+      return `sandbox: settle in the ${answer.winner}'s favour`;
   }
 }
 
@@ -158,11 +204,12 @@ export function formatPlan(args: RespondArgs, dispute: DisputeDetails): string {
     `Dispute ${dispute.disputeId}\n` +
     rows([
       ["Status", dispute.status],
+      ["Stage", dispute.stage ?? "-"],
       ["Seller due by", dispute.sellerResponseDueDate ?? "-"],
       ["Allowed actions", list(dispute.allowedActions)],
       ["Offer types", list(dispute.allowedOfferTypes)],
       ["Answer", describeAnswer(args.answer)],
-      ["Note", args.note],
+      ["Note", args.note || "-"],
       ["Allowed now", allowedNow(args, dispute)],
     ]) +
     (args.send ? "" : "Dry run: nothing was sent. Add --send to send it.\n")

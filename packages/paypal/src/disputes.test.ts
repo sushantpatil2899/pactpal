@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { MAX_DISPUTE_PAGES, PayPalDisputes } from "./disputes.js";
 import { DisputeActionNotAllowed, EvidenceFileError, PayPalResponseError } from "./errors.js";
+import { PayPalSandboxDisputes } from "./sandbox-disputes.js";
 import { fakeClients } from "./test-fakes.js";
 
 function setup(options: Parameters<typeof fakeClients>[0] = {}) {
   const { rest, mcp, fallback, restCalls, mcpCalls } = fakeClients(options);
-  return { disputes: new PayPalDisputes(rest, mcp, fallback), restCalls, mcpCalls };
+  return {
+    disputes: new PayPalDisputes(rest, mcp, fallback),
+    sandbox: new PayPalSandboxDisputes(rest, mcp, fallback),
+    restCalls,
+    mcpCalls,
+  };
 }
 
 const API = "https://api-m.sandbox.paypal.com";
@@ -400,5 +406,68 @@ describe("PayPalDisputes answers", () => {
     ]);
     expect(results.map((r) => r.status)).toEqual(["rejected", "fulfilled"]);
     expect(restCalls.map(({ method }) => method)).toEqual(["GET", "GET", "POST"]);
+  });
+});
+
+describe("escalating and sandbox verdict steps", () => {
+  const moves = [
+    [
+      "escalates an inquiry to a claim",
+      "escalate",
+      (d: PayPalSandboxDisputes) => d.escalate("PP-D-1", { note: "Please review", requestId: "r" }),
+      { note: "Please review" },
+    ],
+    [
+      "asks the seller for evidence",
+      "require_evidence",
+      (d: PayPalSandboxDisputes) => d.requireEvidence("PP-D-1", "seller", "r"),
+      { action: "SELLER_EVIDENCE" },
+    ],
+    [
+      "asks the buyer for evidence",
+      "require_evidence",
+      (d: PayPalSandboxDisputes) => d.requireEvidence("PP-D-1", "buyer", "r"),
+      { action: "BUYER_EVIDENCE" },
+    ],
+    [
+      "settles for the seller",
+      "adjudicate",
+      (d: PayPalSandboxDisputes) => d.adjudicate("PP-D-1", "seller", "r"),
+      { adjudication_outcome: "SELLER_FAVOR" },
+    ],
+    [
+      "settles for the buyer",
+      "adjudicate",
+      (d: PayPalSandboxDisputes) => d.adjudicate("PP-D-1", "buyer", "r"),
+      { adjudication_outcome: "BUYER_FAVOR" },
+    ],
+  ] as const;
+
+  it.each(moves)("%s when PayPal allows it", async (_label, action, send, body) => {
+    const { sandbox, restCalls } = setup({ mcp: "none", rest: [allowing([action]), accepted] });
+    const result = await send(sandbox);
+    expect(result).toEqual({
+      data: { disputeId: "PP-D-1" },
+      transport: "rest",
+      debugId: "dbg-rest",
+    });
+    expect(restCalls[1]).toMatchObject({
+      method: "POST",
+      path: `/v1/customer/disputes/PP-D-1/${action.replace("_", "-")}`,
+      requestId: "r",
+      body,
+    });
+  });
+
+  it.each(moves)("refuses to: %s, when PayPal does not allow it", async (_label, action, send) => {
+    const { sandbox, restCalls } = setup({ mcp: "none", rest: [allowing(["make_offer"])] });
+    await expect(send(sandbox)).rejects.toMatchObject({ action, allowed: ["make_offer"] });
+    expect(restCalls).toHaveLength(1);
+  });
+
+  it("accepts an empty reply from PayPal", async () => {
+    const { sandbox } = setup({ mcp: "none", rest: [allowing(["adjudicate"]), undefined] });
+    const result = await sandbox.adjudicate("PP-D-1", "seller", "r");
+    expect(result.data).toEqual({ disputeId: "PP-D-1" });
   });
 });
