@@ -19,9 +19,10 @@ const PAYPAL_APPS = {
 } as const;
 
 export type PayPalApp = keyof typeof PAYPAL_APPS;
-type Part = PayPalApp | "webhook";
+type Part = PayPalApp | "webhook" | "database";
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
+const DATABASE_URL = "DATABASE_URL";
 const DEFAULT_PORT = 3000;
 
 function appVars(app: PayPalApp): { id: string; secret: string } {
@@ -31,6 +32,7 @@ function appVars(app: PayPalApp): { id: string; secret: string } {
 
 function partVars(part: Part): string[] {
   if (part === "webhook") return [WEBHOOK_ID];
+  if (part === "database") return [DATABASE_URL];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
@@ -39,14 +41,22 @@ function partVars(part: Part): string[] {
 export const APP_KEYS = Object.keys(PAYPAL_APPS) as PayPalApp[];
 
 /** Every setting in report order. */
-export const SETTING_NAMES: readonly string[] = [...APP_KEYS, "webhook" as const].flatMap(partVars);
+export const SETTING_NAMES: readonly string[] = [
+  ...APP_KEYS,
+  "webhook" as const,
+  "database" as const,
+].flatMap(partVars);
 
-/** What each feature needs before it can run. */
-export const FEATURES: readonly { name: string; needs: readonly Part[] }[] = [
-  { name: "Invoices and disputes (seller app)", needs: ["seller"] },
-  { name: "Webhooks", needs: ["seller", "webhook"] },
-  { name: "Test setup script", needs: ["seller", "buyerBiz"] },
-  { name: "Connect with PayPal tests", needs: ["platform"] },
+/**
+ * What each feature needs before it can run. `runtime` marks the features of the
+ * running server; the others belong to test scripts and are not listed by `/health`.
+ */
+export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime: boolean }[] = [
+  { name: "Invoices and disputes (seller app)", needs: ["seller"], runtime: true },
+  { name: "Webhooks", needs: ["seller", "webhook"], runtime: true },
+  { name: "Database", needs: ["database"], runtime: true },
+  { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
+  { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
 ];
 
 /** The setting names a feature needs, e.g. "Webhooks" -> seller app keys and webhook id. */
@@ -59,6 +69,14 @@ const settingValue = z
   .string()
   .regex(/^\S+$/, "contains spaces or line breaks")
   .refine((value) => !/^["']|["']$/.test(value), "is wrapped in quote marks");
+
+function isPostgresUrl(value: string): boolean {
+  try {
+    return ["postgres:", "postgresql:"].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+}
 
 const portValue = z
   .string()
@@ -73,11 +91,13 @@ export interface Config {
     apps: Partial<Record<PayPalApp, PayPalAppCredentials>>;
     webhookId?: string;
   };
+  /** Absent until `DATABASE_URL` is set. */
+  database?: { url: Secret };
 }
 
 export interface ConfigReport {
   settings: { name: string; set: boolean }[];
-  features: { name: string; missing: string[] }[];
+  features: { name: string; missing: string[]; runtime: boolean }[];
 }
 
 export type LoadConfigResult =
@@ -101,8 +121,14 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     const raw = env[name];
     if (!isPresent(raw)) continue;
     const parsed = settingValue.safeParse(raw);
-    if (parsed.success) values.set(name, parsed.data);
-    else errors.push(`${name} ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
+    if (!parsed.success) {
+      errors.push(`${name} ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
+    } else if (name === DATABASE_URL && !isPostgresUrl(parsed.data)) {
+      // The address holds the password, so the message never repeats it.
+      errors.push(`${name} must be a postgres:// address`);
+    } else {
+      values.set(name, parsed.data);
+    }
   }
 
   for (const app of APP_KEYS) {
@@ -125,25 +151,28 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     }
   }
   const webhookId = values.get(WEBHOOK_ID);
+  const databaseValue = values.get(DATABASE_URL);
 
   const report: ConfigReport = {
     settings: SETTING_NAMES.map((name) => ({ name, set: values.has(name) })),
-    features: FEATURES.map(({ name, needs }) => ({
+    features: FEATURES.map(({ name, needs, runtime }) => ({
       name,
       missing: needs.flatMap(partVars).filter((variable) => !values.has(variable)),
+      runtime,
     })),
   };
 
-  return {
-    ok: true,
-    config: { port, paypal: webhookId === undefined ? { apps } : { apps, webhookId } },
-    report,
+  const config: Config = {
+    port,
+    paypal: webhookId === undefined ? { apps } : { apps, webhookId },
   };
+  if (databaseValue !== undefined) config.database = { url: new Secret(databaseValue) };
+  return { ok: true, config, report };
 }
 
-/** Names of settings that are not set. */
-export function missingSettings(report: ConfigReport): string[] {
-  return report.settings.filter((setting) => !setting.set).map((setting) => setting.name);
+/** Names of the settings the running server needs that are not set (test-script settings are left out). */
+export function missingRuntimeSettings(report: ConfigReport): string[] {
+  return [...new Set(report.features.filter((f) => f.runtime).flatMap((f) => f.missing))];
 }
 
 /** Plain-text report of which settings are set and which features are ready. Never shows values. */

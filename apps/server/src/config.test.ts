@@ -4,13 +4,21 @@ import {
   formatErrors,
   formatReport,
   loadConfig,
-  missingSettings,
+  missingRuntimeSettings,
+  type ConfigReport,
 } from "./config.js";
 
 // Each value is unique so a leak of any one of them is detectable.
-const fullEnv = Object.fromEntries(
-  SETTING_NAMES.map((name, index) => [name, `value-${index}-${name.toLowerCase()}`]),
-);
+const DATABASE_URL = "postgres://pactpal:db-password-value@db.internal:5432/pactpal";
+const fullEnv: Record<string, string> = {
+  ...Object.fromEntries(
+    SETTING_NAMES.map((name, index) => [name, `value-${index}-${name.toLowerCase()}`]),
+  ),
+  DATABASE_URL,
+};
+
+const unsetSettings = (report: ConfigReport) =>
+  report.settings.filter(({ set }) => !set).map(({ name }) => name);
 
 function expectLoaded(env: NodeJS.ProcessEnv) {
   const result = loadConfig(env);
@@ -34,7 +42,8 @@ describe("loadConfig", () => {
     );
     expect(Object.keys(config.paypal.apps).sort()).toEqual(["buyerBiz", "platform", "seller"]);
     expect(config.paypal.webhookId).toBe(fullEnv.PAYPAL_WEBHOOK_ID);
-    expect(missingSettings(report)).toEqual([]);
+    expect(config.database?.url.reveal()).toBe(DATABASE_URL);
+    expect(unsetSettings(report)).toEqual([]);
     expect(report.features.every((feature) => feature.missing.length === 0)).toBe(true);
   });
 
@@ -42,7 +51,8 @@ describe("loadConfig", () => {
     const { config, report } = expectLoaded({ PAYPAL_WEBHOOK_ID: "" });
     expect(config.port).toBe(3000);
     expect(config.paypal).toEqual({ apps: {} });
-    expect(missingSettings(report)).toEqual(SETTING_NAMES);
+    expect(config.database).toBeUndefined();
+    expect(unsetSettings(report)).toEqual(SETTING_NAMES);
   });
 
   it("marks only the features whose settings are missing as not ready", () => {
@@ -56,6 +66,7 @@ describe("loadConfig", () => {
     expect(missingByFeature).toEqual({
       "Invoices and disputes (seller app)": [],
       Webhooks: ["PAYPAL_WEBHOOK_ID"],
+      Database: ["DATABASE_URL"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
     });
@@ -80,6 +91,26 @@ describe("loadConfig", () => {
     expect(expectErrors({ PAYPAL_WEBHOOK_ID: value })).toEqual([`PAYPAL_WEBHOOK_ID ${message}`]);
   });
 
+  it.each(["mysql://user:pw-leak@host/db", "not a url", "pw-leak"])(
+    "rejects a DATABASE_URL that is not a postgres address, without repeating it",
+    (value) => {
+      const errors = expectErrors({ DATABASE_URL: value.replace(/ /g, "") });
+      expect(errors).toEqual(["DATABASE_URL must be a postgres:// address"]);
+      expect(formatErrors(errors)).not.toMatch(/pw-leak/);
+    },
+  );
+
+  it("accepts the postgresql:// spelling", () => {
+    const { config } = expectLoaded({ DATABASE_URL: "postgresql://u:p@host/db" });
+    expect(config.database?.url.reveal()).toBe("postgresql://u:p@host/db");
+  });
+
+  it("hides the database address when the settings are printed", () => {
+    const { config } = expectLoaded({ DATABASE_URL });
+    expect(JSON.stringify(config)).not.toContain("db-password-value");
+    expect(String(config.database?.url)).toBe("[redacted]");
+  });
+
   it.each(["abc", "0", "65536", "-1", "3000.5"])("rejects PORT=%j", (port) => {
     expect(expectErrors({ PORT: port })).toEqual(["PORT must be a whole number from 1 to 65535"]);
   });
@@ -89,6 +120,28 @@ describe("loadConfig", () => {
     const errors = expectErrors(leaky);
     expect(errors).toHaveLength(SETTING_NAMES.length);
     expect(formatErrors(errors)).not.toMatch(/leak-/);
+  });
+});
+
+describe("missingRuntimeSettings", () => {
+  it("lists what the running server needs, leaving out test-script settings", () => {
+    const { report } = expectLoaded({});
+    expect(missingRuntimeSettings(report)).toEqual([
+      "PAYPAL_SELLER_CLIENT_ID",
+      "PAYPAL_SELLER_CLIENT_SECRET",
+      "PAYPAL_WEBHOOK_ID",
+      "DATABASE_URL",
+    ]);
+  });
+
+  it("is empty once the server's settings are set", () => {
+    const { report } = expectLoaded({
+      PAYPAL_SELLER_CLIENT_ID: "id",
+      PAYPAL_SELLER_CLIENT_SECRET: "secret",
+      PAYPAL_WEBHOOK_ID: "hook",
+      DATABASE_URL,
+    });
+    expect(missingRuntimeSettings(report)).toEqual([]);
   });
 });
 

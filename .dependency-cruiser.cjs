@@ -33,7 +33,11 @@ module.exports = {
       name: "no-dev-deps-in-source",
       comment: "Runtime code may only use runtime dependencies.",
       severity: "error",
-      from: { path: "^(apps|packages)/[^/]+/src/", pathNot: "\\.test\\.tsx?$" },
+      // src/testing.ts is test-support code that only tests import (see packages/db).
+      from: {
+        path: "^(apps|packages)/[^/]+/src/",
+        pathNot: "(\\.test\\.tsx?|/src/testing\\.ts)$",
+      },
       to: { dependencyTypes: ["npm-dev"] },
     },
   ],

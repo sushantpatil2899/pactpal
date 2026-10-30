@@ -1,16 +1,21 @@
 // Keeps render.yaml in step with the project, without a YAML library: the file is small and flat.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { settingsFor } from "./config.js";
 import { PAYPAL_WEBHOOK_PATH } from "./webhooks/paypal-webhook.js";
 
 const blueprint = readFileSync(new URL("../../../render.yaml", import.meta.url), "utf8");
+const ciWorkflow = readFileSync(
+  new URL("../../../.github/workflows/ci.yml", import.meta.url),
+  "utf8",
+);
+const [serviceSection = "", databaseSection = ""] = blueprint.split(/^databases:$/m);
 const serverPackage = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { name: string; scripts: { start: string } };
 
-function field(name: string): string | undefined {
-  return new RegExp(`^\\s+${name}: (.+)$`, "m").exec(blueprint)?.[1];
+function field(name: string, section = blueprint): string | undefined {
+  return new RegExp(`^\\s+${name}: (.+)$`, "m").exec(section)?.[1];
 }
 
 describe("render.yaml", () => {
@@ -36,6 +41,30 @@ describe("render.yaml", () => {
     const keys = [...blueprint.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
     expect(keys).toEqual(settingsFor("Webhooks"));
     expect(blueprint).not.toMatch(/key: PAYPAL_\w+\n\s+value:/);
+  });
+
+  it("runs the built migration command before each deploy", () => {
+    expect(field("preDeployCommand")).toBe("node apps/server/dist/migrate.js");
+    expect(existsSync(new URL("../build.js", import.meta.url))).toBe(true);
+    expect(readFileSync(new URL("../build.js", import.meta.url), "utf8")).toContain(
+      "src/migrate.ts",
+    );
+  });
+
+  it("gives the server its database address from the database, never as a stored value", () => {
+    expect(serviceSection).toMatch(
+      /- key: DATABASE_URL\n\s+fromDatabase:\n\s+name: pactpal-db\n\s+property: connectionString/,
+    );
+    expect(databaseSection).toMatch(/- name: pactpal-db\n/);
+    expect(blueprint).not.toMatch(/postgres(ql)?:\/\//);
+  });
+
+  it("keeps the database next to the server, private, and on the Postgres version CI tests", () => {
+    // Neither the region nor the version can be changed after creation.
+    expect(field("region", databaseSection)).toBe(field("region", serviceSection));
+    expect(field("ipAllowList", databaseSection)).toBe("[]");
+    const version = /postgresMajorVersion: "(\d+)"/.exec(databaseSection)?.[1];
+    expect(ciWorkflow).toContain(`image: postgres:${version ?? "missing"}`);
   });
 
   it("knows no settings for an unknown feature", () => {
