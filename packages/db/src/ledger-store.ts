@@ -74,8 +74,21 @@ export function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+async function loadParties(q: Queryable, dealId: string, lock: boolean) {
+  const rows = await q.query(
+    `SELECT seller_id, buyer_id FROM deals WHERE id = $1${lock ? " FOR UPDATE" : ""}`,
+    [dealId],
+  );
+  const parties = dealParties.safeParse(rows[0]);
+  if (!parties.success) throw new DealNotFoundError(`No deal ${dealId}`);
+  return parties.data;
+}
+
 /** A person acts as the seller or the buyer only if they are that deal's seller or buyer. */
-function assertActorAllowed(event: NewEvent, parties: z.infer<typeof dealParties>): void {
+function assertActorAllowed(
+  event: Pick<NewEvent, "type" | "actor" | "actorId">,
+  parties: z.infer<typeof dealParties>,
+): void {
   const allowed =
     event.actor === "system"
       ? event.actorId === undefined
@@ -85,6 +98,18 @@ function assertActorAllowed(event: NewEvent, parties: z.infer<typeof dealParties
       `${event.type}: the acting user is not the deal's ${event.actor === "system" ? "system (it has none)" : event.actor}`,
     );
   }
+}
+
+/**
+ * Checks, without locking or writing, that the deal exists and the event's actor may act on it.
+ * Lets callers refuse early (before storing a file, say); `appendLedgerEvent` checks again
+ * under the lock, which is the check that counts.
+ */
+export async function assertMayAct(
+  q: Queryable,
+  event: Pick<NewEvent, "dealId" | "type" | "actor" | "actorId">,
+): Promise<void> {
+  assertActorAllowed(event, await loadParties(q, event.dealId, false));
 }
 
 /**
@@ -98,12 +123,7 @@ export async function appendLedgerEvent(
   event: NewEvent,
   now: Date,
 ): Promise<LedgerEntry> {
-  const deal = await tx.query("SELECT seller_id, buyer_id FROM deals WHERE id = $1 FOR UPDATE", [
-    event.dealId,
-  ]);
-  const parties = dealParties.safeParse(deal[0]);
-  if (!parties.success) throw new DealNotFoundError(`No deal ${event.dealId}`);
-  assertActorAllowed(event, parties.data);
+  assertActorAllowed(event, await loadParties(tx, event.dealId, true));
 
   const lastRows = await tx.query(
     `SELECT ${COLUMNS} FROM ledger_entries WHERE deal_id = $1 ORDER BY seq DESC LIMIT 1`,

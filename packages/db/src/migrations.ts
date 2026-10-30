@@ -69,4 +69,42 @@ CREATE TRIGGER ledger_entries_append_only BEFORE UPDATE OR DELETE ON ledger_entr
 CREATE TRIGGER ledger_entries_no_truncate BEFORE TRUNCATE ON ledger_entries
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0003_artifacts",
+    // See docs/data-model.md. The tables are append-only, like the ledger.
+    sql: `CREATE TABLE file_contents (
+  sha256 text PRIMARY KEY CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+  size_bytes integer NOT NULL CHECK (size_bytes > 0),
+  bytes bytea NOT NULL,
+  created_at timestamptz NOT NULL,
+  CONSTRAINT file_contents_size_matches CHECK (octet_length(bytes) = size_bytes)
+);
+
+-- No link to file_contents: the bytes may move to another store later (docs/decisions.md).
+CREATE TABLE artifacts (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  kind text NOT NULL CHECK (kind IN ('source', 'deliverable')),
+  filename text NOT NULL CHECK (filename <> ''),
+  media_type text NOT NULL CHECK (media_type <> ''),
+  size_bytes integer NOT NULL CHECK (size_bytes > 0),
+  sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+  added_by uuid REFERENCES users (id),
+  ledger_seq integer NOT NULL,
+  created_at timestamptz NOT NULL,
+  CONSTRAINT artifacts_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  UNIQUE (deal_id, ledger_seq)
+);
+CREATE INDEX artifacts_deal_idx ON artifacts (deal_id, ledger_seq);
+
+CREATE TRIGGER file_contents_append_only BEFORE UPDATE OR DELETE ON file_contents
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER file_contents_no_truncate BEFORE TRUNCATE ON file_contents
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER artifacts_append_only BEFORE UPDATE OR DELETE ON artifacts
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER artifacts_no_truncate BEFORE TRUNCATE ON artifacts
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

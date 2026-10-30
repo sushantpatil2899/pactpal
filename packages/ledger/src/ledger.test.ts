@@ -3,7 +3,10 @@ import {
   appendEvent,
   canonicalJson,
   GENESIS_HASH,
+  detectMediaType,
   hashFile,
+  isPlainFileName,
+  isPlainText,
   nextEntry,
   verifyChain,
   verifyFile,
@@ -229,4 +232,56 @@ describe("file fingerprints", () => {
     changed[0] = changed[0]! ^ 1;
     expect(verifyFile(changed, fp)).toBe(false);
   });
+});
+
+describe("file checks", () => {
+  const bytes = (...values: number[]) => new Uint8Array(values);
+  const text = (value: string) => new TextEncoder().encode(value);
+
+  it.each([
+    ["a PDF", bytes(0x25, 0x50, 0x44, 0x46, 0x2d, 0x31), "application/pdf"],
+    ["a PNG", bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0), "image/png"],
+    ["a JPEG", bytes(0xff, 0xd8, 0xff, 0xe0), "image/jpeg"],
+    ["a GIF", text("GIF89a"), "image/gif"],
+  ])("recognises %s from its first bytes", (_name, content, type) => {
+    expect(detectMediaType(content)).toBe(type);
+  });
+
+  it.each([
+    ["text", text("%PDF is not at the start")],
+    ["a program", bytes(0x4d, 0x5a, 0x90, 0)],
+    ["a truncated signature", bytes(0x89, 0x50)],
+    ["nothing", bytes()],
+  ])("does not recognise %s as a picture or PDF", (_name, content) => {
+    expect(detectMediaType(content)).toBeUndefined();
+  });
+
+  it.each([
+    ["a chat with line breaks and tabs", "Maya: hi\r\n\tChris: logo?\n"],
+    ["text in other scripts", "山田 ✓ Zoë"],
+  ])("accepts %s as plain text", (_name, value) => {
+    expect(isPlainText(text(value))).toBe(true);
+  });
+
+  it.each([
+    ["a NUL byte", bytes(0x61, 0x00, 0x62)],
+    ["a bell character", text("a\u0007b")],
+    ["bytes that are not UTF-8", bytes(0xff, 0xfe, 0xfd)],
+  ])("refuses %s as plain text", (_name, content) => {
+    expect(isPlainText(content)).toBe(false);
+  });
+
+  it.each(["logo.png", "my chat (final).txt", "山田.pdf", "a".repeat(255)])(
+    "accepts the file name %j",
+    (name) => {
+      expect(isPlainFileName(name)).toBe(true);
+    },
+  );
+
+  it.each(["", "a".repeat(256), "dir/file.png", "dir\\file.png", "a\u0000b.png", "a\nb.png"])(
+    "refuses the file name %j",
+    (name) => {
+      expect(isPlainFileName(name)).toBe(false);
+    },
+  );
 });

@@ -4,7 +4,7 @@ import type { Database, Queryable, Row } from "./database.js";
 import { migrate } from "./migrate.js";
 import { MIGRATIONS } from "./migrations.js";
 import { createUser, type User } from "./users.js";
-import type { NewDeal } from "./deals.js";
+import { createDeal, type NewDeal } from "./deals.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
 interface Engine {
@@ -110,3 +110,12 @@ export const testDeal = (sellerId: string, overrides: Partial<NewDeal> = {}): Ne
   currency: "USD",
   ...overrides,
 });
+
+/** A seller, a buyer and a draft deal (test id 100) that already has its buyer. */
+export async function createTestDeal(
+  db: Database,
+): Promise<{ seller: User; buyer: User; dealId: string }> {
+  const { seller, buyer } = await createTestParties(db);
+  const { deal } = await createDeal(db, testDeal(seller.id, { buyerId: buyer.id }), TEST_NOW);
+  return { seller, buyer, dealId: deal.id };
+}

@@ -1,18 +1,23 @@
 import { describe, expect, it } from "vitest";
-import type { Row } from "./database.js";
+import type { Database, Row } from "./database.js";
 import {
+  ArtifactRejectedError,
   MIGRATIONS,
+  addArtifact,
   appendLedgerEvent,
   connectPostgres,
   createDeal,
   databaseFromPool,
+  getArtifact,
+  listArtifacts,
   migrate,
   migrationStatus,
+  postgresContentStore,
   verifyStoredLedger,
   type PgClient,
   type PgPool,
 } from "./index.js";
-import { TEST_NOW, createTestParties, testDeal, testId } from "./testing.js";
+import { TEST_NOW, createTestDeal, createTestParties, testDeal, testId } from "./testing.js";
 
 type Call = [string, unknown[] | undefined];
 
@@ -104,13 +109,23 @@ describe("connectPostgres", () => {
 
 // Runs only when a real Postgres is available (CI starts one; set TEST_DATABASE_URL locally).
 const realUrl = process.env.TEST_DATABASE_URL;
+
+/** Runs `work` on an emptied real database with every migration applied, then disconnects. */
+async function withRealDatabase(work: (db: Database, errors: Error[]) => Promise<void>) {
+  const errors: Error[] = [];
+  const db = connectPostgres({ url: realUrl ?? "", onError: (error) => errors.push(error) });
+  try {
+    await db.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public");
+    await migrate(db, MIGRATIONS);
+    await work(db, errors);
+  } finally {
+    await db.close();
+  }
+}
+
 describe.skipIf(realUrl === undefined)("real Postgres", () => {
   it("applies the migrations, enforces the append-only guard and works in transactions", async () => {
-    const errors: Error[] = [];
-    const db = connectPostgres({ url: realUrl ?? "", onError: (error) => errors.push(error) });
-    try {
-      await db.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public");
-      await migrate(db, MIGRATIONS);
+    await withRealDatabase(async (db, errors) => {
       expect(await migrationStatus(db, MIGRATIONS)).toEqual({
         upToDate: true,
         applied: MIGRATIONS.length,
@@ -128,16 +143,11 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       await expect(db.query("DELETE FROM log")).rejects.toThrow(/append-only/);
       expect(await db.query("SELECT note FROM log")).toEqual([{ note: "kept" }]);
       expect(errors).toEqual([]);
-    } finally {
-      await db.close();
-    }
+    });
   });
 
   it("keeps one unbroken ledger when many writers append to the same deal at once", async () => {
-    const db = connectPostgres({ url: realUrl ?? "", onError: () => undefined });
-    try {
-      await db.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public");
-      await migrate(db, MIGRATIONS);
+    await withRealDatabase(async (db) => {
       const { seller } = await createTestParties(db);
       await createDeal(db, testDeal(seller.id), TEST_NOW);
 
@@ -162,8 +172,53 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
         Array.from({ length: 20 }, (_, n) => n + 1),
       );
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 21 });
-    } finally {
-      await db.close();
-    }
+    });
+  });
+
+  it("stores a 10 MB file unchanged and keeps a deal within its size limit under simultaneous uploads", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller } = await createTestDeal(db);
+      const store = postgresContentStore(db, () => TEST_NOW);
+      const upload = (
+        n: number,
+        bytes: Uint8Array,
+        limits?: { maxFileBytes: number; maxDealBytes: number },
+      ) =>
+        addArtifact(
+          db,
+          store,
+          {
+            id: testId(500 + n),
+            dealId: testId(100),
+            kind: "deliverable",
+            filename: `file-${n}.bin`,
+            bytes,
+            addedBy: { actor: "seller", actorId: seller.id },
+          },
+          new Date(TEST_NOW.getTime() + n),
+          limits,
+        );
+
+      const big = new Uint8Array(10 * 1024 * 1024);
+      for (let i = 0; i < big.length; i++) big[i] = (i * 7) % 251;
+      await upload(0, big);
+      const stored = await getArtifact(db, store, testId(500));
+      // Compared as a whole: `toEqual` would walk ten million elements.
+      expect(Buffer.from(stored.bytes).equals(big)).toBe(true);
+
+      // Room for three more 1 MB files (the 10 MB file already counts), six arrive at once.
+      const limits = { maxFileBytes: 10 * 1024 * 1024, maxDealBytes: 13 * 1024 * 1024 };
+      const results = await Promise.allSettled(
+        Array.from({ length: 6 }, (_, n) =>
+          upload(n + 1, new Uint8Array(1024 * 1024).fill(n + 1), limits),
+        ),
+      );
+      const refused = results.filter((r) => r.status === "rejected");
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+      expect(refused).toHaveLength(3);
+      for (const r of refused) expect(r.reason).toBeInstanceOf(ArtifactRejectedError);
+      expect(await listArtifacts(db, testId(100))).toHaveLength(4);
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 5 });
+    });
   });
 });

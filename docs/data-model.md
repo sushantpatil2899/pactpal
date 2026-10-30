@@ -10,7 +10,8 @@ erDiagram
   users |o--o{ ledger_entries : "acted (actor_user_id)"
   deals ||--o{ scope_versions : "planned 2f"
   deals ||--o{ milestones : "planned 2f"
-  deals ||--o{ artifacts : "planned 2c"
+  deals ||--o{ artifacts : "has files"
+  ledger_entries |o--o| artifacts : "recorded by"
   users ||--o{ sessions : "planned 2e"
   users ||--o{ link_tokens : "planned 2e"
   deals ||--o{ link_tokens : "planned 2e"
@@ -24,7 +25,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phase 2b)
+## Built (sub-phases 2b and 2c)
 
 ### `users`: everyone
 
@@ -75,6 +76,28 @@ One row per event, never changed or removed. An entry is identified by its deal 
 | `ip`, `user_agent` | Where and with what the actor connected, when relevant. Plain text, because Postgres's address type rewrites addresses and the exact text is hashed |
 
 What protects it: the database refuses updates, deletes and truncation; a deal or user with entries cannot be deleted; and verification recomputes every fingerprint and link and names the first bad entry. Someone with full database access could switch the refusal off, but could not hide the change from verification.
+
+### `artifacts` and `file_contents`: the deal's files
+
+A file is stored once, by the SHA-256 of its bytes, in `file_contents`; `artifacts` says which deal it belongs to and what it is. Both tables are append-only. Adding a file saves the bytes first, then in one transaction writes the ledger entry (`SOURCE_ADDED` or `DELIVERABLE_ADDED`) and the artifact, so a record never points at missing bytes.
+
+| Column (`artifacts`)   | Meaning                                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`, `deal_id`        | The file and its deal                                                                                       |
+| `kind`                 | `source` (what the deal was made from, such as a pasted chat) or `deliverable` (delivered work)             |
+| `filename`             | A plain name: 1 to 255 characters, no slashes, no control characters                                        |
+| `media_type`           | Found from the bytes, never from the name: PDF, PNG, JPEG, GIF, `text/plain`, or `application/octet-stream` |
+| `size_bytes`, `sha256` | The file's size and fingerprint; reading the file checks the bytes against both                             |
+| `added_by`             | The user who added it; empty when the system did                                                            |
+| `ledger_seq`           | The ledger entry (with `deal_id`) that recorded it                                                          |
+
+| Column (`file_contents`) | Meaning                                                                     |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `sha256`                 | Key: the fingerprint of the bytes. The same file added twice is stored once |
+| `size_bytes`, `bytes`    | The length (checked to match) and the content                               |
+| `created_at`             | Server time                                                                 |
+
+`artifacts` has no database link to `file_contents`, so the bytes can move to object storage later by changing one adapter. Limits protect the 1 GB database: 10 MB per file and 50 MB per deal.
 
 ## Planned
 

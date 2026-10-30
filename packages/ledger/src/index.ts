@@ -11,4 +11,12 @@ export {
   type NewEvent,
   type VerifyResult,
 } from "./ledger.js";
-export { hashFile, verifyFile, type FileFingerprint } from "./files.js";
+export {
+  detectMediaType,
+  hashFile,
+  isPlainFileName,
+  isPlainText,
+  verifyFile,
+  type FileFingerprint,
+  type MediaType,
+} from "./files.js";

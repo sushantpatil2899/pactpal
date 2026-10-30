@@ -12,6 +12,7 @@ import {
 } from "./index.js";
 import {
   TEST_NOW,
+  createTestDeal,
   createTestParties,
   testDeal,
   testId,
@@ -22,12 +23,7 @@ const db = useMigratedTestDatabase();
 const at = (minutes: number) => new Date(TEST_NOW.getTime() + minutes * 60_000);
 const dealId = testId(100);
 
-/** A seller, a buyer and a deal with the buyer already known. */
-async function setUp() {
-  const { seller, buyer } = await createTestParties(db);
-  await createDeal(db, testDeal(seller.id, { buyerId: buyer.id }), TEST_NOW);
-  return { seller, buyer };
-}
+const setUp = () => createTestDeal(db);
 
 const append = (event: Omit<NewEvent, "dealId">, now: Date) =>
   db.transaction((tx) => appendLedgerEvent(tx, { ...event, dealId }, now));
@@ -201,13 +197,14 @@ describe("two writers at once", () => {
 });
 
 describe("the database's own protection", () => {
+  // Emptying is refused by the table's own rule, and also by Postgres because artifacts point at it.
   it.each([
     ["editing an entry", "UPDATE ledger_entries SET payload = '{}'::jsonb"],
     ["deleting an entry", "DELETE FROM ledger_entries"],
     ["emptying the table", "TRUNCATE ledger_entries"],
   ])("refuses %s", async (_name, sql) => {
     await setUp();
-    await expect(db.query(sql)).rejects.toThrow(/append-only/);
+    await expect(db.query(sql)).rejects.toThrow(/append-only|cannot truncate/);
     expect(await readLedger(db, dealId)).toHaveLength(1);
   });
 
