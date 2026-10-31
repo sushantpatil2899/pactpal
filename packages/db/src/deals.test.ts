@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Database } from "./database.js";
-import { createDeal, readLedger, verifyStoredLedger } from "./index.js";
+import {
+  createDeal,
+  createUser,
+  getDeal,
+  listDealsForUser,
+  readLedger,
+  verifyStoredLedger,
+} from "./index.js";
 import {
   TEST_NOW,
   createTestParties,
@@ -75,11 +82,11 @@ describe("createDeal", () => {
   });
 
   it.each([
-    ["a kind that does not exist", { kind: "goods" }],
+    ["a category that is not offered", { category: "gift-cards" }],
     ["a currency in small letters", { currency: "usd" }],
-    ["a currency of the wrong length", { currency: "US" }],
+    ["a currency that is not offered", { currency: "JPY" }],
     ["an empty title", { title: "  " }],
-    ["an empty category", { category: "" }],
+    ["a title that is far too long", { title: "x".repeat(201) }],
     ["a deal id that is not a uuid", { id: "deal-1" }],
   ])("rejects %s before touching the database", async (_name, overrides) => {
     const { seller } = await createTestParties(db);
@@ -109,5 +116,44 @@ describe("createDeal", () => {
     };
     await expect(createDeal(failing, testDeal(seller.id), TEST_NOW)).rejects.toThrow("disk full");
     expect(await db.query("SELECT 1 FROM deals")).toEqual([]);
+  });
+});
+
+describe("deal kind", () => {
+  it.each([
+    ["handmade-goods", "physical"],
+    ["digital-products", "digital"],
+    ["consulting-and-coaching", "service"],
+  ] as const)("follows from the category %s", async (category, kind) => {
+    const { seller } = await createTestParties(db);
+    const { deal, entry } = await createDeal(db, testDeal(seller.id, { category }), TEST_NOW);
+    expect(deal.kind).toBe(kind);
+    expect(entry.payload).toMatchObject({ category, kind });
+  });
+});
+
+describe("getDeal and listDealsForUser", () => {
+  it("finds a deal by id, and nothing for an unknown id", async () => {
+    const { seller } = await createTestParties(db);
+    const { deal } = await createDeal(db, testDeal(seller.id), TEST_NOW);
+    expect(await getDeal(db, deal.id)).toEqual(deal);
+    expect(await getDeal(db, testId(555))).toBeUndefined();
+  });
+
+  it("lists the deals a person sells or buys in, newest first, and nobody else's", async () => {
+    const { seller, buyer } = await createTestParties(db);
+    const stranger = await createUser(db, { id: testId(3), email: "x@example.com" }, TEST_NOW);
+    const older = await createDeal(db, testDeal(seller.id, { id: testId(101) }), TEST_NOW);
+    const newer = await createDeal(
+      db,
+      testDeal(seller.id, { id: testId(102), buyerId: buyer.id }),
+      new Date(TEST_NOW.getTime() + 1000),
+    );
+    expect((await listDealsForUser(db, seller.id)).map((d) => d.id)).toEqual([
+      newer.deal.id,
+      older.deal.id,
+    ]);
+    expect((await listDealsForUser(db, buyer.id)).map((d) => d.id)).toEqual([newer.deal.id]);
+    expect(await listDealsForUser(db, stranger.id)).toEqual([]);
   });
 });

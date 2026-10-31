@@ -20,12 +20,22 @@ export {
   createUser,
   findUserByEmail,
   findUserByPayPalId,
+  getUser,
   linkPayPal,
   newUserSchema,
 } from "./users.js";
 export type { NewUser, User } from "./users.js";
-export { DEAL_KINDS, DEAL_STATUSES, createDeal, newDealSchema } from "./deals.js";
-export type { Deal, NewDeal } from "./deals.js";
+export {
+  DEAL_CATEGORIES,
+  DEAL_CURRENCIES,
+  DEAL_KINDS,
+  DEAL_STATUSES,
+  createDeal,
+  getDeal,
+  listDealsForUser,
+  newDealSchema,
+} from "./deals.js";
+export type { Deal, DealCategory, NewDeal } from "./deals.js";
 export { ContentMismatchError, postgresContentStore } from "./content-store.js";
 export type { ContentStore } from "./content-store.js";
 export {

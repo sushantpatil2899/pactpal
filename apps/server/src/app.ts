@@ -5,6 +5,7 @@ import { MIGRATIONS, migrationStatus, type Database, type Migration } from "@pac
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { linkRoutes } from "./auth/links.js";
 import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
+import { dealRoutes } from "./deals/routes.js";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
@@ -90,6 +91,11 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
   };
   void app.register(signInRoutes, signIn);
   void app.register(linkRoutes, { database: signIn.database, clock: signIn.clock });
+  void app.register(dealRoutes, {
+    database: signIn.database,
+    clock: signIn.clock,
+    newId: signIn.newId,
+  });
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 
   void app.register(

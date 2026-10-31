@@ -21,7 +21,7 @@ const initialSecret = takeLinkSecret();
 type View =
   | { kind: "ready"; secret: string }
   | { kind: "working" }
-  | { kind: "in" }
+  | { kind: "in"; dealId: string }
   | { kind: "problem"; message: string };
 
 /**
@@ -40,7 +40,9 @@ export function LinkPage() {
     redeemLink(secret).then(
       (result) => {
         setView(
-          result.ok ? { kind: "in" } : { kind: "problem", message: PROBLEMS[result.problem] },
+          result.ok
+            ? { kind: "in", dealId: result.dealId }
+            : { kind: "problem", message: PROBLEMS[result.problem] },
         );
       },
       () => {
@@ -66,7 +68,9 @@ export function LinkPage() {
       )}
       {view.kind === "working" && <p aria-busy="true">Opening your deal…</p>}
       {view.kind === "in" && (
-        <p role="status">You're in for this deal. You can now see what was agreed.</p>
+        <p role="status">
+          You're in for this deal. <a href={`/deals/${view.dealId}`}>Open your deal</a>
+        </p>
       )}
       {view.kind === "problem" && (
         <p role="alert" style={{ color: "#8a1c1c" }}>

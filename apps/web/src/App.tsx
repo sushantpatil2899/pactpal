@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { SIGN_IN_PATH, getMe, signOut, type Me } from "./api";
+import { DealPage } from "./DealPage";
+import { DealsHome } from "./DealsHome";
 import { LinkPage } from "./LinkPage";
 
 /** Messages for the reasons the server gives when a sign-in did not finish (`?signin=`). */
@@ -30,7 +32,8 @@ const initialProblem = takeSignInProblem();
 
 /** The page shell: the buyer link page at /link, the home page everywhere else. */
 export function App() {
-  const onLinkPage = window.location.pathname === "/link";
+  const path = window.location.pathname;
+  const dealId = /^\/deals\/([0-9a-f-]{36})$/.exec(path)?.[1];
   return (
     <main
       style={{
@@ -42,7 +45,13 @@ export function App() {
     >
       <h1>PactPal</h1>
       <p>AI that seals the deal.</p>
-      {onLinkPage ? <LinkPage /> : <Home />}
+      {path === "/link" ? (
+        <LinkPage />
+      ) : dealId !== undefined ? (
+        <DealPage dealId={dealId} />
+      ) : (
+        <Home />
+      )}
       <p style={{ color: "#555", fontSize: 14 }}>
         Sandbox only. Not legal advice. PactPal records what was agreed and delivered; it does not
         guarantee any dispute outcome. Signing in with PayPal shows control of a PayPal account, not
@@ -103,6 +112,7 @@ function Home() {
           </button>
         </section>
       )}
+      {view.kind === "signed-in" && <DealsHome />}
     </>
   );
 }

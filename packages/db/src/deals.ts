@@ -1,6 +1,6 @@
 import type { LedgerEntry } from "@pactpal/ledger";
 import { z } from "zod";
-import type { Database } from "./database.js";
+import type { Database, Queryable } from "./database.js";
 import { appendLedgerEvent } from "./ledger-store.js";
 
 /**
@@ -19,17 +19,35 @@ export const DEAL_STATUSES = [
   "cancelled",
 ] as const;
 
+/**
+ * The categories a seller can choose (docs/scope.md, tiers 1 and 2), and the kind each implies.
+ * Blocked categories are simply not listed. Kept as data so the list is easy to change.
+ */
+export const DEAL_CATEGORIES = {
+  "art-and-design": { label: "Art and design commission", kind: "service" },
+  "writing-and-translation": { label: "Writing and translation", kind: "service" },
+  "web-and-software": { label: "Web and software project", kind: "service" },
+  "video-and-photo": { label: "Video and photo editing", kind: "service" },
+  "consulting-and-coaching": { label: "Consulting and coaching", kind: "service" },
+  "digital-products": { label: "Digital product (templates, presets, courses)", kind: "digital" },
+  "handmade-goods": { label: "Handmade or custom-made item", kind: "physical" },
+} as const satisfies Record<string, { label: string; kind: (typeof DEAL_KINDS)[number] }>;
+export type DealCategory = keyof typeof DEAL_CATEGORIES;
+const CATEGORY_IDS = Object.keys(DEAL_CATEGORIES) as [DealCategory, ...DealCategory[]];
+
+/** Currencies a deal can use (ISO 4217). PayPal supports more; the list can grow. */
+export const DEAL_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
+
 export const newDealSchema = z.object({
   id: z.uuid(),
   sellerId: z.uuid(),
   /** Unknown while the deal is only a draft from a pasted chat. */
   buyerId: z.uuid().optional(),
-  title: z.string().trim().min(1),
-  kind: z.enum(DEAL_KINDS),
-  /** The seller's chosen category (scope.md). Checked in code, because the list will change. */
-  category: z.string().trim().min(1),
-  /** One currency per deal, so every milestone invoice agrees (ISO 4217, capitals). */
-  currency: z.string().regex(/^[A-Z]{3}$/),
+  title: z.string().trim().min(1).max(200),
+  /** The seller's chosen category; the deal's kind follows from it (see `DEAL_CATEGORIES`). */
+  category: z.enum(CATEGORY_IDS),
+  /** One currency per deal, so every milestone invoice agrees. */
+  currency: z.enum(DEAL_CURRENCIES),
 });
 export type NewDeal = z.infer<typeof newDealSchema>;
 
@@ -70,6 +88,7 @@ export async function createDeal(
   now: Date,
 ): Promise<{ deal: Deal; entry: LedgerEntry }> {
   const deal = newDealSchema.parse(input);
+  const { kind } = DEAL_CATEGORIES[deal.category];
   return db.transaction(async (tx) => {
     const rows = await tx.query(
       `INSERT INTO deals (id, seller_id, buyer_id, title, kind, category, currency, status,
@@ -81,7 +100,7 @@ export async function createDeal(
         deal.sellerId,
         deal.buyerId ?? null,
         deal.title,
-        deal.kind,
+        kind,
         deal.category,
         deal.currency,
         now,
@@ -96,7 +115,7 @@ export async function createDeal(
         actorId: deal.sellerId,
         payload: {
           title: deal.title,
-          kind: deal.kind,
+          kind,
           category: deal.category,
           currency: deal.currency,
           buyerId: deal.buyerId ?? null,
@@ -106,4 +125,19 @@ export async function createDeal(
     );
     return { deal: dealRow.parse(rows[0]), entry };
   });
+}
+
+/** One deal, or undefined. Callers check who may see it. */
+export async function getDeal(q: Queryable, id: string): Promise<Deal | undefined> {
+  const rows = await q.query("SELECT * FROM deals WHERE id = $1", [id]);
+  return rows[0] === undefined ? undefined : dealRow.parse(rows[0]);
+}
+
+/** The deals a person sells or buys in, newest first. */
+export async function listDealsForUser(q: Queryable, userId: string): Promise<Deal[]> {
+  const rows = await q.query(
+    "SELECT * FROM deals WHERE seller_id = $1 OR buyer_id = $1 ORDER BY created_at DESC, id",
+    [userId],
+  );
+  return rows.map((row) => dealRow.parse(row));
 }

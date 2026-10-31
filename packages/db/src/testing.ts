@@ -105,7 +105,6 @@ export const testDeal = (sellerId: string, overrides: Partial<NewDeal> = {}): Ne
   id: testId(100),
   sellerId,
   title: "Logo design",
-  kind: "service",
   category: "art-and-design",
   currency: "USD",
   ...overrides,

@@ -84,6 +84,10 @@ export async function createUser(q: Queryable, input: NewUser, now: Date): Promi
   );
 }
 
+export async function getUser(q: Queryable, id: string): Promise<User | undefined> {
+  return userFrom(await q.query("SELECT * FROM users WHERE id = $1", [id]));
+}
+
 export async function findUserByPayPalId(
   q: Queryable,
   paypalUserId: string,
