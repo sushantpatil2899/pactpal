@@ -8,6 +8,7 @@ import {
   type HttpDeps,
 } from "./http.js";
 import { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
+import { PayPalApiError } from "./errors.js";
 import { requestToken } from "./token.js";
 
 /** Where a person approves sign-in. Sandbox only, like the API address (docs/scope.md). */
@@ -32,6 +33,13 @@ const USERINFO_WAYS = [
   { path: "/v1/identity/openidconnect/userinfo", schema: "openid" },
 ] as const;
 
+/**
+ * Where to swap the sign-in code for the person's key, tried in order. Live, the general token
+ * address returned an app-style key that PayPal's identity addresses declined; the identity token
+ * service is Log in with PayPal's own. Temporary list, cut down once a live sign-in works.
+ */
+const CODE_SWAPS = ["/v1/identity/openidconnect/tokenservice", "/v1/oauth2/token"] as const;
+
 /** PayPal's answer to the code exchange; any other fields are kept so their names can be logged. */
 const personTokenAnswer = z.looseObject({
   access_token: z.string().min(1),
@@ -49,6 +57,9 @@ export interface Refusal {
 
 /** What the sign-in learned and how; names and codes only, so all of it can be logged. */
 export interface SignInDiagnostics {
+  /** Which address swapped the code, and the ones that refused it before. */
+  swap: string | undefined;
+  swapRefusals: Refusal[];
   /** Field names in PayPal's code-exchange answer (never their values). */
   tokenFields: string[];
   /** Permissions PayPal granted for this sign-in. */
@@ -121,7 +132,7 @@ export class PayPalLoginRefusedError extends Error {
   override readonly name = "PayPalLoginRefusedError";
 
   constructor(readonly diagnostics: SignInDiagnostics) {
-    const refusals = diagnostics.refusals
+    const refusals = [...diagnostics.swapRefusals, ...diagnostics.refusals]
       .map(
         (r) =>
           `${r.way} ${r.status}${r.errorName ? ` ${r.errorName}` : ""} (debug id ${r.debugId ?? "none"})`,
@@ -223,24 +234,57 @@ export class PayPalLogin {
   }
 
   /**
+   * Swaps the code at each address in turn. A refusal (4xx) does not use the code up, so the next
+   * address may still accept it; PayPal failing (5xx, network) stops at once. Never retried: a code
+   * works only once.
+   */
+  async #swapCode(code: string, diagnostics: SignInDiagnostics) {
+    for (const path of CODE_SWAPS) {
+      try {
+        const answer = await requestToken(
+          this.#credentials,
+          { grant_type: "authorization_code", code },
+          personTokenAnswer,
+          {
+            baseUrl: this.#baseUrl,
+            deps: this.#deps,
+            policy: this.#policy,
+            idempotent: false,
+            path,
+          },
+        );
+        diagnostics.swap = `POST ${path}`;
+        return answer;
+      } catch (error) {
+        if (!(error instanceof PayPalApiError) || error.status >= 500) throw error;
+        diagnostics.swapRefusals.push({
+          way: `POST ${path}`,
+          status: error.status,
+          errorName: error.errorName,
+          debugId: error.debugId,
+        });
+      }
+    }
+    throw new PayPalLoginRefusedError(diagnostics);
+  }
+
+  /**
    * Who signed in, from the one-time code PayPal returned: tries each documented "who is this"
    * way, then PayPal's ID token. Throws `PayPalLoginRefusedError` (with what PayPal answered)
    * when none works, or the HTTP error if PayPal itself is failing.
    */
   async identify(code: string): Promise<SignInOutcome> {
-    const answer = await requestToken(
-      this.#credentials,
-      { grant_type: "authorization_code", code },
-      personTokenAnswer,
-      // A code works once: a repeat after a lost answer would fail, so it is not retried.
-      { baseUrl: this.#baseUrl, deps: this.#deps, policy: this.#policy, idempotent: false },
-    );
     const diagnostics: SignInDiagnostics = {
-      tokenFields: Object.keys(answer).sort(),
-      scopes: (answer.scope ?? "").split(" ").filter(Boolean),
+      swap: undefined,
+      swapRefusals: [],
+      tokenFields: [],
+      scopes: [],
       refusals: [],
       idToken: { unusable: "not sent" },
     };
+    const answer = await this.#swapCode(code, diagnostics);
+    diagnostics.tokenFields = Object.keys(answer).sort();
+    diagnostics.scopes = (answer.scope ?? "").split(" ").filter(Boolean);
 
     for (const { path, schema } of USERINFO_WAYS) {
       const way = `GET ${path}?schema=${schema}`;

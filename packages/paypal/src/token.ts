@@ -10,7 +10,6 @@ import {
 import { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
 
 const TOKEN_PATH = "/v1/oauth2/token";
-const OPERATION = `POST ${TOKEN_PATH}`;
 
 /** PayPal's answer when the app logs in with its own credentials. */
 const tokenResponse = z.object({
@@ -48,13 +47,22 @@ export async function requestToken<T>(
   form: Record<string, string>,
   /** The answer expected: the app's login and person sign-in read different fields. */
   answer: z.ZodType<T>,
-  options: { baseUrl: string; deps: HttpDeps; policy: RetryPolicy; idempotent: boolean },
+  options: {
+    baseUrl: string;
+    deps: HttpDeps;
+    policy: RetryPolicy;
+    idempotent: boolean;
+    /** The token address; PayPal's general one unless given. */
+    path?: string;
+  },
 ): Promise<T> {
+  const path = options.path ?? TOKEN_PATH;
+  const operation = `POST ${path}`;
   const { clientId, clientSecret } = credentials;
   const response = await sendWithRetry(
     {
-      operation: OPERATION,
-      url: `${options.baseUrl}${TOKEN_PATH}`,
+      operation,
+      url: `${options.baseUrl}${path}`,
       init: {
         method: "POST",
         headers: {
@@ -69,8 +77,8 @@ export async function requestToken<T>(
     options.deps,
     options.policy,
   );
-  if (!response.ok) throw await toApiError(OPERATION, response);
-  return parseResponse(OPERATION, response, answer);
+  if (!response.ok) throw await toApiError(operation, response);
+  return parseResponse(operation, response, answer);
 }
 
 /**

@@ -112,6 +112,8 @@ describe("PayPalLogin.identify", () => {
       },
       via: "GET /v1/identity/oauth2/userinfo?schema=paypalv1.1",
       diagnostics: {
+        swap: "POST /v1/identity/openidconnect/tokenservice",
+        swapRefusals: [],
         tokenFields: [
           "access_token",
           "expires_in",
@@ -127,7 +129,7 @@ describe("PayPalLogin.identify", () => {
       },
     });
     const [exchange, details] = calls;
-    expect(exchange?.url).toBe("https://paypal.test/v1/oauth2/token");
+    expect(exchange?.url).toBe("https://paypal.test/v1/identity/openidconnect/tokenservice");
     expect(exchange?.init.body).toBe("grant_type=authorization_code&code=CODE-1");
     expect(header(exchange!.init, "Authorization")).toBe(
       `Basic ${btoa("client-id:client-secret")}`,
@@ -256,11 +258,40 @@ describe("PayPalLogin.identify", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("reports a refused code", async () => {
-    const { login } = fakePayPal([
-      { status: 400, body: { error: "invalid_grant", error_description: "code expired" } },
+  it("swaps at the general token address when the identity token service refuses the code", async () => {
+    const { login, calls } = fakePayPal([
+      { status: 400, body: { error: "access_denied" }, debugId: "dbg-swap" },
+      token,
+      { status: 200, body: { sub: "U", email: "a@example.com" } },
     ]);
-    await expect(login.identify("OLD")).rejects.toThrow(/invalid_grant/);
+    const outcome = await login.identify("CODE-1");
+    expect(outcome.diagnostics.swap).toBe("POST /v1/oauth2/token");
+    expect(outcome.diagnostics.swapRefusals).toEqual([
+      {
+        way: "POST /v1/identity/openidconnect/tokenservice",
+        status: 400,
+        errorName: "access_denied",
+        debugId: "dbg-swap",
+      },
+    ]);
+    expect(calls.map((c) => c.url).slice(0, 2)).toEqual([
+      "https://paypal.test/v1/identity/openidconnect/tokenservice",
+      "https://paypal.test/v1/oauth2/token",
+    ]);
+  });
+
+  it("reports both refusals when neither address accepts the code", async () => {
+    const { login, calls } = fakePayPal([
+      { status: 400, body: { error: "access_denied" }, debugId: "dbg-a" },
+      { status: 401, body: { error: "invalid_authz_code" }, debugId: "dbg-b" },
+    ]);
+    const error = await login.identify("OLD").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(PayPalLoginRefusedError);
+    expect(String(error)).toMatch(
+      /tokenservice 400 access_denied \(debug id dbg-a\).*oauth2\/token 401 invalid_authz_code/,
+    );
+    expect((error as PayPalLoginRefusedError).diagnostics.swap).toBeUndefined();
+    expect(calls).toHaveLength(2);
   });
 
   it("names the missing field, without values, when the person has no id", async () => {

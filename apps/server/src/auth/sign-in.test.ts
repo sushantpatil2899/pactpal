@@ -38,6 +38,8 @@ function setup(answer: PayPalIdentity | Error = maya, overrides: Partial<SignInO
                 identity: answer,
                 via: "GET /v1/identity/oauth2/userinfo?schema=paypalv1.1",
                 diagnostics: {
+                  swap: "POST /v1/identity/openidconnect/tokenservice",
+                  swapRefusals: [],
                   tokenFields: ["access_token", "id_token"],
                   scopes: ["openid"],
                   refusals: [],
@@ -175,6 +177,8 @@ describe("signing in with PayPal", () => {
 
   it("logs what PayPal answered at each step when it would not say who signed in", async () => {
     const refusal = new PayPalLoginRefusedError({
+      swap: "POST /v1/oauth2/token",
+      swapRefusals: [],
       tokenFields: ["access_token", "scope"],
       scopes: ["openid"],
       refusals: [

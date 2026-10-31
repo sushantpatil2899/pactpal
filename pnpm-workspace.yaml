@@ -3,3 +3,7 @@ packages:
   - "packages/*"
 onlyBuiltDependencies:
   - esbuild
+# Temporary: @fastify/static 10.1.8 still asks for glob 13, which has published warnings
+# (GHSA-3g3m-2fjr-6pw4, and GHSA-g3hv-75wg-m249 through minimatch). Remove once it updates.
+overrides:
+  "@fastify/static>glob": ^14.0.2
