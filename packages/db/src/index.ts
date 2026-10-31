@@ -52,8 +52,11 @@ export {
   SESSION_LIFETIME_MS,
   createSession,
   deleteSession,
-  findSessionUser,
+  findSession,
   newSessionToken,
 } from "./sessions.js";
+export type { SessionAccess } from "./sessions.js";
+export { LINK_LIFETIME_MS, LinkNotAllowedError, createDealLink, redeemDealLink } from "./links.js";
+export type { RedeemResult } from "./links.js";
 export { signInWithPayPal } from "./sign-in.js";
 export type { SignInResult, SignedInPerson } from "./sign-in.js";

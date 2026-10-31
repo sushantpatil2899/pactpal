@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SIGN_IN_PATH, getMe, signOut, type Me } from "./api";
+import { LinkPage } from "./LinkPage";
 
 /** Messages for the reasons the server gives when a sign-in did not finish (`?signin=`). */
 const SIGN_IN_PROBLEMS: Record<string, string> = {
@@ -27,7 +28,31 @@ function takeSignInProblem(): string | undefined {
 // Read once when the page loads (React may run state set-up twice in development).
 const initialProblem = takeSignInProblem();
 
+/** The page shell: the buyer link page at /link, the home page everywhere else. */
 export function App() {
+  const onLinkPage = window.location.pathname === "/link";
+  return (
+    <main
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        maxWidth: 640,
+        margin: "4rem auto",
+        padding: "0 1rem",
+      }}
+    >
+      <h1>PactPal</h1>
+      <p>AI that seals the deal.</p>
+      {onLinkPage ? <LinkPage /> : <Home />}
+      <p style={{ color: "#555", fontSize: 14 }}>
+        Sandbox only. Not legal advice. PactPal records what was agreed and delivered; it does not
+        guarantee any dispute outcome. Signing in with PayPal shows control of a PayPal account, not
+        legal identity.
+      </p>
+    </main>
+  );
+}
+
+function Home() {
   const [view, setView] = useState<View>({ kind: "loading" });
   const [problem, setProblem] = useState<string | undefined>(initialProblem);
 
@@ -55,16 +80,7 @@ export function App() {
   };
 
   return (
-    <main
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        maxWidth: 640,
-        margin: "4rem auto",
-        padding: "0 1rem",
-      }}
-    >
-      <h1>PactPal</h1>
-      <p>AI that seals the deal.</p>
+    <>
       {problem && (
         <p role="alert" style={{ color: "#8a1c1c" }}>
           {problem}
@@ -80,17 +96,13 @@ export function App() {
         <section aria-label="Your account">
           <p>
             Signed in as <strong>{view.me.displayName ?? view.me.email}</strong> ({view.me.email})
+            {view.me.access !== "full" && " with a link to one deal"}
           </p>
           <button type="button" onClick={onSignOut}>
             Sign out
           </button>
         </section>
       )}
-      <p style={{ color: "#555", fontSize: 14 }}>
-        Sandbox only. Not legal advice. PactPal records what was agreed and delivered; it does not
-        guarantee any dispute outcome. Signing in with PayPal shows control of a PayPal account, not
-        legal identity.
-      </p>
-    </main>
+    </>
   );
 }

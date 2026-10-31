@@ -2,11 +2,12 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import {
   createSession,
   deleteSession,
-  findSessionUser,
+  findSession,
   newSessionToken,
   signInWithPayPal,
   SESSION_LIFETIME_MS,
   type Database,
+  type SessionAccess,
   type User,
 } from "@pactpal/db";
 import type { PayPalLogin } from "@pactpal/paypal";
@@ -44,7 +45,12 @@ export type SignInProblem =
 
 // HttpOnly: page scripts cannot read it. Secure: HTTPS only. SameSite=Lax: not sent with other
 // sites' form posts, but sent when PayPal sends the person back. `__Host-` needs Secure and Path=/.
-const cookieRules = { path: "/", httpOnly: true, secure: true, sameSite: "lax" } as const;
+export const cookieRules = { path: "/", httpOnly: true, secure: true, sameSite: "lax" } as const;
+
+/** Puts a new session's secret in the browser's protected cookie. */
+export function setSessionCookie(reply: FastifyReply, token: string): void {
+  reply.setCookie(SESSION_COOKIE, token, { ...cookieRules, maxAge: SESSION_LIFETIME_MS / 1000 });
+}
 
 const callbackQuery = z.object({
   code: z.string().min(1).optional(),
@@ -64,16 +70,16 @@ const backHome = (reply: FastifyReply, problem: SignInProblem) =>
   reply.redirect(`/?signin=${problem}`);
 
 /**
- * The signed-in user for this request, or undefined. Used by every route that needs to know
- * who is acting.
+ * Who is signed in for this request and what their session allows (everything, or one deal for a
+ * buyer link), or undefined. Used by every route that needs to know who is acting.
  */
-export async function currentUser(
+export async function currentSession(
   request: FastifyRequest,
   database: Database,
   now: Date,
-): Promise<User | undefined> {
+): Promise<{ user: User; access: SessionAccess } | undefined> {
   const token = request.cookies[SESSION_COOKIE];
-  return token === undefined ? undefined : findSessionUser(database, token, now);
+  return token === undefined ? undefined : findSession(database, token, now);
 }
 
 /**
@@ -139,10 +145,7 @@ export const signInRoutes: FastifyPluginAsync<SignInOptions> = (app, options) =>
     }
     // A fresh token on every sign-in, so an old cookie can never be reused for a new session.
     const session = await createSession(database, result.user.id, now, newSessionToken());
-    reply.setCookie(SESSION_COOKIE, session.token, {
-      ...cookieRules,
-      maxAge: SESSION_LIFETIME_MS / 1000,
-    });
+    setSessionCookie(reply, session.token);
     request.log.info({ userId: result.user.id, created: result.created }, "Signed in");
     return reply.redirect("/");
   });
@@ -155,13 +158,15 @@ export const signInRoutes: FastifyPluginAsync<SignInOptions> = (app, options) =>
   });
 
   app.get(ME_PATH, async (request, reply) => {
-    const user = database && (await currentUser(request, database, clock()));
-    if (!user) return reply.code(401).send({ error: "signed out" });
+    const session = database && (await currentSession(request, database, clock()));
+    if (!session) return reply.code(401).send({ error: "signed out" });
+    const { user, access } = session;
     return reply.send({
       id: user.id,
       email: user.email,
       displayName: user.displayName ?? null,
       paypalLinked: user.paypalUserId !== undefined,
+      access: access.method === "link" ? { dealId: access.dealId } : "full",
     });
   });
 

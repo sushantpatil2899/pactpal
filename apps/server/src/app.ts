@@ -3,6 +3,7 @@ import fastifyCookie from "@fastify/cookie";
 import fastifyHelmet from "@fastify/helmet";
 import { MIGRATIONS, migrationStatus, type Database, type Migration } from "@pactpal/db";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import { linkRoutes } from "./auth/links.js";
 import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { registerWebPages } from "./web-pages.js";
@@ -80,16 +81,15 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
   });
   if (database) app.addHook("onClose", () => database.close());
 
-  void app.register(
-    signInRoutes,
-    opts.signIn ?? {
-      login: undefined,
-      database: undefined,
-      publicBaseUrl: undefined,
-      clock: () => new Date(),
-      newId: randomUUID,
-    },
-  );
+  const signIn = opts.signIn ?? {
+    login: undefined,
+    database: undefined,
+    publicBaseUrl: undefined,
+    clock: () => new Date(),
+    newId: randomUUID,
+  };
+  void app.register(signInRoutes, signIn);
+  void app.register(linkRoutes, { database: signIn.database, clock: signIn.clock });
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 
   void app.register(

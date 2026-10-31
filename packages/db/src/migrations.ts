@@ -136,4 +136,28 @@ CREATE INDEX webhook_events_received_idx ON webhook_events (received_at)`,
 CREATE INDEX sessions_user_idx ON sessions (user_id);
 CREATE INDEX sessions_expires_idx ON sessions (expires_at)`,
   },
+  {
+    id: "0006_links",
+    // Buyer links store only the SHA-256 of their secret, like sessions. A link session is
+    // limited to one deal; a PayPal session is not (docs/decisions.md).
+    sql: `CREATE TABLE link_tokens (
+  token_hash text PRIMARY KEY CHECK (token_hash ~ '^[0-9a-f]{64}$'),
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  purpose text NOT NULL CHECK (purpose IN ('deal-access')),
+  created_at timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  last_used_at timestamptz,
+  CONSTRAINT link_tokens_expire_after_creation CHECK (expires_at > created_at)
+);
+CREATE INDEX link_tokens_deal_user_idx ON link_tokens (deal_id, user_id);
+
+ALTER TABLE sessions ADD COLUMN method text NOT NULL DEFAULT 'paypal'
+  CHECK (method IN ('paypal', 'link'));
+ALTER TABLE sessions ALTER COLUMN method DROP DEFAULT;
+ALTER TABLE sessions ADD COLUMN deal_id uuid REFERENCES deals (id);
+ALTER TABLE sessions ADD CONSTRAINT sessions_link_has_deal
+  CHECK ((method = 'link') = (deal_id IS NOT NULL))`,
+  },
 ];

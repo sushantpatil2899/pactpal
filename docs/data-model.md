@@ -14,8 +14,8 @@ erDiagram
   ledger_entries |o--o| artifacts : "recorded by"
   webhook_events }o--o{ deals : "matched later (Phase 4 and 5)"
   users ||--o{ sessions : "signed in"
-  users ||--o{ link_tokens : "planned 2e-2"
-  deals ||--o{ link_tokens : "planned 2e-2"
+  users ||--o{ link_tokens : "buyer links"
+  deals ||--o{ link_tokens : "for one deal"
 ```
 
 ## Rules that apply everywhere
@@ -26,7 +26,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 2e-1)
+## Built (sub-phases 2b to 2e-2)
 
 ### `users`: everyone
 
@@ -126,6 +126,21 @@ One row per sign-in. The browser holds a random 43-character token in a cookie t
 | `created_at`, `expires_at` | When the sign-in happened and when it stops working (7 days later) |
 
 An expired session is refused and removed when it is next used; signing out deletes it.
+
+### `link_tokens`: buyer links
+
+A private link that lets a deal's buyer into that one deal without a PayPal account. The secret travels after `#` in the address (`/link#t=...`), so the server never logs it; only its SHA-256 is stored. Opening the link shows a "Continue" button, because mail scanners open links but do not press buttons.
+
+| Column                     | Meaning                                                       |
+| -------------------------- | ------------------------------------------------------------- |
+| `token_hash`               | SHA-256 of the link's secret (the key)                        |
+| `deal_id`, `user_id`       | The deal it opens and the buyer it is for                     |
+| `purpose`                  | `deal-access` for now                                         |
+| `created_at`, `expires_at` | When it was made and when it stops working (14 days later)    |
+| `revoked_at`               | Set when a newer link for the same deal and buyer replaces it |
+| `last_used_at`             | The last time it let someone in                               |
+
+Using a link marks the buyer's email as proven and starts a session limited to that deal.
 
 ## Planned
 

@@ -115,6 +115,7 @@ describe("signing in with PayPal", () => {
       email: "maya@example.com",
       displayName: "Maya Seller",
       paypalLinked: true,
+      access: "full",
     });
     await app.close();
   });
