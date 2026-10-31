@@ -60,6 +60,13 @@ What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run
 - The official toolkit's dispute tools cover list, get and accept claim. There are no MCP tools for evidence, offers, appeals or messages; PactPal uses REST for those.
 - Using the REST API directly is acceptable for the hackathon; PayPal invites feedback on missing MCP tools.
 
+## Log in with PayPal
+
+- Set up per app in the developer dashboard (Features → Log in with PayPal): Return URL `https://pactpal-server.onrender.com/auth/paypal/callback`, information requested (name, email, PayPal account ID), and privacy and user agreement addresses (`https://example.com` is accepted in the sandbox). Done for the seller app on 30 October 2026.
+- The sign-in page is `https://www.sandbox.paypal.com/connect`. The one-time code is swapped at `POST /v1/oauth2/token` (`grant_type=authorization_code`) with the app's id and secret; a made-up code is refused with `invalid_authz_code`.
+- **The person's token was refused (401) at `GET /v1/identity/openidconnect/userinfo`** (the Identity API reference's address) on both live tries on 30 October 2026 (debug ids `f637800d0c050` and `f43562496b245`), even though the code exchange had succeeded. The Log in with PayPal integration guide uses `GET /v1/identity/oauth2/userinfo?schema=paypalv1.1`, so PactPal asks there first and uses the reference address only as a fallback. With the app's own token both addresses answer, so this only shows up in a real sign-in.
+- With the app's own token the answer has `user_id`, `sub`, `name`, `email`, `email_verified` (true/false), `payer_id`, and `verified` and `verified_account` as the text `"true"`. The guide documents an older shape with a list of `emails`; PactPal reads both.
+
 ## Webhooks
 
 - PactPal's server on Render, `https://pactpal-server.onrender.com/webhooks/paypal`, is registered for the seller app (webhook id `4RE47127PE423000W`, not a secret) for invoice, payment and dispute events. `pnpm sandbox:webhook --list` shows it.

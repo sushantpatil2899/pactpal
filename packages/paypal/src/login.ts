@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SANDBOX_API_BASE_URL, type PayPalAppCredentials } from "./credentials.js";
+import type { PayPalApiError } from "./errors.js";
 import {
   defaultHttpDeps,
   parseResponse,
@@ -21,7 +22,17 @@ export const LOGIN_SCOPES = [
   "https://uri.paypal.com/services/paypalattributes",
 ] as const;
 
-const USERINFO_PATH = "/v1/identity/openidconnect/userinfo";
+/**
+ * Where to ask who the person is. PayPal's sign-in guide names the first; its API reference
+ * names the second. Live, the second refused a person's token (401), so it is only a fallback.
+ */
+const USERINFO_ADDRESSES = [
+  { path: "/v1/identity/oauth2/userinfo", schema: "paypalv1.1" },
+  { path: "/v1/identity/openidconnect/userinfo", schema: "openid" },
+] as const;
+
+/** Answers that mean "not with this token here", so the other address is worth asking. */
+const REFUSED = new Set([401, 403, 404]);
 
 /** Who signed in, as PayPal describes them. */
 export interface PayPalIdentity {
@@ -73,6 +84,15 @@ const userInfo = z
       name: info.name,
     };
   });
+
+/** PayPal refused the person's token at every "who is this" address; each refusal is kept. */
+export class PayPalLoginRefusedError extends Error {
+  override readonly name = "PayPalLoginRefusedError";
+
+  constructor(readonly refusals: readonly PayPalApiError[]) {
+    super(`PayPal refused the person's token: ${refusals.map((e) => e.message).join("; ")}`);
+  }
+}
 
 export interface PayPalLoginOptions {
   baseUrl?: string;
@@ -126,21 +146,27 @@ export class PayPalLogin {
       { baseUrl: this.#baseUrl, deps: this.#deps, policy: this.#policy, idempotent: false },
     );
 
-    const lookup = `GET ${USERINFO_PATH}`;
-    const infoReply = await sendWithRetry(
-      {
-        operation: lookup,
-        url: `${this.#baseUrl}${USERINFO_PATH}?schema=openid`,
-        init: {
-          method: "GET",
-          headers: { Authorization: `Bearer ${personToken}`, Accept: "application/json" },
+    const refusals: PayPalApiError[] = [];
+    for (const { path, schema } of USERINFO_ADDRESSES) {
+      const lookup = `GET ${path}`;
+      const reply = await sendWithRetry(
+        {
+          operation: lookup,
+          url: `${this.#baseUrl}${path}?schema=${schema}`,
+          init: {
+            method: "GET",
+            headers: { Authorization: `Bearer ${personToken}`, Accept: "application/json" },
+          },
+          idempotent: true,
         },
-        idempotent: true,
-      },
-      this.#deps,
-      this.#policy,
-    );
-    if (!infoReply.ok) throw await toApiError(lookup, infoReply);
-    return parseResponse(lookup, infoReply, userInfo);
+        this.#deps,
+        this.#policy,
+      );
+      if (reply.ok) return parseResponse(lookup, reply, userInfo);
+      const error = await toApiError(lookup, reply);
+      if (!REFUSED.has(reply.status)) throw error;
+      refusals.push(error);
+    }
+    throw new PayPalLoginRefusedError(refusals);
   }
 }
