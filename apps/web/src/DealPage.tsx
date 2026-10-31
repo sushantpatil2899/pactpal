@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BuyerPanel } from "./BuyerPanel";
+import { ScopePanel } from "./ScopePanel";
 import {
   SIGN_IN_PATH,
   checkLedger,
@@ -17,6 +18,7 @@ const EVENT_LABELS: Record<string, string> = {
   BUYER_ADDED: "Buyer added",
   SOURCE_ADDED: "Source added",
   DELIVERABLE_ADDED: "Delivery file added",
+  SCOPE_VERSIONED: "Agreed work saved",
   SCOPE_CONFIRMED: "Agreed work confirmed",
   ACCEPTED: "Buyer accepted",
   NOTE_ADDED: "Note added",
@@ -24,6 +26,17 @@ const EVENT_LABELS: Record<string, string> = {
 
 const when = (iso: string) =>
   `${new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC`;
+
+/** The entry's label; a saved version of the agreed work also names its number. */
+function labelOf(entry: LedgerEntryView): string {
+  const label = EVENT_LABELS[entry.type] ?? entry.type;
+  const payload = entry.payload;
+  const version =
+    typeof payload === "object" && payload !== null && "version" in payload
+      ? payload.version
+      : undefined;
+  return typeof version === "number" ? `${label} (version ${String(version)})` : label;
+}
 
 const who = (entry: LedgerEntryView) =>
   entry.actor === "system" ? "PactPal" : (entry.actorName ?? entry.actor);
@@ -93,12 +106,20 @@ export function DealPage({ dealId }: { dealId: string }) {
           }}
         />
       )}
+      <ScopePanel
+        dealId={deal.id}
+        currency={deal.currency}
+        canEdit={deal.role === "seller" && deal.status === "draft"}
+        onSaved={() => {
+          getLedger(dealId).then(setEntries, () => undefined);
+        }}
+      />
       <section aria-labelledby="evidence-log">
         <h3 id="evidence-log">Evidence log</h3>
         <ol>
           {entries.map((entry) => (
             <li key={entry.seq}>
-              {EVENT_LABELS[entry.type] ?? entry.type} by {who(entry)}, {when(entry.serverTime)}{" "}
+              {labelOf(entry)} by {who(entry)}, {when(entry.serverTime)}{" "}
               <code title="This entry's fingerprint">{entry.entryHash.slice(0, 12)}…</code>
             </li>
           ))}

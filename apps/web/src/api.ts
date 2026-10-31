@@ -103,6 +103,8 @@ export interface LedgerEntryView {
   actorName: string | null;
   serverTime: string;
   entryHash: string;
+  /** What the entry records; its shape depends on the type. */
+  payload: unknown;
 }
 
 export type LedgerCheck =
@@ -217,6 +219,93 @@ export async function addBuyer(
   });
   if (!response.ok) throw new Error(await errorMessage(response, "Could not add the buyer"));
   return readChecked(response, isDeal, "add the buyer");
+}
+
+// --- Agreed work -------------------------------------------------------------------------------
+
+/** An amount in minor units (cents), with the same amount as text ("250.50"). */
+export interface Money {
+  minor: number;
+  text: string;
+}
+
+/** One saved version of a deal's agreed work. */
+export interface ScopeView {
+  version: number;
+  contentSha256: string;
+  savedAt: string;
+  currency: string;
+  summary: string;
+  deliverables: string[];
+  exclusions: string[];
+  revisionsIncluded: number | null;
+  dueDate: string | null;
+  milestones: { title: string; amount: Money; dueDate: string | null }[];
+  total: Money;
+}
+
+/** What the seller saves; each stage's amount as typed ("250.50"). */
+export interface ScopeInput {
+  summary: string;
+  deliverables: string[];
+  exclusions: string[];
+  revisionsIncluded?: number;
+  dueDate?: string;
+  milestones: { title: string; amount: string; dueDate?: string }[];
+}
+
+/** The server refused some fields; `fields` names them, e.g. "milestones.0.amount". */
+export class InvalidFieldsError extends Error {
+  override readonly name = "InvalidFieldsError";
+  constructor(readonly fields: string[]) {
+    super("Some fields need fixing");
+  }
+}
+
+const isMoney = (value: unknown): value is Money =>
+  isObject(value) && typeof value.minor === "number" && typeof value.text === "string";
+
+const isScope = (value: unknown): value is ScopeView =>
+  isObject(value) &&
+  typeof value.version === "number" &&
+  typeof value.contentSha256 === "string" &&
+  typeof value.savedAt === "string" &&
+  typeof value.summary === "string" &&
+  Array.isArray(value.deliverables) &&
+  Array.isArray(value.exclusions) &&
+  Array.isArray(value.milestones) &&
+  value.milestones.every((stage) => isObject(stage) && isMoney(stage.amount)) &&
+  isMoney(value.total);
+
+const hasScope = (body: unknown): body is { scope: ScopeView | null } =>
+  isObject(body) && (body.scope === null || isScope(body.scope));
+
+/** The deal's newest agreed work, or null before the seller saves any. */
+export async function getScope(dealId: string): Promise<ScopeView | null> {
+  const body = await readChecked(
+    await fetch(`/api/deals/${encodeURIComponent(dealId)}/scope`),
+    hasScope,
+    "load the agreed work",
+  );
+  return body.scope;
+}
+
+/** Saves the agreed work as a new version; throws `InvalidFieldsError` naming bad fields. */
+export async function saveScope(dealId: string, input: ScopeInput): Promise<ScopeView> {
+  const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/scope`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (response.status === 400) {
+    const body: unknown = await response.json().catch(() => null);
+    const fields = isObject(body) && Array.isArray(body.fields) ? body.fields : [];
+    throw new InvalidFieldsError(fields.filter((f): f is string => typeof f === "string"));
+  }
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not save the agreed work"));
+  const body = await readChecked(response, hasScope, "save the agreed work");
+  if (body.scope === null) throw new Error("The server did not return the saved version");
+  return body.scope;
 }
 
 export async function makeBuyerLink(dealId: string): Promise<{ url: string; expiresAt: string }> {

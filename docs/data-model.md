@@ -8,8 +8,9 @@ erDiagram
   users |o--o{ deals : "buys (buyer_id)"
   deals ||--o{ ledger_entries : "has events"
   users |o--o{ ledger_entries : "acted (actor_user_id)"
-  deals ||--o{ scope_versions : "planned 2f"
-  deals ||--o{ milestones : "planned 2f"
+  deals ||--o{ scope_versions : "agreed work"
+  ledger_entries |o--o| scope_versions : "recorded by"
+  deals ||--o{ milestones : "planned Phase 4"
   deals ||--o{ artifacts : "has files"
   ledger_entries |o--o| artifacts : "recorded by"
   webhook_events }o--o{ deals : "matched later (Phase 4 and 5)"
@@ -21,12 +22,12 @@ erDiagram
 ## Rules that apply everywhere
 
 - **Ids** are uuids chosen by the server code (passed in, so tests are exact), never counters that reveal how many deals exist.
-- **Money** is whole minor units (cents) plus a currency code, never decimals. A deal has one currency; amounts live on milestones.
+- **Money** is whole minor units (cents) plus a currency code, never decimals. A deal has one currency; amounts live on the payment stages (milestones) of the agreed work.
 - **Times** are UTC and taken by the server.
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 2e-2)
+## Built (sub-phases 2b to 2f-3)
 
 ### `users`: everyone
 
@@ -142,12 +143,29 @@ A private link that lets a deal's buyer into that one deal without a PayPal acco
 
 Using a link marks the buyer's email as proven and starts a session limited to that deal.
 
+### `scope_versions`: the agreed work
+
+What a deal covers and how its price is split into payment stages. Each save by the seller is a new numbered version; old versions are kept and the database refuses edits, deletes and emptying the table.
+
+| Column               | Meaning                                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deal_id`, `version` | Which deal and which version (1, 2, 3, ...). Together the key. The number is chosen while the deal row is locked, so two saves at once get different numbers                              |
+| `format`             | Which content layout the version uses. Format 1 is written by the seller; AI drafts with quotes from the source (Phase 3) will be a new format                                            |
+| `content`            | The agreed work (JSON): summary, what will be delivered, what is not included, revisions included, due date, and 1 to 20 payment stages (title, amount in minor units, optional due date) |
+| `content_sha256`     | Fingerprint of the content's canonical JSON. Checked every time a version is read; the same value is in the ledger entry                                                                  |
+| `created_by`         | The seller who saved it                                                                                                                                                                   |
+| `ledger_seq`         | The `SCOPE_VERSIONED` ledger entry (with `deal_id`) that recorded it. Its payload holds the version, fingerprint, total, currency and number of stages                                    |
+| `created_at`         | Server time                                                                                                                                                                               |
+
+Payment stages are part of the content, so their titles and amounts are fingerprinted and frozen with the rest: changing an amount means saving a new version. Only the seller can save, and only while the deal is a draft.
+
 ## Planned
 
-| Table                               | Sub-phase | What it will hold                                                                                                              |
-| ----------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `artifacts` and their file contents | 2c        | Uploaded files: name, type, size, SHA-256, who added it and the ledger entry that recorded it; the bytes in a separate table   |
-| `webhook_events`                    | 2d        | PayPal notifications as received, one row per event id, so repeats are skipped even after a restart                            |
-| `link_tokens`                       | 2e-2      | Single-purpose expiring links tied to one deal and one person, for buyers who do not sign in; only hashes are stored           |
-| `scope_versions`, `milestones`      | 2f        | The agreed scope (each version kept, never edited) and the milestones with amounts in minor units and their PayPal invoice ids |
-| disputes and evidence packets       | Phase 5   | Created when Phase 5 is designed                                                                                               |
+| Table                               | Sub-phase | What it will hold                                                                                                            |
+| ----------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `artifacts` and their file contents | 2c        | Uploaded files: name, type, size, SHA-256, who added it and the ledger entry that recorded it; the bytes in a separate table |
+| `webhook_events`                    | 2d        | PayPal notifications as received, one row per event id, so repeats are skipped even after a restart                          |
+| `link_tokens`                       | 2e-2      | Single-purpose expiring links tied to one deal and one person, for buyers who do not sign in; only hashes are stored         |
+| `scope_versions`                    | 2f-3      | The agreed work, each version kept and never edited, with its payment stages                                                 |
+| `milestones`                        | Phase 4   | Each payment stage's PayPal invoice and payment status, pointing at a version and stage number of the agreed work            |
+| disputes and evidence packets       | Phase 5   | Created when Phase 5 is designed                                                                                             |

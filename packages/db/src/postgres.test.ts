@@ -14,6 +14,7 @@ import {
   migrationStatus,
   postgresContentStore,
   recordWebhookEvent,
+  saveScopeVersion,
   verifyStoredLedger,
   type PgClient,
   type PgPool,
@@ -220,6 +221,32 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       for (const r of refused) expect(r.reason).toBeInstanceOf(ArtifactRejectedError);
       expect(await listArtifacts(db, testId(100))).toHaveLength(4);
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 5 });
+    });
+  });
+
+  it("numbers agreed-work versions 1 to 5 when five saves arrive at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller } = await createTestDeal(db);
+      const saves = Array.from({ length: 5 }, (_, n) =>
+        saveScopeVersion(
+          db,
+          {
+            dealId: testId(100),
+            sellerId: seller.id,
+            content: {
+              format: 1,
+              summary: `Save ${String(n)}`,
+              deliverables: ["Logo"],
+              exclusions: [],
+              milestones: [{ title: "All", amountMinor: 100 }],
+            },
+          },
+          new Date(TEST_NOW.getTime() + n),
+        ),
+      );
+      const versions = (await Promise.all(saves)).map(({ scope }) => scope.version);
+      expect(versions.sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 6 });
     });
   });
 

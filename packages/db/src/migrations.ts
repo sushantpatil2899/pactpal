@@ -160,4 +160,27 @@ ALTER TABLE sessions ADD COLUMN deal_id uuid REFERENCES deals (id);
 ALTER TABLE sessions ADD CONSTRAINT sessions_link_has_deal
   CHECK ((method = 'link') = (deal_id IS NOT NULL))`,
   },
+  {
+    id: "0007_scope_versions",
+    // Each saved version of the agreed work, never edited; its fingerprint is in the ledger.
+    sql: `CREATE TABLE scope_versions (
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL CHECK (version >= 1),
+  format integer NOT NULL CHECK (format >= 1),
+  content jsonb NOT NULL,
+  content_sha256 text NOT NULL CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),
+  created_by uuid NOT NULL REFERENCES users (id),
+  ledger_seq integer NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (deal_id, version),
+  CONSTRAINT scope_versions_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  UNIQUE (deal_id, ledger_seq)
+);
+
+CREATE TRIGGER scope_versions_append_only BEFORE UPDATE OR DELETE ON scope_versions
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER scope_versions_no_truncate BEFORE TRUNCATE ON scope_versions
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

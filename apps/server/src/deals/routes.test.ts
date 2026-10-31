@@ -1,49 +1,13 @@
-import { createDealLink, createSession, createUser } from "@pactpal/db";
+import { createDealLink, createUser } from "@pactpal/db";
 import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
-import { buildApp } from "../app.js";
-import { SESSION_COOKIE } from "../auth/sign-in.js";
-import type { EmailMessage } from "../email/sender.js";
+import { dealTestApp, signedInAs } from "./test-app.js";
 import { redeemDealLink } from "@pactpal/db";
 
 const db = useMigratedTestDatabase();
 
-function setup(withDatabase = true) {
-  let ids = 200;
-  const sent: EmailMessage[] = [];
-  const logs: string[] = [];
-  const app = buildApp(
-    { settings: [], features: [] },
-    {
-      logger: { stream: { write: (line) => logs.push(line) } },
-      email: {
-        send: (message) => {
-          sent.push(message);
-          return Promise.resolve();
-        },
-      },
-      // Only the routes get the database: the app would close it when the app closes.
-      signIn: {
-        login: undefined,
-        database: withDatabase ? db : undefined,
-        publicBaseUrl: "https://pactpal.test",
-        clock: () => TEST_NOW,
-        newId: () => testId(ids++),
-      },
-    },
-  );
-  const call = (method: "GET" | "POST", url: string, token?: string, payload?: object) =>
-    app.inject({
-      method,
-      url,
-      ...(payload ? { payload } : {}),
-      ...(token ? { cookies: { [SESSION_COOKIE]: token } } : {}),
-    });
-  return { app, call, sent, logs };
-}
-
-/** A signed-in (PayPal) session for a user. */
-const signedIn = async (userId: string) => (await createSession(db, userId, TEST_NOW)).token;
+const setup = (withDatabase = true) => dealTestApp(withDatabase ? db : undefined);
+const signedIn = (userId: string) => signedInAs(db, userId);
 
 const newDeal = { title: "Logo design", category: "handmade-goods", currency: "USD" };
 

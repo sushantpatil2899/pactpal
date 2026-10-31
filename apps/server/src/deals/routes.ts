@@ -16,11 +16,11 @@ import {
   type Deal,
   type User,
 } from "@pactpal/db";
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
-import { z } from "zod";
+import type { FastifyPluginAsync } from "fastify";
 import { dealLinkEmail, dealLinkUrl } from "../email/deal-link-email.js";
 import type { EmailSender } from "../email/sender.js";
-import { requireViewer } from "./access.js";
+import { dealAccess, readBody, requireViewer } from "./access.js";
+import { scopeRoutes } from "./scope-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 
 export interface DealOptions {
@@ -36,7 +36,6 @@ export interface DealOptions {
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
-const dealParams = z.object({ id: z.uuid() });
 const addBuyerBody = addBuyerSchema.pick({ email: true, name: true });
 
 const BUYER_REFUSALS: Record<BuyerNotAllowedError["reason"], { status: number; error: string }> = {
@@ -89,23 +88,6 @@ const dealView = (
 const describe = async (db: Database, deal: Deal, viewer: Viewer) =>
   dealView(deal, viewer, await partiesOf(db, deal));
 
-/** The request body checked against `schema`, or undefined after answering 400 with the bad fields. */
-async function readBody<T>(
-  schema: z.ZodType<T>,
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<T | undefined> {
-  const body = schema.safeParse(request.body);
-  if (body.success) return body.data;
-  await reply.code(400).send({
-    error: "invalid",
-    fields: body.error.issues.map((issue) => issue.path.join(".")),
-  });
-  return undefined;
-}
-
-const notFound = (reply: FastifyReply) => reply.code(404).send({ error: "not found" });
-
 /**
  * Deal routes: create and list deals, open one, and read and check its evidence log. A person
  * sees only deals they sell or buy in; a buyer-link visitor only the link's deal. Any other deal
@@ -120,25 +102,8 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     }),
   );
 
-  /** The deal behind `:id` if this person may see it; otherwise the answer is already sent. */
-  async function visibleDeal(
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<{ viewer: Viewer; deal: Deal; db: Database } | undefined> {
-    if (!database) {
-      await reply.code(503).send({ error: "unavailable" });
-      return undefined;
-    }
-    const viewer = await requireViewer(request, reply, database, clock());
-    if (!viewer) return undefined;
-    const params = dealParams.safeParse(request.params);
-    const deal = params.success ? await getDeal(database, params.data.id) : undefined;
-    if (!deal || !canSeeDeal(viewer, deal)) {
-      await notFound(reply);
-      return undefined;
-    }
-    return { viewer, deal, db: database };
-  }
+  const { visibleDeal, sellersDeal } = dealAccess(database, clock);
+  void app.register(scopeRoutes, { visibleDeal, sellersDeal, clock });
 
   app.post("/api/deals", async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });
@@ -176,17 +141,6 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     const found = await visibleDeal(request, reply);
     return found ? reply.send(await describe(found.db, found.deal, found.viewer)) : reply;
   });
-
-  /** The visible deal if this person is its seller signed in with PayPal; otherwise answered. */
-  async function sellersDeal(request: FastifyRequest, reply: FastifyReply) {
-    const found = await visibleDeal(request, reply);
-    if (!found) return undefined;
-    if (found.viewer.access.method !== "paypal" || roleIn(found.viewer, found.deal) !== "seller") {
-      await reply.code(403).send({ error: "only the seller can do this" });
-      return undefined;
-    }
-    return found;
-  }
 
   app.post("/api/deals/:id/buyer", async (request, reply) => {
     const found = await sellersDeal(request, reply);
