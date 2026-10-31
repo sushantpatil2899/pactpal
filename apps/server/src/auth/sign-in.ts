@@ -112,13 +112,16 @@ export const signInRoutes: FastifyPluginAsync<SignInOptions> = (app, options) =>
     }
     if (code === undefined) return backHome(reply, "failed");
 
-    let identity;
+    let outcome;
     try {
-      identity = await login.identify(code);
+      outcome = await login.identify(code);
     } catch (err) {
+      // For PayPal's refusals the error carries field names, codes and debug ids, nothing personal.
       request.log.error({ err }, "Sign-in failed: PayPal did not identify the person");
       return backHome(reply, "failed");
     }
+    const { identity, via, diagnostics } = outcome;
+    request.log.info({ via, diagnostics }, "Sign-in: PayPal identified the person");
     const now = clock();
     const result = await signInWithPayPal(
       database,

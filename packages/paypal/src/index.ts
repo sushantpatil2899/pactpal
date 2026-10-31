@@ -32,6 +32,9 @@ export {
   SANDBOX_LOGIN_URL,
   type PayPalIdentity,
   type PayPalLoginOptions,
+  type Refusal,
+  type SignInDiagnostics,
+  type SignInOutcome,
 } from "./login.js";
 export {
   PayPalRestClient,

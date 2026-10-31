@@ -61,27 +61,70 @@ describe("PayPalLogin.authorizeUrl", () => {
   });
 });
 
+const GUIDE = "https://paypal.test/v1/identity/oauth2/userinfo?schema=paypalv1.1";
+const GUIDE_OPENID = "https://paypal.test/v1/identity/oauth2/userinfo?schema=openid";
+const REFERENCE = "https://paypal.test/v1/identity/openidconnect/userinfo?schema=openid";
+
+/** An unsigned JWT with these claims (PayPal's signature is not checked; see login.ts). */
+const idToken = (claims: Record<string, unknown>) =>
+  ["header", Buffer.from(JSON.stringify(claims)).toString("base64url"), "signature"].join(".");
+const goodClaims = {
+  iss: "https://www.sandbox.paypal.com",
+  aud: "client-id",
+  exp: 3600, // the fake clock is at 0
+  sub: "https://www.paypal.com/webapps/auth/identity/user/ABC",
+  email: "maya@example.com",
+  email_verified: true,
+  name: "Maya Seller",
+};
+const tokenWith = (extra: Record<string, unknown>) => ({
+  status: 200,
+  body: { ...token.body, scope: "openid email", ...extra },
+});
+const refused = (status: number, debugId: string) => ({
+  status,
+  body: { name: "INVALID_REQUEST" },
+  debugId,
+});
+
 describe("PayPalLogin.identify", () => {
-  it("swaps the code with the app's credentials and reads the person with their token", async () => {
+  it("swaps the code with the app's credentials, then asks the sign-in guide's address with the person's token", async () => {
     const { login, calls } = fakePayPal([
-      token,
+      tokenWith({ refresh_token: "R", id_token: idToken(goodClaims), nonce: "N" }),
       {
         status: 200,
         body: {
-          sub: "https://www.paypal.com/webapps/auth/identity/user/ABC",
-          payer_id: "PAYER1",
+          user_id: "https://www.paypal.com/webapps/auth/identity/user/ABC",
           name: "Maya Seller",
-          email: "maya@example.com",
-          email_verified: true,
+          payer_id: "PAYER1",
+          verified_account: "true",
+          emails: [{ value: "maya@example.com", primary: true, confirmed: true }],
         },
       },
     ]);
     expect(await login.identify("CODE-1")).toEqual({
-      userId: "https://www.paypal.com/webapps/auth/identity/user/ABC",
-      payerId: "PAYER1",
-      email: "maya@example.com",
-      emailVerified: true,
-      name: "Maya Seller",
+      identity: {
+        userId: "https://www.paypal.com/webapps/auth/identity/user/ABC",
+        payerId: "PAYER1",
+        email: "maya@example.com",
+        emailVerified: true,
+        name: "Maya Seller",
+      },
+      via: "GET /v1/identity/oauth2/userinfo?schema=paypalv1.1",
+      diagnostics: {
+        tokenFields: [
+          "access_token",
+          "expires_in",
+          "id_token",
+          "nonce",
+          "refresh_token",
+          "scope",
+          "token_type",
+        ],
+        scopes: ["openid", "email"],
+        refusals: [],
+        idToken: { unusable: "not sent" },
+      },
     });
     const [exchange, details] = calls;
     expect(exchange?.url).toBe("https://paypal.test/v1/oauth2/token");
@@ -89,31 +132,112 @@ describe("PayPalLogin.identify", () => {
     expect(header(exchange!.init, "Authorization")).toBe(
       `Basic ${btoa("client-id:client-secret")}`,
     );
-    expect(details?.url).toBe("https://paypal.test/v1/identity/oauth2/userinfo?schema=paypalv1.1");
+    expect(details?.url).toBe(GUIDE);
     expect(header(details!.init, "Authorization")).toBe("Bearer PERSON-TOKEN");
   });
 
-  it("also reads PayPal's older shape, with user_id and a list of emails", async () => {
-    const { login } = fakePayPal([
+  it("moves on after each refusal and records every one, with PayPal's codes and debug ids", async () => {
+    const { login, calls } = fakePayPal([
       token,
+      refused(400, "dbg-1"),
+      refused(400, "dbg-2"),
+      { status: 200, body: { sub: "USER-2", email: "b@example.com", email_verified: "true" } },
+    ]);
+    const outcome = await login.identify("CODE-1");
+    expect(outcome.via).toBe("GET /v1/identity/openidconnect/userinfo?schema=openid");
+    expect(outcome.identity).toMatchObject({ userId: "USER-2", emailVerified: true });
+    expect(outcome.diagnostics.refusals).toEqual([
       {
-        status: 200,
-        body: {
-          user_id: "USER-1",
-          emails: [
-            { value: "old@example.com", primary: false, confirmed: true },
-            { value: "main@example.com", primary: "true", confirmed: "false" },
-          ],
-        },
+        way: "GET /v1/identity/oauth2/userinfo?schema=paypalv1.1",
+        status: 400,
+        errorName: "INVALID_REQUEST",
+        debugId: "dbg-1",
+      },
+      {
+        way: "GET /v1/identity/oauth2/userinfo?schema=openid",
+        status: 400,
+        errorName: "INVALID_REQUEST",
+        debugId: "dbg-2",
       },
     ]);
-    expect(await login.identify("CODE-1")).toEqual({
-      userId: "USER-1",
+    expect(calls.map((c) => c.url).slice(1)).toEqual([GUIDE, GUIDE_OPENID, REFERENCE]);
+  });
+
+  it("uses PayPal's ID token when every address declines", async () => {
+    const { login } = fakePayPal([
+      tokenWith({ id_token: idToken({ ...goodClaims, aud: ["other", "client-id"] }) }),
+      refused(400, "a"),
+      refused(400, "b"),
+      refused(401, "c"),
+    ]);
+    const outcome = await login.identify("CODE-1");
+    expect(outcome.via).toBe("id_token");
+    expect(outcome.identity).toEqual({
+      userId: goodClaims.sub,
       payerId: undefined,
-      email: "main@example.com",
-      emailVerified: false,
-      name: undefined,
+      email: "maya@example.com",
+      emailVerified: true,
+      name: "Maya Seller",
     });
+    expect(outcome.diagnostics.idToken).toEqual({
+      claims: ["aud", "email", "email_verified", "exp", "iss", "name", "sub"],
+    });
+    expect(outcome.diagnostics.refusals.map((r) => r.status)).toEqual([400, 400, 401]);
+  });
+
+  it.each([
+    ["no ID token", {}, "not sent"],
+    [
+      "an ID token for another app",
+      { id_token: idToken({ ...goodClaims, aud: "other" }) },
+      "issued for another app",
+    ],
+    [
+      "an ID token not from PayPal",
+      { id_token: idToken({ ...goodClaims, iss: "https://evil.example" }) },
+      "issuer is not PayPal",
+    ],
+    [
+      "an ID token over plain http",
+      { id_token: idToken({ ...goodClaims, iss: "http://www.paypal.com" }) },
+      "issuer is not PayPal",
+    ],
+    ["an expired ID token", { id_token: idToken({ ...goodClaims, exp: 0 }) }, "expired"],
+    [
+      "an ID token without a person id",
+      { id_token: idToken({ ...goodClaims, sub: undefined }) },
+      "missing sub",
+    ],
+    ["a token that is not a JWT", { id_token: "nonsense" }, "not a JWT"],
+    ["a JWT whose middle is not JSON", { id_token: "a.bm90IGpzb24.c" }, "payload is not JSON"],
+  ])(
+    "reports everything, without personal data, when every address declines and there is %s",
+    async (_name, extra, reason) => {
+      const { login } = fakePayPal([
+        tokenWith(extra),
+        refused(400, "a"),
+        refused(400, "b"),
+        refused(401, "c"),
+      ]);
+      const error = await login.identify("CODE-1").catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(PayPalLoginRefusedError);
+      const { diagnostics } = error as PayPalLoginRefusedError;
+      expect(diagnostics.idToken).toEqual({ unusable: reason });
+      expect(diagnostics.refusals.map((r) => r.debugId)).toEqual(["a", "b", "c"]);
+      expect(String(error)).toMatch(
+        /schema=paypalv1\.1 400 INVALID_REQUEST \(debug id a\).*openidconnect.*401/,
+      );
+      expect(JSON.stringify(diagnostics)).not.toMatch(/maya@example\.com|PERSON-TOKEN|Maya/);
+    },
+  );
+
+  it("stops without trying other addresses when PayPal itself is failing, after the usual retries", async () => {
+    const { login, calls } = fakePayPal([token]); // every later answer is a 500
+    await expect(login.identify("CODE-1")).rejects.toThrow(
+      /oauth2\/userinfo\?schema=paypalv1\.1 failed with 500/,
+    );
+    expect(new Set(calls.slice(1).map((c) => c.url))).toEqual(new Set([GUIDE]));
+    expect(calls).toHaveLength(4);
   });
 
   it("treats an email PayPal does not call verified as unproven", async () => {
@@ -121,7 +245,7 @@ describe("PayPalLogin.identify", () => {
       token,
       { status: 200, body: { sub: "U", email: "a@example.com" } },
     ]);
-    expect((await login.identify("CODE-1")).emailVerified).toBe(false);
+    expect((await login.identify("CODE-1")).identity.emailVerified).toBe(false);
   });
 
   it("does not repeat the code exchange when PayPal fails, and reports PayPal's error", async () => {
@@ -137,71 +261,6 @@ describe("PayPalLogin.identify", () => {
       { status: 400, body: { error: "invalid_grant", error_description: "code expired" } },
     ]);
     await expect(login.identify("OLD")).rejects.toThrow(/invalid_grant/);
-  });
-
-  it("asks the API reference's address when the sign-in guide's address refuses the token", async () => {
-    const { login, calls } = fakePayPal([
-      token,
-      { status: 401, body: { error: "invalid_token" } },
-      { status: 200, body: { sub: "USER-2", email: "b@example.com", email_verified: true } },
-    ]);
-    expect((await login.identify("CODE-1")).userId).toBe("USER-2");
-    expect(calls.map((c) => c.url).slice(1)).toEqual([
-      "https://paypal.test/v1/identity/oauth2/userinfo?schema=paypalv1.1",
-      "https://paypal.test/v1/identity/openidconnect/userinfo?schema=openid",
-    ]);
-    expect(header(calls[2]!.init, "Authorization")).toBe("Bearer PERSON-TOKEN");
-  });
-
-  it("names both addresses and both debug ids when PayPal refuses the token at both", async () => {
-    const { login } = fakePayPal([
-      token,
-      { status: 401, body: {}, debugId: "dbg-guide" },
-      { status: 403, body: {}, debugId: "dbg-reference" },
-    ]);
-    const error = await login.identify("CODE-1").catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(PayPalLoginRefusedError);
-    expect((error as PayPalLoginRefusedError).refusals.map((r) => r.debugId)).toEqual([
-      "dbg-guide",
-      "dbg-reference",
-    ]);
-    expect(String(error)).toMatch(
-      /oauth2\/userinfo failed with 401.*openidconnect\/userinfo failed with 403/,
-    );
-  });
-
-  it("does not try the other address when PayPal is failing, and retries as for any read", async () => {
-    const { login, calls } = fakePayPal([token]); // every later answer is a 500
-    await expect(login.identify("CODE-1")).rejects.toThrow(/oauth2\/userinfo failed with 500/);
-    const lookups = calls.slice(1).map((c) => c.url);
-    expect(lookups).toHaveLength(3);
-    expect(new Set(lookups)).toEqual(
-      new Set(["https://paypal.test/v1/identity/oauth2/userinfo?schema=paypalv1.1"]),
-    );
-  });
-
-  it("reads the sign-in guide's answer shape, with text flags and an address", async () => {
-    const { login } = fakePayPal([
-      token,
-      {
-        status: 200,
-        body: {
-          user_id: "https://www.paypal.com/webapps/auth/identity/user/XYZ",
-          name: "Chris Buyer",
-          payer_id: "PAYER2",
-          verified_account: "true",
-          address: { country: "US" },
-          emails: [{ value: "chris@example.com", primary: true, confirmed: true }],
-        },
-      },
-    ]);
-    expect(await login.identify("CODE-1")).toEqual({
-      userId: "https://www.paypal.com/webapps/auth/identity/user/XYZ",
-      payerId: "PAYER2",
-      email: "chris@example.com",
-      emailVerified: true,
-      name: "Chris Buyer",
-    });
   });
 
   it("names the missing field, without values, when the person has no id", async () => {

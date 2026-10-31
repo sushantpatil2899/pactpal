@@ -12,7 +12,7 @@ import { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
 const TOKEN_PATH = "/v1/oauth2/token";
 const OPERATION = `POST ${TOKEN_PATH}`;
 
-/** PayPal's answer from the token address, shared by app and person sign-in. */
+/** PayPal's answer when the app logs in with its own credentials. */
 const tokenResponse = z.object({
   access_token: z.string().min(1),
   token_type: z.string(),
@@ -43,11 +43,13 @@ export interface AccessTokenOptions {
  * Asks PayPal's token address for a token, authenticating as the app (its id and secret).
  * Shared by the app's own login and by person sign-in ("Log in with PayPal").
  */
-export async function requestToken(
+export async function requestToken<T>(
   credentials: PayPalAppCredentials,
   form: Record<string, string>,
+  /** The answer expected: the app's login and person sign-in read different fields. */
+  answer: z.ZodType<T>,
   options: { baseUrl: string; deps: HttpDeps; policy: RetryPolicy; idempotent: boolean },
-): Promise<z.infer<typeof tokenResponse>> {
+): Promise<T> {
   const { clientId, clientSecret } = credentials;
   const response = await sendWithRetry(
     {
@@ -68,7 +70,7 @@ export async function requestToken(
     options.policy,
   );
   if (!response.ok) throw await toApiError(OPERATION, response);
-  return parseResponse(OPERATION, response, tokenResponse);
+  return parseResponse(OPERATION, response, answer);
 }
 
 /**
@@ -113,6 +115,7 @@ export class AccessTokenProvider {
     const body = await requestToken(
       this.#credentials,
       { grant_type: "client_credentials" },
+      tokenResponse,
       // Logging in has no side effects, so it is safe to repeat.
       { baseUrl: this.#baseUrl, deps: this.#deps, policy: this.#policy, idempotent: true },
     );
