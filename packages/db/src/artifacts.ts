@@ -208,13 +208,20 @@ export async function listArtifacts(q: Queryable, dealId: string): Promise<Artif
   return rows.map((row) => artifactRow.parse(row));
 }
 
-/** A file's record and bytes, after checking the bytes still match the recorded fingerprint. */
+/**
+ * A file's record and bytes, after checking the bytes still match the recorded fingerprint. With
+ * `dealId`, a file of another deal counts as not found, before any bytes are read.
+ */
 export async function getArtifact(
   q: Queryable,
   store: ContentStore,
   id: string,
+  dealId?: string,
 ): Promise<{ artifact: Artifact; bytes: Uint8Array }> {
-  const rows = await q.query("SELECT * FROM artifacts WHERE id = $1", [id]);
+  const rows = await q.query(
+    "SELECT * FROM artifacts WHERE id = $1 AND ($2::uuid IS NULL OR deal_id = $2)",
+    [id, dealId ?? null],
+  );
   if (rows[0] === undefined) throw new ArtifactNotFoundError(`No artifact ${id}`);
   const artifact = artifactRow.parse(rows[0]);
   const bytes = await store.get(artifact.sha256);

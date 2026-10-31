@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BuyerPanel } from "./BuyerPanel";
+import { FilesPanel } from "./FilesPanel";
 import { ScopePanel } from "./ScopePanel";
 import {
   SIGN_IN_PATH,
@@ -27,15 +28,18 @@ const EVENT_LABELS: Record<string, string> = {
 const when = (iso: string) =>
   `${new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC`;
 
-/** The entry's label; a saved version of the agreed work also names its number. */
+/** The entry's label; a saved version names its number, an added file its name. */
 function labelOf(entry: LedgerEntryView): string {
   const label = EVENT_LABELS[entry.type] ?? entry.type;
-  const payload = entry.payload;
-  const version =
-    typeof payload === "object" && payload !== null && "version" in payload
-      ? payload.version
+  const { payload } = entry;
+  const field = (name: string): unknown =>
+    typeof payload === "object" && payload !== null && name in payload
+      ? (payload as Record<string, unknown>)[name]
       : undefined;
-  return typeof version === "number" ? `${label} (version ${String(version)})` : label;
+  const version = field("version");
+  const filename = field("filename");
+  if (typeof version === "number") return `${label} (version ${String(version)})`;
+  return typeof filename === "string" ? `${label}: ${filename}` : label;
 }
 
 const who = (entry: LedgerEntryView) =>
@@ -111,6 +115,13 @@ export function DealPage({ dealId }: { dealId: string }) {
         currency={deal.currency}
         canEdit={deal.role === "seller" && deal.status === "draft"}
         onSaved={() => {
+          getLedger(dealId).then(setEntries, () => undefined);
+        }}
+      />
+      <FilesPanel
+        dealId={deal.id}
+        canAdd={deal.role === "seller" && !linkOnly}
+        onAdded={() => {
           getLedger(dealId).then(setEntries, () => undefined);
         }}
       />

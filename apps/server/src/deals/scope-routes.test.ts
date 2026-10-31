@@ -1,7 +1,7 @@
-import { createDealLink, readLedger, redeemDealLink } from "@pactpal/db";
+import { readLedger } from "@pactpal/db";
 import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
-import { dealTestApp, signedInAs } from "./test-app.js";
+import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
 
@@ -70,11 +70,7 @@ describe("agreed work", () => {
   it("lets the buyer and a buyer-link visitor read it but not save it", async () => {
     const { app, call, url, token, buyer, dealId } = await sellerDeal();
     await call("POST", url, token, work());
-    const { token: link } = await createDealLink(db, { dealId, userId: buyer.id }, TEST_NOW);
-    const redeemed = await redeemDealLink(db, link, TEST_NOW);
-    if (!redeemed.ok) throw new Error("expected a link session");
-
-    for (const visitor of [await signedInAs(db, buyer.id), redeemed.session.token]) {
+    for (const visitor of await buyerVisitors(db, dealId, buyer.id)) {
       expect((await call("GET", url, visitor)).json()).toMatchObject({ scope: { version: 1 } });
       expect((await call("POST", url, visitor, work())).statusCode).toBe(403);
     }

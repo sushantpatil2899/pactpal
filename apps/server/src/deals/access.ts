@@ -43,6 +43,12 @@ export interface FoundDeal {
   db: Database;
 }
 
+/** Finds a route's deal for the asking person, or answers and returns undefined. */
+export type DealLookup = (
+  request: FastifyRequest,
+  reply: FastifyReply,
+) => Promise<FoundDeal | undefined>;
+
 /**
  * Finds the deal behind a route's `:id` for the asking person. Each lookup returns the deal or
  * undefined after answering: 503 without a database, 401 signed out, 404 for a deal they may not

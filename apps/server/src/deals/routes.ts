@@ -20,6 +20,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { dealLinkEmail, dealLinkUrl } from "../email/deal-link-email.js";
 import type { EmailSender } from "../email/sender.js";
 import { dealAccess, readBody, requireViewer } from "./access.js";
+import { fileRoutes } from "./file-routes.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 
@@ -104,6 +105,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
 
   const { visibleDeal, sellersDeal } = dealAccess(database, clock);
   void app.register(scopeRoutes, { visibleDeal, sellersDeal, clock });
+  void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId });
 
   app.post("/api/deals", async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });

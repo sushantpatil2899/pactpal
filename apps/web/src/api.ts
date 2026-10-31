@@ -308,6 +308,58 @@ export async function saveScope(dealId: string, input: ScopeInput): Promise<Scop
   return body.scope;
 }
 
+// --- Files -------------------------------------------------------------------------------------
+
+/** The largest file the server accepts (10 MB), checked here too so nothing big is sent in vain. */
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+export interface DealFile {
+  id: string;
+  kind: string;
+  filename: string;
+  mediaType: string;
+  sizeBytes: number;
+  sha256: string;
+  addedAt: string;
+}
+
+const isFile = (value: unknown): value is DealFile =>
+  isObject(value) &&
+  typeof value.id === "string" &&
+  typeof value.filename === "string" &&
+  typeof value.mediaType === "string" &&
+  typeof value.sizeBytes === "number" &&
+  typeof value.sha256 === "string" &&
+  typeof value.addedAt === "string";
+
+export async function listFiles(dealId: string): Promise<DealFile[]> {
+  const body = await readChecked(
+    await fetch(`/api/deals/${encodeURIComponent(dealId)}/files`),
+    (b): b is { files: unknown[] } => isObject(b) && Array.isArray(b.files),
+    "load the files",
+  );
+  return body.files.filter(isFile);
+}
+
+/** Where a file downloads from; the server always sends it as a download. */
+export const fileUrl = (dealId: string, fileId: string) =>
+  `/api/deals/${encodeURIComponent(dealId)}/files/${encodeURIComponent(fileId)}`;
+
+/** Sends a file's bytes, with its name in a header; the server checks the type from the bytes. */
+export async function addFile(dealId: string, file: File): Promise<DealFile> {
+  const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/files`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/octet-stream",
+      "X-File-Name": encodeURIComponent(file.name),
+      Accept: "application/json",
+    },
+    body: file,
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not add the file"));
+  return readChecked(response, isFile, "add the file");
+}
+
 export async function makeBuyerLink(dealId: string): Promise<{ url: string; expiresAt: string }> {
   const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/buyer-link`, {
     method: "POST",

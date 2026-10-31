@@ -83,6 +83,8 @@ What protects it: the database refuses updates, deletes and truncation; a deal o
 
 A file is stored once, by the SHA-256 of its bytes, in `file_contents`; `artifacts` says which deal it belongs to and what it is. Both tables are append-only. Adding a file saves the bytes first, then in one transaction writes the ledger entry (`SOURCE_ADDED` or `DELIVERABLE_ADDED`) and the artifact, so a record never points at missing bytes.
 
+On the website (2f-4) the seller adds `source` files; both sides list and download them, and every download is checked against the fingerprint first. Delivered work (`deliverable`) is added through delivery links in Phase 4.
+
 | Column (`artifacts`)   | Meaning                                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `id`, `deal_id`        | The file and its deal                                                                                       |

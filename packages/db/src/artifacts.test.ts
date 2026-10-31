@@ -264,6 +264,16 @@ describe("getArtifact", () => {
     await expect(getArtifact(db, store, testId(999))).rejects.toThrow(ArtifactNotFoundError);
   });
 
+  it("treats a file of another deal as not found when a deal is given", async () => {
+    const { seller } = await createTestDeal(db);
+    await addArtifact(db, store, file(seller.id), at(1));
+    await expect(getArtifact(db, store, testId(500), testId(999))).rejects.toThrow(
+      ArtifactNotFoundError,
+    );
+    const found = await getArtifact(db, store, testId(500), testId(100));
+    expect(found.artifact.id).toBe(testId(500));
+  });
+
   it("reports bytes that are missing", async () => {
     const { seller } = await createTestDeal(db);
     await addArtifact(db, store, file(seller.id), at(1));

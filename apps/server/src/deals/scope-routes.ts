@@ -8,11 +8,9 @@ import {
   type ScopeVersion,
 } from "@pactpal/db";
 import { fromPayPalMoney, toPayPalMoney } from "@pactpal/paypal";
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { readBody, type FoundDeal } from "./access.js";
-
-type DealLookup = (request: FastifyRequest, reply: FastifyReply) => Promise<FoundDeal | undefined>;
+import { readBody, type DealLookup } from "./access.js";
 
 export interface ScopeRouteOptions {
   visibleDeal: DealLookup;
