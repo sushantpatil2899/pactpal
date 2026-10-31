@@ -15,7 +15,7 @@ export class LinkNotAllowedError extends Error {
 }
 
 export type RedeemResult =
-  | { ok: true; dealId: string; session: { token: string; expiresAt: Date } }
+  | { ok: true; dealId: string; userId: string; session: { token: string; expiresAt: Date } }
   /** `replaced`: a newer link was sent, or the person is no longer the deal's buyer. */
   | { ok: false; reason: "unknown" | "expired" | "replaced" };
 
@@ -105,6 +105,6 @@ export async function redeemDealLink(
       method: "link",
       dealId: link.deal_id,
     });
-    return { ok: true, dealId: link.deal_id, session };
+    return { ok: true, dealId: link.deal_id, userId: link.user_id, session };
   });
 }

@@ -1,5 +1,5 @@
-import { createDealLink } from "@pactpal/db";
-import { TEST_NOW, createTestDeal, useMigratedTestDatabase } from "@pactpal/db/testing";
+import { createDealLink, createSession, createUser } from "@pactpal/db";
+import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../app.js";
 import { REDEEM_PATH } from "./links.js";
@@ -23,8 +23,13 @@ function setup(withDatabase = true) {
       },
     },
   );
-  const redeem = (body: unknown) =>
-    app.inject({ method: "POST", url: REDEEM_PATH, payload: body as object });
+  const redeem = (body: unknown, cookie?: string) =>
+    app.inject({
+      method: "POST",
+      url: REDEEM_PATH,
+      payload: body as object,
+      ...(cookie ? { cookies: { [SESSION_COOKIE]: cookie } } : {}),
+    });
   return { app, redeem, logs };
 }
 
@@ -76,6 +81,39 @@ describe("POST /api/links/redeem", () => {
   it("is unavailable without a database", async () => {
     const { app, redeem } = setup(false);
     expect((await redeem({ token: "a".repeat(43) })).statusCode).toBe(503);
+    await app.close();
+  });
+});
+
+describe("opening a link while already signed in", () => {
+  it("keeps the buyer's PayPal session instead of narrowing it to one deal", async () => {
+    const { buyer, dealId } = await createTestDeal(db);
+    const paypal = await createSession(db, buyer.id, TEST_NOW);
+    const { token } = await createDealLink(db, { dealId, userId: buyer.id }, TEST_NOW);
+    const { app, redeem } = setup();
+    const res = await redeem({ token }, paypal.token);
+    expect(res.json()).toEqual({ dealId });
+    expect(res.cookies.find((c) => c.name === SESSION_COOKIE)).toBeUndefined();
+    const me = await app.inject({
+      method: "GET",
+      url: "/api/me",
+      cookies: { [SESSION_COOKIE]: paypal.token },
+    });
+    expect(me.json()).toMatchObject({ id: buyer.id, access: "full" });
+    expect(await db.query("SELECT 1 FROM sessions")).toHaveLength(1);
+    await app.close();
+  });
+
+  it("gives the link session when someone else is signed in", async () => {
+    const { buyer, dealId } = await createTestDeal(db);
+    const other = await createUser(db, { id: testId(9), email: "o@example.com" }, TEST_NOW);
+    const otherSession = await createSession(db, other.id, TEST_NOW);
+    const { token } = await createDealLink(db, { dealId, userId: buyer.id }, TEST_NOW);
+    const { app, redeem } = setup();
+    const res = await redeem({ token }, otherSession.token);
+    expect(res.cookies.find((c) => c.name === SESSION_COOKIE)?.value).toMatch(
+      /^[A-Za-z0-9_-]{43}$/,
+    );
     await app.close();
   });
 });

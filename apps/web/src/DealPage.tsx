@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { BuyerPanel } from "./BuyerPanel";
 import {
+  SIGN_IN_PATH,
   checkLedger,
+  getMe,
   getDeal,
   getLedger,
   type DealSummary,
@@ -32,12 +34,14 @@ export function DealPage({ dealId }: { dealId: string }) {
   const [entries, setEntries] = useState<LedgerEntryView[] | undefined>();
   const [check, setCheck] = useState<LedgerCheck | undefined>();
   const [problem, setProblem] = useState<string | undefined>();
+  const [linkOnly, setLinkOnly] = useState(false);
 
   useEffect(() => {
-    Promise.all([getDeal(dealId), getLedger(dealId)]).then(
-      ([found, log]) => {
+    Promise.all([getDeal(dealId), getLedger(dealId), getMe()]).then(
+      ([found, log, me]) => {
         setDeal(found);
         setEntries(log);
+        setLinkOnly(me !== null && me.access !== "full");
       },
       () => {
         setProblem("This deal was not found, or you cannot see it.");
@@ -71,6 +75,15 @@ export function DealPage({ dealId }: { dealId: string }) {
         {!deal.hasBuyer && " · no buyer added yet"}
       </p>
       {deal.seller && <p>Seller: {deal.seller.name}</p>}
+      {linkOnly && (
+        <p>
+          You opened this deal with a link.{" "}
+          <a href={`${SIGN_IN_PATH}?return=${encodeURIComponent(`/deals/${deal.id}`)}`}>
+            Sign in with PayPal
+          </a>{" "}
+          to keep access without it (use the PayPal account with the email the link was sent to).
+        </p>
+      )}
       {deal.role === "seller" && (
         <BuyerPanel
           deal={deal}

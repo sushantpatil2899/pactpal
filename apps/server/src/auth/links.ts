@@ -1,7 +1,7 @@
-import { redeemDealLink, type Database } from "@pactpal/db";
+import { deleteSession, redeemDealLink, type Database } from "@pactpal/db";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { setSessionCookie } from "./sign-in.js";
+import { currentSession, setSessionCookie } from "./sign-in.js";
 
 export const REDEEM_PATH = "/api/links/redeem";
 
@@ -24,12 +24,19 @@ export const linkRoutes: FastifyPluginAsync<LinkOptions> = (app, { database, clo
     if (!database) return reply.code(503).send({ error: "unavailable" });
     const body = redeemBody.safeParse(request.body);
     if (!body.success) return reply.code(400).send({ error: "unknown" });
-    const result = await redeemDealLink(database, body.data.token, clock());
+    const now = clock();
+    const prior = await currentSession(request, database, now);
+    const result = await redeemDealLink(database, body.data.token, now);
     if (!result.ok) {
       request.log.info({ reason: result.reason }, "Buyer link refused");
       return reply.code(400).send({ error: result.reason });
     }
-    setSessionCookie(reply, result.session.token);
+    if (prior?.access.method === "paypal" && prior.user.id === result.userId) {
+      // Already signed in with PayPal as this buyer: keep that session instead of a narrower one.
+      await deleteSession(database, result.session.token);
+    } else {
+      setSessionCookie(reply, result.session.token);
+    }
     request.log.info({ dealId: result.dealId }, "Buyer link used");
     return reply.send({ dealId: result.dealId });
   });

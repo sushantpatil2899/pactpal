@@ -13,6 +13,8 @@ const SIGN_IN_PROBLEMS: Record<string, string> = {
   "email-taken":
     "Your PayPal email already belongs to another PactPal account. Open the link we emailed you first.",
   "no-email": "PayPal did not share an email address, which PactPal needs.",
+  "other-account":
+    "You signed in with a PayPal account that is not the one invited to that deal. Sign in with the PayPal account that uses the invited email, or open your link again to continue without an account.",
 };
 
 type View = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };

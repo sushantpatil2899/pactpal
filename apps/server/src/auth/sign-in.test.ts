@@ -1,10 +1,17 @@
-import { SESSION_LIFETIME_MS, createUser } from "@pactpal/db";
+import { SESSION_LIFETIME_MS, createDeal, createUser } from "@pactpal/db";
+import { TEST_NOW, testDeal, testId } from "@pactpal/db/testing";
 import { useMigratedTestDatabase } from "@pactpal/db/testing";
 import type { PayPalIdentity } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../app.js";
 import type { ConfigReport } from "../config.js";
-import { CALLBACK_PATH, SESSION_COOKIE, STATE_COOKIE, type SignInOptions } from "./sign-in.js";
+import {
+  CALLBACK_PATH,
+  RETURN_COOKIE,
+  SESSION_COOKIE,
+  STATE_COOKIE,
+  type SignInOptions,
+} from "./sign-in.js";
 
 const db = useMigratedTestDatabase();
 const report: ConfigReport = { settings: [], features: [] };
@@ -46,11 +53,13 @@ function setup(answer: PayPalIdentity | Error = maya, overrides: Partial<SignInO
 
   const get = (url: string, cookies: Record<string, string> = {}) =>
     app.inject({ method: "GET", url, cookies });
-  /** Starts a sign-in and returns from PayPal with `query`, carrying the state cookie. */
-  const returnFromPayPal = async (query = "code=CODE-1&state=STATE-1") => {
-    const start = await get("/auth/paypal/start");
-    const state = start.cookies.find((c) => c.name === STATE_COOKIE)?.value ?? "";
-    return get(`${CALLBACK_PATH}?${query}`, { [STATE_COOKIE]: state });
+  /** Starts a sign-in and returns from PayPal with `query`, carrying the sign-in cookies. */
+  const returnFromPayPal = async (query = "code=CODE-1&state=STATE-1", startQuery = "") => {
+    const start = await get(`/auth/paypal/start${startQuery}`);
+    const cookies = Object.fromEntries(
+      start.cookies.filter((c) => c.value !== "").map((c) => [c.name, c.value]),
+    );
+    return get(`${CALLBACK_PATH}?${query}`, cookies);
   };
   const signIn = async () => {
     const res = await returnFromPayPal();
@@ -77,7 +86,8 @@ describe("signing in with PayPal", () => {
     expect(res.headers.location).toBe(
       `https://paypal.test/connect?state=STATE-1&redirect_uri=${encodeURIComponent(`${BASE}/auth/paypal/callback`)}`,
     );
-    expect(res.cookies).toEqual([
+    expect(res.cookies.find((c) => c.name === RETURN_COOKIE)?.value).toBe("");
+    expect(res.cookies.filter((c) => c.name === STATE_COOKIE)).toEqual([
       {
         name: STATE_COOKIE,
         value: "STATE-1",
@@ -231,6 +241,58 @@ describe("being signed in", () => {
     const res = await app.inject({ method: "GET", url: "/api/me" });
     expect(res.statusCode).toBe(401);
     expect(res.headers["content-security-policy"]).toContain("default-src 'self'");
+    await app.close();
+  });
+});
+
+describe("coming back to a deal after signing in", () => {
+  /** A deal whose buyer has `email` (proven or not), and its seller. */
+  async function dealWithBuyer(email: string, proven: boolean) {
+    // Ids well away from the ones the stand-in id maker hands out (1, 2, 3, ...).
+    const seller = await createUser(db, { id: testId(501), email: "seller@example.com" }, TEST_NOW);
+    const buyer = await createUser(
+      db,
+      { id: testId(502), email, ...(proven ? { emailVerifiedAt: TEST_NOW } : {}) },
+      TEST_NOW,
+    );
+    const { deal } = await createDeal(db, testDeal(seller.id, { buyerId: buyer.id }), TEST_NOW);
+    return { buyer, dealId: deal.id };
+  }
+
+  it("keeps a deal page to come back to, and nothing else", async () => {
+    const { app, get } = setup();
+    const kept = await get(`/auth/paypal/start?return=/deals/${testId(100)}`);
+    expect(kept.cookies.find((c) => c.name === RETURN_COOKIE)).toMatchObject({
+      value: `/deals/${testId(100)}`,
+      httpOnly: true,
+      secure: true,
+      maxAge: 600,
+    });
+    for (const bad of ["//evil.example", "https://evil.example", "/api/me", "/deals/not-an-id"]) {
+      const res = await get(`/auth/paypal/start?return=${encodeURIComponent(bad)}`);
+      expect(res.cookies.find((c) => c.name === RETURN_COOKIE)?.value, bad).toBe("");
+    }
+    await app.close();
+  });
+
+  it("joins the invited buyer when the PayPal email matches, and returns to the deal", async () => {
+    const { buyer, dealId } = await dealWithBuyer("maya@example.com", true);
+    const { app, returnFromPayPal, get } = setup();
+    const res = await returnFromPayPal(undefined, `?return=/deals/${dealId}`);
+    expect(res.headers.location).toBe(`/deals/${dealId}`);
+    const session = res.cookies.find((c) => c.name === SESSION_COOKIE)?.value ?? "";
+    const me = await get("/api/me", { [SESSION_COOKIE]: session });
+    expect(me.json()).toMatchObject({ id: buyer.id, paypalLinked: true, access: "full" });
+    await app.close();
+  });
+
+  it("sends a different PayPal account home with a message, without making it the buyer", async () => {
+    const { buyer, dealId } = await dealWithBuyer("chris@example.com", true);
+    const { app, returnFromPayPal } = setup();
+    const res = await returnFromPayPal(undefined, `?return=/deals/${dealId}`);
+    expect(res.headers.location).toBe("/?signin=other-account");
+    const rows = await db.query("SELECT buyer_id FROM deals WHERE id = $1", [dealId]);
+    expect(rows).toEqual([{ buyer_id: buyer.id }]);
     await app.close();
   });
 });

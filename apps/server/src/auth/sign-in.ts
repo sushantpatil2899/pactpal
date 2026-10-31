@@ -3,6 +3,7 @@ import {
   createSession,
   deleteSession,
   findSession,
+  getDeal,
   newSessionToken,
   signInWithPayPal,
   SESSION_LIFETIME_MS,
@@ -15,9 +16,11 @@ import type { PayPalLogin } from "@pactpal/paypal";
 import type {} from "@fastify/cookie";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { canSeeDeal } from "../deals/visibility.js";
 
 export const SESSION_COOKIE = "__Host-pactpal_session";
 export const STATE_COOKIE = "__Host-pactpal_signin_state";
+export const RETURN_COOKIE = "__Host-pactpal_signin_return";
 export const START_PATH = "/auth/paypal/start";
 export const CALLBACK_PATH = "/auth/paypal/callback";
 export const LOGOUT_PATH = "/auth/logout";
@@ -41,7 +44,7 @@ export interface SignInOptions {
 
 /** Why a sign-in did not finish, as shown to the person on the home page. */
 export type SignInProblem =
-  "unavailable" | "cancelled" | "expired" | "failed" | "email-taken" | "no-email";
+  "unavailable" | "cancelled" | "expired" | "failed" | "email-taken" | "no-email" | "other-account";
 
 // HttpOnly: page scripts cannot read it. Secure: HTTPS only. SameSite=Lax: not sent with other
 // sites' form posts, but sent when PayPal sends the person back. `__Host-` needs Secure and Path=/.
@@ -51,6 +54,13 @@ export const cookieRules = { path: "/", httpOnly: true, secure: true, sameSite: 
 export function setSessionCookie(reply: FastifyReply, token: string): void {
   reply.setCookie(SESSION_COOKIE, token, { ...cookieRules, maxAge: SESSION_LIFETIME_MS / 1000 });
 }
+
+/**
+ * The only pages a sign-in may return to: a deal page. Anything else is ignored, so the sign-in
+ * cannot be used to send people to another site.
+ */
+const DEAL_PAGE = /^\/deals\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+const startQuery = z.object({ return: z.string().max(100).optional() });
 
 const callbackQuery = z.object({
   code: z.string().min(1).optional(),
@@ -101,13 +111,21 @@ export const signInRoutes: FastifyPluginAsync<SignInOptions> = (app, options) =>
     }
     const state = newState();
     reply.setCookie(STATE_COOKIE, state, { ...cookieRules, maxAge: STATE_LIFETIME_S });
+    const returnTo = startQuery.safeParse(request.query).data?.return;
+    if (returnTo !== undefined && DEAL_PAGE.test(returnTo)) {
+      reply.setCookie(RETURN_COOKIE, returnTo, { ...cookieRules, maxAge: STATE_LIFETIME_S });
+    } else {
+      reply.clearCookie(RETURN_COOKIE, cookieRules);
+    }
     return reply.redirect(login.authorizeUrl(state, redirectUri));
   });
 
   app.get(CALLBACK_PATH, async (request, reply) => {
     if (!ready) return backHome(reply, "unavailable");
     const expected = request.cookies[STATE_COOKIE];
+    const returnDealId = DEAL_PAGE.exec(request.cookies[RETURN_COOKIE] ?? "")?.[1];
     reply.clearCookie(STATE_COOKIE, cookieRules);
+    reply.clearCookie(RETURN_COOKIE, cookieRules);
     const query = callbackQuery.safeParse(request.query);
     if (!query.success) return backHome(reply, "failed");
     const { code, state, error } = query.data;
@@ -147,7 +165,14 @@ export const signInRoutes: FastifyPluginAsync<SignInOptions> = (app, options) =>
     const session = await createSession(database, result.user.id, now, newSessionToken());
     setSessionCookie(reply, session.token);
     request.log.info({ userId: result.user.id, created: result.created }, "Signed in");
-    return reply.redirect("/");
+    if (returnDealId === undefined) return reply.redirect("/");
+    // Back to the deal only if this person belongs to it; a different PayPal account is never
+    // made the buyer quietly.
+    const deal = await getDeal(database, returnDealId);
+    const viewer = { user: result.user, access: { method: "paypal" as const } };
+    return deal && canSeeDeal(viewer, deal)
+      ? reply.redirect(`/deals/${deal.id}`)
+      : backHome(reply, "other-account");
   });
 
   app.post(LOGOUT_PATH, async (request, reply) => {

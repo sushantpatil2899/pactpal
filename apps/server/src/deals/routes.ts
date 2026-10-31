@@ -20,7 +20,8 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { dealLinkEmail, dealLinkUrl } from "../email/deal-link-email.js";
 import type { EmailSender } from "../email/sender.js";
-import { canSeeDeal, requireViewer, roleIn, type Viewer } from "./access.js";
+import { requireViewer } from "./access.js";
+import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
