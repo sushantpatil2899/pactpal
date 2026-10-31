@@ -1,6 +1,6 @@
 import { SESSION_LIFETIME_MS, createUser } from "@pactpal/db";
 import { useMigratedTestDatabase } from "@pactpal/db/testing";
-import { PayPalLoginRefusedError, type PayPalIdentity } from "@pactpal/paypal";
+import type { PayPalIdentity } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../app.js";
 import type { ConfigReport } from "../config.js";
@@ -32,20 +32,7 @@ function setup(answer: PayPalIdentity | Error = maya, overrides: Partial<SignInO
           `https://paypal.test/connect?state=${state}&redirect_uri=${encodeURIComponent(redirectUri)}`,
         identify: (code) => {
           codes.push(code);
-          return answer instanceof Error
-            ? Promise.reject(answer)
-            : Promise.resolve({
-                identity: answer,
-                via: "GET /v1/identity/oauth2/userinfo?schema=paypalv1.1",
-                diagnostics: {
-                  swap: "POST /v1/identity/openidconnect/tokenservice",
-                  swapRefusals: [],
-                  tokenFields: ["access_token", "id_token"],
-                  scopes: ["openid"],
-                  refusals: [],
-                  idToken: { unusable: "not sent" },
-                },
-              });
+          return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
         },
       },
       database: db,
@@ -175,31 +162,6 @@ describe("signing in with PayPal", () => {
     await app.close();
   });
 
-  it("logs what PayPal answered at each step when it would not say who signed in", async () => {
-    const refusal = new PayPalLoginRefusedError({
-      swap: "POST /v1/oauth2/token",
-      swapRefusals: [],
-      tokenFields: ["access_token", "scope"],
-      scopes: ["openid"],
-      refusals: [
-        {
-          way: "GET /v1/identity/oauth2/userinfo?schema=paypalv1.1",
-          status: 400,
-          errorName: "invalid_request",
-          debugId: "dbg-9",
-        },
-      ],
-      idToken: { unusable: "not sent" },
-    });
-    const { app, returnFromPayPal, logs } = setup(refusal);
-    expect((await returnFromPayPal()).headers.location).toBe("/?signin=failed");
-    const all = logs.join("");
-    expect(all).toContain('"debugId":"dbg-9"');
-    expect(all).toContain('"tokenFields":["access_token","scope"]');
-    expect(all).toContain('"unusable":"not sent"');
-    await app.close();
-  });
-
   it("does not merge with an unproven account that has the same email", async () => {
     await createUser(
       db,
@@ -213,12 +175,11 @@ describe("signing in with PayPal", () => {
     await app.close();
   });
 
-  it("logs how PayPal identified the person, but never the person's email or name", async () => {
+  it("logs one line for a sign-in, never the person's email or name", async () => {
     const { app, signIn, logs } = setup();
     await signIn();
     const all = logs.join("");
-    expect(all).toContain('"via":"GET /v1/identity/oauth2/userinfo?schema=paypalv1.1"');
-    expect(all).toContain('"tokenFields":["access_token","id_token"]');
+    expect(logs.filter((line) => line.includes("Signed in"))).toHaveLength(1);
     for (const secret of ["maya@example.com", "Maya Seller", "PAYER1"]) {
       expect(all).not.toContain(secret);
     }

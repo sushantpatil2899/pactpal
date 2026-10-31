@@ -28,13 +28,9 @@ export { AccessTokenProvider, type AccessToken, type AccessTokenOptions } from "
 export {
   LOGIN_SCOPES,
   PayPalLogin,
-  PayPalLoginRefusedError,
   SANDBOX_LOGIN_URL,
   type PayPalIdentity,
   type PayPalLoginOptions,
-  type Refusal,
-  type SignInDiagnostics,
-  type SignInOutcome,
 } from "./login.js";
 export {
   PayPalRestClient,
