@@ -45,6 +45,13 @@ describe("loadConfig", () => {
     expect(config.paypal.webhookId).toBe(fullEnv.PAYPAL_WEBHOOK_ID);
     expect(config.database?.url.reveal()).toBe(DATABASE_URL);
     expect(config.publicBaseUrl).toBe("https://pactpal.example.com");
+    expect(Object.keys(config.ai.keys)).toEqual([
+      "GEMINI_API_KEY",
+      "GROQ_API_KEY",
+      "MISTRAL_API_KEY",
+      "OPENROUTER_API_KEY",
+    ]);
+    expect(config.ai.keys.GROQ_API_KEY?.reveal()).toBe(fullEnv.GROQ_API_KEY);
     expect(unsetSettings(report)).toEqual([]);
     expect(report.features.every((feature) => feature.missing.length === 0)).toBe(true);
   });
@@ -53,6 +60,7 @@ describe("loadConfig", () => {
     const { config, report } = expectLoaded({ PAYPAL_WEBHOOK_ID: "" });
     expect(config.port).toBe(3000);
     expect(config.paypal).toEqual({ apps: {} });
+    expect(config.ai).toEqual({ keys: {} });
     expect(config.database).toBeUndefined();
     expect(unsetSettings(report)).toEqual(SETTING_NAMES);
   });
@@ -72,7 +80,26 @@ describe("loadConfig", () => {
       "Sign in with PayPal": ["PUBLIC_BASE_URL", "DATABASE_URL"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
+      "AI model: gemini": ["GEMINI_API_KEY"],
+      "AI model: qwen-groq": ["GROQ_API_KEY"],
+      "AI model: gpt-oss-groq": ["GROQ_API_KEY"],
+      "AI model: mistral": ["MISTRAL_API_KEY"],
+      "AI model: nemotron-openrouter": ["OPENROUTER_API_KEY"],
     });
+  });
+
+  it("makes a model ready when its key is set, and one key serves every model of that host", () => {
+    const { config, report } = expectLoaded({ GROQ_API_KEY: "groq-key-value" });
+    expect(Object.keys(config.ai.keys)).toEqual(["GROQ_API_KEY"]);
+    const ready = report.features
+      .filter(({ missing }) => missing.length === 0)
+      .map(({ name }) => name);
+    expect(ready).toEqual(["AI model: qwen-groq", "AI model: gpt-oss-groq"]);
+  });
+
+  it("hides AI keys when the settings are printed", () => {
+    const { config } = expectLoaded({ GEMINI_API_KEY: "gemini-key-value" });
+    expect(JSON.stringify(config)).not.toContain("gemini-key-value");
   });
 
   it.each([
@@ -149,6 +176,7 @@ describe("loadConfig", () => {
 describe("missingRuntimeSettings", () => {
   it("lists what the running server needs, leaving out test-script settings", () => {
     const { report } = expectLoaded({});
+    // AI keys are not listed: the running server does not use AI models yet.
     expect(missingRuntimeSettings(report)).toEqual([
       "PAYPAL_SELLER_CLIENT_ID",
       "PAYPAL_SELLER_CLIENT_SECRET",
@@ -179,6 +207,8 @@ describe("formatReport", () => {
     const text = formatReport(report);
     expect(text).toMatch(/PAYPAL_SELLER_CLIENT_SECRET\s+set\n/);
     expect(text).toMatch(/PAYPAL_WEBHOOK_ID\s+missing\n/);
+    expect(text).toMatch(/GEMINI_API_KEY\s+missing\n/);
+    expect(text).toMatch(/AI model: gemini\s+not ready: missing GEMINI_API_KEY\n/);
     expect(text).toMatch(/Invoices and disputes \(seller app\)\s+ready\n/);
     expect(text).toMatch(/Webhooks\s+not ready: missing PAYPAL_WEBHOOK_ID, DATABASE_URL\n/);
     expect(text).not.toMatch(/seller-(id|secret)-value/);

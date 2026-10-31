@@ -31,6 +31,16 @@ services:
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
+      # AI model hosts. Not used by the running server until the scope drafting step; set them now so
+      # they are in place. Each model takes part only when its key is set.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
 
 databases:
   - name: pactpal-db

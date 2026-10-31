@@ -12,7 +12,7 @@
  * the operations of `PayPalClient` are built on top of it.
  */
 
-export { SANDBOX_API_BASE_URL, Secret, type PayPalAppCredentials } from "./credentials.js";
+export { SANDBOX_API_BASE_URL, type PayPalAppCredentials } from "./credentials.js";
 export {
   DisputeActionNotAllowed,
   EvidenceFileError,
@@ -22,8 +22,6 @@ export {
   PayPalResponseError,
   type PayPalErrorDetail,
 } from "./errors.js";
-export { defaultHttpDeps, type HttpDeps } from "./http.js";
-export { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
 export { AccessTokenProvider, type AccessToken, type AccessTokenOptions } from "./token.js";
 export {
   LOGIN_SCOPES,

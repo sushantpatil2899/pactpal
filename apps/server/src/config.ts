@@ -1,4 +1,6 @@
-import { Secret, type PayPalAppCredentials } from "@pactpal/paypal";
+import { MODEL_REGISTRY, keyNames } from "@pactpal/ai";
+import { Secret } from "@pactpal/net";
+import type { PayPalAppCredentials } from "@pactpal/paypal";
 import { z } from "zod";
 import { rows } from "./format.js";
 
@@ -19,7 +21,8 @@ const PAYPAL_APPS = {
 } as const;
 
 export type PayPalApp = keyof typeof PAYPAL_APPS;
-type Part = PayPalApp | "webhook" | "database" | "publicUrl";
+/** `ai:<VARIABLE>` is one AI host key, taken from the model registry. */
+type Part = PayPalApp | "webhook" | "database" | "publicUrl" | `ai:${string}`;
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
 const DATABASE_URL = "DATABASE_URL";
@@ -31,7 +34,13 @@ function appVars(app: PayPalApp): { id: string; secret: string } {
   return { id: `${prefix}_CLIENT_ID`, secret: `${prefix}_CLIENT_SECRET` };
 }
 
+/** The key variables of the AI hosts in the model registry (several models may share one key). */
+const AI_KEYS = keyNames(MODEL_REGISTRY);
+
+const isAiPart = (part: Part): part is `ai:${string}` => part.startsWith("ai:");
+
 function partVars(part: Part): string[] {
+  if (isAiPart(part)) return [part.slice("ai:".length)];
   if (part === "webhook") return [WEBHOOK_ID];
   if (part === "database") return [DATABASE_URL];
   if (part === "publicUrl") return [PUBLIC_BASE_URL];
@@ -48,6 +57,7 @@ export const SETTING_NAMES: readonly string[] = [
   "webhook" as const,
   "database" as const,
   "publicUrl" as const,
+  ...AI_KEYS.map((name): Part => `ai:${name}`),
 ].flatMap(partVars);
 
 /**
@@ -61,6 +71,12 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Sign in with PayPal", needs: ["seller", "publicUrl", "database"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
+  // Not runtime yet: the server starts using AI models in sub-phase 3d.
+  ...MODEL_REGISTRY.map(({ name, apiKeyEnv }) => ({
+    name: `AI model: ${name}`,
+    needs: [`ai:${apiKeyEnv}`] satisfies Part[],
+    runtime: false,
+  })),
 ];
 
 /** The setting names a feature needs, e.g. "Webhooks" -> seller app keys and webhook id. */
@@ -125,6 +141,8 @@ export interface Config {
   };
   /** Absent until `DATABASE_URL` is set. */
   database?: { url: Secret };
+  /** Keys of the AI hosts that are set, by variable name (for example `GEMINI_API_KEY`). */
+  ai: { keys: Record<string, Secret> };
   /** The site's own address without a trailing slash, e.g. https://pactpal-server.onrender.com. */
   publicBaseUrl?: string;
 }
@@ -195,9 +213,16 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     })),
   };
 
+  const aiKeys: Record<string, Secret> = {};
+  for (const name of AI_KEYS) {
+    const value = values.get(name);
+    if (value !== undefined) aiKeys[name] = new Secret(value);
+  }
+
   const config: Config = {
     port,
     paypal: webhookId === undefined ? { apps } : { apps, webhookId },
+    ai: { keys: aiKeys },
   };
   if (databaseValue !== undefined) config.database = { url: new Secret(databaseValue) };
   const publicBaseUrl = values.get(PUBLIC_BASE_URL);
@@ -221,7 +246,7 @@ export function formatReport(report: ConfigReport): string {
       missing.length === 0 ? "ready" : `not ready: missing ${missing.join(", ")}`,
     ]),
   );
-  return `PayPal sandbox settings\n${settings}\nFeatures\n${features}`;
+  return `Settings\n${settings}\nFeatures\n${features}`;
 }
 
 /** Plain-text list of setting errors. */

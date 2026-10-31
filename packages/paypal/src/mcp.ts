@@ -1,8 +1,8 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { Secret } from "@pactpal/net";
 import { z } from "zod";
-import type { Secret } from "./credentials.js";
 import { PayPalMcpError } from "./errors.js";
 import type { AccessToken, AccessTokenProvider } from "./token.js";
 

@@ -4,7 +4,6 @@ export type {
   CandidateScore,
   CouncilResult,
   LabelledAnswer,
-  ModelSpec,
   Validation,
 } from "./types.js";
 export { anonymize, filterValid, type Rng } from "./anonymize.js";

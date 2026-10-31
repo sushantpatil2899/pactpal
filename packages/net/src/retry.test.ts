@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RETRY_POLICY, backoffDelay, isRetryable } from "./retry.js";
-import { grantedFeatures } from "./scopes.js";
 
 describe("isRetryable", () => {
   it.each([
@@ -33,20 +32,5 @@ describe("backoffDelay", () => {
 
   it("never exceeds the cap", () => {
     expect(backoffDelay(10, policy, () => 1)).toBe(4000);
-  });
-});
-
-describe("grantedFeatures", () => {
-  it("matches permission URLs to the features PactPal needs", () => {
-    expect(
-      grantedFeatures([
-        "https://uri.paypal.com/services/invoicing",
-        "https://uri.paypal.com/services/disputes/read-seller",
-      ]),
-    ).toEqual([
-      { feature: "Invoicing", granted: true },
-      { feature: "Disputes", granted: true },
-      { feature: "Transaction search", granted: false },
-    ]);
   });
 });

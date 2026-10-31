@@ -15,13 +15,16 @@
     "sandbox:disputes": "tsx src/sandbox-disputes.ts",
     "sandbox:respond": "tsx src/sandbox-respond.ts",
     "sandbox:webhook": "tsx src/sandbox-webhook.ts",
-    "seed:sandbox": "tsx src/seed-sandbox.ts"
+    "seed:sandbox": "tsx src/seed-sandbox.ts",
+    "ai:check": "tsx src/ai-check.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
     "@fastify/helmet": "^13.2.0",
     "@fastify/static": "^10.1.8",
+    "@pactpal/ai": "workspace:*",
     "@pactpal/db": "workspace:*",
+    "@pactpal/net": "workspace:*",
     "@pactpal/paypal": "workspace:*",
     "fastify": "^5.12.7",
     "pg": "^8.23.1",

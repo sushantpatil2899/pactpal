@@ -1,13 +1,12 @@
+import {
+  DEFAULT_RETRY_POLICY,
+  defaultHttpDeps,
+  type HttpDeps,
+  type RetryPolicy,
+} from "@pactpal/net";
 import { z } from "zod";
 import { SANDBOX_API_BASE_URL, type PayPalAppCredentials } from "./credentials.js";
-import {
-  defaultHttpDeps,
-  parseResponse,
-  sendWithRetry,
-  toApiError,
-  type HttpDeps,
-} from "./http.js";
-import { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
+import { parseResponse, sendWithRetry, toApiError } from "./http.js";
 import { requestToken } from "./token.js";
 
 /** Where a person approves sign-in. Sandbox only, like the API address (docs/scope.md). */

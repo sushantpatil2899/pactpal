@@ -1,4 +1,5 @@
 // Keeps render.yaml in step with the project, without a YAML library: the file is small and flat.
+import { MODEL_REGISTRY } from "@pactpal/ai";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { settingsFor } from "./config.js";
@@ -41,7 +42,13 @@ describe("render.yaml", () => {
   it("asks in the dashboard for every setting the Webhooks feature needs, and stores no values", () => {
     const keys = [...blueprint.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
     // The database address is the exception: Render fills it in from the database itself.
-    expect(keys).toEqual(settingsFor("Webhooks").filter((name) => name !== "DATABASE_URL"));
+    const aiKeys = MODEL_REGISTRY.map((spec) => spec.apiKeyEnv).filter(
+      (name, index, all) => all.indexOf(name) === index,
+    );
+    expect(keys).toEqual([
+      ...settingsFor("Webhooks").filter((name) => name !== "DATABASE_URL"),
+      ...aiKeys,
+    ]);
     // Sign-in needs nothing secret beyond those.
     for (const name of settingsFor("Sign in with PayPal")) {
       expect(blueprint).toContain(`key: ${name}`);

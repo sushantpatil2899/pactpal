@@ -1,11 +1,10 @@
+import { DEFAULT_RETRY_POLICY, Secret, type HttpDeps } from "@pactpal/net";
 import { inspect } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { SANDBOX_API_BASE_URL, Secret } from "./credentials.js";
+import { SANDBOX_API_BASE_URL } from "./credentials.js";
 import { PayPalApiError, PayPalNetworkError, PayPalResponseError } from "./errors.js";
-import { defaultHttpDeps, type HttpDeps } from "./http.js";
 import { PayPalRestClient } from "./rest.js";
-import { DEFAULT_RETRY_POLICY } from "./retry.js";
 import { AccessTokenProvider } from "./token.js";
 
 const BASE = "https://paypal.test";
@@ -414,13 +413,5 @@ describe("defaults", () => {
       `${SANDBOX_API_BASE_URL}/v1/oauth2/token`,
       `${SANDBOX_API_BASE_URL}/v1/d`,
     ]);
-  });
-
-  it("provides a real clock, wait and random source", async () => {
-    expect(defaultHttpDeps.now()).toBeGreaterThan(0);
-    await expect(defaultHttpDeps.sleep(1)).resolves.toBeUndefined();
-    const value = defaultHttpDeps.random();
-    expect(value).toBeGreaterThanOrEqual(0);
-    expect(value).toBeLessThan(1);
   });
 });

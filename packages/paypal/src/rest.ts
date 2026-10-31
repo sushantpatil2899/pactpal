@@ -1,14 +1,12 @@
+import {
+  DEFAULT_RETRY_POLICY,
+  defaultHttpDeps,
+  type HttpDeps,
+  type RetryPolicy,
+} from "@pactpal/net";
 import type { z } from "zod";
 import { SANDBOX_API_BASE_URL } from "./credentials.js";
-import {
-  debugIdOf,
-  defaultHttpDeps,
-  parseResponse,
-  sendWithRetry,
-  toApiError,
-  type HttpDeps,
-} from "./http.js";
-import { DEFAULT_RETRY_POLICY, type RetryPolicy } from "./retry.js";
+import { debugIdOf, parseResponse, sendWithRetry, toApiError } from "./http.js";
 import type { AccessTokenProvider } from "./token.js";
 
 type Query = Record<string, string | number | boolean>;

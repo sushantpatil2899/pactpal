@@ -1,69 +1,27 @@
 import { z } from "zod";
 import { PayPalApiError, PayPalNetworkError, PayPalResponseError } from "./errors.js";
-import { backoffDelay, isRetryable, type AttemptOutcome, type RetryPolicy } from "./retry.js";
-
-/** Effects the HTTP layer needs, injected so tests control network, time and randomness. */
-export interface HttpDeps {
-  fetch: typeof fetch;
-  /** Milliseconds since the epoch. */
-  now: () => number;
-  sleep: (ms: number) => Promise<void>;
-  /** Uniform in [0, 1). */
-  random: () => number;
-}
-
-export const defaultHttpDeps: HttpDeps = {
-  fetch: (input, init) => fetch(input, init),
-  now: () => Date.now(),
-  sleep: (ms) =>
-    new Promise((resolve) => {
-      setTimeout(resolve, ms);
-    }),
-  random: () => Math.random(),
-};
-
-export interface SendOptions {
-  /** Shown in errors, e.g. "GET /v1/customer/disputes". */
-  operation: string;
-  url: string;
-  init: Omit<RequestInit, "signal">;
-  /** Safe to repeat without doing the work twice. */
-  idempotent: boolean;
-}
+import {
+  sendWithRetry as sendWithRetryShared,
+  type HttpDeps,
+  type RetryPolicy,
+  type SendOptions,
+} from "@pactpal/net";
 
 /**
- * Sends one request with a per-try time limit, retrying transient failures
- * of idempotent requests with backoff. Resolves with the last response, which
- * may be an error status; rejects only when no response arrived at all.
+ * `sendWithRetry` from the shared transport, with PayPal's own error for a
+ * request that got no answer (timeout or connection failure).
  */
-export async function sendWithRetry(
+export function sendWithRetry(
   options: SendOptions,
   deps: HttpDeps,
   policy: RetryPolicy,
 ): Promise<Response> {
-  for (let attempt = 1; ; attempt++) {
-    let outcome: AttemptOutcome;
-    try {
-      const response = await deps.fetch(options.url, {
-        ...options.init,
-        signal: AbortSignal.timeout(policy.timeoutMs),
-      });
-      if (response.ok) return response;
-      outcome = { kind: "status", status: response.status };
-      if (attempt >= policy.maxAttempts || !isRetryable(outcome, options.idempotent)) {
-        return response;
-      }
-      // Release the connection held by the unread body before trying again.
-      await response.body?.cancel();
-    } catch (error) {
-      outcome = { kind: "network" };
-      if (attempt >= policy.maxAttempts || !isRetryable(outcome, options.idempotent)) {
-        const timedOut = error instanceof Error && error.name === "TimeoutError";
-        throw new PayPalNetworkError(options.operation, timedOut, { cause: error });
-      }
-    }
-    await deps.sleep(backoffDelay(attempt, policy, deps.random));
-  }
+  return sendWithRetryShared(
+    options,
+    deps,
+    policy,
+    (timedOut, cause) => new PayPalNetworkError(options.operation, timedOut, { cause }),
+  );
 }
 
 export function debugIdOf(response: Response): string | undefined {

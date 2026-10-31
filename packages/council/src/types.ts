@@ -1,15 +1,3 @@
-/** One registered council member. Any OpenAI-compatible endpoint works. */
-export interface ModelSpec {
-  /** Unique name used in logs and results, e.g. "llama-groq". */
-  name: string;
-  /** Model family, so a council can be checked for diversity, e.g. "llama". */
-  family: string;
-  baseUrl: string;
-  /** Name of the environment variable holding the key; never the key itself. */
-  apiKeyEnv: string;
-  model: string;
-}
-
 /** Result of the code checks run on an answer before any model votes. */
 export interface Validation {
   valid: boolean;

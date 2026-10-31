@@ -1,9 +1,7 @@
+import { DEFAULT_RETRY_POLICY, Secret, type HttpDeps } from "@pactpal/net";
 import { describe, expect, it } from "vitest";
-import { Secret } from "./credentials.js";
 import { PayPalApiError, PayPalResponseError } from "./errors.js";
-import type { HttpDeps } from "./http.js";
 import { LOGIN_SCOPES, PayPalLogin } from "./login.js";
-import { DEFAULT_RETRY_POLICY } from "./retry.js";
 
 const credentials = { clientId: "client-id", clientSecret: new Secret("client-secret") };
 
