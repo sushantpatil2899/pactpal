@@ -90,6 +90,10 @@ export interface DealSummary {
   createdAt: string;
   hasBuyer: boolean;
   role: "seller" | "buyer";
+  /** For the seller: who the buyer is, once added. */
+  buyer?: { name: string | null; email: string } | null;
+  /** For the buyer: the seller's name. */
+  seller?: { name: string };
 }
 
 export interface LedgerEntryView {
@@ -193,5 +197,37 @@ export async function checkLedger(id: string): Promise<LedgerCheck> {
       ((b.status === "unchanged" && typeof b.entries === "number") ||
         (b.status === "changed" && typeof b.atEntry === "number")),
     "check the evidence log",
+  );
+}
+
+/** A refused action's message from the server, or a plain fallback. */
+async function errorMessage(response: Response, fallback: string): Promise<string> {
+  const body: unknown = await response.json().catch(() => null);
+  return isObject(body) && typeof body.error === "string" ? body.error : fallback;
+}
+
+export async function addBuyer(
+  dealId: string,
+  input: { email: string; name?: string },
+): Promise<DealSummary> {
+  const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/buyer`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not add the buyer"));
+  return readChecked(response, isDeal, "add the buyer");
+}
+
+export async function makeBuyerLink(dealId: string): Promise<{ url: string; expiresAt: string }> {
+  const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/buyer-link`, {
+    method: "POST",
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not make the link"));
+  return readChecked(
+    response,
+    (b): b is { url: string; expiresAt: string } =>
+      isObject(b) && typeof b.url === "string" && typeof b.expiresAt === "string",
+    "make the link",
   );
 }

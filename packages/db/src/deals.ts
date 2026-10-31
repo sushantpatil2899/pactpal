@@ -1,7 +1,8 @@
-import type { LedgerEntry } from "@pactpal/ledger";
+import { sha256Hex, type LedgerEntry } from "@pactpal/ledger";
 import { z } from "zod";
 import type { Database, Queryable } from "./database.js";
-import { appendLedgerEvent } from "./ledger-store.js";
+import { DealNotFoundError, appendLedgerEvent } from "./ledger-store.js";
+import { createUser, findUserByEmail, type User } from "./users.js";
 
 /**
  * How the work reaches the buyer, which decides how delivery is proven: a tracked link for
@@ -140,4 +141,73 @@ export async function listDealsForUser(q: Queryable, userId: string): Promise<De
     [userId],
   );
   return rows.map((row) => dealRow.parse(row));
+}
+
+/** Why a buyer could not be added. */
+export type BuyerRefusal = "not-your-deal" | "already-has-buyer" | "own-email";
+
+export class BuyerNotAllowedError extends Error {
+  override readonly name = "BuyerNotAllowedError";
+  constructor(readonly reason: BuyerRefusal) {
+    super(`The buyer was not added: ${reason}`);
+  }
+}
+
+export const addBuyerSchema = z.object({
+  dealId: z.uuid(),
+  sellerId: z.uuid(),
+  email: z.email().max(320),
+  /** How the seller knows them; optional. */
+  name: z.string().trim().min(1).max(200).optional(),
+});
+export type AddBuyer = z.infer<typeof addBuyerSchema>;
+
+const dealParties = z.object({ seller_id: z.string(), buyer_id: z.string().nullable() });
+
+/**
+ * Sets a deal's buyer by email, in one transaction with its `BUYER_ADDED` log entry. An existing
+ * user with that email (ignoring case) is reused; otherwise a user is created with the email
+ * unproven. The log holds the buyer's id and a SHA-256 of the lower-cased email, never the email
+ * itself. One buyer per deal for now.
+ */
+export async function addBuyer(
+  db: Database,
+  input: AddBuyer,
+  now: Date,
+  newId: () => string,
+): Promise<{ deal: Deal; buyer: User; entry: LedgerEntry }> {
+  const request = addBuyerSchema.parse(input);
+  return db.transaction(async (tx) => {
+    const rows = await tx.query("SELECT seller_id, buyer_id FROM deals WHERE id = $1 FOR UPDATE", [
+      request.dealId,
+    ]);
+    const parties = dealParties.safeParse(rows[0]);
+    if (!parties.success) throw new DealNotFoundError(`No deal ${request.dealId}`);
+    if (parties.data.seller_id !== request.sellerId) {
+      throw new BuyerNotAllowedError("not-your-deal");
+    }
+    if (parties.data.buyer_id !== null) throw new BuyerNotAllowedError("already-has-buyer");
+
+    const existing = await findUserByEmail(tx, request.email);
+    if (existing?.id === request.sellerId) throw new BuyerNotAllowedError("own-email");
+    const buyer =
+      existing ??
+      (await createUser(tx, { id: newId(), email: request.email, displayName: request.name }, now));
+    const updated = await tx.query(
+      "UPDATE deals SET buyer_id = $2, updated_at = $3 WHERE id = $1 RETURNING *",
+      [request.dealId, buyer.id, now],
+    );
+    const entry = await appendLedgerEvent(
+      tx,
+      {
+        dealId: request.dealId,
+        type: "BUYER_ADDED",
+        actor: "seller",
+        actorId: request.sellerId,
+        payload: { buyerId: buyer.id, emailSha256: sha256Hex(request.email.toLowerCase()) },
+      },
+      now,
+    );
+    return { deal: dealRow.parse(updated[0]), buyer, entry };
+  });
 }

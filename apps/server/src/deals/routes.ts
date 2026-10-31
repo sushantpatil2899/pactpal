@@ -1,7 +1,11 @@
 import {
+  BuyerNotAllowedError,
   DEAL_CATEGORIES,
   DEAL_CURRENCIES,
+  addBuyer,
+  addBuyerSchema,
   createDeal,
+  createDealLink,
   getDeal,
   getUser,
   listDealsForUser,
@@ -10,9 +14,12 @@ import {
   verifyStoredLedger,
   type Database,
   type Deal,
+  type User,
 } from "@pactpal/db";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { dealLinkEmail, dealLinkUrl } from "../email/deal-link-email.js";
+import type { EmailSender } from "../email/sender.js";
 import { canSeeDeal, requireViewer, roleIn, type Viewer } from "./access.js";
 
 export interface DealOptions {
@@ -21,17 +28,47 @@ export interface DealOptions {
   /** The server's clock and id maker, passed in so tests are exact. */
   clock: () => Date;
   newId: () => string;
+  /** The site's own address, for buyer links; undefined until `PUBLIC_BASE_URL` is set. */
+  publicBaseUrl: string | undefined;
+  /** Sends buyer emails; a stand-in that sends nothing until an email service is chosen. */
+  email: EmailSender;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
 const dealParams = z.object({ id: z.uuid() });
+const addBuyerBody = addBuyerSchema.pick({ email: true, name: true });
+
+const BUYER_REFUSALS: Record<BuyerNotAllowedError["reason"], { status: number; error: string }> = {
+  "not-your-deal": { status: 404, error: "not found" },
+  "already-has-buyer": { status: 409, error: "this deal already has a buyer" },
+  "own-email": { status: 400, error: "you cannot be the buyer of your own deal" },
+};
+
+/** The deal's seller and buyer, loaded once per answer. */
+async function partiesOf(db: Database, deal: Deal) {
+  const [seller, buyer] = await Promise.all([
+    getUser(db, deal.sellerId),
+    deal.buyerId === undefined ? undefined : getUser(db, deal.buyerId),
+  ]);
+  return { seller, buyer };
+}
+
+/** How a person is named to the other side: display name or role, never their email. */
+const nameOf = (user: User | undefined, role: "Seller" | "Buyer") => user?.displayName ?? role;
 
 const categoryLabels = new Map<string, string>(
   Object.entries(DEAL_CATEGORIES).map(([id, { label }]) => [id, label]),
 );
 
-/** A deal as the pages see it, with the asking person's role. */
-const dealView = (deal: Deal, viewer: Viewer) => ({
+/**
+ * A deal as the pages see it, with the asking person's role and the other side: the seller sees
+ * the buyer's name and email (they entered it); the buyer sees only the seller's name.
+ */
+const dealView = (
+  deal: Deal,
+  viewer: Viewer,
+  { seller, buyer }: Awaited<ReturnType<typeof partiesOf>>,
+) => ({
   id: deal.id,
   title: deal.title,
   kind: deal.kind,
@@ -42,7 +79,29 @@ const dealView = (deal: Deal, viewer: Viewer) => ({
   createdAt: deal.createdAt.toISOString(),
   hasBuyer: deal.buyerId !== undefined,
   role: roleIn(viewer, deal),
+  ...(roleIn(viewer, deal) === "seller"
+    ? { buyer: buyer ? { name: buyer.displayName ?? null, email: buyer.email } : null }
+    : { seller: { name: nameOf(seller, "Seller") } }),
 });
+
+/** A deal answer, loading its parties. */
+const describe = async (db: Database, deal: Deal, viewer: Viewer) =>
+  dealView(deal, viewer, await partiesOf(db, deal));
+
+/** The request body checked against `schema`, or undefined after answering 400 with the bad fields. */
+async function readBody<T>(
+  schema: z.ZodType<T>,
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<T | undefined> {
+  const body = schema.safeParse(request.body);
+  if (body.success) return body.data;
+  await reply.code(400).send({
+    error: "invalid",
+    fields: body.error.issues.map((issue) => issue.path.join(".")),
+  });
+  return undefined;
+}
 
 const notFound = (reply: FastifyReply) => reply.code(404).send({ error: "not found" });
 
@@ -51,7 +110,8 @@ const notFound = (reply: FastifyReply) => reply.code(404).send({ error: "not fou
  * sees only deals they sell or buy in; a buyer-link visitor only the link's deal. Any other deal
  * answers 404, so its existence is not revealed.
  */
-export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, { database, clock, newId }) => {
+export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
+  const { database, clock, newId, publicBaseUrl, email } = options;
   app.get("/api/deal-options", (_request, reply) =>
     reply.send({
       categories: [...categoryLabels].map(([id, label]) => ({ id, label })),
@@ -86,20 +146,15 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, { database, clo
     if (viewer.access.method !== "paypal") {
       return reply.code(403).send({ error: "sign in with PayPal to create deals" });
     }
-    const body = newDealBody.safeParse(request.body);
-    if (!body.success) {
-      return reply.code(400).send({
-        error: "invalid",
-        fields: body.error.issues.map((issue) => issue.path.join(".")),
-      });
-    }
+    const body = await readBody(newDealBody, request, reply);
+    if (!body) return reply;
     const { deal } = await createDeal(
       database,
-      { ...body.data, id: newId(), sellerId: viewer.user.id },
+      { ...body, id: newId(), sellerId: viewer.user.id },
       clock(),
     );
     request.log.info({ dealId: deal.id }, "Deal created");
-    return reply.code(201).send(dealView(deal, viewer));
+    return reply.code(201).send(await describe(database, deal, viewer));
   });
 
   app.get("/api/deals", async (request, reply) => {
@@ -110,28 +165,86 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, { database, clo
       viewer.access.method === "link"
         ? [await getDeal(database, viewer.access.dealId)].filter((d): d is Deal => d !== undefined)
         : await listDealsForUser(database, viewer.user.id);
+    const visible = deals.filter((deal) => canSeeDeal(viewer, deal));
     return reply.send({
-      deals: deals.filter((deal) => canSeeDeal(viewer, deal)).map((d) => dealView(d, viewer)),
+      deals: await Promise.all(visible.map((deal) => describe(database, deal, viewer))),
     });
   });
 
   app.get("/api/deals/:id", async (request, reply) => {
     const found = await visibleDeal(request, reply);
-    return found ? reply.send(dealView(found.deal, found.viewer)) : reply;
+    return found ? reply.send(await describe(found.db, found.deal, found.viewer)) : reply;
+  });
+
+  /** The visible deal if this person is its seller signed in with PayPal; otherwise answered. */
+  async function sellersDeal(request: FastifyRequest, reply: FastifyReply) {
+    const found = await visibleDeal(request, reply);
+    if (!found) return undefined;
+    if (found.viewer.access.method !== "paypal" || roleIn(found.viewer, found.deal) !== "seller") {
+      await reply.code(403).send({ error: "only the seller can do this" });
+      return undefined;
+    }
+    return found;
+  }
+
+  app.post("/api/deals/:id/buyer", async (request, reply) => {
+    const found = await sellersDeal(request, reply);
+    if (!found) return reply;
+    const body = await readBody(addBuyerBody, request, reply);
+    if (!body) return reply;
+    try {
+      const { deal } = await addBuyer(
+        found.db,
+        { ...body, dealId: found.deal.id, sellerId: found.viewer.user.id },
+        clock(),
+        newId,
+      );
+      request.log.info({ dealId: deal.id }, "Buyer added");
+      return await reply.send(await describe(found.db, deal, found.viewer));
+    } catch (error) {
+      if (!(error instanceof BuyerNotAllowedError)) throw error;
+      const { status, error: message } = BUYER_REFUSALS[error.reason];
+      return reply.code(status).send({ error: message });
+    }
+  });
+
+  app.post("/api/deals/:id/buyer-link", async (request, reply) => {
+    const found = await sellersDeal(request, reply);
+    if (!found) return reply;
+    const { deal, db, viewer } = found;
+    if (publicBaseUrl === undefined) return reply.code(503).send({ error: "unavailable" });
+    const buyer = deal.buyerId === undefined ? undefined : await getUser(db, deal.buyerId);
+    if (!buyer) return reply.code(409).send({ error: "add the buyer first" });
+
+    const { token, expiresAt } = await createDealLink(
+      db,
+      { dealId: deal.id, userId: buyer.id },
+      clock(),
+    );
+    await email.send(
+      dealLinkEmail({
+        publicBaseUrl,
+        to: buyer.email,
+        token,
+        dealTitle: deal.title,
+        sellerName: nameOf(viewer.user, "Seller"),
+        expiresAt,
+      }),
+    );
+    request.log.info({ dealId: deal.id }, "Buyer link made");
+    return reply.send({
+      url: dealLinkUrl(publicBaseUrl, token),
+      expiresAt: expiresAt.toISOString(),
+    });
   });
 
   app.get("/api/deals/:id/ledger", async (request, reply) => {
     const found = await visibleDeal(request, reply);
     if (!found) return reply;
     const { deal, db } = found;
-    // People are named by their display name or role; emails are not shown to the other side.
-    const people = new Map<string, string>();
-    for (const [id, role] of [
-      [deal.sellerId, "Seller"],
-      [deal.buyerId, "Buyer"],
-    ] as const) {
-      if (id !== undefined) people.set(id, (await getUser(db, id))?.displayName ?? role);
-    }
+    const { seller, buyer } = await partiesOf(db, deal);
+    const people = new Map<string, string>([[deal.sellerId, nameOf(seller, "Seller")]]);
+    if (deal.buyerId !== undefined) people.set(deal.buyerId, nameOf(buyer, "Buyer"));
     const entries = await readLedger(db, deal.id);
     return reply.send({
       entries: entries.map((entry) => ({

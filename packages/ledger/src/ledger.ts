@@ -8,6 +8,7 @@ export type Actor = "seller" | "buyer" | "system";
 /** Event types recorded by the server. AI drafts are never ledger events. */
 export const EVENT_TYPES = [
   "DEAL_CREATED",
+  "BUYER_ADDED",
   "SOURCE_ADDED",
   "SCOPE_DRAFTED",
   "SCOPE_CONFIRMED",

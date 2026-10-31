@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BuyerPanel } from "./BuyerPanel";
 import {
   checkLedger,
   getDeal,
@@ -11,6 +12,7 @@ import {
 /** Plain words for the evidence log's event types; unknown types are shown as they are. */
 const EVENT_LABELS: Record<string, string> = {
   DEAL_CREATED: "Deal created",
+  BUYER_ADDED: "Buyer added",
   SOURCE_ADDED: "Source added",
   DELIVERABLE_ADDED: "Delivery file added",
   SCOPE_CONFIRMED: "Agreed work confirmed",
@@ -68,6 +70,16 @@ export function DealPage({ dealId }: { dealId: string }) {
         {deal.categoryLabel} · {deal.currency} · status: {deal.status} · you are the {deal.role}
         {!deal.hasBuyer && " · no buyer added yet"}
       </p>
+      {deal.seller && <p>Seller: {deal.seller.name}</p>}
+      {deal.role === "seller" && (
+        <BuyerPanel
+          deal={deal}
+          onDealChange={(updated) => {
+            setDeal(updated);
+            getLedger(dealId).then(setEntries, () => undefined);
+          }}
+        />
+      )}
       <section aria-labelledby="evidence-log">
         <h3 id="evidence-log">Evidence log</h3>
         <ol>

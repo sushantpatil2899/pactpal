@@ -30,12 +30,15 @@ export {
   DEAL_CURRENCIES,
   DEAL_KINDS,
   DEAL_STATUSES,
+  BuyerNotAllowedError,
+  addBuyer,
+  addBuyerSchema,
   createDeal,
   getDeal,
   listDealsForUser,
   newDealSchema,
 } from "./deals.js";
-export type { Deal, DealCategory, NewDeal } from "./deals.js";
+export type { AddBuyer, BuyerRefusal, Deal, DealCategory, NewDeal } from "./deals.js";
 export { ContentMismatchError, postgresContentStore } from "./content-store.js";
 export type { ContentStore } from "./content-store.js";
 export {

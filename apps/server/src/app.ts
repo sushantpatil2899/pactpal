@@ -6,6 +6,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { linkRoutes } from "./auth/links.js";
 import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
 import { dealRoutes } from "./deals/routes.js";
+import { StandInEmailSender, type EmailSender } from "./email/sender.js";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
@@ -22,6 +23,8 @@ export interface AppOptions {
   signIn?: SignInOptions;
   /** Folder of the built web app; when absent only the server's own routes exist. */
   webDir?: string;
+  /** Sends email; defaults to a stand-in that sends nothing until an email service is chosen. */
+  email?: EmailSender;
 }
 
 /**
@@ -95,6 +98,8 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     database: signIn.database,
     clock: signIn.clock,
     newId: signIn.newId,
+    publicBaseUrl: signIn.publicBaseUrl,
+    email: opts.email ?? new StandInEmailSender(app.log),
   });
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 

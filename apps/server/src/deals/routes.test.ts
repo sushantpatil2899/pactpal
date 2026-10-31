@@ -3,21 +3,30 @@ import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pact
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../app.js";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
+import type { EmailMessage } from "../email/sender.js";
 import { redeemDealLink } from "@pactpal/db";
 
 const db = useMigratedTestDatabase();
 
 function setup(withDatabase = true) {
   let ids = 200;
+  const sent: EmailMessage[] = [];
+  const logs: string[] = [];
   const app = buildApp(
     { settings: [], features: [] },
     {
-      logger: false,
+      logger: { stream: { write: (line) => logs.push(line) } },
+      email: {
+        send: (message) => {
+          sent.push(message);
+          return Promise.resolve();
+        },
+      },
       // Only the routes get the database: the app would close it when the app closes.
       signIn: {
         login: undefined,
         database: withDatabase ? db : undefined,
-        publicBaseUrl: undefined,
+        publicBaseUrl: "https://pactpal.test",
         clock: () => TEST_NOW,
         newId: () => testId(ids++),
       },
@@ -30,7 +39,7 @@ function setup(withDatabase = true) {
       ...(payload ? { payload } : {}),
       ...(token ? { cookies: { [SESSION_COOKIE]: token } } : {}),
     });
-  return { app, call };
+  return { app, call, sent, logs };
 }
 
 /** A signed-in (PayPal) session for a user. */
@@ -76,6 +85,7 @@ describe("POST /api/deals", () => {
       createdAt: TEST_NOW.toISOString(),
       hasBuyer: false,
       role: "seller",
+      buyer: null,
     });
     const log = (
       await call("GET", `/api/deals/${testId(200)}/ledger`, await signedIn(seller.id))
@@ -199,6 +209,102 @@ describe("the evidence log", () => {
     const log = await call("GET", `/api/deals/${dealId}/ledger`, await signedIn(seller.id));
     expect(log.json()).toMatchObject({ entries: [{ actor: "seller", actorName: "Seller" }] });
     expect(log.body).not.toContain("maya@example.com");
+    await app.close();
+  });
+});
+
+describe("adding the buyer and making their link", () => {
+  /** A seller (PayPal session) with a deal that has no buyer yet. */
+  async function sellerDeal() {
+    const seller = await createUser(
+      db,
+      { id: testId(1), email: "maya@example.com", displayName: "Maya" },
+      TEST_NOW,
+    );
+    const env = setup();
+    const token = await signedIn(seller.id);
+    const deal = (await env.call("POST", "/api/deals", token, newDeal)).json<{ id: string }>();
+    return { ...env, token, dealId: deal.id };
+  }
+
+  it("lets the seller add the buyer by email, logs it, and shows the buyer's details to the seller only", async () => {
+    const { app, call, token, dealId } = await sellerDeal();
+    const res = await call("POST", `/api/deals/${dealId}/buyer`, token, {
+      email: "chris@example.com",
+      name: "Chris",
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      hasBuyer: true,
+      role: "seller",
+      buyer: { name: "Chris", email: "chris@example.com" },
+    });
+    const log = (await call("GET", `/api/deals/${dealId}/ledger`, token)).json<{
+      entries: { type: string; actorName: string }[];
+    }>();
+    expect(log.entries.map((e) => e.type)).toEqual(["DEAL_CREATED", "BUYER_ADDED"]);
+    expect(log.entries[1]?.actorName).toBe("Maya");
+    expect((await call("GET", `/api/deals/${dealId}/ledger/check`, token)).json()).toMatchObject({
+      status: "unchanged",
+      entries: 2,
+    });
+    await app.close();
+  });
+
+  it("makes a copyable buyer link, passes the email to the sender, and the buyer sees only the seller's name", async () => {
+    const { app, call, token, dealId, sent, logs } = await sellerDeal();
+    await call("POST", `/api/deals/${dealId}/buyer`, token, { email: "chris@example.com" });
+    const made = await call("POST", `/api/deals/${dealId}/buyer-link`, token);
+    expect(made.statusCode).toBe(200);
+    const { url, expiresAt } = made.json<{ url: string; expiresAt: string }>();
+    expect(url).toMatch(/^https:\/\/pactpal\.test\/link#t=[A-Za-z0-9_-]{43}$/);
+    expect(expiresAt).toBe(new Date(TEST_NOW.getTime() + 14 * 24 * 3600 * 1000).toISOString());
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ kind: "deal-link", to: "chris@example.com" });
+    expect(sent[0]?.text).toContain(url);
+    const secret = url.split("#t=")[1] ?? "";
+    expect(logs.join("")).not.toContain(secret);
+
+    const redeemed = await redeemDealLink(db, secret, TEST_NOW);
+    if (!redeemed.ok) throw new Error("expected the link to work");
+    const asBuyer = await call("GET", `/api/deals/${dealId}`, redeemed.session.token);
+    expect(asBuyer.json()).toMatchObject({ role: "buyer", seller: { name: "Maya" } });
+    expect(asBuyer.body).not.toContain("maya@example.com");
+    await app.close();
+  });
+
+  it.each([
+    ["a second buyer", { email: "other@example.com" }, 409],
+    ["the seller's own email", { email: "MAYA@example.com" }, 400],
+    ["a badly formed email", { email: "nope" }, 400],
+  ])("refuses %s", async (name, body, status) => {
+    const { app, call, token, dealId } = await sellerDeal();
+    if (name === "a second buyer") {
+      await call("POST", `/api/deals/${dealId}/buyer`, token, { email: "chris@example.com" });
+    }
+    expect((await call("POST", `/api/deals/${dealId}/buyer`, token, body)).statusCode).toBe(status);
+    await app.close();
+  });
+
+  it("asks for a buyer before making a link", async () => {
+    const { app, call, token, dealId } = await sellerDeal();
+    const res = await call("POST", `/api/deals/${dealId}/buyer-link`, token);
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ error: "add the buyer first" });
+    await app.close();
+  });
+
+  it("lets only the seller add buyers or make links", async () => {
+    const { buyer, dealId } = await createTestDeal(db);
+    const { app, call } = setup();
+    const asBuyer = await signedIn(buyer.id);
+    expect((await call("POST", `/api/deals/${dealId}/buyer-link`, asBuyer)).statusCode).toBe(403);
+    const stranger = await createUser(db, { id: testId(9), email: "s@example.com" }, TEST_NOW);
+    const asStranger = await signedIn(stranger.id);
+    const res = await call("POST", `/api/deals/${dealId}/buyer`, asStranger, {
+      email: "a@example.com",
+    });
+    expect(res.statusCode).toBe(404);
     await app.close();
   });
 });
