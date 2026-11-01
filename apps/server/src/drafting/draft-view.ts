@@ -1,6 +1,11 @@
 import { DEAL_CATEGORIES, type DraftRecord } from "@pactpal/db";
 import { fromPayPalMoney } from "@pactpal/paypal";
-import { BLOCKED_CATEGORIES, categoryVerdict, scopeDraftSchema } from "@pactpal/scope-draft";
+import {
+  BLOCKED_CATEGORIES,
+  categoryVerdict,
+  scopeDraftSchema,
+  type SourceLine,
+} from "@pactpal/scope-draft";
 import { councilRecordSchema } from "./council-record.js";
 
 const categoryLabels = new Map<string, string>([
@@ -21,8 +26,14 @@ function priceMinor(amount: string, currency: string): number | null {
  * A draft as the seller's pages see it. The stored JSON is checked against the AI packages'
  * schemas as it is read; the winning draft's price also comes with its minor units, like agreed
  * work. The category verdict compares what the models read from the chat with the deal's category.
+ * `lines` is the numbered chat the draft was made from, given only when a finished draft is read
+ * on its own.
  */
-export function draftView(record: DraftRecord, deal: { category: string }) {
+export function draftView(
+  record: DraftRecord,
+  deal: { category: string },
+  lines: readonly SourceLine[] | null = null,
+) {
   const draft = record.draft === undefined ? undefined : scopeDraftSchema.parse(record.draft);
   const council =
     record.council === undefined ? undefined : councilRecordSchema.parse(record.council);
@@ -31,7 +42,7 @@ export function draftView(record: DraftRecord, deal: { category: string }) {
     status: record.status,
     createdAt: record.createdAt.toISOString(),
     finishedAt: record.finishedAt?.toISOString() ?? null,
-    source: { fileId: record.sourceArtifactId, sha256: record.sourceSha256 },
+    source: { fileId: record.sourceArtifactId, sha256: record.sourceSha256, lines },
     promptVersions: { draft: record.draftPromptVersion, rank: record.rankPromptVersion },
     failureReason: record.failureReason ?? null,
     draft:

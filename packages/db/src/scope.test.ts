@@ -2,6 +2,11 @@ import { canonicalJson, sha256Hex } from "@pactpal/ledger";
 import { describe, expect, it } from "vitest";
 import {
   DealNotFoundError,
+  addArtifact,
+  failDraft,
+  finishDraft,
+  postgresContentStore,
+  startDraft,
   MAX_MILESTONE_MINOR,
   ScopeIntegrityError,
   ScopeNotAllowedError,
@@ -200,5 +205,121 @@ describe("stored versions", () => {
         [dealId, "a".repeat(64), seller.id],
       ),
     ).rejects.toThrow(/scope_versions_recorded_in_ledger/);
+  });
+});
+
+describe("saveScopeVersion from an AI draft", () => {
+  /** A ready draft (test id 900) of the test deal, made from a saved chat. */
+  async function readyDraft() {
+    const { seller, dealId } = await createTestDeal(db);
+    const file = await addArtifact(
+      db,
+      postgresContentStore(db, () => TEST_NOW),
+      {
+        id: testId(500),
+        dealId,
+        kind: "source",
+        filename: "chat.txt",
+        bytes: new TextEncoder().encode("Maya: a logo for $250"),
+        addedBy: { actor: "seller", actorId: seller.id },
+      },
+      at(1),
+    );
+    const start = (id: string) =>
+      startDraft(
+        db,
+        {
+          id,
+          dealId,
+          sellerId: seller.id,
+          sourceArtifactId: file.id,
+          sourceSha256: file.sha256,
+          draftPromptVersion: 1,
+          rankPromptVersion: 1,
+        },
+        at(2),
+      );
+    await start(testId(900));
+    const { draft } = await finishDraft(
+      db,
+      { draftId: testId(900), draft: { format: 2 }, council: {}, ledgerPayload: {} },
+      at(3),
+    );
+    return { seller, dealId, draft, start };
+  }
+
+  const fields = { summary: "unchanged", deliverables: "changed" };
+  const save = (
+    sellerId: string,
+    confirmedFrom?: { draftId: string; draftSha256: string; fields: Record<string, string> },
+  ) =>
+    saveScopeVersion(
+      db,
+      {
+        dealId: testId(100),
+        sellerId,
+        content: content(),
+        ...(confirmedFrom ? { confirmedFrom } : {}),
+      },
+      at(10),
+    );
+
+  it("records SCOPE_VERSIONED and then SCOPE_CONFIRMED, linking the draft, in one go", async () => {
+    const { seller, dealId, draft } = await readyDraft();
+    const { scope, entry, confirmation } = await save(seller.id, {
+      draftId: draft.id,
+      draftSha256: draft.draftSha256 ?? "",
+      fields,
+    });
+    expect(confirmation).toMatchObject({
+      type: "SCOPE_CONFIRMED",
+      actor: "seller",
+      actorId: seller.id,
+    });
+    expect(confirmation?.seq).toBe(entry.seq + 1);
+    expect(confirmation?.payload).toEqual({
+      version: 1,
+      contentSha256: scope.contentSha256,
+      draftId: draft.id,
+      draftSha256: draft.draftSha256,
+      fields,
+    });
+    expect((await readLedger(db, dealId)).map((e) => e.type).slice(-3)).toEqual([
+      "SCOPE_DRAFTED",
+      "SCOPE_VERSIONED",
+      "SCOPE_CONFIRMED",
+    ]);
+    expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
+  });
+
+  it("writes no confirmation when no draft is named", async () => {
+    const { seller, dealId } = await readyDraft();
+    const result = await save(seller.id);
+    expect(result.confirmation).toBeUndefined();
+    expect((await readLedger(db, dealId)).map((e) => e.type)).not.toContain("SCOPE_CONFIRMED");
+  });
+
+  it("refuses an unknown draft, a running or failed one, and a fingerprint that does not match, saving nothing", async () => {
+    const { seller, dealId, draft, start } = await readyDraft();
+    await start(testId(901));
+    await start(testId(902)).catch(() => undefined);
+    const before = (await readLedger(db, dealId)).length;
+    const sha = draft.draftSha256 ?? "";
+    const attempts = [
+      { draftId: testId(999), draftSha256: sha, fields },
+      { draftId: testId(901), draftSha256: sha, fields },
+      { draftId: draft.id, draftSha256: "0".repeat(64), fields },
+    ];
+    for (const attempt of attempts) {
+      await expect(save(seller.id, attempt)).rejects.toMatchObject({ reason: "bad-draft" });
+    }
+    await failDraft(db, { draftId: testId(901), reason: "x" }, at(11));
+    await expect(
+      save(seller.id, { draftId: testId(901), draftSha256: sha, fields }),
+    ).rejects.toMatchObject({
+      reason: "bad-draft",
+    });
+    expect(await getLatestScope(db, dealId)).toBeUndefined();
+    expect((await readLedger(db, dealId)).length).toBe(before);
   });
 });

@@ -1,5 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { InvalidFieldsError, getScope, saveScope, type ScopeInput, type ScopeView } from "./api";
+import type { DraftFill } from "./draft-fill";
+import { FULL_WIDTH } from "./styles";
 
 interface StageRow {
   title: string;
@@ -116,6 +118,38 @@ function ScopeDetails({ scope }: { scope: ScopeView }) {
   );
 }
 
+/** Tells the seller the form was filled from an AI draft, with the draft's wording hints. */
+function FillNotice({ fill, onClear }: { fill: DraftFill; onClear: () => void }) {
+  return (
+    <div role="status">
+      <p>
+        <strong>Filled from an AI draft: check every line.</strong> Fields the chat did not state
+        are left empty, and the price is one payment stage; split it into your real payment stages.{" "}
+        <button type="button" onClick={onClear}>
+          Start from a blank form instead
+        </button>
+      </p>
+      {fill.paymentTerms !== undefined && (
+        <p>The chat says about payment: &ldquo;{fill.paymentTerms}&rdquo;.</p>
+      )}
+      {fill.suggestions.length > 0 && (
+        <>
+          <p>Wording the draft suggests you make checkable (not part of the form yet):</p>
+          <ul>
+            {fill.suggestions.map((suggestion, n) => (
+              <li key={n}>
+                &ldquo;{suggestion.phrase}&rdquo; (
+                {suggestion.kind === "subjective" ? "needs the buyer's approval" : "not measurable"}
+                ): {suggestion.rewrite}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
 /**
  * What the deal covers and how the price is split into payment stages. Everyone on the deal sees
  * the newest version; the seller of a draft deal can save a new one (old versions are kept).
@@ -124,17 +158,35 @@ export function ScopePanel({
   dealId,
   currency,
   canEdit,
+  fill,
+  onClearFill,
   onSaved,
 }: {
   dealId: string;
   currency: string;
   canEdit: boolean;
+  /** An AI draft the seller chose to start from; fills the form and is linked when saved. */
+  fill: DraftFill | undefined;
+  onClearFill: () => void;
   onSaved: () => void;
 }) {
   const [scope, setScope] = useState<ScopeView | null | undefined>();
   const [stages, setStages] = useState<StageRow[]>([{ ...EMPTY_STAGE }]);
   const [problem, setProblem] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  // Choosing a draft fills the form (the draft's one payment stage for the whole price) and moves
+  // focus to this section so the seller lands on what to check.
+  useEffect(() => {
+    if (fill === undefined) return;
+    setStages([
+      fill.stage
+        ? { title: fill.stage.title, amount: fill.stage.amount, dueDate: "" }
+        : { ...EMPTY_STAGE },
+    ]);
+    heading.current?.focus();
+  }, [fill]);
 
   useEffect(() => {
     getScope(dealId).then(
@@ -158,6 +210,7 @@ export function ScopePanel({
     const revisions = textOf(form.get("revisionsIncluded"));
     const dueDate = textOf(form.get("dueDate"));
     const input: ScopeInput = {
+      ...(fill ? { draftId: fill.draftId } : {}),
       summary: textOf(form.get("summary")),
       deliverables: linesOf(form.get("deliverables")),
       exclusions: linesOf(form.get("exclusions")),
@@ -194,7 +247,9 @@ export function ScopePanel({
   if (scope === undefined && !problem) return <p aria-busy="true">Loading the agreed work…</p>;
   return (
     <section aria-labelledby="agreed-work">
-      <h3 id="agreed-work">Agreed work</h3>
+      <h3 id="agreed-work" ref={heading} tabIndex={-1}>
+        Agreed work
+      </h3>
       {problem && (
         <p role="alert" style={{ color: "#8a1c1c" }}>
           {problem}
@@ -202,19 +257,28 @@ export function ScopePanel({
       )}
       {scope ? <ScopeDetails scope={scope} /> : <p>Nothing written down yet.</p>}
       {canEdit && scope !== undefined && (
-        <form key={scope?.version ?? 0} onSubmit={onSave}>
+        <form key={`${String(scope?.version ?? 0)}-${fill?.draftId ?? ""}`} onSubmit={onSave}>
           <h4>{scope ? "Change and save as a new version" : "Write down the agreed work"}</h4>
+          {fill && (
+            <FillNotice
+              fill={fill}
+              onClear={() => {
+                setStages(stagesFrom(scope ?? null));
+                onClearFill();
+              }}
+            />
+          )}
           <p>
             <label>
               Summary
               <br />
               <textarea
+                style={FULL_WIDTH}
                 name="summary"
                 required
                 maxLength={2000}
                 rows={3}
-                cols={60}
-                defaultValue={scope?.summary}
+                defaultValue={fill ? (fill.summary ?? "") : scope?.summary}
               />
             </label>
           </p>
@@ -223,11 +287,11 @@ export function ScopePanel({
               What will be delivered (one per line)
               <br />
               <textarea
+                style={FULL_WIDTH}
                 name="deliverables"
                 required
                 rows={4}
-                cols={60}
-                defaultValue={scope?.deliverables.join("\n")}
+                defaultValue={(fill ? fill.deliverables : scope?.deliverables)?.join("\n")}
               />
             </label>
           </p>
@@ -236,10 +300,10 @@ export function ScopePanel({
               Not included (optional, one per line)
               <br />
               <textarea
+                style={FULL_WIDTH}
                 name="exclusions"
                 rows={3}
-                cols={60}
-                defaultValue={scope?.exclusions.join("\n")}
+                defaultValue={(fill ? fill.exclusions : scope?.exclusions)?.join("\n")}
               />
             </label>
           </p>
@@ -251,12 +315,18 @@ export function ScopePanel({
                 type="number"
                 min={0}
                 max={20}
-                defaultValue={scope?.revisionsIncluded ?? ""}
+                defaultValue={
+                  fill ? (fill.revisionsIncluded ?? "") : (scope?.revisionsIncluded ?? "")
+                }
               />
             </label>{" "}
             <label>
               Due date (optional){" "}
-              <input name="dueDate" type="date" defaultValue={scope?.dueDate ?? ""} />
+              <input
+                name="dueDate"
+                type="date"
+                defaultValue={fill ? (fill.dueDate ?? "") : (scope?.dueDate ?? "")}
+              />
             </label>
           </p>
           <fieldset>

@@ -246,6 +246,8 @@ export interface ScopeView {
 
 /** What the seller saves; each stage's amount as typed ("250.50"). */
 export interface ScopeInput {
+  /** The AI draft this was made from, so the evidence log can link them. */
+  draftId?: string;
   summary: string;
   deliverables: string[];
   exclusions: string[];
@@ -372,3 +374,171 @@ export async function makeBuyerLink(dealId: string): Promise<{ url: string; expi
     "make the link",
   );
 }
+
+// --- AI drafts ---------------------------------------------------------------------------------
+
+/** Where in the pasted chat a fact comes from: a line number and words copied from that line. */
+export interface Citation {
+  line: number;
+  quote: string;
+}
+
+/** A line the draft's models quoted, with its number. */
+export interface ChatLine {
+  n: number;
+  text: string;
+}
+
+type Stated<T> = ({ status: "found"; citations: Citation[] } & T) | { status: "missing" };
+
+/** The drafted agreed work: every statement carries quotes, or is marked missing. */
+export interface DraftContent {
+  summary: Stated<{ value: string }>;
+  deliverables: { text: string; citations: Citation[] }[];
+  exclusions: { text: string; citations: Citation[] }[];
+  price: Stated<{ amount: string; currency: string; minor: number | null }>;
+  paymentTerms: Stated<{ value: string }>;
+  dueDate: Stated<{ value: string }>;
+  revisionsIncluded: Stated<{ value: number }>;
+  vagueTerms: {
+    phrase: string;
+    kind: "subjective" | "unmeasurable";
+    suggestedRewrite: string;
+    citations: Citation[];
+  }[];
+  category: { id: string; citations: Citation[]; note: string };
+}
+
+export type CategoryVerdict = "agrees" | "mismatch" | "blocked" | "unclear";
+
+/** What the council did for one draft. */
+export interface CouncilView {
+  answers: {
+    modelName: string;
+    status: "valid" | "invalid" | "call_failed";
+    errors: string[];
+    latencyMs?: number;
+    usage?: { promptTokens: number; completionTokens: number };
+  }[];
+  votes: {
+    voter: string;
+    status: "ballot" | "call_failed" | "unreadable" | "not_asked";
+    reason?: string;
+  }[];
+  labels: { label: string; modelName: string }[];
+  scores: { label: string; modelName: string; score: number; votes: number }[];
+  agreement: number;
+  needsReview: boolean;
+  reviewReasons: string[];
+  rejectedBallots: { voter: string; reason: string }[];
+  usage: {
+    calls: number;
+    callsWithoutUsage: number;
+    promptTokens: number;
+    completionTokens: number;
+  };
+  durationMs: number;
+}
+
+export type DraftStatus = "running" | "ready" | "failed";
+
+export interface DraftView {
+  id: string;
+  status: DraftStatus;
+  createdAt: string;
+  finishedAt: string | null;
+  /** The chat file it was made from; `lines` is its numbered text, given for finished drafts. */
+  source: { fileId: string; sha256: string; lines: ChatLine[] | null };
+  failureReason: string | null;
+  draft: DraftContent | null;
+  category: { fromChat: string; label: string; verdict: CategoryVerdict; note: string } | null;
+  needsReview: boolean | null;
+  reviewReasons: string[];
+  council: CouncilView | null;
+}
+
+const isStated = (value: unknown): boolean =>
+  isObject(value) &&
+  (value.status === "missing" || (value.status === "found" && Array.isArray(value.citations)));
+
+const isDraftContent = (value: unknown): value is DraftContent =>
+  isObject(value) &&
+  value.format === 2 &&
+  isStated(value.summary) &&
+  isStated(value.price) &&
+  isStated(value.paymentTerms) &&
+  isStated(value.dueDate) &&
+  isStated(value.revisionsIncluded) &&
+  Array.isArray(value.deliverables) &&
+  Array.isArray(value.exclusions) &&
+  Array.isArray(value.vagueTerms) &&
+  isObject(value.category) &&
+  typeof value.category.id === "string";
+
+const isCouncil = (value: unknown): value is CouncilView =>
+  isObject(value) &&
+  Array.isArray(value.answers) &&
+  Array.isArray(value.votes) &&
+  Array.isArray(value.labels) &&
+  Array.isArray(value.scores) &&
+  Array.isArray(value.rejectedBallots) &&
+  Array.isArray(value.reviewReasons) &&
+  typeof value.agreement === "number" &&
+  typeof value.needsReview === "boolean" &&
+  typeof value.durationMs === "number" &&
+  isObject(value.usage) &&
+  typeof value.usage.calls === "number";
+
+const isDraftView = (value: unknown): value is DraftView =>
+  isObject(value) &&
+  typeof value.id === "string" &&
+  (value.status === "running" || value.status === "ready" || value.status === "failed") &&
+  typeof value.createdAt === "string" &&
+  isObject(value.source) &&
+  typeof value.source.fileId === "string" &&
+  (value.source.lines === null || Array.isArray(value.source.lines)) &&
+  Array.isArray(value.reviewReasons) &&
+  (value.draft === null || isDraftContent(value.draft)) &&
+  (value.council === null || isCouncil(value.council));
+
+const draftsUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/drafts`;
+
+/** The deal's drafts, newest first (without their numbered chats). */
+export async function listDrafts(dealId: string): Promise<DraftView[]> {
+  const body = await readChecked(
+    await fetch(draftsUrl(dealId)),
+    (b): b is { drafts: unknown[] } => isObject(b) && Array.isArray(b.drafts),
+    "load the drafts",
+  );
+  return body.drafts.filter(isDraftView);
+}
+
+/** One draft; a finished one comes with its numbered chat. */
+export async function getDraftById(dealId: string, draftId: string): Promise<DraftView> {
+  const body = await readChecked(
+    await fetch(`${draftsUrl(dealId)}/${encodeURIComponent(draftId)}`),
+    (b): b is { draft: DraftView } => isObject(b) && isDraftView(b.draft),
+    "load the draft",
+  );
+  return body.draft;
+}
+
+/** Starts a draft from a text file on the deal; it comes back `running`. */
+export async function startDraft(dealId: string, sourceFileId: string): Promise<DraftView> {
+  const response = await fetch(draftsUrl(dealId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ sourceFileId }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not start the draft"));
+  const body = await readChecked(
+    response,
+    (b): b is { draft: DraftView } => isObject(b) && isDraftView(b.draft),
+    "start the draft",
+  );
+  return body.draft;
+}
+
+/** Saves pasted text as a text source file on the deal (the same upload as any other file). */
+export const addPastedChat = (dealId: string, text: string): Promise<DealFile> =>
+  addFile(dealId, new File([text], "pasted-chat.txt", { type: "text/plain" }));

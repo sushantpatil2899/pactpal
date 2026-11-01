@@ -1,6 +1,16 @@
-import { readLedger } from "@pactpal/db";
+import {
+  addArtifact,
+  failDraft,
+  finishDraft,
+  postgresContentStore,
+  readLedger,
+  startDraft,
+  verifyStoredLedger,
+} from "@pactpal/db";
 import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
+import { MAYA_DRAFT } from "@pactpal/scope-draft/testing";
 import { describe, expect, it } from "vitest";
+import { toJson } from "../drafting/council-record.js";
 import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
@@ -119,6 +129,122 @@ describe("agreed work", () => {
     const missing = `/api/deals/${testId(999)}/scope`;
     expect((await call("GET", missing, token)).statusCode).toBe(404);
     expect((await call("GET", missing)).statusCode).toBe(401);
+    await app.close();
+  });
+});
+
+describe("agreed work saved from an AI draft", () => {
+  /** The test deal with a ready draft (test id 900) holding the Maya draft, and the seller's session. */
+  async function withReadyDraft() {
+    const env = await sellerDeal();
+    const store = postgresContentStore(db, () => TEST_NOW);
+    const file = await addArtifact(
+      db,
+      store,
+      {
+        id: testId(500),
+        dealId: env.dealId,
+        kind: "source",
+        filename: "chat.txt",
+        bytes: new TextEncoder().encode("Maya: a logo"),
+        addedBy: { actor: "seller", actorId: env.seller.id },
+      },
+      TEST_NOW,
+    );
+    const start = (id: string) =>
+      startDraft(
+        db,
+        {
+          id,
+          dealId: env.dealId,
+          sellerId: env.seller.id,
+          sourceArtifactId: file.id,
+          sourceSha256: file.sha256,
+          draftPromptVersion: 1,
+          rankPromptVersion: 1,
+        },
+        TEST_NOW,
+      );
+    await start(testId(900));
+    const { draft } = await finishDraft(
+      db,
+      {
+        draftId: testId(900),
+        draft: toJson(MAYA_DRAFT),
+        council: {},
+        ledgerPayload: {},
+      },
+      TEST_NOW,
+    );
+    return { ...env, draft, start };
+  }
+
+  const drafted = (overrides: object = {}) =>
+    work({
+      summary: MAYA_DRAFT.summary.status === "found" ? MAYA_DRAFT.summary.value : "",
+      deliverables: MAYA_DRAFT.deliverables.map((item) => item.text),
+      exclusions: MAYA_DRAFT.exclusions.map((item) => item.text),
+      revisionsIncluded: undefined,
+      milestones: [{ title: "Payment", amount: "240" }],
+      ...overrides,
+    });
+
+  it("saves the version and logs which fields were kept and which changed, linking the draft", async () => {
+    const { call, url, token, dealId, draft, app } = await withReadyDraft();
+    const res = await call("POST", url, token, {
+      ...drafted({ summary: "Maya will draw one character, in her own words" }),
+      draftId: draft.id,
+    });
+    expect(res.statusCode).toBe(201);
+    const ledger = await readLedger(db, dealId);
+    expect(ledger.map((e) => e.type).slice(-3)).toEqual([
+      "SCOPE_DRAFTED",
+      "SCOPE_VERSIONED",
+      "SCOPE_CONFIRMED",
+    ]);
+    const entry = ledger.at(-1);
+    expect(entry).toMatchObject({ actor: "seller" });
+    expect(entry?.payload).toMatchObject({
+      version: 1,
+      draftId: draft.id,
+      draftSha256: draft.draftSha256,
+      fields: {
+        summary: "changed",
+        deliverables: "unchanged",
+        exclusions: "unchanged",
+        totalPrice: "unchanged",
+      },
+    });
+    // Fingerprints and statuses only: none of the words.
+    expect(JSON.stringify(entry?.payload)).not.toMatch(/Maya|character|merchandise/);
+    expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
+    await app.close();
+  });
+
+  it("refuses a draft that is not a ready draft of this deal, and saves nothing", async () => {
+    const { call, url, token, dealId, draft, start, app } = await withReadyDraft();
+    await start(testId(901));
+    const before = (await readLedger(db, dealId)).length;
+    for (const draftId of [testId(999), testId(901), "not-an-id"]) {
+      const res = await call("POST", url, token, { ...drafted(), draftId });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({ error: "invalid", fields: ["draftId"] });
+    }
+    await failDraft(db, { draftId: testId(901), reason: "x" }, TEST_NOW);
+    const failed = await call("POST", url, token, { ...drafted(), draftId: testId(901) });
+    expect(failed.json()).toMatchObject({ fields: ["draftId"] });
+    expect((await call("GET", url, token)).json()).toEqual({ scope: null });
+    expect((await readLedger(db, dealId)).length).toBe(before);
+    expect(draft.status).toBe("ready");
+    await app.close();
+  });
+
+  it("does not let the buyer save from a draft", async () => {
+    const { call, url, dealId, buyer, draft, app } = await withReadyDraft();
+    for (const token of await buyerVisitors(db, dealId, buyer.id)) {
+      const res = await call("POST", url, token, { ...drafted(), draftId: draft.id });
+      expect(res.statusCode).toBe(403);
+    }
     await app.close();
   });
 });

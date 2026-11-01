@@ -496,6 +496,33 @@ describe("limits", () => {
 });
 
 describe("listing and reading drafts", () => {
+  it("gives the numbered chat with a finished draft, and not with a running or listed one", async () => {
+    const env = await sellerDeal();
+    const id = idOf(await env.start(env.token));
+    const running = (await env.call("GET", `${env.url}/${id}`, env.token)).json<{
+      draft: { source: { lines: unknown } };
+    }>();
+    expect(running.draft.source.lines).toBeNull();
+
+    await env.runtime.settle();
+    const done = (await env.call("GET", `${env.url}/${id}`, env.token)).json<{
+      draft: { source: { lines: { n: number; text: string }[] } };
+    }>();
+    const { lines } = done.draft.source;
+    expect(lines).toHaveLength(24);
+    expect(lines[0]).toEqual({
+      n: 1,
+      text: "Chris: hey Maya! love your art, are you taking commissions right now?",
+    });
+    expect(lines[15]?.text).toContain("it's $240 total");
+
+    const listed = (await env.call("GET", env.url, env.token)).json<{
+      drafts: { source: { lines: unknown } }[];
+    }>();
+    expect(listed.drafts[0]?.source.lines).toBeNull();
+    await env.app.close();
+  });
+
   it("lists a deal's drafts newest first and 404s an unknown draft", async () => {
     const { start, call, token, url, runtime, app } = await sellerDeal();
     const first = idOf(await start(token));

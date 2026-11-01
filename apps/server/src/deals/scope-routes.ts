@@ -1,5 +1,7 @@
 import {
+  DraftIntegrityError,
   ScopeNotAllowedError,
+  getDraft,
   getLatestScope,
   saveScopeVersion,
   scopeContentSchema,
@@ -9,7 +11,9 @@ import {
 } from "@pactpal/db";
 import { fromPayPalMoney, toPayPalMoney } from "@pactpal/paypal";
 import type { FastifyPluginAsync } from "fastify";
+import { scopeDraftSchema } from "@pactpal/scope-draft";
 import { z } from "zod";
+import { compareWithDraft } from "../drafting/confirmation.js";
 import { readBody, type DealLookup } from "./access.js";
 
 export interface ScopeRouteOptions {
@@ -25,6 +29,8 @@ const { milestones } = scopeContentSchema.shape;
  * are the stored content's own; only the amount differs, converted to minor units on the server.
  */
 const scopeBody = scopeContentSchema.omit({ format: true, milestones: true }).extend({
+  /** The AI draft this was made from, if any; the log then records the link. */
+  draftId: z.uuid().optional(),
   milestones: z
     .array(
       milestones.element
@@ -34,11 +40,12 @@ const scopeBody = scopeContentSchema.omit({ format: true, milestones: true }).ex
     .min(1)
     .max(20),
 });
-type ScopeBody = z.output<typeof scopeBody>;
+type ScopeBody = Omit<z.output<typeof scopeBody>, "draftId">;
 
 const SCOPE_REFUSALS: Record<ScopeNotAllowedError["reason"], { status: number; error: string }> = {
   "not-your-deal": { status: 403, error: "only the seller can do this" },
   "not-draft": { status: 409, error: "the agreed work can only change while the deal is a draft" },
+  "bad-draft": { status: 400, error: "invalid" },
 };
 
 /** An amount for the pages: whole minor units, and the same as text in PayPal's format. */
@@ -116,15 +123,45 @@ export const scopeRoutes: FastifyPluginAsync<ScopeRouteOptions> = (app, options)
   app.post("/api/deals/:id/scope", async (request, reply) => {
     const found = await sellersDeal(request, reply);
     if (!found) return reply;
-    const body = await readBody(scopeBody, request, reply);
-    if (!body) return reply;
+    const parsed = await readBody(scopeBody, request, reply);
+    if (!parsed) return reply;
+    const { draftId, ...body } = parsed;
     const { deal, db, viewer } = found;
     const content = toContent(body, deal.currency);
     if (!content.ok) return reply.code(400).send({ error: "invalid", fields: content.fields });
+
+    // A version made from an AI draft records the link, with what the seller kept and changed.
+    let confirmedFrom;
+    if (draftId !== undefined) {
+      try {
+        const record = await getDraft(db, deal.id, draftId);
+        if (record?.status !== "ready" || record.draft === undefined || !record.draftSha256) {
+          return await reply.code(400).send({ error: "invalid", fields: ["draftId"] });
+        }
+        confirmedFrom = {
+          draftId,
+          draftSha256: record.draftSha256,
+          fields: compareWithDraft(
+            scopeDraftSchema.parse(record.draft),
+            content.content,
+            deal.currency,
+          ),
+        };
+      } catch (error) {
+        if (!(error instanceof DraftIntegrityError)) throw error;
+        request.log.error({ dealId: deal.id, draftId }, "Draft failed its fingerprint check");
+        return reply.code(409).send({ error: "this draft failed its check and was not used" });
+      }
+    }
     try {
       const { scope } = await saveScopeVersion(
         db,
-        { dealId: deal.id, sellerId: viewer.user.id, content: content.content },
+        {
+          dealId: deal.id,
+          sellerId: viewer.user.id,
+          content: content.content,
+          ...(confirmedFrom ? { confirmedFrom } : {}),
+        },
         clock(),
       );
       request.log.info({ dealId: deal.id, version: scope.version }, "Agreed work saved");
@@ -132,7 +169,13 @@ export const scopeRoutes: FastifyPluginAsync<ScopeRouteOptions> = (app, options)
     } catch (error) {
       if (!(error instanceof ScopeNotAllowedError)) throw error;
       const { status, error: message } = SCOPE_REFUSALS[error.reason];
-      return reply.code(status).send({ error: message });
+      return reply
+        .code(status)
+        .send(
+          error.reason === "bad-draft"
+            ? { error: message, fields: ["draftId"] }
+            : { error: message },
+        );
     }
   });
 

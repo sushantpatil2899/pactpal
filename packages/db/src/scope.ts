@@ -34,7 +34,7 @@ export type ScopeContent = z.output<typeof scopeContentSchema>;
 export type ScopeContentInput = z.input<typeof scopeContentSchema>;
 
 /** Why a version was not saved. */
-export type ScopeRefusal = "not-your-deal" | "not-draft";
+export type ScopeRefusal = "not-your-deal" | "not-draft" | "bad-draft";
 
 export class ScopeNotAllowedError extends Error {
   override readonly name = "ScopeNotAllowedError";
@@ -107,10 +107,22 @@ const lockedDeal = z.object({
 });
 const lastVersion = z.object({ last: z.coerce.number().int() });
 
+/**
+ * Says the version was made from an AI draft: which draft (by id and fingerprint) and, field by
+ * field, whether the seller kept it, changed it, added it or removed it. Only these words and
+ * fingerprints go into the log, never the text.
+ */
+export const confirmedFromSchema = z.object({
+  draftId: z.uuid(),
+  draftSha256: z.string().regex(/^[0-9a-f]{64}$/),
+  fields: z.record(z.string(), z.string()),
+});
+
 export const saveScopeSchema = z.object({
   dealId: z.uuid(),
   sellerId: z.uuid(),
   content: scopeContentSchema,
+  confirmedFrom: confirmedFromSchema.optional(),
 });
 export type SaveScope = z.input<typeof saveScopeSchema>;
 
@@ -118,14 +130,16 @@ export type SaveScope = z.input<typeof saveScopeSchema>;
  * Saves the seller's agreed work as the deal's next version, in one transaction with its
  * `SCOPE_VERSIONED` log entry. The deal row is locked first, so two saves at once get different
  * numbers. Only the seller, and only while the deal is a draft. The log holds the fingerprint,
- * total and number of stages; the full text stays in the table.
+ * total and number of stages; the full text stays in the table. When `confirmedFrom` names an AI
+ * draft, a `SCOPE_CONFIRMED` entry follows in the same transaction; the draft must be a ready
+ * draft of this deal with that fingerprint, or nothing is saved.
  */
 export async function saveScopeVersion(
   db: Database,
   input: SaveScope,
   now: Date,
-): Promise<{ scope: ScopeVersion; entry: LedgerEntry }> {
-  const { dealId, sellerId, content } = saveScopeSchema.parse(input);
+): Promise<{ scope: ScopeVersion; entry: LedgerEntry; confirmation?: LedgerEntry }> {
+  const { dealId, sellerId, content, confirmedFrom } = saveScopeSchema.parse(input);
   return db.transaction(async (tx) => {
     const rows = await tx.query(
       "SELECT seller_id, status, currency FROM deals WHERE id = $1 FOR UPDATE",
@@ -135,6 +149,15 @@ export async function saveScopeVersion(
     if (!deal.success) throw new DealNotFoundError(`No deal ${dealId}`);
     if (deal.data.seller_id !== sellerId) throw new ScopeNotAllowedError("not-your-deal");
     if (deal.data.status !== "draft") throw new ScopeNotAllowedError("not-draft");
+
+    if (confirmedFrom) {
+      const drafts = await tx.query(
+        `SELECT 1 FROM scope_drafts
+          WHERE id = $1 AND deal_id = $2 AND status = 'ready' AND draft_sha256 = $3`,
+        [confirmedFrom.draftId, dealId, confirmedFrom.draftSha256],
+      );
+      if (drafts.length === 0) throw new ScopeNotAllowedError("bad-draft");
+    }
 
     const last = await tx.query(
       "SELECT COALESCE(MAX(version), 0) AS last FROM scope_versions WHERE deal_id = $1",
@@ -176,7 +199,27 @@ export async function saveScopeVersion(
         now,
       ],
     );
-    return { scope: checkedVersion(saved[0]), entry };
+    const confirmation =
+      confirmedFrom === undefined
+        ? undefined
+        : await appendLedgerEvent(
+            tx,
+            {
+              dealId,
+              type: "SCOPE_CONFIRMED",
+              actor: "seller",
+              actorId: sellerId,
+              payload: {
+                version,
+                contentSha256,
+                draftId: confirmedFrom.draftId,
+                draftSha256: confirmedFrom.draftSha256,
+                fields: confirmedFrom.fields,
+              },
+            },
+            now,
+          );
+    return { scope: checkedVersion(saved[0]), entry, ...(confirmation ? { confirmation } : {}) };
   });
 }
 

@@ -1,0 +1,219 @@
+import type { Citation, DraftContent, DraftView } from "./api";
+import { CouncilPanel } from "./CouncilPanel";
+import { fillFrom, type DraftFill } from "./draft-fill";
+import { WRAP } from "./styles";
+
+const muted = { color: "#555", fontSize: 14 } as const;
+
+/** The quotes behind a statement: the line number and the words copied from that line. */
+function Quotes({ citations }: { citations: Citation[] }) {
+  return (
+    <ul style={{ ...muted, margin: "0 0 0.5rem" }} aria-label="From the chat">
+      {citations.map((citation, n) => (
+        <li key={n}>
+          line {citation.line}: &ldquo;{citation.quote}&rdquo;
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const NOT_STATED = <em>not stated in the chat</em>;
+
+/** Names of the single-value fields the chat did not state, in plain words. */
+function missingFields(draft: DraftContent): string[] {
+  const missing: [string, boolean][] = [
+    ["a summary", draft.summary.status === "missing"],
+    ["the price", draft.price.status === "missing"],
+    ["how payment works", draft.paymentTerms.status === "missing"],
+    ["a due date", draft.dueDate.status === "missing"],
+    ["the number of revisions", draft.revisionsIncluded.status === "missing"],
+    ["what will be delivered", draft.deliverables.length === 0],
+    ["what is not included", draft.exclusions.length === 0],
+  ];
+  return missing.filter(([, isMissing]) => isMissing).map(([name]) => name);
+}
+
+/** The notice about what the models think is being sold, compared with the deal's category. */
+function CategoryNotice({ view, dealCategory }: { view: DraftView; dealCategory: string }) {
+  const { category } = view;
+  if (category === null) return null;
+  switch (category.verdict) {
+    case "agrees":
+      return (
+        <p role="status">
+          What is being sold: {category.label}. This matches the category you chose.
+        </p>
+      );
+    case "mismatch":
+      return (
+        <p role="alert">
+          The chat looks like &ldquo;{category.label}&rdquo;, but this deal is in &ldquo;
+          {dealCategory}&rdquo;. Check which one is right before you go on.
+        </p>
+      );
+    case "blocked":
+      return (
+        <p role="alert">
+          The chat looks like something PactPal does not support yet: &ldquo;{category.label}
+          &rdquo;. For now PactPal supports services, digital work and small handmade goods. Do not
+          send this deal to a buyer.
+        </p>
+      );
+    case "unclear":
+      return <p role="status">The chat does not make clear what is being sold.</p>;
+  }
+}
+
+/** A finished draft for the seller to check: flags, the drafted work with quotes, wording to fix, the council and the chat. */
+export function DraftReview({
+  view,
+  dealCategory,
+  canUse,
+  onUse,
+}: {
+  view: DraftView;
+  dealCategory: string;
+  canUse: boolean;
+  onUse: (fill: DraftFill) => void;
+}) {
+  const { draft } = view;
+  const fill = fillFrom(view);
+  if (draft === null) return null;
+  const missing = missingFields(draft);
+  return (
+    <div style={WRAP}>
+      <p role="note">
+        <strong>AI draft: check every line against the chat.</strong> The quotes under each line
+        show where it comes from. Nothing here is agreed until you save it and the buyer accepts.
+      </p>
+      {view.needsReview === true && (
+        <p role="alert">
+          The models did not fully agree, so read every line carefully:{" "}
+          {view.reviewReasons.join("; ")}.
+        </p>
+      )}
+      <CategoryNotice view={view} dealCategory={dealCategory} />
+      {missing.length > 0 && <p>Not stated in the chat: {missing.join(", ")}.</p>}
+
+      <h4>Summary</h4>
+      {draft.summary.status === "found" ? (
+        <>
+          <p>{draft.summary.value}</p>
+          <Quotes citations={draft.summary.citations} />
+        </>
+      ) : (
+        <p>{NOT_STATED}</p>
+      )}
+
+      <h4>What will be delivered</h4>
+      {draft.deliverables.length === 0 && <p>{NOT_STATED}</p>}
+      <ul>
+        {draft.deliverables.map((item, n) => (
+          <li key={n}>
+            {item.text}
+            <Quotes citations={item.citations} />
+          </li>
+        ))}
+      </ul>
+
+      <h4>Not included</h4>
+      {draft.exclusions.length === 0 && <p>{NOT_STATED}</p>}
+      <ul>
+        {draft.exclusions.map((item, n) => (
+          <li key={n}>
+            {item.text}
+            <Quotes citations={item.citations} />
+          </li>
+        ))}
+      </ul>
+
+      <h4>Price and payment</h4>
+      {draft.price.status === "found" ? (
+        <>
+          <p>
+            Price: {draft.price.amount} {draft.price.currency}
+          </p>
+          <Quotes citations={draft.price.citations} />
+        </>
+      ) : (
+        <p>Price: {NOT_STATED}</p>
+      )}
+      {draft.paymentTerms.status === "found" ? (
+        <>
+          <p>How payment works: {draft.paymentTerms.value}</p>
+          <Quotes citations={draft.paymentTerms.citations} />
+        </>
+      ) : (
+        <p>How payment works: {NOT_STATED}</p>
+      )}
+
+      <h4>Dates and revisions</h4>
+      {draft.dueDate.status === "found" ? (
+        <>
+          <p>Due: {draft.dueDate.value}</p>
+          <Quotes citations={draft.dueDate.citations} />
+        </>
+      ) : (
+        <p>Due date: {NOT_STATED}</p>
+      )}
+      {draft.revisionsIncluded.status === "found" ? (
+        <>
+          <p>Revisions included: {draft.revisionsIncluded.value}</p>
+          <Quotes citations={draft.revisionsIncluded.citations} />
+        </>
+      ) : (
+        <p>Revisions included: {NOT_STATED}</p>
+      )}
+
+      {draft.vagueTerms.length > 0 && (
+        <>
+          <h4>Wording that two people could read differently</h4>
+          <ul>
+            {draft.vagueTerms.map((term, n) => (
+              <li key={n}>
+                &ldquo;{term.phrase}&rdquo;:{" "}
+                {term.kind === "subjective"
+                  ? "a matter of taste, so it needs the buyer's approval"
+                  : "could be measured but is not"}
+                . Suggested wording: {term.suggestedRewrite} <em>(a suggestion, not agreed)</em>
+                <Quotes citations={term.citations} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {canUse && fill && (
+        <p>
+          <button
+            type="button"
+            onClick={() => {
+              onUse(fill);
+            }}
+          >
+            Use this draft in the agreed work
+          </button>{" "}
+          <span style={muted}>It fills the form below; you check it and save it yourself.</span>
+        </p>
+      )}
+
+      {view.council !== null && <CouncilPanel council={view.council} />}
+
+      <details>
+        <summary>The chat with line numbers</summary>
+        {view.source.lines === null ? (
+          <p>The chat could not be shown.</p>
+        ) : (
+          <ol style={{ listStyle: "none", paddingLeft: 0 }}>
+            {view.source.lines.map((line) => (
+              <li key={line.n} id={`chat-line-${String(line.n)}`}>
+                <code>{line.n}</code> {line.text}
+              </li>
+            ))}
+          </ol>
+        )}
+      </details>
+    </div>
+  );
+}

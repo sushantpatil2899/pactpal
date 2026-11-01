@@ -8,9 +8,11 @@ import {
   listDrafts,
   postgresContentStore,
   startDraft,
+  type ContentStore,
   type Database,
+  type DraftRecord,
 } from "@pactpal/db";
-import { numberSourceLines } from "@pactpal/scope-draft";
+import { numberSourceLines, type SourceLine } from "@pactpal/scope-draft";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { PROMPT_VERSIONS, runDraftJob } from "../drafting/draft-job.js";
@@ -48,6 +50,32 @@ function textOf(bytes: Uint8Array): string | undefined {
   }
 }
 
+/** The numbered chat a draft was made from, read again from the stored file; null if it cannot be. */
+async function numberedChat(
+  found: { db: Database; deal: { id: string } },
+  draft: DraftRecord,
+  store: ContentStore,
+  log: { error(fields: object, message: string): void },
+): Promise<SourceLine[] | null> {
+  try {
+    const file = await getArtifact(found.db, store, draft.sourceArtifactId, found.deal.id);
+    const text = textOf(file.bytes);
+    const numbered = text === undefined ? undefined : numberSourceLines(text);
+    return numbered?.ok ? numbered.lines : null;
+  } catch (error) {
+    // The draft is still shown; only the chat beside it is missing.
+    log.error(
+      {
+        dealId: found.deal.id,
+        draftId: draft.id,
+        err: error instanceof Error ? error.name : "unknown",
+      },
+      "The chat of a draft could not be read",
+    );
+    return null;
+  }
+}
+
 /**
  * Drafts of a deal's agreed work, made by the council from a chat saved as a text source file.
  * Only the seller can start, list or read drafts. A draft starts at once as `running`; the page
@@ -72,7 +100,12 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
       ? await getDraft(found.db, found.deal.id, params.data.draftId)
       : undefined;
     if (!draft) return reply.code(404).send({ error: "not found" });
-    return reply.send({ draft: draftView(draft, found.deal) });
+    // The numbered chat comes with a finished draft, so the page shows exactly what was checked.
+    const lines =
+      draft.status === "running" || !store
+        ? null
+        : await numberedChat(found, draft, store, request.log);
+    return reply.send({ draft: draftView(draft, found.deal, lines) });
   });
 
   app.post("/api/deals/:id/drafts", async (request, reply) => {

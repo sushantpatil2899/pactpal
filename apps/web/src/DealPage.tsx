@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { BuyerPanel } from "./BuyerPanel";
+import { DraftPanel } from "./DraftPanel";
+import type { DraftFill } from "./draft-fill";
+import { when } from "./format";
 import { FilesPanel } from "./FilesPanel";
 import { ScopePanel } from "./ScopePanel";
 import {
@@ -20,13 +23,11 @@ const EVENT_LABELS: Record<string, string> = {
   SOURCE_ADDED: "Source added",
   DELIVERABLE_ADDED: "Delivery file added",
   SCOPE_VERSIONED: "Agreed work saved",
-  SCOPE_CONFIRMED: "Agreed work confirmed",
+  SCOPE_DRAFTED: "AI draft made",
+  SCOPE_CONFIRMED: "Agreed work confirmed from an AI draft",
   ACCEPTED: "Buyer accepted",
   NOTE_ADDED: "Note added",
 };
-
-const when = (iso: string) =>
-  `${new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC`;
 
 /** The entry's label; a saved version names its number, an added file its name. */
 function labelOf(entry: LedgerEntryView): string {
@@ -52,6 +53,7 @@ export function DealPage({ dealId }: { dealId: string }) {
   const [check, setCheck] = useState<LedgerCheck | undefined>();
   const [problem, setProblem] = useState<string | undefined>();
   const [linkOnly, setLinkOnly] = useState(false);
+  const [fill, setFill] = useState<DraftFill | undefined>();
 
   useEffect(() => {
     Promise.all([getDeal(dealId), getLedger(dealId), getMe()]).then(
@@ -110,11 +112,27 @@ export function DealPage({ dealId }: { dealId: string }) {
           }}
         />
       )}
+      {deal.role === "seller" && !linkOnly && (
+        <DraftPanel
+          dealId={deal.id}
+          canDraft={deal.status === "draft"}
+          dealCategory={deal.categoryLabel}
+          onUse={setFill}
+          onLogChange={() => {
+            getLedger(dealId).then(setEntries, () => undefined);
+          }}
+        />
+      )}
       <ScopePanel
         dealId={deal.id}
         currency={deal.currency}
         canEdit={deal.role === "seller" && deal.status === "draft"}
+        fill={fill}
+        onClearFill={() => {
+          setFill(undefined);
+        }}
         onSaved={() => {
+          setFill(undefined);
           getLedger(dealId).then(setEntries, () => undefined);
         }}
       />
