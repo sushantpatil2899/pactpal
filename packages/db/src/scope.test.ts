@@ -17,6 +17,7 @@ import {
   saveScopeVersion,
   scopeContentSchema,
   verifyStoredLedger,
+  type SaveScope,
   type ScopeContentInput,
 } from "./index.js";
 import { TEST_NOW, createTestDeal, testDeal, testId, useMigratedTestDatabase } from "./testing.js";
@@ -249,10 +250,7 @@ describe("saveScopeVersion from an AI draft", () => {
   }
 
   const fields = { summary: "unchanged", deliverables: "changed" };
-  const save = (
-    sellerId: string,
-    confirmedFrom?: { draftId: string; draftSha256: string; fields: Record<string, string> },
-  ) =>
+  const save = (sellerId: string, confirmedFrom?: SaveScope["confirmedFrom"]) =>
     saveScopeVersion(
       db,
       {
@@ -290,6 +288,26 @@ describe("saveScopeVersion from an AI draft", () => {
       "SCOPE_CONFIRMED",
     ]);
     expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
+  });
+
+  it("records which draft the seller chose when it names one, by letter and fingerprint", async () => {
+    const { seller, draft } = await readyDraft();
+    const usedCandidate = { label: "B", sha256: "a".repeat(64) };
+    const { confirmation } = await save(seller.id, {
+      draftId: draft.id,
+      draftSha256: draft.draftSha256 ?? "",
+      usedCandidate,
+      fields,
+    });
+    expect(confirmation?.payload).toMatchObject({ usedCandidate, draftSha256: draft.draftSha256 });
+    await expect(
+      save(seller.id, {
+        draftId: draft.id,
+        draftSha256: draft.draftSha256 ?? "",
+        usedCandidate: { label: "B", sha256: "not a fingerprint" },
+        fields,
+      }),
+    ).rejects.toThrow();
   });
 
   it("writes no confirmation when no draft is named", async () => {

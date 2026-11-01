@@ -123,8 +123,13 @@ function FillNotice({ fill, onClear }: { fill: DraftFill; onClear: () => void })
   return (
     <div role="status">
       <p>
-        <strong>Filled from an AI draft: check every line.</strong> Fields the chat did not state
-        are left empty, and the price is one payment stage; split it into your real payment stages.{" "}
+        <strong>
+          Filled from{" "}
+          {fill.draftLabel === undefined ? "an AI draft" : `AI draft ${fill.draftLabel}`}: check
+          every line.
+        </strong>{" "}
+        Fields the chat did not state are left empty, and the price is one payment stage; split it
+        into your real payment stages.{" "}
         <button type="button" onClick={onClear}>
           Start from a blank form instead
         </button>
@@ -210,7 +215,12 @@ export function ScopePanel({
     const revisions = textOf(form.get("revisionsIncluded"));
     const dueDate = textOf(form.get("dueDate"));
     const input: ScopeInput = {
-      ...(fill ? { draftId: fill.draftId } : {}),
+      ...(fill
+        ? {
+            draftId: fill.draftId,
+            ...(fill.draftLabel === undefined ? {} : { draftLabel: fill.draftLabel }),
+          }
+        : {}),
       summary: textOf(form.get("summary")),
       deliverables: linesOf(form.get("deliverables")),
       exclusions: linesOf(form.get("exclusions")),
@@ -257,7 +267,10 @@ export function ScopePanel({
       )}
       {scope ? <ScopeDetails scope={scope} /> : <p>Nothing written down yet.</p>}
       {canEdit && scope !== undefined && (
-        <form key={`${String(scope?.version ?? 0)}-${fill?.draftId ?? ""}`} onSubmit={onSave}>
+        <form
+          key={`${String(scope?.version ?? 0)}-${fill?.draftId ?? ""}-${fill?.draftLabel ?? ""}`}
+          onSubmit={onSave}
+        >
           <h4>{scope ? "Change and save as a new version" : "Write down the agreed work"}</h4>
           {fill && (
             <FillNotice

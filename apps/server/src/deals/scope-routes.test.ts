@@ -1,5 +1,6 @@
 import {
   addArtifact,
+  draftFingerprint,
   failDraft,
   finishDraft,
   postgresContentStore,
@@ -10,6 +11,7 @@ import {
 import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { MAYA_DRAFT } from "@pactpal/scope-draft/testing";
 import { describe, expect, it } from "vitest";
+import { councilRecordOf } from "../council-test-support.js";
 import { toJson } from "../drafting/council-record.js";
 import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
 
@@ -135,7 +137,7 @@ describe("agreed work", () => {
 
 describe("agreed work saved from an AI draft", () => {
   /** The test deal with a ready draft (test id 900) holding the Maya draft, and the seller's session. */
-  async function withReadyDraft() {
+  async function withReadyDraft(council: object = {}) {
     const env = await sellerDeal();
     const store = postgresContentStore(db, () => TEST_NOW);
     const file = await addArtifact(
@@ -171,7 +173,7 @@ describe("agreed work saved from an AI draft", () => {
       {
         draftId: testId(900),
         draft: toJson(MAYA_DRAFT),
-        council: {},
+        council: toJson(council),
         ledgerPayload: {},
       },
       TEST_NOW,
@@ -246,5 +248,95 @@ describe("agreed work saved from an AI draft", () => {
       expect(res.statusCode).toBe(403);
     }
     await app.close();
+  });
+
+  describe("when the council could not rank its drafts and the seller chose one", () => {
+    const other = {
+      ...MAYA_DRAFT,
+      summary: {
+        status: "found" as const,
+        value: "Maya draws one space courier",
+        citations: [{ line: 3, quote: "full-body character illustration" }],
+      },
+      deliverables: [{ text: "One PNG file", citations: [{ line: 10, quote: "PNG" }] }],
+    };
+    const drafts = [
+      { modelName: "alpha", draft: MAYA_DRAFT },
+      { modelName: "beta", draft: other },
+    ];
+    const fromOther = () =>
+      work({
+        summary: "Maya draws one space courier",
+        deliverables: ["One PNG file"],
+        exclusions: MAYA_DRAFT.exclusions.map((item) => item.text),
+        revisionsIncluded: undefined,
+        milestones: [{ title: "Payment", amount: "240" }],
+      });
+
+    it("compares the saved work with the chosen draft and logs its letter and fingerprint", async () => {
+      const { call, url, token, dealId, draft, app } = await withReadyDraft(
+        councilRecordOf(drafts, 0),
+      );
+      const res = await call("POST", url, token, {
+        ...fromOther(),
+        draftId: draft.id,
+        draftLabel: "B",
+      });
+      expect(res.statusCode).toBe(201);
+      const entry = (await readLedger(db, dealId)).at(-1);
+      expect(entry?.type).toBe("SCOPE_CONFIRMED");
+      expect(entry?.payload).toMatchObject({
+        draftId: draft.id,
+        // The row's own fingerprint is the stored winner's; the chosen draft has its own.
+        draftSha256: draft.draftSha256,
+        usedCandidate: { label: "B", sha256: draftFingerprint(toJson(other)) },
+        fields: { summary: "unchanged", deliverables: "unchanged", exclusions: "unchanged" },
+      });
+      expect(draftFingerprint(toJson(other))).not.toBe(draft.draftSha256);
+      expect(JSON.stringify(entry?.payload)).not.toMatch(/Maya|courier|PNG/);
+      expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
+      await app.close();
+    });
+
+    it("measures against the stored winner when no letter is given, as before", async () => {
+      const { call, url, token, dealId, draft, app } = await withReadyDraft(
+        councilRecordOf(drafts, 0),
+      );
+      await call("POST", url, token, { ...fromOther(), draftId: draft.id });
+      const entry = (await readLedger(db, dealId)).at(-1);
+      expect(entry?.payload).toMatchObject({ fields: { summary: "changed" } });
+      expect(entry?.payload).not.toHaveProperty("usedCandidate");
+      await app.close();
+    });
+
+    it("refuses a letter that does not exist", async () => {
+      const env = await withReadyDraft(councilRecordOf(drafts, 0));
+      const before = (await readLedger(db, env.dealId)).length;
+      const res = await env.call("POST", env.url, env.token, {
+        ...fromOther(),
+        draftId: env.draft.id,
+        draftLabel: "C",
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({ error: "invalid", fields: ["draftLabel"] });
+      expect((await readLedger(db, env.dealId)).length).toBe(before);
+      await env.app.close();
+    });
+
+    it.each([
+      ["a draft the council did rank", councilRecordOf(drafts, 2)],
+      ["a draft with no readable council record", {}],
+    ])("refuses a letter on %s, and saves nothing", async (_name, council) => {
+      const env = await withReadyDraft(council);
+      const res = await env.call("POST", env.url, env.token, {
+        ...fromOther(),
+        draftId: env.draft.id,
+        draftLabel: "B",
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({ fields: ["draftLabel"] });
+      expect((await env.call("GET", env.url, env.token)).json()).toEqual({ scope: null });
+      await env.app.close();
+    });
   });
 });

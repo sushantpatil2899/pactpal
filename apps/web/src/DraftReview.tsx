@@ -1,4 +1,4 @@
-import type { Citation, DraftContent, DraftView } from "./api";
+import type { Citation, DraftCategory, DraftContent, DraftView } from "./api";
 import { CouncilPanel } from "./CouncilPanel";
 import { fillFrom, type DraftFill } from "./draft-fill";
 import { lineNumbers } from "./format";
@@ -38,8 +38,13 @@ function missingFields(draft: DraftContent): string[] {
 }
 
 /** The notice about what the models think is being sold, compared with the deal's category. */
-function CategoryNotice({ view, dealCategory }: { view: DraftView; dealCategory: string }) {
-  const { category } = view;
+function CategoryNotice({
+  category,
+  dealCategory,
+}: {
+  category: DraftCategory | null;
+  dealCategory: string;
+}) {
   if (category === null) return null;
   switch (category.verdict) {
     case "agrees":
@@ -116,33 +121,10 @@ function HiddenLinesNotice({ hidden }: { hidden: number[] }) {
   );
 }
 
-/** A finished draft for the seller to check: flags, the drafted work with quotes, wording to fix, the council and the chat. */
-export function DraftReview({
-  view,
-  dealCategory,
-  canUse,
-  onUse,
-}: {
-  view: DraftView;
-  dealCategory: string;
-  canUse: boolean;
-  onUse: (fill: DraftFill) => void;
-}) {
-  const { draft } = view;
-  const fill = fillFrom(view);
-  if (draft === null) return null;
-  const missing = missingFields(draft);
+/** The drafted work with its quotes: summary, delivered, not included, price, dates, wording hints. */
+function DraftBody({ draft }: { draft: DraftContent }) {
   return (
-    <div style={WRAP}>
-      <p role="note">
-        <strong>AI draft: check every line against the chat.</strong> The quotes under each line
-        show where it comes from. Nothing here is agreed until you save it and the buyer accepts.
-      </p>
-      <HiddenLinesNotice hidden={view.source.hiddenLines ?? []} />
-      <ReviewNotice view={view} />
-      <CategoryNotice view={view} dealCategory={dealCategory} />
-      {missing.length > 0 && <p>Not stated in the chat: {missing.join(", ")}.</p>}
-
+    <>
       <h4>Summary</h4>
       {draft.summary.status === "found" ? (
         <>
@@ -230,7 +212,34 @@ export function DraftReview({
           </ul>
         </>
       )}
+    </>
+  );
+}
 
+/** One draft with what the seller should check first, and the button that fills the form from it. */
+function CheckedDraft({
+  draft,
+  category,
+  dealCategory,
+  fill,
+  canUse,
+  onUse,
+  buttonText,
+}: {
+  draft: DraftContent;
+  category: DraftCategory | null;
+  dealCategory: string;
+  fill: DraftFill | undefined;
+  canUse: boolean;
+  onUse: (fill: DraftFill) => void;
+  buttonText: string;
+}) {
+  const missing = missingFields(draft);
+  return (
+    <>
+      <CategoryNotice category={category} dealCategory={dealCategory} />
+      {missing.length > 0 && <p>Not stated in the chat: {missing.join(", ")}.</p>}
+      <DraftBody draft={draft} />
       {canUse && fill && (
         <p>
           <button
@@ -239,10 +248,79 @@ export function DraftReview({
               onUse(fill);
             }}
           >
-            Use this draft in the agreed work
+            {buttonText}
           </button>{" "}
           <span style={muted}>It fills the form below; you check it and save it yourself.</span>
         </p>
+      )}
+    </>
+  );
+}
+
+/** Says why there is no chosen draft: the models' drafts could not be ranked, so the seller chooses. */
+function UnrankedNotice({ count }: { count: number }) {
+  return (
+    <p role="alert">
+      {count === 2
+        ? "Only two models produced a usable draft, so they could not be ranked. Both drafts are below."
+        : `The ${String(count)} usable drafts could not be ranked. They are all below.`}{" "}
+      Read them and choose the one you want to use.
+    </p>
+  );
+}
+
+/** A finished draft for the seller to check: flags, the drafted work with quotes, wording to fix, the council and the chat. */
+export function DraftReview({
+  view,
+  dealCategory,
+  canUse,
+  onUse,
+}: {
+  view: DraftView;
+  dealCategory: string;
+  canUse: boolean;
+  onUse: (fill: DraftFill) => void;
+}) {
+  const { draft } = view;
+  if (draft === null) return null;
+  const unranked = view.unranked === true;
+  return (
+    <div style={WRAP}>
+      <p role="note">
+        <strong>AI draft: check every line against the chat.</strong> The quotes under each line
+        show where it comes from. Nothing here is agreed until you save it and the buyer accepts.
+      </p>
+      <HiddenLinesNotice hidden={view.source.hiddenLines ?? []} />
+      {unranked ? <UnrankedNotice count={view.candidates.length} /> : <ReviewNotice view={view} />}
+
+      {unranked ? (
+        view.candidates.map((candidate) => (
+          <details key={candidate.label} open>
+            <summary>
+              <strong>Draft {candidate.label}</strong>{" "}
+              <span style={muted}>(from {candidate.modelName})</span>
+            </summary>
+            <CheckedDraft
+              draft={candidate.draft}
+              category={candidate.category}
+              dealCategory={dealCategory}
+              fill={fillFrom(view, candidate)}
+              canUse={canUse}
+              onUse={onUse}
+              buttonText={`Use draft ${candidate.label} in the agreed work`}
+            />
+          </details>
+        ))
+      ) : (
+        <CheckedDraft
+          draft={draft}
+          category={view.category}
+          dealCategory={dealCategory}
+          fill={fillFrom(view)}
+          canUse={canUse}
+          onUse={onUse}
+          buttonText="Use this draft in the agreed work"
+        />
       )}
 
       {view.council !== null && <CouncilPanel council={view.council} />}

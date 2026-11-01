@@ -83,6 +83,16 @@ export function toCouncilRecord(run: CouncilRun<ScopeDraft>): CouncilRecord {
   };
 }
 
+/**
+ * Whether the council could not rank its drafts: there were at least two valid drafts and no
+ * ranking was counted for any of them (for example, only two valid drafts, so each voter's own
+ * draft left nothing to rank, or every ranking call failed). The stored winner is then decided by
+ * the tie-breaks alone, so the seller is asked to choose.
+ */
+export function isUnranked(record: CouncilRecord): boolean {
+  return record.candidates.length >= 2 && record.scores.every(({ votes }) => votes === 0);
+}
+
 /** A value as plain JSON, the way the database stores it (undefined fields drop out). */
 export function toJson(value: unknown): JsonValue {
   return z.json().parse(JSON.parse(JSON.stringify(value)));

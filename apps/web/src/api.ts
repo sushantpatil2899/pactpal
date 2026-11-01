@@ -248,6 +248,8 @@ export interface ScopeView {
 export interface ScopeInput {
   /** The AI draft this was made from, so the evidence log can link them. */
   draftId?: string;
+  /** The letter of the draft chosen when the council could not rank its drafts. */
+  draftLabel?: string;
   summary: string;
   deliverables: string[];
   exclusions: string[];
@@ -442,6 +444,22 @@ export interface CouncilView {
 
 export type DraftStatus = "running" | "ready" | "failed";
 
+/** What the models read from the chat is being sold, compared with the deal's category. */
+export interface DraftCategory {
+  fromChat: string;
+  label: string;
+  verdict: CategoryVerdict;
+  note: string;
+}
+
+/** One valid draft the council could not rank, offered for the seller to choose. */
+export interface DraftCandidate {
+  label: string;
+  modelName: string;
+  draft: DraftContent;
+  category: DraftCategory;
+}
+
 export interface DraftView {
   id: string;
   status: DraftStatus;
@@ -460,9 +478,12 @@ export interface DraftView {
   };
   failureReason: string | null;
   draft: DraftContent | null;
-  category: { fromChat: string; label: string; verdict: CategoryVerdict; note: string } | null;
+  category: DraftCategory | null;
   needsReview: boolean | null;
   reviewReasons: string[];
+  /** The council could not rank its drafts, so `candidates` holds every valid one to choose from. */
+  unranked: boolean | null;
+  candidates: DraftCandidate[];
   council: CouncilView | null;
 }
 
@@ -483,6 +504,13 @@ const isDraftContent = (value: unknown): value is DraftContent =>
   Array.isArray(value.vagueTerms) &&
   isObject(value.category) &&
   typeof value.category.id === "string";
+
+const isDraftCandidate = (value: unknown): value is DraftCandidate =>
+  isObject(value) &&
+  typeof value.label === "string" &&
+  typeof value.modelName === "string" &&
+  isDraftContent(value.draft) &&
+  isObject(value.category);
 
 const isCouncil = (value: unknown): value is CouncilView =>
   isObject(value) &&
@@ -508,6 +536,9 @@ const isDraftView = (value: unknown): value is DraftView =>
   (value.source.lines === null || Array.isArray(value.source.lines)) &&
   (value.source.hiddenLines === null || Array.isArray(value.source.hiddenLines)) &&
   Array.isArray(value.reviewReasons) &&
+  (value.unranked === null || typeof value.unranked === "boolean") &&
+  Array.isArray(value.candidates) &&
+  value.candidates.every(isDraftCandidate) &&
   (value.draft === null || isDraftContent(value.draft)) &&
   (value.council === null || isCouncil(value.council));
 

@@ -110,11 +110,15 @@ const lastVersion = z.object({ last: z.coerce.number().int() });
 /**
  * Says the version was made from an AI draft: which draft (by id and fingerprint) and, field by
  * field, whether the seller kept it, changed it, added it or removed it. Only these words and
- * fingerprints go into the log, never the text.
+ * fingerprints go into the log, never the text. `usedCandidate` is given when the council could
+ * not rank its drafts and the seller chose one: its letter and its fingerprint.
  */
 export const confirmedFromSchema = z.object({
   draftId: z.uuid(),
   draftSha256: z.string().regex(/^[0-9a-f]{64}$/),
+  usedCandidate: z
+    .object({ label: z.string().min(1).max(8), sha256: z.string().regex(/^[0-9a-f]{64}$/) })
+    .optional(),
   fields: z.record(z.string(), z.string()),
 });
 
@@ -214,6 +218,9 @@ export async function saveScopeVersion(
                 contentSha256,
                 draftId: confirmedFrom.draftId,
                 draftSha256: confirmedFrom.draftSha256,
+                ...(confirmedFrom.usedCandidate === undefined
+                  ? {}
+                  : { usedCandidate: confirmedFrom.usedCandidate }),
                 fields: confirmedFrom.fields,
               },
             },

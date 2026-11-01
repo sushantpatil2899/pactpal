@@ -1,4 +1,4 @@
-import type { DraftView } from "./api";
+import type { DraftCandidate, DraftView } from "./api";
 
 /** One wording suggestion from a draft: shown beside the form, never applied by itself. */
 export interface Suggestion {
@@ -11,6 +11,8 @@ export interface Suggestion {
 /** What "Use this draft" puts into the agreed-work form. Fields the chat did not state are left out. */
 export interface DraftFill {
   draftId: string;
+  /** The letter of the draft chosen when the council could not rank its drafts. */
+  draftLabel?: string;
   summary?: string;
   deliverables: string[];
   exclusions: string[];
@@ -22,12 +24,16 @@ export interface DraftFill {
   suggestions: Suggestion[];
 }
 
-/** The form fill for a finished draft; undefined for one that has no draft. */
-export function fillFrom(view: DraftView): DraftFill | undefined {
-  const { draft } = view;
+/**
+ * The form fill for a finished draft (or for the candidate the seller chose when the council
+ * could not rank its drafts); undefined for one that has no draft.
+ */
+export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill | undefined {
+  const draft = candidate?.draft ?? view.draft;
   if (draft === null) return undefined;
   return {
     draftId: view.id,
+    ...(candidate === undefined ? {} : { draftLabel: candidate.label }),
     ...(draft.summary.status === "found" ? { summary: draft.summary.value } : {}),
     deliverables: draft.deliverables.map((item) => item.text),
     exclusions: draft.exclusions.map((item) => item.text),

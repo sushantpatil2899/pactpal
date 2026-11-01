@@ -76,6 +76,8 @@ interface View {
   category: { verdict: string } | null;
   council: { dropped: unknown[] } | null;
   source: { hiddenLines: number[] | null };
+  unranked: boolean | null;
+  candidates: { label: string; modelName: string; category: { verdict: string } }[];
 }
 
 /** The id of the draft in an answer from `POST /drafts`. */
@@ -546,6 +548,37 @@ describe("listing and reading drafts", () => {
     expect(seen.length).toBeGreaterThan(0);
     expect(seen.some((text) => text.includes("earlier instructions"))).toBe(false);
     expect(seen.some((text) => text.includes("L25| [line hidden"))).toBe(true);
+    await env.app.close();
+  });
+
+  it("says a council with three valid drafts ranked them, and a running draft says nothing yet", async () => {
+    const env = await sellerDeal();
+    const id = idOf(await env.start(env.token));
+    const running = await readDraft(env.call, env.url, env.token, id);
+    expect(running).toMatchObject({ unranked: null, candidates: [] });
+    await env.runtime.settle();
+    const done = await readDraft(env.call, env.url, env.token, id);
+    expect(done).toMatchObject({ unranked: false, candidates: [] });
+    await env.app.close();
+  });
+
+  it("with two valid drafts and a third model whose draft failed, the third model's ranking still counts", async () => {
+    const env = await sellerDeal({
+      runtime: runtimeFor([member("alpha"), member("beta"), member("gamma", "not json")]),
+    });
+    expect(await draftedAs(env)).toMatchObject({ unranked: false, candidates: [] });
+    await env.app.close();
+  });
+
+  it("with only two valid drafts there is nothing to rank, so both are offered to choose from", async () => {
+    const env = await sellerDeal({ runtime: runtimeFor([member("alpha"), member("beta")]) });
+    const view = await draftedAs(env);
+    expect(view.unranked).toBe(true);
+    expect(view.candidates.map((c) => [c.label, c.modelName])).toEqual([
+      ["A", expect.stringMatching(/alpha|beta/) as unknown],
+      ["B", expect.stringMatching(/alpha|beta/) as unknown],
+    ]);
+    expect(view.candidates.every((c) => c.category.verdict === "agrees")).toBe(true);
     await env.app.close();
   });
 

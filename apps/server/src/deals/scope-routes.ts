@@ -1,19 +1,22 @@
 import {
   DraftIntegrityError,
   ScopeNotAllowedError,
+  draftFingerprint,
   getDraft,
   getLatestScope,
   saveScopeVersion,
   scopeContentSchema,
   scopeTotalMinor,
+  type DraftRecord,
   type ScopeContent,
   type ScopeVersion,
 } from "@pactpal/db";
 import { fromPayPalMoney, toPayPalMoney } from "@pactpal/paypal";
 import type { FastifyPluginAsync } from "fastify";
-import { scopeDraftSchema } from "@pactpal/scope-draft";
+import { scopeDraftSchema, type ScopeDraft } from "@pactpal/scope-draft";
 import { z } from "zod";
 import { compareWithDraft } from "../drafting/confirmation.js";
+import { councilRecordSchema, isUnranked } from "../drafting/council-record.js";
 import { readBody, type DealLookup } from "./access.js";
 
 export interface ScopeRouteOptions {
@@ -31,6 +34,8 @@ const { milestones } = scopeContentSchema.shape;
 const scopeBody = scopeContentSchema.omit({ format: true, milestones: true }).extend({
   /** The AI draft this was made from, if any; the log then records the link. */
   draftId: z.uuid().optional(),
+  /** With `draftId`: the letter of the draft the seller chose when the council could not rank them. */
+  draftLabel: z.string().min(1).max(8).optional(),
   milestones: z
     .array(
       milestones.element
@@ -40,7 +45,26 @@ const scopeBody = scopeContentSchema.omit({ format: true, milestones: true }).ex
     .min(1)
     .max(20),
 });
-type ScopeBody = Omit<z.output<typeof scopeBody>, "draftId">;
+type ScopeBody = Omit<z.output<typeof scopeBody>, "draftId" | "draftLabel">;
+
+/**
+ * The draft a save is made from: the stored winner, or, when the council could not rank its
+ * drafts and a letter is given, that valid draft. Undefined for a letter that does not belong:
+ * a ranked council has one answer, so its other drafts cannot be picked.
+ */
+function chosenDraft(
+  record: DraftRecord,
+  label: string | undefined,
+): { draft: ScopeDraft; label?: string } | undefined {
+  const winner = scopeDraftSchema.parse(record.draft);
+  if (label === undefined) return { draft: winner };
+  const council = councilRecordSchema.safeParse(record.council);
+  const candidate =
+    council.success && isUnranked(council.data)
+      ? council.data.candidates.find((entry) => entry.label === label)
+      : undefined;
+  return candidate === undefined ? undefined : { draft: candidate.draft, label };
+}
 
 const SCOPE_REFUSALS: Record<ScopeNotAllowedError["reason"], { status: number; error: string }> = {
   "not-your-deal": { status: 403, error: "only the seller can do this" },
@@ -125,7 +149,7 @@ export const scopeRoutes: FastifyPluginAsync<ScopeRouteOptions> = (app, options)
     if (!found) return reply;
     const parsed = await readBody(scopeBody, request, reply);
     if (!parsed) return reply;
-    const { draftId, ...body } = parsed;
+    const { draftId, draftLabel, ...body } = parsed;
     const { deal, db, viewer } = found;
     const content = toContent(body, deal.currency);
     if (!content.ok) return reply.code(400).send({ error: "invalid", fields: content.fields });
@@ -138,14 +162,17 @@ export const scopeRoutes: FastifyPluginAsync<ScopeRouteOptions> = (app, options)
         if (record?.status !== "ready" || record.draft === undefined || !record.draftSha256) {
           return await reply.code(400).send({ error: "invalid", fields: ["draftId"] });
         }
+        const used = chosenDraft(record, draftLabel);
+        if (used === undefined) {
+          return await reply.code(400).send({ error: "invalid", fields: ["draftLabel"] });
+        }
         confirmedFrom = {
           draftId,
           draftSha256: record.draftSha256,
-          fields: compareWithDraft(
-            scopeDraftSchema.parse(record.draft),
-            content.content,
-            deal.currency,
-          ),
+          ...(used.label === undefined
+            ? {}
+            : { usedCandidate: { label: used.label, sha256: draftFingerprint(used.draft) } }),
+          fields: compareWithDraft(used.draft, content.content, deal.currency),
         };
       } catch (error) {
         if (!(error instanceof DraftIntegrityError)) throw error;
