@@ -1,6 +1,6 @@
 /** `pnpm ai:check`: asks every model that has a key one tiny question and reports how it went. */
 import { MODEL_REGISTRY, OpenAiCompatibleClient } from "@pactpal/ai";
-import { formatErrors, loadConfig } from "./config.js";
+import { loadConfigOrExit } from "./cli-config.js";
 import {
   AI_CHECK_PROMPT,
   formatAiReport,
@@ -8,13 +8,8 @@ import {
   type ModelCheck,
 } from "./ai-check-report.js";
 
-const result = loadConfig(process.env);
-if (!result.ok) {
-  process.stderr.write(formatErrors(result.errors));
-  process.exit(1);
-}
+const { keys } = loadConfigOrExit().ai;
 
-const { keys } = result.config.ai;
 const checks = await Promise.all(
   MODEL_REGISTRY.map(async (spec): Promise<{ spec: typeof spec; check: ModelCheck }> => {
     const key = keys[spec.apiKeyEnv];

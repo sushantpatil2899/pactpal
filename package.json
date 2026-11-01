@@ -24,6 +24,7 @@
     "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build && pnpm dup && pnpm deps:check && pnpm audit:prod",
     "env:check": "pnpm --filter @pactpal/server env:check",
     "ai:check": "pnpm --filter @pactpal/server ai:check",
+    "eval:injection": "pnpm --filter @pactpal/server eval:injection",
     "migrate": "pnpm --filter @pactpal/server migrate",
     "sandbox:check": "pnpm --filter @pactpal/server sandbox:check",
     "sandbox:invoice": "pnpm --filter @pactpal/server sandbox:invoice",

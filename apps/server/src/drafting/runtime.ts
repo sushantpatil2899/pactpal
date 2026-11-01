@@ -1,6 +1,7 @@
 import { randomBytes, randomInt } from "node:crypto";
-import type { ChatClient } from "@pactpal/ai";
+import { MODEL_REGISTRY, OpenAiCompatibleClient, type ChatClient } from "@pactpal/ai";
 import type { CouncilDeps } from "@pactpal/council";
+import type { Secret } from "@pactpal/net";
 
 /** How many councils may run at once across the whole server (each uses about ten model calls). */
 export const MAX_CONCURRENT_COUNCILS = 2;
@@ -57,3 +58,10 @@ export function createDraftingRuntime(options: {
       }),
   };
 }
+
+/** A client for every registered model whose key is set; these are the council's members. */
+export const councilClients = (keys: Readonly<Record<string, Secret | undefined>>): ChatClient[] =>
+  MODEL_REGISTRY.flatMap((spec) => {
+    const key = keys[spec.apiKeyEnv];
+    return key === undefined ? [] : [new OpenAiCompatibleClient(spec, key)];
+  });

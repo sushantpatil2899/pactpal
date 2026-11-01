@@ -2,7 +2,7 @@ import { okReply, testSpec } from "@pactpal/ai/testing";
 import { describe, expect, it } from "vitest";
 import type { ScopeDraft } from "./schema.js";
 import { numberSourceLines } from "./source.js";
-import { MAYA_CHAT, MAYA_DRAFT, TEST_CATEGORIES } from "./testing.js";
+import { ALL_MISSING_DRAFT, MAYA_CHAT, MAYA_DRAFT, TEST_CATEGORIES } from "./testing.js";
 import { normalizeForMatch, readScopeDraft, validateScopeDraft } from "./validate.js";
 
 const numbered = numberSourceLines(MAYA_CHAT);
@@ -34,19 +34,7 @@ describe("validateScopeDraft", () => {
   });
 
   it("accepts a draft where everything is missing", () => {
-    const empty = {
-      format: 2,
-      summary: { status: "missing" },
-      deliverables: [],
-      exclusions: [],
-      price: { status: "missing" },
-      paymentTerms: { status: "missing" },
-      dueDate: { status: "missing" },
-      revisionsIncluded: { status: "missing" },
-      vagueTerms: [],
-      category: { id: "unclear", citations: [], note: "" },
-    };
-    expect(validateScopeDraft(empty, context)).toMatchObject({
+    expect(validateScopeDraft(ALL_MISSING_DRAFT, context)).toMatchObject({
       ok: true,
       validation: { valid: true, score: 1 },
     });
