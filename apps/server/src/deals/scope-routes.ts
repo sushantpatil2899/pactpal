@@ -6,18 +6,17 @@ import {
   getLatestScope,
   saveScopeVersion,
   scopeContentSchema,
-  scopeTotalMinor,
   type DraftRecord,
   type ScopeContent,
-  type ScopeVersion,
 } from "@pactpal/db";
-import { fromPayPalMoney, toPayPalMoney } from "@pactpal/paypal";
+import { fromPayPalMoney } from "@pactpal/paypal";
 import type { FastifyPluginAsync } from "fastify";
 import { scopeDraftSchema, type ScopeDraft } from "@pactpal/scope-draft";
 import { z } from "zod";
 import { compareWithDraft } from "../drafting/confirmation.js";
 import { councilRecordSchema, isUnranked } from "../drafting/council-record.js";
 import { readBody, type DealLookup } from "./access.js";
+import { scopeView } from "./scope-view.js";
 
 export interface ScopeRouteOptions {
   visibleDeal: DealLookup;
@@ -72,12 +71,6 @@ const SCOPE_REFUSALS: Record<ScopeNotAllowedError["reason"], { status: number; e
   "bad-draft": { status: 400, error: "invalid" },
 };
 
-/** An amount for the pages: whole minor units, and the same as text in PayPal's format. */
-const money = (minor: number, currency: string) => ({
-  minor,
-  text: toPayPalMoney({ minor, currency }).value,
-});
-
 /**
  * The body as stored content, converting each typed amount without floating point; or the
  * fields that are wrong (an amount that is not a number of the currency's format, zero, or too large).
@@ -106,28 +99,6 @@ function toContent(
     if (!fields.includes(field)) fields.push(field);
   }
   return { ok: false, fields };
-}
-
-/** A version as the pages see it, with amounts in minor units and as text. */
-function scopeView(scope: ScopeVersion, currency: string) {
-  const { content } = scope;
-  return {
-    version: scope.version,
-    contentSha256: scope.contentSha256,
-    savedAt: scope.createdAt.toISOString(),
-    currency,
-    summary: content.summary,
-    deliverables: content.deliverables,
-    exclusions: content.exclusions,
-    revisionsIncluded: content.revisionsIncluded ?? null,
-    dueDate: content.dueDate ?? null,
-    milestones: content.milestones.map((stage) => ({
-      title: stage.title,
-      amount: money(stage.amountMinor, currency),
-      dueDate: stage.dueDate ?? null,
-    })),
-    total: money(scopeTotalMinor(content), currency),
-  };
 }
 
 /**

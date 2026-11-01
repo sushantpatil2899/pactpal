@@ -107,3 +107,24 @@ export {
   startDraftSchema,
 } from "./scope-drafts.js";
 export type { DraftRecord, DraftRefusal, FinishDraft, StartDraft } from "./scope-drafts.js";
+export {
+  AcceptanceIntegrityError,
+  AcceptanceNotAllowedError,
+  acceptTerms,
+  acceptTermsSchema,
+  declineReasonSchema,
+  declineTerms,
+  documentFingerprint,
+  getLatestAcceptance,
+  requestAcceptance,
+  typedNameSchema,
+  withdrawAcceptance,
+} from "./acceptance.js";
+export type {
+  AcceptTerms,
+  Acceptance,
+  AcceptanceRefusal,
+  DeclineTerms,
+  RequestAcceptance,
+  WithdrawAcceptance,
+} from "./acceptance.js";

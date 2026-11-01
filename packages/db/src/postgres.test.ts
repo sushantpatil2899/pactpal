@@ -3,11 +3,13 @@ import type { Database, Row } from "./database.js";
 import {
   ArtifactRejectedError,
   MIGRATIONS,
+  acceptTerms,
   addArtifact,
   appendLedgerEvent,
   connectPostgres,
   createDeal,
   databaseFromPool,
+  documentFingerprint,
   finishDraft,
   getArtifact,
   listArtifacts,
@@ -15,6 +17,7 @@ import {
   migrationStatus,
   postgresContentStore,
   recordWebhookEvent,
+  requestAcceptance,
   saveScopeVersion,
   startDraft,
   verifyStoredLedger,
@@ -315,6 +318,58 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       expect(finished.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       // The deal's ledger holds the file, exactly one draft entry, and still verifies.
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 3 });
+    });
+  });
+
+  it("records one acceptance when the buyer signs from two tabs at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller, buyer } = await createTestDeal(db);
+      const { scope } = await saveScopeVersion(
+        db,
+        {
+          dealId: testId(100),
+          sellerId: seller.id,
+          content: {
+            format: 1,
+            summary: "Logo",
+            deliverables: ["Logo"],
+            exclusions: [],
+            milestones: [{ title: "All", amountMinor: 100 }],
+          },
+        },
+        TEST_NOW,
+      );
+      const document = { format: 1, version: 1 };
+      await requestAcceptance(
+        db,
+        {
+          dealId: testId(100),
+          sellerId: seller.id,
+          version: 1,
+          contentSha256: scope.contentSha256,
+          documentSha256: documentFingerprint(document),
+        },
+        TEST_NOW,
+      );
+      const sign = () =>
+        acceptTerms(
+          db,
+          {
+            dealId: testId(100),
+            buyerId: buyer.id,
+            version: 1,
+            contentSha256: scope.contentSha256,
+            document,
+            noticeVersion: 1,
+            typedName: "Chris Buyer",
+            access: "link",
+          },
+          TEST_NOW,
+        );
+      const results = await Promise.allSettled([sign(), sign(), sign()]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(await db.query("SELECT 1 FROM acceptances")).toHaveLength(1);
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 4 });
     });
   });
 });

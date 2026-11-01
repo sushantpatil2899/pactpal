@@ -10,6 +10,10 @@ erDiagram
   users |o--o{ ledger_entries : "acted (actor_user_id)"
   deals ||--o{ scope_versions : "agreed work"
   ledger_entries |o--o| scope_versions : "recorded by"
+  deals ||--o{ acceptances : "signed"
+  scope_versions ||--o| acceptances : "version signed"
+  ledger_entries |o--o| acceptances : "recorded by (ACCEPTED)"
+  users ||--o{ acceptances : "signed by (buyer_id)"
   deals ||--o{ milestones : "planned Phase 4"
   deals ||--o{ artifacts : "has files"
   deals ||--o{ scope_drafts : "AI drafts"
@@ -30,7 +34,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 3d)
+## Built (sub-phases 2b to 4a)
 
 ### `users`: everyone
 
@@ -58,27 +62,38 @@ A person invited by email has no PayPal ids. If they later sign in with PayPal, 
 | `kind`                     | `service`, `digital` or `physical`: how delivery is proven (tracked link, or shipment tracking) and PayPal's SERVICE or PRODUCT dispute type |
 | `category`                 | The seller's chosen category from [scope.md](scope.md). Text checked in code, because the list changes                                       |
 | `currency`                 | Three capital letters, for example `USD`                                                                                                     |
-| `status`                   | `draft`, `awaiting_acceptance`, `active`, `completed`, `cancelled`. A convenience copy of the stage; the ledger is the truth                 |
+| `status`                   | `draft`, `awaiting_acceptance`, `active`, `completed`, `cancelled`. A convenience copy of the stage; the ledger is the truth (see below)     |
 | `created_at`, `updated_at` | Server time                                                                                                                                  |
 
 A dispute is not a deal status: disputes get their own table in Phase 5.
+
+How the status moves (4a), each change in one transaction with its log entry:
+
+| From                  | To                    | When                                            | Log entry              |
+| --------------------- | --------------------- | ----------------------------------------------- | ---------------------- |
+| `draft`               | `awaiting_acceptance` | The seller sends the newest version for signing | `ACCEPTANCE_REQUESTED` |
+| `awaiting_acceptance` | `draft`               | The seller withdraws the request                | `ACCEPTANCE_WITHDRAWN` |
+| `awaiting_acceptance` | `draft`               | The buyer declines (optional reason)            | `DECLINED`             |
+| `awaiting_acceptance` | `active`              | The buyer signs with a typed name               | `ACCEPTED`             |
+
+The agreed work can be edited only in `draft`, so the version sent is the version signed.
 
 ### `ledger_entries`: the evidence log
 
 One row per event, never changed or removed. An entry is identified by its deal and its position (`deal_id`, `seq`), so a citation reads `deal:seq`.
 
-| Column             | Meaning                                                                                                                                             |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deal_id`, `seq`   | Which deal and which position (0, 1, 2, ...). Together they are the key, so two entries can never share a position                                  |
-| `type`             | What happened (for example `ACCEPTED`); checked in code against the event list                                                                      |
-| `actor`            | The role that acted: `seller`, `buyer` or `system`                                                                                                  |
-| `actor_user_id`    | The person who acted; empty for `system`. Covered by the hash                                                                                       |
-| `payload`          | The event's details (JSON)                                                                                                                          |
-| `payload_hash`     | Fingerprint of the payload                                                                                                                          |
-| `prev_hash`        | The previous entry's `entry_hash`: the link that makes the log a chain                                                                              |
-| `entry_hash`       | Fingerprint of the whole entry including `prev_hash`. Changing anything in an entry, or any earlier one, breaks it                                  |
-| `server_time`      | When the server wrote it                                                                                                                            |
-| `ip`, `user_agent` | Where and with what the actor connected, when relevant. Plain text, because Postgres's address type rewrites addresses and the exact text is hashed |
+| Column             | Meaning                                                                                                                                                                                                                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deal_id`, `seq`   | Which deal and which position (0, 1, 2, ...). Together they are the key, so two entries can never share a position                                                                                                                                                                                 |
+| `type`             | What happened (for example `ACCEPTED`); checked in code against the event list                                                                                                                                                                                                                     |
+| `actor`            | The role that acted: `seller`, `buyer` or `system`                                                                                                                                                                                                                                                 |
+| `actor_user_id`    | The person who acted; empty for `system`. Covered by the hash                                                                                                                                                                                                                                      |
+| `payload`          | The event's details (JSON)                                                                                                                                                                                                                                                                         |
+| `payload_hash`     | Fingerprint of the payload                                                                                                                                                                                                                                                                         |
+| `prev_hash`        | The previous entry's `entry_hash`: the link that makes the log a chain                                                                                                                                                                                                                             |
+| `entry_hash`       | Fingerprint of the whole entry including `prev_hash`. Changing anything in an entry, or any earlier one, breaks it                                                                                                                                                                                 |
+| `server_time`      | When the server wrote it                                                                                                                                                                                                                                                                           |
+| `ip`, `user_agent` | Where and with what the actor connected, when relevant. Plain text, because Postgres's address type rewrites addresses and the exact text is hashed. The IP address is recorded only once the number of proxies in front of the server is set (`TRUST_PROXY_HOPS`); until then only the browser is |
 
 What protects it: the database refuses updates, deletes and truncation; a deal or user with entries cannot be deleted; and verification recomputes every fingerprint and link and names the first bad entry. Someone with full database access could switch the refusal off, but could not hide the change from verification.
 
@@ -165,6 +180,23 @@ What a deal covers and how its price is split into payment stages. Each save by 
 When a version is saved from an AI draft (see `scope_drafts`), the ledger also gets a `SCOPE_CONFIRMED` entry right after the `SCOPE_VERSIONED` one: the version, its fingerprint, the draft's id and fingerprint (the stored winner's), and, when the council could not rank its drafts and the seller chose one, `usedCandidate` (its letter and fingerprint); then for each of summary, deliverables, exclusions, revisions, due date and total price whether the seller kept it (`unchanged`), `changed` it, `added` it (the draft left it missing) or `removed` it. It holds no text. When `usedCandidate` is present, the kept/changed words compare with that draft, not with the winner.
 
 Payment stages are part of the content, so their titles and amounts are fingerprinted and frozen with the rest: changing an amount means saving a new version. Only the seller can save, and only while the deal is a draft.
+
+### `acceptances`: signed agreements
+
+What the buyer signed, kept whole. Built in 4a (migration 0009). Append-only: the database refuses edits, deletes and emptying the table.
+
+The buyer's page is drawn only from an **acceptance document** (format 1), plain data built by the server: the deal title, category, the seller's display name, the version of the agreed work with its fingerprint, every term with amounts in minor units and as text, the total, and the notice shown above the sign button (with its version). Its fingerprint is the SHA-256 of its canonical JSON. When the buyer signs, the server rebuilds the document and refuses if it differs from the one their page showed.
+
+| Column                        | Meaning                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `deal_id`, `ledger_seq`       | The deal and its `ACCEPTED` ledger entry. Together the key                                     |
+| `version`                     | The version of the agreed work signed (must exist in `scope_versions`). Unique per deal        |
+| `document`, `document_sha256` | The acceptance document exactly as shown, and its fingerprint; checked on every read           |
+| `buyer_id`                    | The buyer who signed                                                                           |
+| `typed_name`                  | The name the buyer typed (2–200 characters). Not compared with anything; not proof of identity |
+| `created_at`                  | Server time                                                                                    |
+
+The `ACCEPTED` entry holds the version, the content and document fingerprints, the typed name, the notice version and how the buyer reached the page (`link` or `paypal`), plus the browser and, when known, the IP address. The typed name and the terms are personal data, so the retention rule (Phase 8) applies. Change orders (4j) will add further rows for later versions.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

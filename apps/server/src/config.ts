@@ -132,6 +132,13 @@ const portValue = z
   .transform(Number)
   .refine((port) => port >= 1 && port <= 65535);
 
+/** How many proxies stand in front of the server (Render's, for example): 0 to 3. */
+const hopsValue = z
+  .string()
+  .regex(/^\d$/)
+  .transform(Number)
+  .refine((hops) => hops <= 3);
+
 export interface Config {
   port: number;
   paypal: {
@@ -145,6 +152,11 @@ export interface Config {
   ai: { keys: Record<string, Secret> };
   /** The site's own address without a trailing slash, e.g. https://pactpal-server.onrender.com. */
   publicBaseUrl?: string;
+  /**
+   * How many proxies stand in front of the server, from `TRUST_PROXY_HOPS`. Absent until measured:
+   * visitors' IP addresses are then not recorded, because the address seen would be the proxy's.
+   */
+  trustProxyHops?: number;
 }
 
 export interface ConfigReport {
@@ -166,6 +178,12 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     const parsed = portValue.safeParse(env.PORT);
     if (parsed.success) port = parsed.data;
     else errors.push("PORT must be a whole number from 1 to 65535");
+  }
+  let trustProxyHops: number | undefined;
+  if (isPresent(env.TRUST_PROXY_HOPS)) {
+    const parsed = hopsValue.safeParse(env.TRUST_PROXY_HOPS);
+    if (parsed.success) trustProxyHops = parsed.data;
+    else errors.push("TRUST_PROXY_HOPS must be a whole number from 0 to 3");
   }
 
   const values = new Map<string, string>();
@@ -227,6 +245,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
   if (databaseValue !== undefined) config.database = { url: new Secret(databaseValue) };
   const publicBaseUrl = values.get(PUBLIC_BASE_URL);
   if (publicBaseUrl !== undefined) config.publicBaseUrl = new URL(publicBaseUrl).origin;
+  if (trustProxyHops !== undefined) config.trustProxyHops = trustProxyHops;
   return { ok: true, config, report };
 }
 

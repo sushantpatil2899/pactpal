@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AcceptancePanel } from "./AcceptancePanel";
 import { BuyerPanel } from "./BuyerPanel";
 import { DraftPanel } from "./DraftPanel";
 import type { DraftFill } from "./draft-fill";
@@ -25,7 +26,10 @@ const EVENT_LABELS: Record<string, string> = {
   SCOPE_VERSIONED: "Agreed work saved",
   SCOPE_DRAFTED: "AI draft made",
   SCOPE_CONFIRMED: "Agreed work confirmed from an AI draft",
-  ACCEPTED: "Buyer accepted",
+  ACCEPTANCE_REQUESTED: "Sent to the buyer for acceptance",
+  ACCEPTANCE_WITHDRAWN: "Acceptance request withdrawn",
+  ACCEPTED: "Buyer signed",
+  DECLINED: "Buyer declined",
   NOTE_ADDED: "Note added",
 };
 
@@ -54,6 +58,8 @@ export function DealPage({ dealId }: { dealId: string }) {
   const [problem, setProblem] = useState<string | undefined>();
   const [linkOnly, setLinkOnly] = useState(false);
   const [fill, setFill] = useState<DraftFill | undefined>();
+  // Changes each time the agreed work is saved, so the acceptance preview is read again.
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     Promise.all([getDeal(dealId), getLedger(dealId), getMe()]).then(
@@ -67,6 +73,15 @@ export function DealPage({ dealId }: { dealId: string }) {
       },
     );
   }, [dealId]);
+
+  const refreshLog = () => {
+    getLedger(dealId).then(setEntries, () => undefined);
+  };
+  /** The deal's status and the log, after a step that changes them. */
+  const refreshDeal = () => {
+    getDeal(dealId).then(setDeal, () => undefined);
+    refreshLog();
+  };
 
   const onCheck = () => {
     setCheck(undefined);
@@ -103,12 +118,15 @@ export function DealPage({ dealId }: { dealId: string }) {
           to keep access without it (use the PayPal account with the email the link was sent to).
         </p>
       )}
+      {deal.role === "buyer" && (
+        <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+      )}
       {deal.role === "seller" && (
         <BuyerPanel
           deal={deal}
           onDealChange={(updated) => {
             setDeal(updated);
-            getLedger(dealId).then(setEntries, () => undefined);
+            refreshLog();
           }}
         />
       )}
@@ -118,30 +136,33 @@ export function DealPage({ dealId }: { dealId: string }) {
           canDraft={deal.status === "draft"}
           dealCategory={deal.categoryLabel}
           onUse={setFill}
-          onLogChange={() => {
-            getLedger(dealId).then(setEntries, () => undefined);
+          onLogChange={refreshLog}
+        />
+      )}
+      {/* While the buyer is asked to sign, the acceptance page above is their one view of the terms. */}
+      {(deal.role === "seller" || deal.status !== "awaiting_acceptance") && (
+        <ScopePanel
+          dealId={deal.id}
+          currency={deal.currency}
+          canEdit={deal.role === "seller" && deal.status === "draft"}
+          fill={fill}
+          onClearFill={() => {
+            setFill(undefined);
+          }}
+          onSaved={() => {
+            setFill(undefined);
+            setRevision((n) => n + 1);
+            refreshLog();
           }}
         />
       )}
-      <ScopePanel
-        dealId={deal.id}
-        currency={deal.currency}
-        canEdit={deal.role === "seller" && deal.status === "draft"}
-        fill={fill}
-        onClearFill={() => {
-          setFill(undefined);
-        }}
-        onSaved={() => {
-          setFill(undefined);
-          getLedger(dealId).then(setEntries, () => undefined);
-        }}
-      />
+      {deal.role === "seller" && (
+        <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+      )}
       <FilesPanel
         dealId={deal.id}
         canAdd={deal.role === "seller" && !linkOnly}
-        onAdded={() => {
-          getLedger(dealId).then(setEntries, () => undefined);
-        }}
+        onAdded={refreshLog}
       />
       <section aria-labelledby="evidence-log">
         <h3 id="evidence-log">Evidence log</h3>

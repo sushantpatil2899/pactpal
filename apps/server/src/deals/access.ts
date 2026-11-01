@@ -52,8 +52,8 @@ export type DealLookup = (
 /**
  * Finds the deal behind a route's `:id` for the asking person. Each lookup returns the deal or
  * undefined after answering: 503 without a database, 401 signed out, 404 for a deal they may not
- * see (so its existence is not revealed), and for `sellersDeal` 403 unless they are its seller
- * signed in with PayPal.
+ * see (so its existence is not revealed). `sellersDeal` answers 403 unless they are its seller
+ * signed in with PayPal; `buyersDeal` 403 unless they are its buyer (signed in or by link).
  */
 export function dealAccess(database: Database | undefined, clock: () => Date) {
   async function visibleDeal(
@@ -75,18 +75,21 @@ export function dealAccess(database: Database | undefined, clock: () => Date) {
     return { viewer, deal, db: database };
   }
 
-  async function sellersDeal(
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<FoundDeal | undefined> {
-    const found = await visibleDeal(request, reply);
-    if (!found) return undefined;
-    if (found.viewer.access.method !== "paypal" || roleIn(found.viewer, found.deal) !== "seller") {
-      await reply.code(403).send({ error: "only the seller can do this" });
-      return undefined;
-    }
-    return found;
-  }
+  /** A deal the asking person may see and in which they have `role`; sellers must use PayPal. */
+  const partyDeal =
+    (role: "seller" | "buyer"): DealLookup =>
+    async (request, reply) => {
+      const found = await visibleDeal(request, reply);
+      if (!found) return undefined;
+      const { viewer, deal } = found;
+      const allowed =
+        roleIn(viewer, deal) === role && (role === "buyer" || viewer.access.method === "paypal");
+      if (!allowed) {
+        await reply.code(403).send({ error: `only the ${role} can do this` });
+        return undefined;
+      }
+      return found;
+    };
 
-  return { visibleDeal, sellersDeal };
+  return { visibleDeal, sellersDeal: partyDeal("seller"), buyersDeal: partyDeal("buyer") };
 }

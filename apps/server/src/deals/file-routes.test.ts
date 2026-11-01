@@ -12,9 +12,9 @@ const sha256Hex = (bytes: Buffer) => createHash("sha256").update(bytes).digest("
 const pdf = Buffer.from("%PDF-1.4\nchat export\n%%EOF\n");
 
 /** The test deal and app with the seller signed in; `upload` sends bytes as a file. */
-async function sellerDeal() {
+async function sellerDeal(trustProxyHops?: number) {
   const { seller, buyer, dealId } = await createTestDeal(db);
-  const env = dealTestApp(db);
+  const env = dealTestApp(db, undefined, trustProxyHops === undefined ? {} : { trustProxyHops });
   const token = await signedInAs(db, seller.id);
   const url = `/api/deals/${dealId}/files`;
   const upload = (bytes: Buffer, name: string | null = "chat.pdf", as = token) =>
@@ -22,6 +22,7 @@ async function sellerDeal() {
       "content-type": "application/octet-stream",
       ...(name === null ? {} : { "x-file-name": encodeURIComponent(name) }),
       "user-agent": "TestBrowser/1.0",
+      "x-forwarded-for": "198.51.100.9",
     });
   return { ...env, seller, buyer, dealId, token, url, upload };
 }
@@ -49,6 +50,14 @@ describe("files on a deal", () => {
       payload: { artifactId: testId(200), filename: "chat.pdf", sha256: sha256Hex(pdf) },
       userAgent: "TestBrowser/1.0",
     });
+    expect(entry?.ip).toBeUndefined();
+    await app.close();
+  });
+
+  it("records the uploader's address once the number of proxies is known", async () => {
+    const { app, dealId, upload } = await sellerDeal(1);
+    expect((await upload(pdf)).statusCode).toBe(201);
+    expect((await readLedger(db, dealId)).at(-1)?.ip).toBe("198.51.100.9");
     await app.close();
   });
 

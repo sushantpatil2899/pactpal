@@ -63,7 +63,7 @@ AI output is always a draft, stored apart from evidence, and every sentence or f
 
 An append-only, hash-chained log per deal (`packages/ledger`). Each entry stores the event type, actor (seller, buyer, system), payload, payload hash, previous entry hash, entry hash, server time and, where relevant, IP address and user agent. Editing, backdating or deleting any entry breaks the chain at that entry. Files are fingerprinted with SHA-256 and size.
 
-Event types include: `DEAL_CREATED`, `BUYER_ADDED`, `SOURCE_ADDED`, `SCOPE_CONFIRMED`, `ACCEPTED`, `RECEIPT_SENT`, `COVERAGE_NOTICE_SHOWN`, `INVOICE_SENT`, `PAYMENT_RECEIVED`, `DELIVERY_SENT`, `DELIVERY_VIEWED`, `DELIVERY_DOWNLOADED`, `MILESTONE_APPROVED`, `CHANGE_REQUESTED`, `CHANGE_ORDER_ACCEPTED`, `DISPUTE_OPENED`, `CLAIM_ANALYZED`, `PACKET_CONFIRMED`, `EVIDENCE_UPLOADED`, `DISPUTE_RESOLVED`, `APPEAL_SUBMITTED`.
+Event types include: `DEAL_CREATED`, `BUYER_ADDED`, `SOURCE_ADDED`, `SCOPE_CONFIRMED`, `ACCEPTANCE_REQUESTED`, `ACCEPTANCE_WITHDRAWN`, `ACCEPTED`, `DECLINED`, `RECEIPT_SENT`, `COVERAGE_NOTICE_SHOWN`, `INVOICE_SENT`, `PAYMENT_RECEIVED`, `DELIVERY_SENT`, `DELIVERY_VIEWED`, `DELIVERY_DOWNLOADED`, `MILESTONE_APPROVED`, `CHANGE_REQUESTED`, `CHANGE_ORDER_ACCEPTED`, `DISPUTE_OPENED`, `CLAIM_ANALYZED`, `PACKET_CONFIRMED`, `EVIDENCE_UPLOADED`, `DISPUTE_RESOLVED`, `APPEAL_SUBMITTED`.
 
 ## Evidence completeness score
 

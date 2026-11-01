@@ -1,6 +1,5 @@
 import {
   BuyerNotAllowedError,
-  DEAL_CATEGORIES,
   DEAL_CURRENCIES,
   addBuyer,
   addBuyerSchema,
@@ -14,7 +13,6 @@ import {
   verifyStoredLedger,
   type Database,
   type Deal,
-  type User,
 } from "@pactpal/db";
 import type { FastifyPluginAsync } from "fastify";
 import { dealLinkEmail, dealLinkUrl } from "../email/deal-link-email.js";
@@ -23,6 +21,8 @@ import { dealAccess, readBody, requireViewer } from "./access.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { draftRoutes } from "./draft-routes.js";
 import { fileRoutes } from "./file-routes.js";
+import { acceptanceRoutes } from "./acceptance-routes.js";
+import { categoryLabelOf, categoryLabels, nameOf, partiesOf } from "./parties.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 
@@ -38,6 +38,8 @@ export interface DealOptions {
   email: EmailSender;
   /** Runs the council for drafts; undefined until a database and an AI model key are set. */
   drafting?: DraftingRuntime | undefined;
+  /** Whether visitors' IP addresses are known (the number of proxies is set); false by default. */
+  recordIp?: boolean;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -48,22 +50,6 @@ const BUYER_REFUSALS: Record<BuyerNotAllowedError["reason"], { status: number; e
   "already-has-buyer": { status: 409, error: "this deal already has a buyer" },
   "own-email": { status: 400, error: "you cannot be the buyer of your own deal" },
 };
-
-/** The deal's seller and buyer, loaded once per answer. */
-async function partiesOf(db: Database, deal: Deal) {
-  const [seller, buyer] = await Promise.all([
-    getUser(db, deal.sellerId),
-    deal.buyerId === undefined ? undefined : getUser(db, deal.buyerId),
-  ]);
-  return { seller, buyer };
-}
-
-/** How a person is named to the other side: display name or role, never their email. */
-const nameOf = (user: User | undefined, role: "Seller" | "Buyer") => user?.displayName ?? role;
-
-const categoryLabels = new Map<string, string>(
-  Object.entries(DEAL_CATEGORIES).map(([id, { label }]) => [id, label]),
-);
 
 /**
  * A deal as the pages see it, with the asking person's role and the other side: the seller sees
@@ -78,7 +64,7 @@ const dealView = (
   title: deal.title,
   kind: deal.kind,
   category: deal.category,
-  categoryLabel: categoryLabels.get(deal.category) ?? deal.category,
+  categoryLabel: categoryLabelOf(deal),
   currency: deal.currency,
   status: deal.status,
   createdAt: deal.createdAt.toISOString(),
@@ -99,7 +85,7 @@ const describe = async (db: Database, deal: Deal, viewer: Viewer) =>
  * answers 404, so its existence is not revealed.
  */
 export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
-  const { database, clock, newId, publicBaseUrl, email, drafting } = options;
+  const { database, clock, newId, publicBaseUrl, email, drafting, recordIp = false } = options;
   app.get("/api/deal-options", (_request, reply) =>
     reply.send({
       categories: [...categoryLabels].map(([id, label]) => ({ id, label })),
@@ -107,9 +93,10 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     }),
   );
 
-  const { visibleDeal, sellersDeal } = dealAccess(database, clock);
+  const { visibleDeal, sellersDeal, buyersDeal } = dealAccess(database, clock);
   void app.register(scopeRoutes, { visibleDeal, sellersDeal, clock });
-  void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId });
+  void app.register(acceptanceRoutes, { visibleDeal, sellersDeal, buyersDeal, clock, recordIp });
+  void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId, recordIp });
   void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
 
   app.post("/api/deals", async (request, reply) => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { InvalidFieldsError, getScope, saveScope, type ScopeInput, type ScopeView } from "./api";
 import type { DraftFill } from "./draft-fill";
+import { ScopeDetails } from "./ScopeDetails";
 import { FULL_WIDTH } from "./styles";
 
 interface StageRow {
@@ -11,12 +12,6 @@ interface StageRow {
 
 const EMPTY_STAGE: StageRow = { title: "", amount: "", dueDate: "" };
 const MAX_STAGES = 20;
-
-const dateOf = (isoDate: string) =>
-  new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  });
 
 /** Plain words for a field the server refused, e.g. "milestones.1.amount" → "payment stage 2: amount". */
 function fieldLabel(field: string): string {
@@ -58,65 +53,6 @@ const stagesFrom = (scope: ScopeView | null): StageRow[] =>
         dueDate: stage.dueDate ?? "",
       }))
     : [{ ...EMPTY_STAGE }];
-
-/** The newest saved version, read-only. */
-function ScopeDetails({ scope }: { scope: ScopeView }) {
-  return (
-    <>
-      <p>
-        Version {scope.version} ·{" "}
-        <code title="Fingerprint (SHA-256) of this version">
-          {scope.contentSha256.slice(0, 12)}…
-        </code>
-      </p>
-      <p>{scope.summary}</p>
-      <h4>What will be delivered</h4>
-      <ul>
-        {scope.deliverables.map((item, n) => (
-          <li key={n}>{item}</li>
-        ))}
-      </ul>
-      {scope.exclusions.length > 0 && (
-        <>
-          <h4>Not included</h4>
-          <ul>
-            {scope.exclusions.map((item, n) => (
-              <li key={n}>{item}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      {scope.revisionsIncluded !== null && <p>Revisions included: {scope.revisionsIncluded}</p>}
-      {scope.dueDate !== null && <p>Due: {dateOf(scope.dueDate)}</p>}
-      <table>
-        <caption>Payment stages</caption>
-        <thead>
-          <tr>
-            <th scope="col">Stage</th>
-            <th scope="col">Amount ({scope.currency})</th>
-            <th scope="col">Due</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scope.milestones.map((stage, n) => (
-            <tr key={n}>
-              <td>{stage.title}</td>
-              <td>{stage.amount.text}</td>
-              <td>{stage.dueDate === null ? "—" : dateOf(stage.dueDate)}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row">Total</th>
-            <td>{scope.total.text}</td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
-    </>
-  );
-}
 
 /** Tells the seller the form was filled from an AI draft, with the draft's wording hints. */
 function FillNotice({ fill, onClear }: { fill: DraftFill; onClear: () => void }) {

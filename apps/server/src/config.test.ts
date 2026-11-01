@@ -165,6 +165,18 @@ describe("loadConfig", () => {
     expect(expectErrors({ PORT: port })).toEqual(["PORT must be a whole number from 1 to 65535"]);
   });
 
+  it("reads how many proxies stand in front of the server, and leaves it unset by default", () => {
+    expect(expectLoaded({}).config.trustProxyHops).toBeUndefined();
+    expect(expectLoaded({ TRUST_PROXY_HOPS: "0" }).config.trustProxyHops).toBe(0);
+    expect(expectLoaded({ TRUST_PROXY_HOPS: "2" }).config.trustProxyHops).toBe(2);
+  });
+
+  it.each(["4", "-1", "1.5", "one", "10"])("rejects TRUST_PROXY_HOPS=%j", (hops) => {
+    expect(expectErrors({ TRUST_PROXY_HOPS: hops })).toEqual([
+      "TRUST_PROXY_HOPS must be a whole number from 0 to 3",
+    ]);
+  });
+
   it("never puts values in error messages", () => {
     const leaky = Object.fromEntries(SETTING_NAMES.map((name) => [name, `"leak-${name}"`]));
     const errors = expectErrors(leaky);

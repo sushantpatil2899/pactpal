@@ -9,6 +9,7 @@ import { dealRoutes } from "./deals/routes.js";
 import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "./email/sender.js";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
+import { registerConnectionCheck } from "./request-origin.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
 
@@ -28,22 +29,32 @@ export interface AppOptions {
   email?: EmailSender;
   /** Runs the council for scope drafts; absent until a database and an AI model key are set. */
   drafting?: DraftingRuntime;
+  /**
+   * How many proxies stand in front of the server (`TRUST_PROXY_HOPS`). Absent until measured:
+   * visitors' IP addresses are then not recorded in the evidence log.
+   */
+  trustProxyHops?: number;
 }
 
 /**
  * Request logs show the path without its query string: sign-in returns carry PayPal's one-time
- * code and state there, which must never reach the logs.
+ * code and state there, which must never reach the logs. The address logged is the connection's
+ * own (on Render, the proxy's), never the visitor's address worked out from forwarding headers,
+ * so logs hold no visitor IP addresses.
  */
 const requestLog = (request: FastifyRequest) => ({
   method: request.method,
   url: request.url.split("?")[0],
   host: request.host,
-  remoteAddress: request.ip,
+  remoteAddress: request.socket.remoteAddress,
 });
 
 export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyInstance {
-  const { logger = true } = opts;
+  const { logger = true, trustProxyHops } = opts;
   const app = Fastify({
+    // With the number of proxies known, request.ip is the visitor's address; otherwise the proxy's.
+    // Trusting the first n hops is what a number means to Fastify; its types only take a function.
+    trustProxy: (_address: string, hop: number) => hop < (trustProxyHops ?? 0),
     logger:
       logger === false
         ? false
@@ -104,7 +115,9 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     publicBaseUrl: signIn.publicBaseUrl,
     email: opts.email ?? new StandInEmailSender(app.log),
     drafting: opts.drafting,
+    recordIp: trustProxyHops !== undefined,
   });
+  registerConnectionCheck(app, trustProxyHops);
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 
   void app.register(

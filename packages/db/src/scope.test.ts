@@ -189,7 +189,8 @@ describe("stored versions", () => {
   it.each([
     ["editing", "UPDATE scope_versions SET version = 5"],
     ["deleting", "DELETE FROM scope_versions"],
-    ["emptying", "TRUNCATE scope_versions"],
+    // CASCADE, because signed acceptances point at versions and would otherwise refuse it first.
+    ["emptying", "TRUNCATE scope_versions CASCADE"],
   ])("cannot be changed by %s", async (_name, sql) => {
     const { seller, dealId } = await createTestDeal(db);
     await saveScopeVersion(db, { dealId, sellerId: seller.id, content: content() }, at(1));

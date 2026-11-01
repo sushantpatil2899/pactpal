@@ -38,6 +38,7 @@ const app = buildApp(report, {
   drafting:
     database && members.length > 0 ? createDraftingRuntime({ clients: members }) : undefined,
   webDir: existsSync(webDir) ? webDir : undefined,
+  ...(config.trustProxyHops === undefined ? {} : { trustProxyHops: config.trustProxyHops }),
   signIn: {
     // The seller app stands in for PactPal's own PayPal app until Phase 6.
     login: seller && new PayPalLogin(seller),

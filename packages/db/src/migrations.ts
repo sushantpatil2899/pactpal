@@ -224,4 +224,31 @@ CREATE INDEX scope_drafts_deal_idx ON scope_drafts (deal_id, created_at DESC);
 -- At most one draft runs per deal at a time.
 CREATE UNIQUE INDEX scope_drafts_one_running ON scope_drafts (deal_id) WHERE status = 'running'`,
   },
+  {
+    id: "0009_acceptances",
+    // Each signed acceptance: the exact terms the buyer saw (the acceptance document), its
+    // fingerprint and the typed name, never edited. The ACCEPTED ledger entry holds the same
+    // fingerprint (docs/data-model.md).
+    sql: `CREATE TABLE acceptances (
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL CHECK (version >= 1),
+  document jsonb NOT NULL,
+  document_sha256 text NOT NULL CHECK (document_sha256 ~ '^[0-9a-f]{64}$'),
+  buyer_id uuid NOT NULL REFERENCES users (id),
+  typed_name text NOT NULL CHECK (char_length(typed_name) BETWEEN 2 AND 200),
+  ledger_seq integer NOT NULL,
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (deal_id, ledger_seq),
+  UNIQUE (deal_id, version),
+  CONSTRAINT acceptances_version_exists FOREIGN KEY (deal_id, version)
+    REFERENCES scope_versions (deal_id, version),
+  CONSTRAINT acceptances_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq)
+);
+
+CREATE TRIGGER acceptances_append_only BEFORE UPDATE OR DELETE ON acceptances
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER acceptances_no_truncate BEFORE TRUNCATE ON acceptances
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

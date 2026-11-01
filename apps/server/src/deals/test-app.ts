@@ -7,10 +7,14 @@ import type { EmailMessage } from "../email/sender.js";
 
 /**
  * Test code only: the app with deal routes on a test database, a fixed clock and numbered ids
- * (from 200), capturing sent email and log lines. `call` sends a request, signed in when given a
+ * (from 200), capturing sent email and log lines, optionally trusting a number of proxies. `call` sends a request, signed in when given a
  * session token, with an optional body and headers.
  */
-export function dealTestApp(db: Database | undefined, drafting?: DraftingRuntime) {
+export function dealTestApp(
+  db: Database | undefined,
+  drafting?: DraftingRuntime,
+  options: { trustProxyHops?: number } = {},
+) {
   let ids = 200;
   const sent: EmailMessage[] = [];
   const logs: string[] = [];
@@ -25,6 +29,7 @@ export function dealTestApp(db: Database | undefined, drafting?: DraftingRuntime
         },
       },
       ...(drafting ? { drafting } : {}),
+      ...options,
       // Only the routes get the database: the app would close it when the app closes.
       signIn: {
         login: undefined,

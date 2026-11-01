@@ -229,11 +229,10 @@ export interface Money {
   text: string;
 }
 
-/** One saved version of a deal's agreed work. */
-export interface ScopeView {
+/** The terms of one version of a deal's agreed work. */
+export interface ScopeTerms {
   version: number;
   contentSha256: string;
-  savedAt: string;
   currency: string;
   summary: string;
   deliverables: string[];
@@ -242,6 +241,11 @@ export interface ScopeView {
   dueDate: string | null;
   milestones: { title: string; amount: Money; dueDate: string | null }[];
   total: Money;
+}
+
+/** One saved version of a deal's agreed work: its terms and when it was saved. */
+export interface ScopeView extends ScopeTerms {
+  savedAt: string;
 }
 
 /** What the seller saves; each stage's amount as typed ("250.50"). */
@@ -269,17 +273,20 @@ export class InvalidFieldsError extends Error {
 const isMoney = (value: unknown): value is Money =>
   isObject(value) && typeof value.minor === "number" && typeof value.text === "string";
 
-const isScope = (value: unknown): value is ScopeView =>
+const isTerms = (value: unknown): value is ScopeTerms =>
   isObject(value) &&
   typeof value.version === "number" &&
   typeof value.contentSha256 === "string" &&
-  typeof value.savedAt === "string" &&
+  typeof value.currency === "string" &&
   typeof value.summary === "string" &&
   Array.isArray(value.deliverables) &&
   Array.isArray(value.exclusions) &&
   Array.isArray(value.milestones) &&
   value.milestones.every((stage) => isObject(stage) && isMoney(stage.amount)) &&
   isMoney(value.total);
+
+const isScope = (value: unknown): value is ScopeView =>
+  isTerms(value) && isObject(value) && typeof value.savedAt === "string";
 
 const hasScope = (body: unknown): body is { scope: ScopeView | null } =>
   isObject(body) && (body.scope === null || isScope(body.scope));
@@ -311,6 +318,89 @@ export async function saveScope(dealId: string, input: ScopeInput): Promise<Scop
   if (body.scope === null) throw new Error("The server did not return the saved version");
   return body.scope;
 }
+
+// --- Acceptance --------------------------------------------------------------------------------
+
+/** Exactly what the buyer is asked to agree to; its fingerprint is checked on every step. */
+export interface AcceptanceDocument {
+  format: number;
+  dealId: string;
+  title: string;
+  category: string;
+  sellerName: string;
+  terms: ScopeTerms;
+  notice: { version: number; title: string; lines: string[] };
+}
+
+/** Where the deal's acceptance stands, as the asking person may see it. */
+export interface AcceptanceView {
+  status: string;
+  /** While waiting, for both sides; in a draft, the seller's preview; once signed, the signed copy. */
+  document: AcceptanceDocument | null;
+  documentSha256: string | null;
+  accepted: { version: number; typedName: string; at: string } | null;
+  /** Seller only, in a draft: the buyer's last answer was a decline. */
+  lastDecline: { at: string; reason: string | null } | null;
+}
+
+const isDocument = (value: unknown): value is AcceptanceDocument =>
+  isObject(value) &&
+  typeof value.title === "string" &&
+  typeof value.sellerName === "string" &&
+  typeof value.category === "string" &&
+  isTerms(value.terms) &&
+  isObject(value.notice) &&
+  typeof value.notice.title === "string" &&
+  Array.isArray(value.notice.lines) &&
+  value.notice.lines.every((line) => typeof line === "string");
+
+const isAcceptance = (value: unknown): value is AcceptanceView =>
+  isObject(value) &&
+  typeof value.status === "string" &&
+  (value.document === null || isDocument(value.document)) &&
+  (value.documentSha256 === null || typeof value.documentSha256 === "string") &&
+  (value.accepted === null ||
+    (isObject(value.accepted) && typeof value.accepted.typedName === "string")) &&
+  (value.lastDecline === null || isObject(value.lastDecline));
+
+const acceptanceUrl = (dealId: string, step = "") =>
+  `/api/deals/${encodeURIComponent(dealId)}/acceptance${step === "" ? "" : `/${step}`}`;
+
+export async function getAcceptance(dealId: string): Promise<AcceptanceView> {
+  return readChecked(await fetch(acceptanceUrl(dealId)), isAcceptance, "load the acceptance");
+}
+
+/** One acceptance step; a refusal becomes an error with the server's plain message. */
+async function acceptanceStep(
+  dealId: string,
+  step: "request" | "withdraw" | "accept" | "decline",
+  body: object,
+  what: string,
+): Promise<AcceptanceView> {
+  const response = await fetch(acceptanceUrl(dealId, step), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, `Could not ${what}`));
+  return readChecked(response, isAcceptance, what);
+}
+
+/** The seller sends the version they previewed (named by number and document fingerprint). */
+export const requestAcceptance = (
+  dealId: string,
+  seen: { version: number; documentSha256: string },
+) => acceptanceStep(dealId, "request", seen, "send for acceptance");
+
+export const withdrawAcceptance = (dealId: string) =>
+  acceptanceStep(dealId, "withdraw", {}, "withdraw the request");
+
+/** The buyer signs the document they saw, with the name they typed. */
+export const acceptTerms = (dealId: string, input: { documentSha256: string; typedName: string }) =>
+  acceptanceStep(dealId, "accept", input, "sign");
+
+export const declineTerms = (dealId: string, input: { documentSha256: string; reason?: string }) =>
+  acceptanceStep(dealId, "decline", input, "decline");
 
 // --- Files -------------------------------------------------------------------------------------
 

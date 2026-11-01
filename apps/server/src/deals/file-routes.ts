@@ -12,6 +12,7 @@ import {
 } from "@pactpal/db";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { requestOrigin } from "../request-origin.js";
 import type { DealLookup } from "./access.js";
 
 export interface FileRouteOptions {
@@ -20,6 +21,8 @@ export interface FileRouteOptions {
   sellersDeal: DealLookup;
   clock: () => Date;
   newId: () => string;
+  /** Whether visitors' IP addresses are known (the number of proxies is set). */
+  recordIp: boolean;
 }
 
 /** The header that carries the file's name, URL-encoded so any language survives. */
@@ -76,7 +79,7 @@ const fileView = (file: Artifact) => ({
  * checked against the file's fingerprint first and is always saved, never opened in the page.
  */
 export const fileRoutes: FastifyPluginAsync<FileRouteOptions> = (app, options) => {
-  const { database, visibleDeal, sellersDeal, clock, newId } = options;
+  const { database, visibleDeal, sellersDeal, clock, newId, recordIp } = options;
   const store = database && postgresContentStore(database, clock);
 
   // Uploads arrive as the file's bytes; this parser exists only inside this plugin.
@@ -112,7 +115,7 @@ export const fileRoutes: FastifyPluginAsync<FileRouteOptions> = (app, options) =
           filename,
           bytes: Buffer.isBuffer(request.body) ? request.body : new Uint8Array(),
           addedBy: { actor: "seller", actorId: viewer.user.id },
-          userAgent: request.headers["user-agent"],
+          ...requestOrigin(request, recordIp),
         },
         clock(),
       );
