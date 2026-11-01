@@ -92,3 +92,18 @@ export type {
 } from "./scope.js";
 export { signInWithPayPal } from "./sign-in.js";
 export type { SignInResult, SignedInPerson } from "./sign-in.js";
+export {
+  DraftIntegrityError,
+  DraftNotAllowedError,
+  DraftStateError,
+  MAX_DRAFTS_PER_DEAL,
+  draftFingerprint,
+  failDraft,
+  failRunningDrafts,
+  finishDraft,
+  getDraft,
+  listDrafts,
+  startDraft,
+  startDraftSchema,
+} from "./scope-drafts.js";
+export type { DraftRecord, DraftRefusal, FinishDraft, StartDraft } from "./scope-drafts.js";

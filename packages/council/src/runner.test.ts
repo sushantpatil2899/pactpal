@@ -111,6 +111,10 @@ const council = (
     options,
   );
 
+/** Which label was which model. */
+const labelsOf = (run: { labelled: { label: string; answer: { modelName: string } }[] }) =>
+  run.labelled.map(({ label, answer }) => ({ label, modelName: answer.modelName }));
+
 const rankingRequests = (members: Member[]) =>
   members.flatMap(({ client }) => client.requests.filter(isRankingCall));
 
@@ -130,7 +134,7 @@ describe("runCouncil", () => {
     expect(run.result.needsReview).toBe(false);
     expect(run.result.dropped).toEqual([]);
     // rng 0.5 for everyone keeps the order, so labels follow the member order.
-    expect(run.labels).toEqual([
+    expect(labelsOf(run)).toEqual([
       { label: "A", modelName: "alpha" },
       { label: "B", modelName: "beta" },
       { label: "C", modelName: "gamma" },
@@ -179,7 +183,7 @@ describe("runCouncil", () => {
       members.map((m) => m.client),
       deps({ rng: () => values[i++ % values.length] ?? 0 }),
     );
-    expect(run.labels.map((l) => l.modelName)).toEqual(["gamma", "beta", "alpha"]);
+    expect(labelsOf(run).map((l) => l.modelName)).toEqual(["gamma", "beta", "alpha"]);
   });
 
   it("drops an invalid draft before the vote, but its model still votes", async () => {
@@ -199,7 +203,7 @@ describe("runCouncil", () => {
       errors: ["a citation is wrong"],
       validationScore: 0.5,
     });
-    expect(run.labels.map((l) => l.modelName)).toEqual(["alpha", "gamma"]);
+    expect(labelsOf(run).map((l) => l.modelName)).toEqual(["alpha", "gamma"]);
     expect(run.votes.map((v) => v.voter)).toEqual(["alpha", "beta", "gamma"]);
     for (const request of rankingRequests(members)) {
       expect(shown(request).map((d) => d.draft)).toEqual(["first draft", "third draft"]);
@@ -269,7 +273,7 @@ describe("runCouncil", () => {
     });
     expect(run.result.dropped).toHaveLength(2);
     expect(rankingRequests(members)).toEqual([]);
-    expect(run.labels).toEqual([]);
+    expect(labelsOf(run)).toEqual([]);
   });
 
   it("records a ballot that failed, one that is unreadable and one that ranks a wrong label", async () => {

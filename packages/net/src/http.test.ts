@@ -106,6 +106,67 @@ describe("sendWithRetry", () => {
   });
 });
 
+describe("sendWithRetry and Retry-After", () => {
+  const capped = { ...policy, maxRetryAfterMs: 30_000 };
+  const limited = (retryAfter?: string, status = 429) =>
+    new Response("slow down", {
+      status,
+      ...(retryAfter === undefined ? {} : { headers: { "retry-after": retryAfter } }),
+    });
+
+  it("waits as long as the host asks when that is longer than the usual backoff", async () => {
+    const net = fakeNetwork([limited("20"), new Response("ok")]);
+    const response = await sendWithRetry(options(), net.deps, capped, makeError);
+    expect(response.status).toBe(200);
+    expect(net.sleeps).toEqual([20_000]);
+  });
+
+  it("understands a date, and a 503 as well as a 429", async () => {
+    const net = fakeNetwork([limited(new Date(7000).toUTCString(), 503), new Response("ok")]);
+    await sendWithRetry(options(), net.deps, capped, makeError);
+    expect(net.sleeps).toEqual([7000]);
+  });
+
+  it("never waits less than the usual backoff", async () => {
+    const net = fakeNetwork([limited("0"), limited("0"), new Response("ok")]);
+    await sendWithRetry(options(), net.deps, capped, makeError);
+    expect(net.sleeps).toEqual([375, 750]);
+  });
+
+  it("uses the usual backoff when the host says nothing", async () => {
+    const net = fakeNetwork([limited(), new Response("ok")]);
+    await sendWithRetry(options(), net.deps, capped, makeError);
+    expect(net.sleeps).toEqual([375]);
+  });
+
+  it("gives the answer back at once, without waiting, when the host asks for more than the cap", async () => {
+    const net = fakeNetwork([limited("31"), new Response("ok")]);
+    const response = await sendWithRetry(options(), net.deps, capped, makeError);
+    expect(response.status).toBe(429);
+    expect(net.urls).toHaveLength(1);
+    expect(net.sleeps).toEqual([]);
+  });
+
+  it("accepts a wait of exactly the cap", async () => {
+    const net = fakeNetwork([limited("30"), new Response("ok")]);
+    expect((await sendWithRetry(options(), net.deps, capped, makeError)).status).toBe(200);
+    expect(net.sleeps).toEqual([30_000]);
+  });
+
+  it("ignores Retry-After when the policy has no cap", async () => {
+    const net = fakeNetwork([limited("20"), new Response("ok")]);
+    await sendWithRetry(options(), net.deps, policy, makeError);
+    expect(net.sleeps).toEqual([375]);
+  });
+
+  it("does not retry a request that is not safe to repeat, whatever the host says", async () => {
+    const net = fakeNetwork([limited("1")]);
+    const response = await sendWithRetry(options(false), net.deps, capped, makeError);
+    expect(response.status).toBe(429);
+    expect(net.sleeps).toEqual([]);
+  });
+});
+
 describe("defaultHttpDeps", () => {
   it("uses the real clock, sleep and randomness", async () => {
     expect(defaultHttpDeps.now()).toBeGreaterThan(0);

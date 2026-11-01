@@ -140,6 +140,21 @@ describe("OpenAiCompatibleClient", () => {
     expect(sleeps).toEqual([750]);
   });
 
+  it("waits as long as the host says before retrying a rate limit", async () => {
+    const asked = new Response("slow down", { status: 429, headers: { "retry-after": "12" } });
+    const { ask, sleeps } = setup([asked, completion("OK")]);
+    expect(await ask()).toMatchObject({ ok: true });
+    expect(sleeps).toEqual([12_000]);
+  });
+
+  it("reports a rate limit at once when the host asks for a very long wait", async () => {
+    const asked = new Response("slow down", { status: 429, headers: { "retry-after": "300" } });
+    const { ask, calls, sleeps } = setup([asked, completion("OK")]);
+    expect(await ask()).toMatchObject({ ok: false, kind: "rate_limited", status: 429 });
+    expect(calls).toHaveLength(1);
+    expect(sleeps).toEqual([]);
+  });
+
   it("gives up after three tries on a server error", async () => {
     const { ask, calls } = setup([
       new Response("x", { status: 503 }),
@@ -297,6 +312,7 @@ describe("OpenAiCompatibleClient", () => {
       baseDelayMs: 1000,
       maxDelayMs: 8000,
       timeoutMs: 60_000,
+      maxRetryAfterMs: 30_000,
     });
   });
 

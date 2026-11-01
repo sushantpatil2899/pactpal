@@ -211,7 +211,7 @@ export async function runCouncil<T>(
     result: { ...counted, dropped },
     answers,
     votes: round.votes,
-    labels: labelled.map(({ label, answer }) => ({ label, modelName: answer.modelName })),
+    labelled,
     usage: totalUsage([...replies.map(({ outcome }) => outcome), ...round.outcomes]),
     durationMs: deps.now() - startedAt,
   };

@@ -8,6 +8,7 @@ import {
   connectPostgres,
   createDeal,
   databaseFromPool,
+  finishDraft,
   getArtifact,
   listArtifacts,
   migrate,
@@ -15,6 +16,7 @@ import {
   postgresContentStore,
   recordWebhookEvent,
   saveScopeVersion,
+  startDraft,
   verifyStoredLedger,
   type PgClient,
   type PgPool,
@@ -264,6 +266,55 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       expect(results.filter((result) => result === "new")).toHaveLength(1);
       expect(results.filter((result) => result === "repeat")).toHaveLength(9);
       expect(await db.query("SELECT 1 FROM webhook_events")).toHaveLength(1);
+    });
+  });
+
+  it("starts one draft, and finishes one draft once, when requests arrive at the same time", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller } = await createTestDeal(db);
+      const artifact = await addArtifact(
+        db,
+        postgresContentStore(db, () => TEST_NOW),
+        {
+          id: testId(500),
+          dealId: testId(100),
+          kind: "source",
+          filename: "chat.txt",
+          bytes: new TextEncoder().encode("Maya: hello"),
+          addedBy: { actor: "seller", actorId: seller.id },
+        },
+        TEST_NOW,
+      );
+      const start = (n: number) =>
+        startDraft(
+          db,
+          {
+            id: testId(900 + n),
+            dealId: testId(100),
+            sellerId: seller.id,
+            sourceArtifactId: artifact.id,
+            sourceSha256: artifact.sha256,
+            draftPromptVersion: 1,
+            rankPromptVersion: 1,
+          },
+          TEST_NOW,
+        );
+      const started = await Promise.allSettled(Array.from({ length: 6 }, (_, n) => start(n)));
+      expect(started.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(started.filter((r) => r.status === "rejected")).toHaveLength(5);
+
+      const winner =
+        started.flatMap((r) => (r.status === "fulfilled" ? [r.value.id] : []))[0] ?? "";
+      const finish = () =>
+        finishDraft(
+          db,
+          { draftId: winner, draft: { format: 2 }, council: {}, ledgerPayload: {} },
+          TEST_NOW,
+        );
+      const finished = await Promise.allSettled([finish(), finish(), finish()]);
+      expect(finished.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      // The deal's ledger holds the file, exactly one draft entry, and still verifies.
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 3 });
     });
   });
 });

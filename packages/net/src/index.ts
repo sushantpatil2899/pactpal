@@ -16,6 +16,7 @@ export {
   DEFAULT_RETRY_POLICY,
   backoffDelay,
   isRetryable,
+  retryAfterMs,
   type AttemptOutcome,
   type RetryPolicy,
 } from "./retry.js";

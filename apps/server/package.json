@@ -23,9 +23,12 @@
     "@fastify/helmet": "^13.2.0",
     "@fastify/static": "^10.1.8",
     "@pactpal/ai": "workspace:*",
+    "@pactpal/council": "workspace:*",
     "@pactpal/db": "workspace:*",
+    "@pactpal/ledger": "workspace:*",
     "@pactpal/net": "workspace:*",
     "@pactpal/paypal": "workspace:*",
+    "@pactpal/scope-draft": "workspace:*",
     "fastify": "^5.12.7",
     "pg": "^8.23.1",
     "zod": "^4.6.7"

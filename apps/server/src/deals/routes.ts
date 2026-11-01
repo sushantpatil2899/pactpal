@@ -20,6 +20,8 @@ import type { FastifyPluginAsync } from "fastify";
 import { dealLinkEmail, dealLinkUrl } from "../email/deal-link-email.js";
 import type { EmailSender } from "../email/sender.js";
 import { dealAccess, readBody, requireViewer } from "./access.js";
+import type { DraftingRuntime } from "../drafting/runtime.js";
+import { draftRoutes } from "./draft-routes.js";
 import { fileRoutes } from "./file-routes.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
@@ -34,6 +36,8 @@ export interface DealOptions {
   publicBaseUrl: string | undefined;
   /** Sends buyer emails; a stand-in that sends nothing until an email service is chosen. */
   email: EmailSender;
+  /** Runs the council for drafts; undefined until a database and an AI model key are set. */
+  drafting?: DraftingRuntime | undefined;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -95,7 +99,7 @@ const describe = async (db: Database, deal: Deal, viewer: Viewer) =>
  * answers 404, so its existence is not revealed.
  */
 export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
-  const { database, clock, newId, publicBaseUrl, email } = options;
+  const { database, clock, newId, publicBaseUrl, email, drafting } = options;
   app.get("/api/deal-options", (_request, reply) =>
     reply.send({
       categories: [...categoryLabels].map(([id, label]) => ({ id, label })),
@@ -106,6 +110,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   const { visibleDeal, sellersDeal } = dealAccess(database, clock);
   void app.register(scopeRoutes, { visibleDeal, sellersDeal, clock });
   void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId });
+  void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
 
   app.post("/api/deals", async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });

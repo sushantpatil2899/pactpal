@@ -183,4 +183,45 @@ CREATE TRIGGER scope_versions_append_only BEFORE UPDATE OR DELETE ON scope_versi
 CREATE TRIGGER scope_versions_no_truncate BEFORE TRUNCATE ON scope_versions
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0008_scope_drafts",
+    // AI drafts of the agreed work. A draft is a proposal, not evidence: the row may move from
+    // running to ready or failed once. Only a ready draft is recorded in the ledger, by
+    // fingerprint (docs/data-model.md).
+    sql: `ALTER TABLE artifacts ADD CONSTRAINT artifacts_deal_id_id_key UNIQUE (deal_id, id);
+
+CREATE TABLE scope_drafts (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  source_artifact_id uuid NOT NULL,
+  source_sha256 text NOT NULL CHECK (source_sha256 ~ '^[0-9a-f]{64}$'),
+  created_by uuid NOT NULL REFERENCES users (id),
+  status text NOT NULL CHECK (status IN ('running', 'ready', 'failed')),
+  created_at timestamptz NOT NULL,
+  finished_at timestamptz,
+  draft_prompt_version integer NOT NULL CHECK (draft_prompt_version >= 1),
+  rank_prompt_version integer NOT NULL CHECK (rank_prompt_version >= 1),
+  draft jsonb,
+  draft_sha256 text CHECK (draft_sha256 ~ '^[0-9a-f]{64}$'),
+  council jsonb,
+  failure_reason text CHECK (failure_reason <> ''),
+  ledger_seq integer,
+  CONSTRAINT scope_drafts_source_in_deal FOREIGN KEY (deal_id, source_artifact_id)
+    REFERENCES artifacts (deal_id, id),
+  CONSTRAINT scope_drafts_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT scope_drafts_state CHECK (
+    (status = 'running' AND finished_at IS NULL AND draft IS NULL AND draft_sha256 IS NULL
+       AND council IS NULL AND failure_reason IS NULL AND ledger_seq IS NULL)
+    OR (status = 'ready' AND finished_at IS NOT NULL AND draft IS NOT NULL
+       AND draft_sha256 IS NOT NULL AND council IS NOT NULL AND failure_reason IS NULL
+       AND ledger_seq IS NOT NULL)
+    OR (status = 'failed' AND finished_at IS NOT NULL AND draft IS NULL AND draft_sha256 IS NULL
+       AND failure_reason IS NOT NULL AND ledger_seq IS NULL)
+  )
+);
+CREATE INDEX scope_drafts_deal_idx ON scope_drafts (deal_id, created_at DESC);
+-- At most one draft runs per deal at a time.
+CREATE UNIQUE INDEX scope_drafts_one_running ON scope_drafts (deal_id) WHERE status = 'running'`,
+  },
 ];

@@ -219,6 +219,19 @@ describe("validateScopeDraft", () => {
     expect(errorsOf({ ...base, deliverables: "list" })[0]).toMatch(/^deliverables/);
   });
 
+  it("accepts eight citations on a field and rejects nine", () => {
+    const citedTimes = (n: number) =>
+      altered((d) => {
+        d.summary = {
+          status: "found",
+          value: "x",
+          citations: Array.from({ length: n }, () => ({ line: 3, quote: "full-body character" })),
+        };
+      });
+    expect(validateScopeDraft(citedTimes(8), context).ok).toBe(true);
+    expect(errorsOf(citedTimes(9))[0]).toMatch(/^summary\.citations/);
+  });
+
   it("gives a wrong-shape answer a score of zero", () => {
     expect(validateScopeDraft({}, context).validation.score).toBe(0);
   });

@@ -26,6 +26,8 @@ export const AI_RETRY_POLICY: RetryPolicy = {
   baseDelayMs: 1000,
   maxDelayMs: 8000,
   timeoutMs: 60_000,
+  // A host that says "try again in 20 seconds" is obeyed; one that asks for more than this is not waited for.
+  maxRetryAfterMs: 30_000,
 };
 
 const DEFAULT_MAX_TOKENS = 2000;

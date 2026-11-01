@@ -1,4 +1,10 @@
-import { backoffDelay, isRetryable, type AttemptOutcome, type RetryPolicy } from "./retry.js";
+import {
+  backoffDelay,
+  isRetryable,
+  retryAfterMs,
+  type AttemptOutcome,
+  type RetryPolicy,
+} from "./retry.js";
 
 /** Effects the HTTP layer needs, injected so tests control network, time and randomness. */
 export interface HttpDeps {
@@ -46,6 +52,8 @@ export async function sendWithRetry(
 ): Promise<Response> {
   for (let attempt = 1; ; attempt++) {
     let outcome: AttemptOutcome;
+    // Set when a host asked how long to wait before the next try.
+    let asked: number | undefined;
     try {
       const response = await deps.fetch(options.url, {
         ...options.init,
@@ -54,6 +62,18 @@ export async function sendWithRetry(
       if (response.ok) return response;
       outcome = { kind: "status", status: response.status };
       if (attempt >= policy.maxAttempts || !isRetryable(outcome, options.idempotent)) {
+        return response;
+      }
+      asked =
+        policy.maxRetryAfterMs === undefined
+          ? undefined
+          : retryAfterMs(response.headers.get("retry-after"), deps.now());
+      // A host that wants a longer wait than we allow gets its answer back, not a long wait.
+      if (
+        asked !== undefined &&
+        policy.maxRetryAfterMs !== undefined &&
+        asked > policy.maxRetryAfterMs
+      ) {
         return response;
       }
       // Release the connection held by the unread body before trying again.
@@ -65,6 +85,6 @@ export async function sendWithRetry(
         throw networkError(timedOut, error);
       }
     }
-    await deps.sleep(backoffDelay(attempt, policy, deps.random));
+    await deps.sleep(Math.max(backoffDelay(attempt, policy, deps.random), asked ?? 0));
   }
 }

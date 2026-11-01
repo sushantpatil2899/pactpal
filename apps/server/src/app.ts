@@ -6,6 +6,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { linkRoutes } from "./auth/links.js";
 import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
 import { dealRoutes } from "./deals/routes.js";
+import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "./email/sender.js";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { registerWebPages } from "./web-pages.js";
@@ -25,6 +26,8 @@ export interface AppOptions {
   webDir?: string;
   /** Sends email; defaults to a stand-in that sends nothing until an email service is chosen. */
   email?: EmailSender;
+  /** Runs the council for scope drafts; absent until a database and an AI model key are set. */
+  drafting?: DraftingRuntime;
 }
 
 /**
@@ -100,6 +103,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     newId: signIn.newId,
     publicBaseUrl: signIn.publicBaseUrl,
     email: opts.email ?? new StandInEmailSender(app.log),
+    drafting: opts.drafting,
   });
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 

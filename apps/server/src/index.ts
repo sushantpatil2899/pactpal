@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { connectPostgres, recordWebhookEvent } from "@pactpal/db";
+import { MODEL_REGISTRY, OpenAiCompatibleClient } from "@pactpal/ai";
+import { connectPostgres, failRunningDrafts, recordWebhookEvent } from "@pactpal/db";
 import {
   AccessTokenProvider,
   PayPalLogin,
@@ -9,6 +10,7 @@ import {
   PayPalWebhooks,
 } from "@pactpal/paypal";
 import { buildApp, closeOnSignals } from "./app.js";
+import { createDraftingRuntime } from "./drafting/runtime.js";
 import { formatErrors, loadConfig } from "./config.js";
 
 const result = loadConfig(process.env);
@@ -29,8 +31,17 @@ const database =
   });
 // The built web app sits two folders up from both src/ and dist/ (apps/web/dist).
 const webDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
+// Every model whose key is set takes part in the council; with none, drafting answers "unavailable".
+const councilClients = MODEL_REGISTRY.flatMap((spec) => {
+  const key = config.ai.keys[spec.apiKeyEnv];
+  return key === undefined ? [] : [new OpenAiCompatibleClient(spec, key)];
+});
 const app = buildApp(report, {
   database,
+  drafting:
+    database && councilClients.length > 0
+      ? createDraftingRuntime({ clients: councilClients })
+      : undefined,
   webDir: existsSync(webDir) ? webDir : undefined,
   signIn: {
     // The seller app stands in for PactPal's own PayPal app until Phase 6.
@@ -50,6 +61,23 @@ const app = buildApp(report, {
 });
 
 if (!existsSync(webDir)) app.log.warn("Web pages not built; serving the server's routes only");
+app.log.info(
+  `AI models ready for scope drafting: ${String(councilClients.length)} of ${String(MODEL_REGISTRY.length)}`,
+);
+// No draft job survives a restart (one server instance), so a draft still "running" was cut off.
+if (database) {
+  try {
+    const interrupted = await failRunningDrafts(database, "interrupted by a restart", new Date());
+    if (interrupted > 0)
+      app.log.warn(`${String(interrupted)} running draft(s) marked as interrupted`);
+  } catch (error) {
+    // Like /health, the server stays up while the database is unreachable.
+    app.log.warn(
+      { err: error instanceof Error ? error.name : "unknown" },
+      "Could not sweep interrupted drafts",
+    );
+  }
+}
 for (const feature of report.features) {
   if (feature.missing.length > 0) {
     app.log.warn(`${feature.name} not ready: missing ${feature.missing.join(", ")}`);

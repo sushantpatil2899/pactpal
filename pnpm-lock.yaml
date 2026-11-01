@@ -53,15 +53,24 @@ importers:
       '@pactpal/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@pactpal/council':
+        specifier: workspace:*
+        version: link:../../packages/council
       '@pactpal/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@pactpal/ledger':
+        specifier: workspace:*
+        version: link:../../packages/ledger
       '@pactpal/net':
         specifier: workspace:*
         version: link:../../packages/net
       '@pactpal/paypal':
         specifier: workspace:*
         version: link:../../packages/paypal
+      '@pactpal/scope-draft':
+        specifier: workspace:*
+        version: link:../../packages/scope-draft
       fastify:
         specifier: ^5.12.7
         version: 5.12.7

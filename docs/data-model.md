@@ -12,6 +12,9 @@ erDiagram
   ledger_entries |o--o| scope_versions : "recorded by"
   deals ||--o{ milestones : "planned Phase 4"
   deals ||--o{ artifacts : "has files"
+  deals ||--o{ scope_drafts : "AI drafts"
+  artifacts ||--o{ scope_drafts : "drafted from"
+  ledger_entries |o--o| scope_drafts : "recorded by (when ready)"
   ledger_entries |o--o| artifacts : "recorded by"
   webhook_events }o--o{ deals : "matched later (Phase 4 and 5)"
   users ||--o{ sessions : "signed in"
@@ -27,7 +30,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 2f-3)
+## Built (sub-phases 2b to 3d)
 
 ### `users`: everyone
 
@@ -160,6 +163,25 @@ What a deal covers and how its price is split into payment stages. Each save by 
 | `created_at`         | Server time                                                                                                                                                                               |
 
 Payment stages are part of the content, so their titles and amounts are fingerprinted and frozen with the rest: changing an amount means saving a new version. Only the seller can save, and only while the deal is a draft.
+
+### `scope_drafts`: AI drafts of the agreed work
+
+A draft is a proposal made by the council from a chat saved as a text source file. It is not evidence and not an agreement, so it lives in its own table and is not append-only: a row starts as `running` and moves once to `ready` or `failed`. Only a `ready` draft is recorded in the ledger (`SCOPE_DRAFTED`, by fingerprint, never with text). Nothing becomes agreed work until the seller confirms it (3e).
+
+| Column                                        | Meaning                                                                                                                                                                                                    |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `deal_id`                               | The draft and its deal                                                                                                                                                                                     |
+| `source_artifact_id`, `source_sha256`         | The chat file it was made from (the database makes it a file of the same deal) and that file's fingerprint, so every citation can be checked against it                                                    |
+| `created_by`                                  | The seller who asked                                                                                                                                                                                       |
+| `status`                                      | `running`, `ready` or `failed`. At most one `running` per deal                                                                                                                                             |
+| `created_at`, `finished_at`                   | Server time                                                                                                                                                                                                |
+| `draft_prompt_version`, `rank_prompt_version` | Which wording of the drafting and ranking prompts produced it                                                                                                                                              |
+| `draft`, `draft_sha256`                       | The winning draft (JSON) and the fingerprint of its canonical JSON; checked on every read. Only on `ready`                                                                                                 |
+| `council`                                     | What each model did (valid, invalid with reasons, failed), the votes, which label was which model, every valid draft, scores, agreement, tokens and time. On `ready`, and on `failed` when the council ran |
+| `failure_reason`                              | Why it failed; never repeats the chat. Only on `failed`                                                                                                                                                    |
+| `ledger_seq`                                  | The `SCOPE_DRAFTED` entry (with `deal_id`). Only on `ready`                                                                                                                                                |
+
+A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so the retention rule (Phase 8) applies.
 
 ## Planned
 

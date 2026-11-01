@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RETRY_POLICY, backoffDelay, isRetryable } from "./retry.js";
+import { DEFAULT_RETRY_POLICY, backoffDelay, isRetryable, retryAfterMs } from "./retry.js";
 
 describe("isRetryable", () => {
   it.each([
@@ -32,5 +32,26 @@ describe("backoffDelay", () => {
 
   it("never exceeds the cap", () => {
     expect(backoffDelay(10, policy, () => 1)).toBe(4000);
+  });
+});
+
+describe("retryAfterMs", () => {
+  it.each([
+    ["2", 2000],
+    [" 0 ", 0],
+    ["1.5", 1500],
+    ["120", 120_000],
+  ])("reads %j seconds as %i ms", (header, ms) => {
+    expect(retryAfterMs(header, 0)).toBe(ms);
+  });
+
+  it("reads a date relative to now, never negative", () => {
+    const now = Date.parse("2026-11-01T10:00:00Z");
+    expect(retryAfterMs("Sun, 01 Nov 2026 10:00:07 GMT", now)).toBe(7000);
+    expect(retryAfterMs("Sun, 01 Nov 2026 09:59:00 GMT", now)).toBe(0);
+  });
+
+  it.each([null, "", "soon", "-3", "1e3"])("does not understand %j", (header) => {
+    expect(retryAfterMs(header, 0)).toBeUndefined();
   });
 });

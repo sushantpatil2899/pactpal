@@ -1,5 +1,5 @@
 import type { ChatFailureKind, ChatOutcome, ChatRequest, ModelSpec, TokenUsage } from "@pactpal/ai";
-import type { CouncilResult, Validation } from "./types.js";
+import type { CouncilResult, LabelledAnswer, Validation } from "./types.js";
 
 /** A model's reply after the code checks: the content when it is valid, and the check's verdict either way. */
 export type CheckedAnswer<T> =
@@ -74,8 +74,8 @@ export interface CouncilRun<T> {
   result: CouncilResult<T>;
   answers: AnswerRecord[];
   votes: VoteRecord[];
-  /** Which anonymous label was which model (never shown to voters). */
-  labels: { label: string; modelName: string }[];
+  /** The valid answers under their anonymous labels (which label was which model is never shown to voters). */
+  labelled: LabelledAnswer<T>[];
   usage: UsageTotals;
   durationMs: number;
 }

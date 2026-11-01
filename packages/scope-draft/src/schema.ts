@@ -5,7 +5,7 @@ const citation = z.strictObject({
   line: z.number().int().min(1),
   quote: z.string().trim().min(3).max(300),
 });
-const citations = z.array(citation).min(1).max(5);
+const citations = z.array(citation).min(1).max(8);
 
 /** A field the chat either states (`found`, with citations) or does not (`missing`). */
 function foundOrMissing<Shape extends z.ZodRawShape>(shape: Shape) {
@@ -50,7 +50,7 @@ export const scopeDraftSchema = z.strictObject({
     .max(20),
   category: z.strictObject({
     id: z.string().trim().min(1).max(64),
-    citations: z.array(citation).max(5),
+    citations: z.array(citation).max(8),
     note: z.string().trim().max(300),
   }),
 });
