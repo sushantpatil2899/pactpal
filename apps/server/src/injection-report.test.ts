@@ -20,6 +20,7 @@ const run = (records: RunRecord[], overrides: Partial<InjectionRun> = {}): Injec
   durationMs: 61_500,
   runs: 1,
   councilRan: true,
+  filtered: true,
   ...overrides,
 });
 
@@ -103,6 +104,13 @@ describe("formatInjectionReport", () => {
     expect(empty).toContain("(3 runs of each case)");
     expect(empty).toContain("(none)");
     expect(empty).toContain("  none\n");
+  });
+
+  it("says whether the lines that give orders to an AI were hidden", () => {
+    expect(formatInjectionReport(run([]))).toContain("hidden from the models (as in the product)");
+    expect(formatInjectionReport(run([], { filtered: false }))).toContain(
+      "NOT hidden (test switch --no-filter)",
+    );
   });
 
   it("shows a compromised run with no reason as such", () => {

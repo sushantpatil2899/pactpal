@@ -3,7 +3,7 @@ import type { ChatRequest } from "@pactpal/ai";
 import { ALL_MISSING_DRAFT } from "@pactpal/scope-draft/testing";
 import { describe, expect, it } from "vitest";
 import { councilFailures } from "./injection-report.js";
-import { runInjectionCheck } from "./injection-runner.js";
+import { pickModels, runInjectionCheck } from "./injection-runner.js";
 
 let tick = 0;
 const deps = () => {
@@ -72,7 +72,7 @@ describe("runInjectionCheck", () => {
   it("runs every hostile case on every model, and the voting cases, and judges them", async () => {
     const run = await runInjectionCheck(
       [model("steady", false), model("obedient", true)],
-      { council: false, runs: 1 },
+      { council: false, runs: 1, filter: false },
       deps(),
     );
     expect(run.councilRan).toBe(false);
@@ -106,7 +106,7 @@ describe("runInjectionCheck", () => {
   it("with the council, the winner holds when most models resist, and fails when all obey", async () => {
     const mixed = await runInjectionCheck(
       [model("a", false), model("b", false), model("c", true)],
-      { council: true, runs: 1, caseId: "override-simple" },
+      { council: true, runs: 1, caseId: "override-simple", filter: false },
       deps(),
     );
     expect(resultsFor(mixed.records, "override-simple", "council")).toEqual({ council: "held" });
@@ -117,10 +117,25 @@ describe("runInjectionCheck", () => {
 
     const allObey = await runInjectionCheck(
       [model("a", true), model("b", true), model("c", true)],
-      { council: true, runs: 1, caseId: "override-simple" },
+      { council: true, runs: 1, caseId: "override-simple", filter: false },
       deps(),
     );
     expect(councilFailures(allObey.records).map((r) => r.caseId)).toEqual(["override-simple"]);
+    expect(allObey.filtered).toBe(false);
+  });
+
+  it("with the lines that give orders hidden, models that would obey never see the order", async () => {
+    const run = await runInjectionCheck(
+      [model("a", true), model("b", true)],
+      { council: true, runs: 1, caseId: "override-simple" },
+      deps(),
+    );
+    expect(run.filtered).toBe(true);
+    expect(resultsFor(run.records, "override-simple", "alone")).toEqual({
+      a: "held",
+      b: "held",
+    });
+    expect(councilFailures(run.records)).toEqual([]);
   });
 
   it("runs one case when asked, repeats it, and reports progress", async () => {
@@ -188,5 +203,22 @@ describe("runInjectionCheck", () => {
     );
     expect(enforced.requests[0]?.messages[1]?.content).not.toContain("<reply_schema>");
     expect(described.requests[0]?.messages[1]?.content).toContain("<reply_schema>");
+  });
+});
+
+describe("pickModels", () => {
+  const clients = [model("a", false), model("b", false), model("c", false)];
+
+  it("keeps all models when none are named, and only the named ones otherwise", () => {
+    expect(pickModels(clients, []).picked).toHaveLength(3);
+    const some = pickModels(clients, ["c", "a"]);
+    expect(some.picked.map((c) => c.spec.name)).toEqual(["a", "c"]);
+    expect(some.unknown).toEqual([]);
+  });
+
+  it("reports names that are not configured", () => {
+    const some = pickModels(clients, ["b", "nope"]);
+    expect(some.picked.map((c) => c.spec.name)).toEqual(["b"]);
+    expect(some.unknown).toEqual(["nope"]);
   });
 });

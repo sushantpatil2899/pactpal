@@ -1,5 +1,6 @@
 import { schemaEnforced } from "@pactpal/ai";
 import type { CouncilTask } from "@pactpal/council";
+import { hideInstructionLines } from "./instruction-lines.js";
 import { buildScopeDraftMessages, renderChat, type ScopeDraftPromptInput } from "./prompt.js";
 import type { ScopeDraft } from "./schema.js";
 import { readScopeDraft } from "./validate.js";
@@ -27,12 +28,19 @@ export type ScopeDraftTask =
  * The council task for drafting a scope from a pasted chat: the drafting request from the
  * drafting prompt (with the schema in the prompt only for models whose host does not enforce
  * it), the citation checker, and what voters are shown. `input.marker` wraps the chat in the
- * drafting prompt and is refused if the chat already contains it.
+ * drafting prompt and is refused if the chat already contains it. The models and the voters see
+ * the chat with lines that give orders to an AI hidden; the checker also refuses to accept a quote
+ * from such a line. `protectAgainstInstructions: false` (the injection check only) turns both off.
  */
 export function scopeDraftCouncilTask(
-  input: Omit<ScopeDraftPromptInput, "replySchema"> & { categoryIds: readonly string[] },
+  input: Omit<ScopeDraftPromptInput, "replySchema"> & {
+    categoryIds: readonly string[];
+    protectAgainstInstructions?: boolean;
+  },
 ): ScopeDraftTask {
-  const { categoryIds, ...promptInput } = input;
+  const { categoryIds, protectAgainstInstructions = true, ...rest } = input;
+  const seen = protectAgainstInstructions ? hideInstructionLines(rest.lines) : rest.lines;
+  const promptInput = { ...rest, lines: seen };
   const schema = scopeDraftWireSchema();
   const enforced = buildScopeDraftMessages(promptInput);
   const described = buildScopeDraftMessages({ ...promptInput, replySchema: schema });
@@ -42,6 +50,7 @@ export function scopeDraftCouncilTask(
     lines: input.lines,
     categoryIds,
     dealCurrency: input.dealCurrency,
+    rejectInstructionLines: protectAgainstInstructions,
   };
   return {
     ok: true,
@@ -60,7 +69,7 @@ export function scopeDraftCouncilTask(
       rank: {
         summary: RANK_SUMMARY,
         criteria: RANK_CRITERIA,
-        source: renderChat(input.lines),
+        source: renderChat(seen),
         render: (draft) => JSON.stringify(draft),
       },
     },

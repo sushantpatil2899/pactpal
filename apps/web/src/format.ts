@@ -11,3 +11,11 @@ export function agreementWords(agreement: number): string {
   if (agreement >= 0.5) return "moderate";
   return "low";
 }
+
+/** Line numbers in words: "line 5", "lines 5 and 21", "lines 2, 5 and 21". */
+export function lineNumbers(numbers: readonly number[]): string {
+  const words = numbers.map(String);
+  const last = words.at(-1);
+  if (words.length < 2 || last === undefined) return `line ${words.join("")}`;
+  return `lines ${words.slice(0, -1).join(", ")} and ${last}`;
+}

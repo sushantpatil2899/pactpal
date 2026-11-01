@@ -3,6 +3,7 @@ import { fromPayPalMoney } from "@pactpal/paypal";
 import {
   BLOCKED_CATEGORIES,
   categoryVerdict,
+  findInstructionLines,
   scopeDraftSchema,
   type SourceLine,
 } from "@pactpal/scope-draft";
@@ -27,7 +28,8 @@ function priceMinor(amount: string, currency: string): number | null {
  * schemas as it is read; the winning draft's price also comes with its minor units, like agreed
  * work. The category verdict compares what the models read from the chat with the deal's category.
  * `lines` is the numbered chat the draft was made from, given only when a finished draft is read
- * on its own.
+ * on its own; `hiddenLines` then lists the numbers of the lines that were hidden from the models
+ * because they look like orders to an AI (numbers only, never their text).
  */
 export function draftView(
   record: DraftRecord,
@@ -42,7 +44,12 @@ export function draftView(
     status: record.status,
     createdAt: record.createdAt.toISOString(),
     finishedAt: record.finishedAt?.toISOString() ?? null,
-    source: { fileId: record.sourceArtifactId, sha256: record.sourceSha256, lines },
+    source: {
+      fileId: record.sourceArtifactId,
+      sha256: record.sourceSha256,
+      lines,
+      hiddenLines: lines === null ? null : findInstructionLines(lines),
+    },
     promptVersions: { draft: record.draftPromptVersion, rank: record.rankPromptVersion },
     failureReason: record.failureReason ?? null,
     draft:

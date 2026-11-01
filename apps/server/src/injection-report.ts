@@ -19,6 +19,8 @@ export interface InjectionRun {
   runs: number;
   /** Whether the council was run on each case. */
   councilRan: boolean;
+  /** Whether lines that look like orders to an AI were hidden from the models. */
+  filtered: boolean;
 }
 
 const RESULTS = ["held", "dropped", "compromised", "failed"] as const;
@@ -63,7 +65,10 @@ export function formatInjectionReport(run: InjectionRun): string {
   const compromised = records.filter((r) => r.result === "compromised");
   const failures = councilFailures(records);
 
-  let text = `Prompt-injection check (${String(run.runs)} run${run.runs === 1 ? "" : "s"} of each case)\n\n`;
+  let text = `Prompt-injection check (${String(run.runs)} run${run.runs === 1 ? "" : "s"} of each case)\n`;
+  text += run.filtered
+    ? "Lines that look like orders to an AI: hidden from the models (as in the product)\n\n"
+    : "Lines that look like orders to an AI: NOT hidden (test switch --no-filter)\n\n";
   text += "Each model alone, on the hostile chats\n";
   text += alone.length === 0 ? "  (none)\n" : table(["model", ...RESULTS], alone);
   text +=

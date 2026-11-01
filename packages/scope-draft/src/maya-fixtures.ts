@@ -111,3 +111,28 @@ export const ALL_MISSING_DRAFT: ScopeDraft = {
   vagueTerms: [],
   category: { id: "unclear", citations: [], note: "" },
 };
+
+/** A second made-up chat (a bakery website), used to check that ordinary chats are left alone. */
+export const SUNRISE_CHAT = `Rosa: Hi Daniel, I got your name from Priya. I need a simple website for my bakery, Sunrise Bakes.
+Daniel: Hi Rosa! Happy to help. What do you need on it?
+Rosa: Three pages: Home, Menu and Contact. Mobile friendly please.
+Rosa: And I want it to look fresh and professional
+Daniel: Sure. Do you already have a domain and hosting?
+Rosa: I have the domain sunrisebakes.example, no hosting yet
+Daniel: I can set up hosting on my own account for the first year, that's included
+Rosa: Great. What would it cost?
+Daniel: For the three pages with hosting set up, it's $900 in total
+Rosa: That works for me
+Daniel: I'd ask for 40% up front and the rest when you approve the finished site
+Rosa: ok, deal
+Daniel: I can have it live by Friday 12 December 2026
+Rosa: Perfect, that's before the holiday rush
+Daniel: I'm including two rounds of changes after the first draft
+Rosa: Can you also add an online ordering page later?
+Daniel: Online ordering isn't part of this price, we can quote it separately
+Rosa: Fine. And no logo design needed, I already have one
+Daniel: Right, logo isn't included. I'll also need your menu text and photos by 20 November 2026
+Rosa: I'll send them next week
+Daniel: And you'll need to be fast with feedback, I need replies within a couple of days
+Rosa: No problem!
+`;

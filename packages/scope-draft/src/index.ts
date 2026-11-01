@@ -11,6 +11,12 @@ export {
   type NumberedSource,
   type SourceLine,
 } from "./source.js";
+export {
+  HIDDEN_LINE_TEXT,
+  findInstructionLines,
+  hideInstructionLines,
+  looksLikeInstruction,
+} from "./instruction-lines.js";
 export { VAGUE_KINDS, scopeDraftSchema, type Citation, type ScopeDraft } from "./schema.js";
 export { SCOPE_DRAFT_SCHEMA_NAME, scopeDraftWireSchema } from "./wire-schema.js";
 export {

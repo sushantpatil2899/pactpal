@@ -177,13 +177,13 @@ A draft is a proposal made by the council from a chat saved as a text source fil
 | `created_by`                                  | The seller who asked                                                                                                                                                                                       |
 | `status`                                      | `running`, `ready` or `failed`. At most one `running` per deal                                                                                                                                             |
 | `created_at`, `finished_at`                   | Server time                                                                                                                                                                                                |
-| `draft_prompt_version`, `rank_prompt_version` | Which wording of the drafting and ranking prompts produced it                                                                                                                                              |
+| `draft_prompt_version`, `rank_prompt_version` | Which wording of the drafting and ranking prompts produced it (drafting wording 2 since 3fb)                                                                                                               |
 | `draft`, `draft_sha256`                       | The winning draft (JSON) and the fingerprint of its canonical JSON; checked on every read. Only on `ready`                                                                                                 |
 | `council`                                     | What each model did (valid, invalid with reasons, failed), the votes, which label was which model, every valid draft, scores, agreement, tokens and time. On `ready`, and on `failed` when the council ran |
 | `failure_reason`                              | Why it failed; never repeats the chat. Only on `failed`                                                                                                                                                    |
 | `ledger_seq`                                  | The `SCOPE_DRAFTED` entry (with `deal_id`). Only on `ready`                                                                                                                                                |
 
-A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so the retention rule (Phase 8) applies.
+Lines of the chat that look like orders to an AI are not stored anywhere; they are found again from the chat file whenever a finished draft is read (`source.hiddenLines`, line numbers only). A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so the retention rule (Phase 8) applies.
 
 ## Planned
 

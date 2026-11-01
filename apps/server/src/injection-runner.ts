@@ -28,6 +28,20 @@ export interface InjectionOptions {
   runs: number;
   /** Run only this case. */
   caseId?: string;
+  /** Whether lines that look like orders to an AI are hidden from the models (the product always does; false is a test switch). Default true. */
+  filter?: boolean;
+}
+
+/** The models whose names are listed, in the order of `clients`; an empty list means all. Unknown names are returned so the caller can say so. */
+export function pickModels<T extends { spec: { name: string } }>(
+  clients: readonly T[],
+  names: readonly string[],
+): { picked: T[]; unknown: string[] } {
+  if (names.length === 0) return { picked: [...clients], unknown: [] };
+  return {
+    picked: clients.filter((client) => names.includes(client.spec.name)),
+    unknown: names.filter((name) => !clients.some((client) => client.spec.name === name)),
+  };
 }
 
 /** Room for a ranking reply, including the thinking some models do first. */
@@ -39,7 +53,7 @@ const usageTokens = (outcome: ChatOutcome) =>
   outcome.ok && outcome.usage ? outcome.usage.promptTokens + outcome.usage.completionTokens : 0;
 
 /** The task for a chat; throws only if a case's own chat is unusable, which the tests rule out. */
-function taskFor(chat: string, deps: CouncilDeps) {
+function taskFor(chat: string, deps: CouncilDeps, protect: boolean) {
   const numbered = numberSourceLines(chat);
   if (!numbered.ok) throw new Error(`a hostile chat could not be numbered: ${numbered.reason}`);
   const made = scopeDraftCouncilTask({
@@ -48,6 +62,7 @@ function taskFor(chat: string, deps: CouncilDeps) {
     categoryIds: categories.map(({ id }) => id),
     dealCurrency: "USD",
     marker: deps.newMarker(),
+    protectAgainstInstructions: protect,
   });
   if (!made.ok) throw new Error(`a hostile chat was refused: ${made.reason}`);
   return { task: made.task, lines: numbered.lines };
@@ -60,7 +75,7 @@ async function chatCaseRuns(
   options: InjectionOptions,
   deps: CouncilDeps,
 ): Promise<{ records: RunRecord[]; tokens: number }> {
-  const { task } = taskFor(chatFor(chatCase), deps);
+  const { task } = taskFor(chatFor(chatCase), deps, options.filter !== false);
   const records: RunRecord[] = [];
   let tokens = 0;
 
@@ -106,8 +121,9 @@ async function rankingCaseRuns(
   rankingCase: (typeof RANKING_CASES)[number],
   clients: readonly ChatClient[],
   deps: CouncilDeps,
+  protect: boolean,
 ): Promise<{ records: RunRecord[]; tokens: number }> {
-  const { task, lines } = taskFor(MAYA_CHAT, deps);
+  const { task, lines } = taskFor(MAYA_CHAT, deps, protect);
   const drafts = rankingDrafts(rankingCase).map((entry, i) => ({
     label: String.fromCharCode(65 + i),
     text: task.rank.render(entry.draft),
@@ -173,7 +189,7 @@ export async function runInjectionCheck(
       onProgress(`run ${String(run)}: ${chatCase.id} done`);
     }
     for (const rankingCase of RANKING_CASES.filter((c) => wanted(c.id))) {
-      const done = await rankingCaseRuns(rankingCase, clients, deps);
+      const done = await rankingCaseRuns(rankingCase, clients, deps, options.filter !== false);
       records.push(...done.records);
       tokens += done.tokens;
       onProgress(`run ${String(run)}: ${rankingCase.id} done`);
@@ -185,5 +201,6 @@ export async function runInjectionCheck(
     durationMs: deps.now() - startedAt,
     runs: options.runs,
     councilRan: options.council,
+    filtered: options.filter !== false,
   };
 }

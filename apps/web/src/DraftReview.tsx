@@ -1,6 +1,7 @@
 import type { Citation, DraftContent, DraftView } from "./api";
 import { CouncilPanel } from "./CouncilPanel";
 import { fillFrom, type DraftFill } from "./draft-fill";
+import { lineNumbers } from "./format";
 import { WRAP } from "./styles";
 
 const muted = { color: "#555", fontSize: 14 } as const;
@@ -17,6 +18,8 @@ function Quotes({ citations }: { citations: Citation[] }) {
     </ul>
   );
 }
+
+const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const NOT_STATED = <em>not stated in the chat</em>;
 
@@ -65,6 +68,54 @@ function CategoryNotice({ view, dealCategory }: { view: DraftView; dealCategory:
   }
 }
 
+/** Tells the seller when the models did not fully agree, or when only one of them produced a usable draft. */
+function ReviewNotice({ view }: { view: DraftView }) {
+  const usable = view.council?.answers.filter((answer) => answer.status === "valid").length;
+  if (usable === 1) {
+    return (
+      <p role="alert">
+        Only one model produced a usable draft, so nothing was cross-checked. Read every line
+        carefully.
+      </p>
+    );
+  }
+  if (view.needsReview !== true) return null;
+  return (
+    <p role="alert">
+      The models did not fully agree, so read every line carefully: {view.reviewReasons.join("; ")}.
+    </p>
+  );
+}
+
+/** Names the chat lines that look like orders to an AI; they were hidden from the models and cannot be quoted. */
+function HiddenLinesNotice({ hidden }: { hidden: number[] }) {
+  if (hidden.length === 0) return null;
+  const words =
+    hidden.length === 1
+      ? {
+          look: "looks like an instruction",
+          term: "a deal term",
+          they: "It was",
+          them: "it",
+          is: "it is",
+        }
+      : {
+          look: "look like instructions",
+          term: "deal terms",
+          they: "They were",
+          them: "them",
+          is: "they are",
+        };
+  return (
+    <p role="alert">
+      <strong>{capitalised(lineNumbers(hidden))}</strong> of this chat {words.look} to an AI, not{" "}
+      {words.term}. {words.they} hidden from the AI and cannot be quoted. Check {words.them}: if{" "}
+      {words.is} normal chat, whatever {words.them === "it" ? "it" : "they"} said is missing from
+      the draft.
+    </p>
+  );
+}
+
 /** A finished draft for the seller to check: flags, the drafted work with quotes, wording to fix, the council and the chat. */
 export function DraftReview({
   view,
@@ -87,12 +138,8 @@ export function DraftReview({
         <strong>AI draft: check every line against the chat.</strong> The quotes under each line
         show where it comes from. Nothing here is agreed until you save it and the buyer accepts.
       </p>
-      {view.needsReview === true && (
-        <p role="alert">
-          The models did not fully agree, so read every line carefully:{" "}
-          {view.reviewReasons.join("; ")}.
-        </p>
-      )}
+      <HiddenLinesNotice hidden={view.source.hiddenLines ?? []} />
+      <ReviewNotice view={view} />
       <CategoryNotice view={view} dealCategory={dealCategory} />
       {missing.length > 0 && <p>Not stated in the chat: {missing.join(", ")}.</p>}
 
@@ -209,6 +256,9 @@ export function DraftReview({
             {view.source.lines.map((line) => (
               <li key={line.n} id={`chat-line-${String(line.n)}`}>
                 <code>{line.n}</code> {line.text}
+                {view.source.hiddenLines?.includes(line.n) === true && (
+                  <strong style={{ color: "#8a1c1c" }}> (hidden from the AI)</strong>
+                )}
               </li>
             ))}
           </ol>

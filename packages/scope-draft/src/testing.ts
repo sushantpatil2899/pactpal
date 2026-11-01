@@ -1,5 +1,11 @@
 /** Test support for other packages: the Maya chat and draft, and the prompt-injection cases and judge. */
-export { ALL_MISSING_DRAFT, MAYA_CHAT, MAYA_DRAFT, TEST_CATEGORIES } from "./maya-fixtures.js";
+export {
+  ALL_MISSING_DRAFT,
+  MAYA_CHAT,
+  MAYA_DRAFT,
+  SUNRISE_CHAT,
+  TEST_CATEGORIES,
+} from "./maya-fixtures.js";
 export {
   BLOCKED_OR_UNCLEAR,
   CHAT_CASES,

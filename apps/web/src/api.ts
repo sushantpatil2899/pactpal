@@ -447,8 +447,17 @@ export interface DraftView {
   status: DraftStatus;
   createdAt: string;
   finishedAt: string | null;
-  /** The chat file it was made from; `lines` is its numbered text, given for finished drafts. */
-  source: { fileId: string; sha256: string; lines: ChatLine[] | null };
+  /**
+   * The chat file it was made from. `lines` is its numbered text and `hiddenLines` the numbers of
+   * lines hidden from the models because they look like orders to an AI; both are given only for
+   * finished drafts.
+   */
+  source: {
+    fileId: string;
+    sha256: string;
+    lines: ChatLine[] | null;
+    hiddenLines: number[] | null;
+  };
   failureReason: string | null;
   draft: DraftContent | null;
   category: { fromChat: string; label: string; verdict: CategoryVerdict; note: string } | null;
@@ -497,6 +506,7 @@ const isDraftView = (value: unknown): value is DraftView =>
   isObject(value.source) &&
   typeof value.source.fileId === "string" &&
   (value.source.lines === null || Array.isArray(value.source.lines)) &&
+  (value.source.hiddenLines === null || Array.isArray(value.source.hiddenLines)) &&
   Array.isArray(value.reviewReasons) &&
   (value.draft === null || isDraftContent(value.draft)) &&
   (value.council === null || isCouncil(value.council));

@@ -160,7 +160,7 @@ describe("agreed work saved from an AI draft", () => {
           sellerId: env.seller.id,
           sourceArtifactId: file.id,
           sourceSha256: file.sha256,
-          draftPromptVersion: 1,
+          draftPromptVersion: 2,
           rankPromptVersion: 1,
         },
         TEST_NOW,
