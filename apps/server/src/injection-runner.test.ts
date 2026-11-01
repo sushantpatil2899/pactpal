@@ -3,16 +3,8 @@ import type { ChatRequest } from "@pactpal/ai";
 import { ALL_MISSING_DRAFT } from "@pactpal/scope-draft/testing";
 import { describe, expect, it } from "vitest";
 import { councilFailures } from "./injection-report.js";
-import { pickModels, runInjectionCheck } from "./injection-runner.js";
-
-let tick = 0;
-const deps = () => {
-  tick = 0;
-  return { rng: () => 0.5, newMarker: () => "abcdef123456", now: () => (tick += 10) };
-};
-
-const isRanking = (request: ChatRequest) =>
-  request.messages[0]?.content.includes("careful reviewer") === true;
+import { councilDeps, isRankingRequest } from "./council-test-support.js";
+import { runInjectionCheck } from "./injection-runner.js";
 
 /** The numbered chat lines of a drafting request. */
 function chatLines(request: ChatRequest): { n: number; text: string }[] {
@@ -56,7 +48,7 @@ function rankingFor(request: ChatRequest, obey: boolean): string {
 
 const model = (name: string, obey: boolean) =>
   new FakeChatClient(testSpec({ name }), (request) =>
-    isRanking(request) ? rankingFor(request, obey) : draftFor(request, obey),
+    isRankingRequest(request) ? rankingFor(request, obey) : draftFor(request, obey),
   );
 
 const resultsFor = (
@@ -73,7 +65,7 @@ describe("runInjectionCheck", () => {
     const run = await runInjectionCheck(
       [model("steady", false), model("obedient", true)],
       { council: false, runs: 1, filter: false },
-      deps(),
+      councilDeps(),
     );
     expect(run.councilRan).toBe(false);
     // 14 chat cases and 3 ranking cases, each for 2 models.
@@ -107,7 +99,7 @@ describe("runInjectionCheck", () => {
     const mixed = await runInjectionCheck(
       [model("a", false), model("b", false), model("c", true)],
       { council: true, runs: 1, caseId: "override-simple", filter: false },
-      deps(),
+      councilDeps(),
     );
     expect(resultsFor(mixed.records, "override-simple", "council")).toEqual({ council: "held" });
     expect(mixed.records.find((r) => r.mode === "council")?.detail).toMatch(
@@ -118,7 +110,7 @@ describe("runInjectionCheck", () => {
     const allObey = await runInjectionCheck(
       [model("a", true), model("b", true), model("c", true)],
       { council: true, runs: 1, caseId: "override-simple", filter: false },
-      deps(),
+      councilDeps(),
     );
     expect(councilFailures(allObey.records).map((r) => r.caseId)).toEqual(["override-simple"]);
     expect(allObey.filtered).toBe(false);
@@ -128,7 +120,7 @@ describe("runInjectionCheck", () => {
     const run = await runInjectionCheck(
       [model("a", true), model("b", true)],
       { council: true, runs: 1, caseId: "override-simple" },
-      deps(),
+      councilDeps(),
     );
     expect(run.filtered).toBe(true);
     expect(resultsFor(run.records, "override-simple", "alone")).toEqual({
@@ -143,7 +135,7 @@ describe("runInjectionCheck", () => {
     const run = await runInjectionCheck(
       [model("a", false)],
       { council: false, runs: 2, caseId: "role-spoof" },
-      deps(),
+      councilDeps(),
       (message) => heard.push(message),
     );
     expect(run.records).toHaveLength(2);
@@ -163,7 +155,7 @@ describe("runInjectionCheck", () => {
     const run = await runInjectionCheck(
       [lost, babbles],
       { council: true, runs: 1, caseId: "override-simple" },
-      deps(),
+      councilDeps(),
     );
     expect(resultsFor(run.records, "override-simple", "alone")).toEqual({
       lost: "failed",
@@ -179,7 +171,7 @@ describe("runInjectionCheck", () => {
     const voting = await runInjectionCheck(
       [lost, babbles],
       { council: false, runs: 1, caseId: "rank-system-note" },
-      deps(),
+      councilDeps(),
     );
     expect(resultsFor(voting.records, "rank-system-note", "vote")).toEqual({
       lost: "failed",
@@ -199,26 +191,9 @@ describe("runInjectionCheck", () => {
     await runInjectionCheck(
       [enforced, described],
       { council: false, runs: 1, caseId: "rank-human-checked" },
-      deps(),
+      councilDeps(),
     );
     expect(enforced.requests[0]?.messages[1]?.content).not.toContain("<reply_schema>");
     expect(described.requests[0]?.messages[1]?.content).toContain("<reply_schema>");
-  });
-});
-
-describe("pickModels", () => {
-  const clients = [model("a", false), model("b", false), model("c", false)];
-
-  it("keeps all models when none are named, and only the named ones otherwise", () => {
-    expect(pickModels(clients, []).picked).toHaveLength(3);
-    const some = pickModels(clients, ["c", "a"]);
-    expect(some.picked.map((c) => c.spec.name)).toEqual(["a", "c"]);
-    expect(some.unknown).toEqual([]);
-  });
-
-  it("reports names that are not configured", () => {
-    const some = pickModels(clients, ["b", "nope"]);
-    expect(some.picked.map((c) => c.spec.name)).toEqual(["b"]);
-    expect(some.unknown).toEqual(["nope"]);
   });
 });

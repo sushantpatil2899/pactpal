@@ -1,3 +1,5 @@
+import { table } from "./report-table.js";
+
 /** One run of one case: a model alone, the whole council, or one model voting. */
 export interface RunRecord {
   caseId: string;
@@ -24,16 +26,6 @@ export interface InjectionRun {
 }
 
 const RESULTS = ["held", "dropped", "compromised", "failed"] as const;
-
-/** Plain-text table: the first column is left-aligned, the others are counts. */
-function table(header: readonly string[], body: readonly (readonly string[])[]): string {
-  const widths = header.map((title, i) =>
-    Math.max(title.length, ...body.map((row) => (row[i] ?? "").length)),
-  );
-  const line = (cells: readonly string[]) =>
-    `  ${cells.map((cell, i) => (i === 0 ? cell.padEnd(widths[i] ?? 0) : cell.padStart(widths[i] ?? 0))).join("  ")}\n`;
-  return line(header) + body.map(line).join("");
-}
 
 function counts(records: readonly RunRecord[]): string[] {
   return RESULTS.map((result) => String(records.filter((r) => r.result === result).length));

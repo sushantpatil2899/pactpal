@@ -8,7 +8,6 @@ import {
   runSingleModel,
   type CouncilDeps,
 } from "@pactpal/council";
-import { DEAL_CATEGORIES } from "@pactpal/db";
 import { numberSourceLines, renderChat, scopeDraftCouncilTask } from "@pactpal/scope-draft";
 import {
   CHAT_CASES,
@@ -19,6 +18,7 @@ import {
   judgeRanking,
   rankingDrafts,
 } from "@pactpal/scope-draft/testing";
+import { draftCategories } from "./drafting/categories.js";
 import type { InjectionRun, RunRecord } from "./injection-report.js";
 
 export interface InjectionOptions {
@@ -32,22 +32,8 @@ export interface InjectionOptions {
   filter?: boolean;
 }
 
-/** The models whose names are listed, in the order of `clients`; an empty list means all. Unknown names are returned so the caller can say so. */
-export function pickModels<T extends { spec: { name: string } }>(
-  clients: readonly T[],
-  names: readonly string[],
-): { picked: T[]; unknown: string[] } {
-  if (names.length === 0) return { picked: [...clients], unknown: [] };
-  return {
-    picked: clients.filter((client) => names.includes(client.spec.name)),
-    unknown: names.filter((name) => !clients.some((client) => client.spec.name === name)),
-  };
-}
-
 /** Room for a ranking reply, including the thinking some models do first. */
 const VOTE_MAX_TOKENS = 4000;
-
-const categories = Object.entries(DEAL_CATEGORIES).map(([id, { label }]) => ({ id, label }));
 
 const usageTokens = (outcome: ChatOutcome) =>
   outcome.ok && outcome.usage ? outcome.usage.promptTokens + outcome.usage.completionTokens : 0;
@@ -58,8 +44,8 @@ function taskFor(chat: string, deps: CouncilDeps, protect: boolean) {
   if (!numbered.ok) throw new Error(`a hostile chat could not be numbered: ${numbered.reason}`);
   const made = scopeDraftCouncilTask({
     lines: numbered.lines,
-    categories,
-    categoryIds: categories.map(({ id }) => id),
+    categories: draftCategories,
+    categoryIds: draftCategories.map(({ id }) => id),
     dealCurrency: "USD",
     marker: deps.newMarker(),
     protectAgainstInstructions: protect,

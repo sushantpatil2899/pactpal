@@ -17,7 +17,8 @@
     "sandbox:webhook": "tsx src/sandbox-webhook.ts",
     "seed:sandbox": "tsx src/seed-sandbox.ts",
     "ai:check": "tsx src/ai-check.ts",
-    "eval:injection": "tsx src/injection-check.ts"
+    "eval:injection": "tsx src/injection-check.ts",
+    "eval:scope": "tsx src/eval-scope.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",

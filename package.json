@@ -25,6 +25,7 @@
     "env:check": "pnpm --filter @pactpal/server env:check",
     "ai:check": "pnpm --filter @pactpal/server ai:check",
     "eval:injection": "pnpm --filter @pactpal/server eval:injection",
+    "eval:scope": "pnpm --filter @pactpal/server eval:scope",
     "migrate": "pnpm --filter @pactpal/server migrate",
     "sandbox:check": "pnpm --filter @pactpal/server sandbox:check",
     "sandbox:invoice": "pnpm --filter @pactpal/server sandbox:invoice",

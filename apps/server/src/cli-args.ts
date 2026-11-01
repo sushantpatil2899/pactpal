@@ -19,6 +19,20 @@ export function readOptions<O extends NonNullable<ParseArgsConfig["options"]>>(
   }
 }
 
+/** The value of a checked command line; a bad one prints the problem and the usage line, then exits with 1. */
+export function valueOrExit<T>(checked: Checked<T>, usage: string): T {
+  if (!checked.ok) {
+    process.stderr.write(`${checked.error}\n${usage}\n`);
+    process.exit(1);
+  }
+  return checked.value;
+}
+
+/** Progress lines of the long live commands go to stderr, so stdout holds only the report. */
+export function logProgress(message: string): void {
+  process.stderr.write(`${message}\n`);
+}
+
 /** Reads the options, then checks their values with `schema`. */
 export function readChecked<T>(
   argv: readonly string[],

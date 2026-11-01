@@ -1,11 +1,12 @@
 import { COUNCIL_RANK_PROMPT_VERSION, runCouncil } from "@pactpal/council";
-import { DEAL_CATEGORIES, failDraft, finishDraft, type Database, type Deal } from "@pactpal/db";
+import { failDraft, finishDraft, type Database, type Deal } from "@pactpal/db";
 import {
   SCOPE_DRAFT_PROMPT_VERSION,
   categoryVerdict,
   scopeDraftCouncilTask,
   type SourceLine,
 } from "@pactpal/scope-draft";
+import { draftCategories } from "./categories.js";
 import { toCouncilRecord, toJson } from "./council-record.js";
 import type { DraftingRuntime } from "./runtime.js";
 
@@ -13,9 +14,6 @@ export const PROMPT_VERSIONS = {
   draft: SCOPE_DRAFT_PROMPT_VERSION,
   rank: COUNCIL_RANK_PROMPT_VERSION,
 };
-
-/** The categories the models may choose from, as the draft prompt wants them. */
-const categories = Object.entries(DEAL_CATEGORIES).map(([id, { label }]) => ({ id, label }));
 
 export interface DraftJob {
   draftId: string;
@@ -46,8 +44,8 @@ export async function runDraftJob(
   try {
     const made = scopeDraftCouncilTask({
       lines: source.lines,
-      categories,
-      categoryIds: categories.map(({ id }) => id),
+      categories: draftCategories,
+      categoryIds: draftCategories.map(({ id }) => id),
       dealCurrency: deal.currency,
       marker: runtime.council.newMarker(),
     });

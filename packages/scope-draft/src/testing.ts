@@ -1,4 +1,4 @@
-/** Test support for other packages: the Maya chat and draft, and the prompt-injection cases and judge. */
+/** Test support for other packages: the Maya chat and draft, the prompt-injection cases and judge, and the evals cases and scoring. */
 export {
   ALL_MISSING_DRAFT,
   MAYA_CHAT,
@@ -26,3 +26,11 @@ export {
   type Judgement,
   type Result,
 } from "./injection-judge.js";
+export { EVAL_CASES, type EvalCase, type EvalGold } from "./eval-cases.js";
+export {
+  SCORED_FIELDS,
+  SCORED_LISTS,
+  scoreDraft,
+  type DraftScore,
+  type FieldVerdict,
+} from "./eval-judge.js";

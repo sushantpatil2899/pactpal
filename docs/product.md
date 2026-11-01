@@ -136,4 +136,5 @@ Tools to create a deal from text, read deal status and completeness, list disput
 4. Human confirmation, with a diff view, before anything is sent to a buyer or to PayPal.
 5. No outcome promises, no legal conclusions, never "legally binding" or "court proof".
 6. A prompt-injection test set runs before each demo (`pnpm eval:injection --council`; `--models a,b` limits it to some models).
-7. Minimal personal data, stated retention, logging notice shown at acceptance.
+7. Draft quality is measured by `pnpm eval:scope`: each model alone and the council, scored against known right answers (wrong values counted separately).
+8. Minimal personal data, stated retention, logging notice shown at acceptance.
