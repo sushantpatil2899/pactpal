@@ -16,6 +16,7 @@ export { SCOPE_DRAFT_SCHEMA_NAME, scopeDraftWireSchema } from "./wire-schema.js"
 export {
   SCOPE_DRAFT_PROMPT_VERSION,
   buildScopeDraftMessages,
+  renderChat,
   type ScopeDraftPrompt,
   type ScopeDraftPromptInput,
 } from "./prompt.js";
@@ -33,3 +34,4 @@ export {
   type ScopeDraftCheck,
   type ValidationContext,
 } from "./validate.js";
+export { scopeDraftCouncilTask, type ScopeDraftTask } from "./council-task.js";

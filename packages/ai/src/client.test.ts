@@ -179,6 +179,22 @@ describe("OpenAiCompatibleClient", () => {
     expect(await lost.ask()).toMatchObject({ ok: false, kind: "network" });
   });
 
+  it("reports a host that is too slow to send the body, or drops it half way, without throwing", async () => {
+    const broken = (error: Error) =>
+      new Response(
+        new ReadableStream({
+          start: (controller) => {
+            controller.error(error);
+          },
+        }),
+      );
+    const slow = await setup([broken(new DOMException("timed out", "TimeoutError"))]).ask();
+    expect(slow).toMatchObject({ ok: false, kind: "timeout", message: "test-model: timed out" });
+    const dropped = await setup([broken(new Error("socket closed"))]).ask();
+    expect(dropped).toMatchObject({ ok: false, kind: "network" });
+    expect(dropped.ok ? "" : dropped.message).toBe("test-model: the reply was cut short");
+  });
+
   it("keeps the host's short error code and nothing else from its error answer", async () => {
     const wording = `invalid request: ${PROMPT}`;
     const nested = setup([

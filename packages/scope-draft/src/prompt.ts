@@ -1,4 +1,5 @@
 import type { ChatMessage, JsonSchema } from "@pactpal/ai";
+import { isValidMarker } from "@pactpal/council";
 import { BLOCKED_CATEGORIES } from "./category.js";
 import type { SourceLine } from "./source.js";
 
@@ -50,7 +51,9 @@ export interface ScopeDraftPromptInput {
 export type ScopeDraftPrompt =
   { ok: true; messages: ChatMessage[] } | { ok: false; reason: "bad-marker" | "marker-in-chat" };
 
-const MARKER_FORMAT = /^[a-z0-9]{8,32}$/;
+/** The chat as the models see it: one `L<number>| text` line per numbered line. */
+export const renderChat = (lines: readonly SourceLine[]): string =>
+  lines.map(({ n, text }) => `L${String(n)}| ${text}`).join("\n");
 
 const listOf = (items: readonly { id: string; label: string }[]) =>
   items.map(({ id, label }) => `${id}: ${label}`).join("\n");
@@ -61,7 +64,7 @@ function userMessage(input: ScopeDraftPromptInput): string {
     replySchema === undefined
       ? ""
       : `<reply_schema>\n${JSON.stringify(replySchema)}\n</reply_schema>\n\n`;
-  const chat = lines.map(({ n, text }) => `L${String(n)}| ${text}`).join("\n");
+  const chat = renderChat(lines);
   return `<deal_currency>${dealCurrency}</deal_currency>
 
 <allowed_categories>
@@ -86,7 +89,7 @@ Reply with the JSON object now.`;
  * in an element named with a random marker; a chat that already contains that name is refused.
  */
 export function buildScopeDraftMessages(input: ScopeDraftPromptInput): ScopeDraftPrompt {
-  if (!MARKER_FORMAT.test(input.marker)) return { ok: false, reason: "bad-marker" };
+  if (!isValidMarker(input.marker)) return { ok: false, reason: "bad-marker" };
   if (input.lines.some(({ text }) => text.includes(`chat-${input.marker}`))) {
     return { ok: false, reason: "marker-in-chat" };
   }

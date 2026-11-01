@@ -189,7 +189,18 @@ export class OpenAiCompatibleClient implements ChatClient {
       throw error;
     }
 
-    const text = await response.text();
+    // The time limit also covers reading the body, so a slow host can fail here, after its headers.
+    let text: string;
+    try {
+      text = await response.text();
+    } catch (error) {
+      const timedOut = error instanceof Error && error.name === "TimeoutError";
+      return failure(
+        spec,
+        timedOut ? "timeout" : "network",
+        timedOut ? "timed out" : "the reply was cut short",
+      );
+    }
     if (!response.ok) {
       const code = providerCode(text);
       const kind = kindOfStatus(response.status);
