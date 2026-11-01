@@ -8,7 +8,7 @@ export function testSpec(overrides: Partial<ModelSpec> = {}): ModelSpec {
     baseUrl: "https://models.test/v1",
     apiKeyEnv: "TEST_API_KEY",
     model: "test-1",
-    jsonMode: true,
+    structuredOutput: "schema",
     ...overrides,
   };
 }

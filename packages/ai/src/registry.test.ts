@@ -1,6 +1,13 @@
 import { Secret } from "@pactpal/net";
 import { describe, expect, it } from "vitest";
-import { MODEL_REGISTRY, keyNames, readyModels, registryProblems } from "./registry.js";
+import {
+  MODEL_REGISTRY,
+  keyNames,
+  readyModels,
+  registryProblems,
+  schemaEnforced,
+} from "./registry.js";
+import { STRUCTURED_OUTPUT_LEVELS } from "./types.js";
 import { testSpec } from "./testing.js";
 
 describe("MODEL_REGISTRY", () => {
@@ -16,6 +23,21 @@ describe("MODEL_REGISTRY", () => {
       "MISTRAL_API_KEY",
       "OPENROUTER_API_KEY",
     ]);
+  });
+});
+
+describe("schemaEnforced", () => {
+  it("is true only when the host itself makes the reply fit the schema", () => {
+    const answers = STRUCTURED_OUTPUT_LEVELS.map((level) =>
+      schemaEnforced(testSpec({ structuredOutput: level })),
+    );
+    expect(answers).toEqual([true, true, false, false]);
+  });
+
+  it("gives every registered model one of the known levels", () => {
+    for (const spec of MODEL_REGISTRY) {
+      expect(STRUCTURED_OUTPUT_LEVELS).toContain(spec.structuredOutput);
+    }
   });
 });
 

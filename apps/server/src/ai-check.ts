@@ -26,7 +26,7 @@ const checks = await Promise.all(
       messages: [{ role: "user", content: AI_CHECK_PROMPT }],
       maxTokens: 1000,
       temperature: 0,
-      json: true,
+      reply: "json",
     });
     return { spec, check: summarizeOutcome(outcome) };
   }),

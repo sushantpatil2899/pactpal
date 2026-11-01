@@ -10,8 +10,19 @@ export type {
   ChatMessage,
   ChatOutcome,
   ChatRequest,
+  JsonSchema,
   ModelSpec,
+  ReplyFormat,
+  StructuredOutput,
   TokenUsage,
 } from "./types.js";
-export { MODEL_REGISTRY, keyNames, readyModels, registryProblems } from "./registry.js";
+export { STRUCTURED_OUTPUT_LEVELS } from "./types.js";
+export {
+  MODEL_REGISTRY,
+  keyNames,
+  readyModels,
+  registryProblems,
+  schemaEnforced,
+} from "./registry.js";
+export { parseJsonReply, type JsonReply } from "./json-reply.js";
 export { AI_RETRY_POLICY, OpenAiCompatibleClient, type ClientOptions } from "./client.js";

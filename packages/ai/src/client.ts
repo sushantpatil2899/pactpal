@@ -12,6 +12,7 @@ import type {
   ChatOutcome,
   ChatRequest,
   ModelSpec,
+  ReplyFormat,
   TokenUsage,
 } from "./types.js";
 
@@ -106,6 +107,20 @@ function usageOf(parsed: z.infer<typeof reply>): TokenUsage | undefined {
     : { promptTokens, completionTokens };
 }
 
+/** The `response_format` to send, or nothing when the model cannot be given one. */
+function responseFormat(spec: ModelSpec, reply: ReplyFormat | undefined): object | undefined {
+  if (reply === undefined || spec.structuredOutput === "none") return undefined;
+  if (reply === "json" || spec.structuredOutput === "json-object") return { type: "json_object" };
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: reply.name,
+      schema: reply.schema,
+      ...(spec.structuredOutput === "strict-schema" ? { strict: true } : {}),
+    },
+  };
+}
+
 export interface ClientOptions {
   deps?: HttpDeps;
   policy?: RetryPolicy;
@@ -137,14 +152,13 @@ export class OpenAiCompatibleClient implements ChatClient {
     if (this.#key === undefined) {
       return failure(spec, "no_key", `no key set (${spec.apiKeyEnv})`);
     }
+    const format = responseFormat(spec, request.reply);
     const body = {
       model: spec.model,
       messages: request.messages,
       max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
       temperature: request.temperature ?? DEFAULT_TEMPERATURE,
-      ...(request.json === true && spec.jsonMode
-        ? { response_format: { type: "json_object" } }
-        : {}),
+      ...(format === undefined ? {} : { response_format: format }),
     };
     const startedAt = this.#deps.now();
 

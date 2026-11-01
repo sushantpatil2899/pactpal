@@ -2,6 +2,7 @@ import { Secret, type HttpDeps } from "@pactpal/net";
 import { describe, expect, it } from "vitest";
 import { inspect } from "node:util";
 import { AI_RETRY_POLICY, OpenAiCompatibleClient } from "./client.js";
+import type { ChatRequest } from "./types.js";
 import { testSpec } from "./testing.js";
 
 const KEY = "sk-very-secret-key";
@@ -39,7 +40,7 @@ function setup(steps: Step[], spec = testSpec()) {
     random: () => 0.5,
   };
   const client = new OpenAiCompatibleClient(spec, new Secret(KEY), { deps });
-  const ask = (extra: { json?: boolean; maxTokens?: number; temperature?: number } = {}) =>
+  const ask = (extra: Pick<ChatRequest, "reply" | "maxTokens" | "temperature"> = {}) =>
     client.complete({ messages: [{ role: "user", content: PROMPT }], ...extra });
   const sentBody = () => {
     const body = calls[0]?.init.body;
@@ -76,18 +77,39 @@ describe("OpenAiCompatibleClient", () => {
     expect(sentBody()).toMatchObject({ max_tokens: 50, temperature: 0 });
   });
 
-  it("asks for a JSON object only when requested and the model supports it", async () => {
-    const wanted = setup([completion("{}")]);
-    await wanted.ask({ json: true });
-    expect(wanted.sentBody()).toMatchObject({ response_format: { type: "json_object" } });
+  const shape = {
+    name: "draft",
+    schema: { type: "object", properties: { a: { type: "string" } } },
+  };
 
-    const notWanted = setup([completion("{}")]);
-    await notWanted.ask();
-    expect(notWanted.sentBody()).not.toHaveProperty("response_format");
+  it("sends no response format unless the caller asks for one", async () => {
+    const plain = setup([completion("{}")]);
+    await plain.ask();
+    expect(plain.sentBody()).not.toHaveProperty("response_format");
+  });
 
-    const unsupported = setup([completion("{}")], testSpec({ jsonMode: false }));
-    await unsupported.ask({ json: true });
-    expect(unsupported.sentBody()).not.toHaveProperty("response_format");
+  it.each([
+    ["strict-schema", { type: "json_schema", json_schema: { ...shape, strict: true } }],
+    ["schema", { type: "json_schema", json_schema: shape }],
+    ["json-object", { type: "json_object" }],
+    ["none", undefined],
+  ] as const)("sends a schema in the way a %s model allows", async (level, expected) => {
+    const run = setup([completion("{}")], testSpec({ structuredOutput: level }));
+    await run.ask({ reply: shape });
+    if (expected === undefined) expect(run.sentBody()).not.toHaveProperty("response_format");
+    else expect(run.sentBody().response_format).toEqual(expected);
+  });
+
+  it.each([
+    ["strict-schema", { type: "json_object" }],
+    ["schema", { type: "json_object" }],
+    ["json-object", { type: "json_object" }],
+    ["none", undefined],
+  ] as const)("asks for plain JSON from a %s model", async (level, expected) => {
+    const run = setup([completion("{}")], testSpec({ structuredOutput: level }));
+    await run.ask({ reply: "json" });
+    if (expected === undefined) expect(run.sentBody()).not.toHaveProperty("response_format");
+    else expect(run.sentBody().response_format).toEqual(expected);
   });
 
   it("reports a missing key without sending anything", async () => {

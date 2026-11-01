@@ -10,9 +10,25 @@ export interface ModelSpec {
   apiKeyEnv: string;
   /** The host's own id for the model. */
   model: string;
-  /** Whether the host accepts "reply with a JSON object" (`response_format`). */
-  jsonMode: boolean;
+  /** How much of the reply's shape the host enforces itself (see `StructuredOutput`). */
+  structuredOutput: StructuredOutput;
 }
+
+/**
+ * How far the host enforces the shape of a reply through the API (`response_format`).
+ * - `strict-schema`: the host forces the reply to fit a JSON schema.
+ * - `schema`: the schema is sent, but the host may treat it as a strong hint only.
+ * - `json-object`: the host guarantees valid JSON, not its shape.
+ * - `none`: nothing is enforced; the caller must describe the shape in the prompt.
+ */
+export const STRUCTURED_OUTPUT_LEVELS = ["strict-schema", "schema", "json-object", "none"] as const;
+export type StructuredOutput = (typeof STRUCTURED_OUTPUT_LEVELS)[number];
+
+/** A JSON schema as plain data. */
+export type JsonSchema = Record<string, unknown>;
+
+/** The shape the caller wants the reply in. */
+export type ReplyFormat = "json" | { name: string; schema: JsonSchema };
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -25,8 +41,11 @@ export interface ChatRequest {
   maxTokens?: number;
   /** Default 0.2: steady answers; the council gets its variety from different models. */
   temperature?: number;
-  /** Ask for a JSON object. Sent only to models whose `jsonMode` is on. */
-  json?: boolean;
+  /**
+   * The shape the reply should have. Sent in the way the model's `structuredOutput` level
+   * allows: as a schema, as "any JSON object", or not at all.
+   */
+  reply?: ReplyFormat;
 }
 
 export interface TokenUsage {

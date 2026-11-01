@@ -14,7 +14,7 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     apiKeyEnv: "GEMINI_API_KEY",
     model: "gemini-3.6-flash",
-    jsonMode: true,
+    structuredOutput: "schema",
   },
   {
     name: "qwen-groq",
@@ -22,7 +22,7 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     baseUrl: "https://api.groq.com/openai/v1",
     apiKeyEnv: "GROQ_API_KEY",
     model: "qwen/qwen3.8-27b",
-    jsonMode: true,
+    structuredOutput: "schema",
   },
   {
     name: "gpt-oss-groq",
@@ -30,7 +30,7 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     baseUrl: "https://api.groq.com/openai/v1",
     apiKeyEnv: "GROQ_API_KEY",
     model: "openai/gpt-oss-120b",
-    jsonMode: true,
+    structuredOutput: "strict-schema",
   },
   {
     name: "mistral",
@@ -38,7 +38,7 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     baseUrl: "https://api.mistral.ai/v1",
     apiKeyEnv: "MISTRAL_API_KEY",
     model: "ministral-14b-latest",
-    jsonMode: true,
+    structuredOutput: "schema",
   },
   {
     name: "nemotron-openrouter",
@@ -46,9 +46,14 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     baseUrl: "https://openrouter.ai/api/v1",
     apiKeyEnv: "OPENROUTER_API_KEY",
     model: "nvidia/nemotron-3-ultra-550b-a55b:free",
-    jsonMode: false,
+    structuredOutput: "none",
   },
 ];
+
+/** True when the host itself makes the reply fit the schema, so the prompt need not describe it. */
+export function schemaEnforced(spec: ModelSpec): boolean {
+  return spec.structuredOutput === "strict-schema" || spec.structuredOutput === "schema";
+}
 
 const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
 

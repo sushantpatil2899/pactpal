@@ -1,4 +1,4 @@
-import type { ChatOutcome, ModelSpec } from "@pactpal/ai";
+import { parseJsonReply, type ChatOutcome, type ModelSpec } from "@pactpal/ai";
 import { rows } from "./format.js";
 
 /** The tiny question `pnpm ai:check` asks every model that has a key. */
@@ -17,20 +17,16 @@ export type ModelCheck =
     }
   | { status: "failed"; error: string };
 
-/** Models often wrap JSON in a code fence even when told not to. */
-function parsesAsStatusOk(text: string): boolean {
-  const unfenced = text
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "");
-  try {
-    const value: unknown = JSON.parse(unfenced);
-    return (
-      typeof value === "object" && value !== null && "status" in value && value.status === "OK"
-    );
-  } catch {
-    return false;
-  }
+/** True when the reply is the JSON object the check asked for. */
+function isStatusOk(outcome: ChatOutcome): boolean {
+  const reply = parseJsonReply(outcome);
+  return (
+    reply.ok &&
+    typeof reply.value === "object" &&
+    reply.value !== null &&
+    "status" in reply.value &&
+    reply.value.status === "OK"
+  );
 }
 
 /** Turns one model's answer into what the report shows. */
@@ -42,7 +38,7 @@ export function summarizeOutcome(outcome: ChatOutcome): ModelCheck {
     latencyMs: outcome.latencyMs,
     tokens:
       usage === undefined ? undefined : `${usage.promptTokens} + ${usage.completionTokens} tokens`,
-    jsonReply: parsesAsStatusOk(outcome.text),
+    jsonReply: isStatusOk(outcome),
   };
 }
 
