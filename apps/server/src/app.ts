@@ -9,7 +9,6 @@ import { dealRoutes } from "./deals/routes.js";
 import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "./email/sender.js";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
-import { registerConnectionCheck } from "./request-origin.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
 
@@ -117,7 +116,6 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     drafting: opts.drafting,
     recordIp: trustProxyHops !== undefined,
   });
-  registerConnectionCheck(app, trustProxyHops);
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 
   void app.register(

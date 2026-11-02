@@ -366,6 +366,9 @@ const isAcceptance = (value: unknown): value is AcceptanceView =>
 const acceptanceUrl = (dealId: string, step = "") =>
   `/api/deals/${encodeURIComponent(dealId)}/acceptance${step === "" ? "" : `/${step}`}`;
 
+/** The receipt PDF of a signed deal, for both sides; the browser saves it as a file. */
+export const receiptUrl = (dealId: string) => acceptanceUrl(dealId, "receipt");
+
 export async function getAcceptance(dealId: string): Promise<AcceptanceView> {
   return readChecked(await fetch(acceptanceUrl(dealId)), isAcceptance, "load the acceptance");
 }

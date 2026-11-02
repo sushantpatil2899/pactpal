@@ -1,4 +1,5 @@
 import {
+  AcceptanceIntegrityError,
   AcceptanceNotAllowedError,
   acceptTerms,
   declineReasonSchema,
@@ -21,8 +22,10 @@ import {
   acceptanceDocument,
   fingerprinted,
 } from "../acceptance/document.js";
+import { ReceiptIntegrityError, buildReceipt } from "../acceptance/receipt.js";
 import { requestOrigin, type RequestOrigin } from "../request-origin.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
+import { sendDownload } from "./download.js";
 import { nameOf } from "./parties.js";
 import { roleIn } from "./visibility.js";
 
@@ -161,6 +164,26 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
   app.get("/api/deals/:id/acceptance", async (request, reply) => {
     const found = await visibleDeal(request, reply);
     return found ? answer(reply, found) : reply;
+  });
+
+  // The receipt: made from the signed copy each time, the same bytes every time.
+  app.get("/api/deals/:id/acceptance/receipt", async (request, reply) => {
+    const found = await visibleDeal(request, reply);
+    if (!found) return reply;
+    const { db, deal } = found;
+    try {
+      const acceptance = await getLatestAcceptance(db, deal.id);
+      if (!acceptance) return await reply.code(404).send({ error: "not signed yet" });
+      const entry = (await readLedger(db, deal.id)).find((e) => e.seq === acceptance.ledgerSeq);
+      const receipt = await buildReceipt(acceptance, entry);
+      return await sendDownload(reply, { mediaType: "application/pdf", ...receipt });
+    } catch (error) {
+      if (!(error instanceof AcceptanceIntegrityError || error instanceof ReceiptIntegrityError)) {
+        throw error;
+      }
+      request.log.error({ dealId: deal.id }, "Signed copy failed its check; no receipt sent");
+      return reply.code(409).send({ error: "this receipt failed its check and was not sent" });
+    }
   });
 
   app.post("/api/deals/:id/acceptance/request", async (request, reply) => {

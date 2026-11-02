@@ -30,6 +30,7 @@
     "@pactpal/ledger": "workspace:*",
     "@pactpal/net": "workspace:*",
     "@pactpal/paypal": "workspace:*",
+    "@pactpal/pdf": "workspace:*",
     "@pactpal/scope-draft": "workspace:*",
     "fastify": "^5.12.7",
     "pg": "^8.23.1",

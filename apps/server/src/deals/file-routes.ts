@@ -14,6 +14,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requestOrigin } from "../request-origin.js";
 import type { DealLookup } from "./access.js";
+import { sendDownload } from "./download.js";
 
 export interface FileRouteOptions {
   database: Database | undefined;
@@ -48,19 +49,6 @@ function fileNameFrom(header: string | string[] | undefined): string | undefined
   } catch {
     return undefined;
   }
-}
-
-/**
- * `attachment` with the name twice: a plain-ASCII copy for old browsers and the exact name
- * encoded as RFC 5987 describes, so quotes or line breaks in a name cannot break the header.
- */
-export function attachmentHeader(filename: string): string {
-  const ascii = filename.replace(/[^\x20-\x7e]|["\\]/g, "_");
-  const exact = encodeURIComponent(filename).replace(
-    /['()*]/g,
-    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${exact}`;
 }
 
 const fileView = (file: Artifact) => ({
@@ -140,13 +128,11 @@ export const fileRoutes: FastifyPluginAsync<FileRouteOptions> = (app, options) =
         params.data.fileId,
         found.deal.id,
       );
-      return await reply
-        .header("content-type", artifact.mediaType)
-        .header("content-disposition", attachmentHeader(artifact.filename))
-        // Even if a browser opened it, the file could not run scripts or load anything.
-        .header("content-security-policy", "default-src 'none'; sandbox")
-        .header("cache-control", "private, no-store")
-        .send(Buffer.from(bytes));
+      return await sendDownload(reply, {
+        mediaType: artifact.mediaType,
+        filename: artifact.filename,
+        bytes,
+      });
     } catch (error) {
       if (error instanceof ArtifactNotFoundError)
         return reply.code(404).send({ error: "not found" });

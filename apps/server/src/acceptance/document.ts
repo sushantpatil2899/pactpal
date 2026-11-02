@@ -1,4 +1,5 @@
 import { documentFingerprint, type Deal, type ScopeVersion } from "@pactpal/db";
+import { z } from "zod";
 import { categoryLabelOf } from "../deals/parties.js";
 import { scopeTerms } from "../deals/scope-view.js";
 
@@ -21,12 +22,50 @@ export const ACCEPTANCE_NOTICE = {
 /** Changes whenever the document's shape changes, so stored documents keep their meaning. */
 export const ACCEPTANCE_DOCUMENT_FORMAT = 1;
 
+const money = z.object({ minor: z.number().int(), text: z.string() });
+
 /**
- * The acceptance document: everything the buyer's page shows, as plain data. The page draws only
- * from it, so what is fingerprinted is what is shown. Built the same way every time from the same
- * deal, seller name and version, so the server can rebuild it and compare fingerprints.
+ * The acceptance document, format 1: everything the buyer's page shows, as plain data. The page
+ * draws only from it, so what is fingerprinted is what is shown. Stored documents are read back
+ * through this schema (for the receipt), and the builder below must produce exactly this shape.
  */
-export function acceptanceDocument(input: { deal: Deal; sellerName: string; scope: ScopeVersion }) {
+export const acceptanceDocumentSchema = z.strictObject({
+  format: z.literal(ACCEPTANCE_DOCUMENT_FORMAT),
+  dealId: z.string(),
+  title: z.string(),
+  category: z.string(),
+  sellerName: z.string(),
+  terms: z.strictObject({
+    version: z.number().int(),
+    contentSha256: z.string(),
+    currency: z.string(),
+    summary: z.string(),
+    deliverables: z.array(z.string()),
+    exclusions: z.array(z.string()),
+    revisionsIncluded: z.number().int().nullable(),
+    dueDate: z.string().nullable(),
+    milestones: z.array(
+      z.strictObject({ title: z.string(), amount: money, dueDate: z.string().nullable() }),
+    ),
+    total: money,
+  }),
+  notice: z.strictObject({
+    version: z.number().int(),
+    title: z.string(),
+    lines: z.array(z.string()),
+  }),
+});
+export type AcceptanceDocument = z.infer<typeof acceptanceDocumentSchema>;
+
+/**
+ * Builds the acceptance document the same way every time from the same deal, seller name and
+ * version, so the server can rebuild it and compare fingerprints.
+ */
+export function acceptanceDocument(input: {
+  deal: Deal;
+  sellerName: string;
+  scope: ScopeVersion;
+}): AcceptanceDocument {
   const { deal, sellerName, scope } = input;
   return {
     format: ACCEPTANCE_DOCUMENT_FORMAT,
@@ -38,7 +77,6 @@ export function acceptanceDocument(input: { deal: Deal; sellerName: string; scop
     notice: { ...ACCEPTANCE_NOTICE, lines: [...ACCEPTANCE_NOTICE.lines] },
   };
 }
-export type AcceptanceDocument = ReturnType<typeof acceptanceDocument>;
 
 /** The document with its fingerprint (SHA-256 of its canonical JSON). */
 export function fingerprinted(document: AcceptanceDocument) {

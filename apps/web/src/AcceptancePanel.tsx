@@ -4,6 +4,7 @@ import {
   acceptTerms,
   declineTerms,
   getAcceptance,
+  receiptUrl,
   requestAcceptance,
   withdrawAcceptance,
   type AcceptanceView,
@@ -90,6 +91,11 @@ export function AcceptancePanel({
         <p role="status">
           Signed by {view.accepted.typedName} on {when(view.accepted.at)} (version{" "}
           {view.accepted.version}).
+        </p>
+        <p>
+          <a href={receiptUrl(deal.id)} download>
+            Download the receipt (PDF)
+          </a>
         </p>
         {shown && (
           <details>

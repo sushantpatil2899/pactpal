@@ -1,5 +1,6 @@
 import { getLatestAcceptance, readLedger, verifyStoredLedger } from "@pactpal/db";
 import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
+import { pdfTextLines } from "@pactpal/pdf/testing";
 import { describe, expect, it } from "vitest";
 import { ACCEPTANCE_NOTICE } from "../acceptance/document.js";
 import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
@@ -291,5 +292,66 @@ describe("acceptance", () => {
     const missing = `/api/deals/${testId(999)}/acceptance`;
     expect((await env.call("GET", missing, env.token)).statusCode).toBe(404);
     await env.app.close();
+  });
+});
+
+describe("the receipt", () => {
+  /** A deal the buyer has signed by link, and the receipt's address. */
+  async function signedDeal() {
+    const env = await savedDeal();
+    const documentSha256 = await send(env);
+    await env.call("POST", `${env.base}/accept`, env.buyerLink, {
+      documentSha256,
+      typedName: "Chris Buyer",
+    });
+    return { ...env, documentSha256, receipt: `${env.base}/receipt` };
+  }
+
+  it("gives both sides the same PDF, as a file to save", async () => {
+    const { app, call, receipt, token, buyerLink, buyerPayPal } = await signedDeal();
+    const fromSeller = await call("GET", receipt, token);
+    expect(fromSeller.statusCode).toBe(200);
+    expect(fromSeller.headers["content-type"]).toBe("application/pdf");
+    expect(fromSeller.headers["content-disposition"]).toContain(
+      'attachment; filename="pactpal-receipt-v1.pdf"',
+    );
+    expect(fromSeller.headers["content-security-policy"]).toBe("default-src 'none'; sandbox");
+    expect(fromSeller.headers["cache-control"]).toBe("private, no-store");
+    const lines = pdfTextLines(fromSeller.rawPayload);
+    expect(lines).toContain("Chris Buyer");
+    expect(lines).toContain("Maya");
+    for (const visitor of [buyerLink, buyerPayPal]) {
+      const fromBuyer = await call("GET", receipt, visitor);
+      expect(fromBuyer.rawPayload.equals(fromSeller.rawPayload)).toBe(true);
+    }
+    await app.close();
+  });
+
+  it("is not there before the buyer signs, nor for someone who cannot see the deal", async () => {
+    const env = await savedDeal();
+    expect((await env.call("GET", `${env.base}/receipt`, env.token)).json()).toEqual({
+      error: "not signed yet",
+    });
+    expect((await env.call("GET", `${env.base}/receipt`)).statusCode).toBe(401);
+    expect(
+      (await env.call("GET", `/api/deals/${testId(999)}/acceptance/receipt`, env.token)).statusCode,
+    ).toBe(404);
+    await env.app.close();
+  });
+
+  it("is refused, and logged, when the signed copy no longer matches its fingerprint", async () => {
+    const { app, call, receipt, token, logs } = await signedDeal();
+    await db.query("ALTER TABLE acceptances DISABLE TRIGGER acceptances_append_only");
+    // A changed typed name (checked against the log entry) and a changed page (its fingerprint).
+    await db.query(`UPDATE acceptances SET typed_name = 'Someone else'`);
+    const renamed = await call("GET", receipt, token);
+    expect(renamed.statusCode).toBe(409);
+    expect(renamed.json()).toEqual({ error: "this receipt failed its check and was not sent" });
+    await db.query(`UPDATE acceptances SET typed_name = 'Chris Buyer'`);
+    expect((await call("GET", receipt, token)).statusCode).toBe(200);
+    await db.query(`UPDATE acceptances SET document = jsonb_set(document, '{title}', '"Changed"')`);
+    expect((await call("GET", receipt, token)).statusCode).toBe(409);
+    expect(logs.join("")).toContain("Signed copy failed its check; no receipt sent");
+    await app.close();
   });
 });

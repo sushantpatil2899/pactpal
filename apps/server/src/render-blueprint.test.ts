@@ -2,7 +2,7 @@
 import { MODEL_REGISTRY } from "@pactpal/ai";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { settingsFor } from "./config.js";
+import { loadConfig, settingsFor } from "./config.js";
 import { PAYPAL_WEBHOOK_PATH } from "./webhooks/paypal-webhook.js";
 
 const blueprint = readFileSync(new URL("../../../render.yaml", import.meta.url), "utf8");
@@ -83,6 +83,13 @@ describe("render.yaml", () => {
     expect(field("ipAllowList", databaseSection)).toBe("[]");
     const version = /postgresMajorVersion: "(\d+)"/.exec(databaseSection)?.[1];
     expect(ciWorkflow).toContain(`image: postgres:${version ?? "missing"}`);
+  });
+
+  it("tells the server how many proxies stand in front of it, as a value it accepts", () => {
+    const hops = /- key: TRUST_PROXY_HOPS\n\s+value: "(\d+)"\n/.exec(serviceSection)?.[1];
+    expect(hops).toBe("2");
+    const loaded = loadConfig({ TRUST_PROXY_HOPS: hops });
+    expect(loaded.ok && loaded.config.trustProxyHops).toBe(2);
   });
 
   it("knows no settings for an unknown feature", () => {

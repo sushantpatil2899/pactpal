@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readLedger } from "@pactpal/db";
 import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
-import { attachmentHeader } from "./file-routes.js";
+import { attachmentHeader } from "./download.js";
 import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
@@ -17,12 +17,17 @@ async function sellerDeal(trustProxyHops?: number) {
   const env = dealTestApp(db, undefined, trustProxyHops === undefined ? {} : { trustProxyHops });
   const token = await signedInAs(db, seller.id);
   const url = `/api/deals/${dealId}/files`;
-  const upload = (bytes: Buffer, name: string | null = "chat.pdf", as = token) =>
+  const upload = (
+    bytes: Buffer,
+    name: string | null = "chat.pdf",
+    as = token,
+    forwardedFor = "198.51.100.9",
+  ) =>
     env.call("POST", url, as, bytes, {
       "content-type": "application/octet-stream",
       ...(name === null ? {} : { "x-file-name": encodeURIComponent(name) }),
       "user-agent": "TestBrowser/1.0",
-      "x-forwarded-for": "198.51.100.9",
+      "x-forwarded-for": forwardedFor,
     });
   return { ...env, seller, buyer, dealId, token, url, upload };
 }
@@ -54,12 +59,21 @@ describe("files on a deal", () => {
     await app.close();
   });
 
-  it("records the uploader's address once the number of proxies is known", async () => {
-    const { app, dealId, upload } = await sellerDeal(1);
-    expect((await upload(pdf)).statusCode).toBe(201);
-    expect((await readLedger(db, dealId)).at(-1)?.ip).toBe("198.51.100.9");
-    await app.close();
-  });
+  it.each([
+    // Render, measured 1 Nov 2026: whatever the visitor sends, then the visitor (added by
+    // Cloudflare), then Cloudflare (added by Render's front server, the connection itself).
+    [2, "1.2.3.4,160.79.106.128, 104.22.93.137", "160.79.106.128"],
+    [1, "198.51.100.9", "198.51.100.9"],
+    [0, "198.51.100.9", "127.0.0.1"],
+  ])(
+    "records the uploader's address when %i proxies are trusted",
+    async (hops, forwardedFor, recorded) => {
+      const { app, dealId, upload } = await sellerDeal(hops);
+      expect((await upload(pdf, "chat.pdf", undefined, forwardedFor)).statusCode).toBe(201);
+      expect((await readLedger(db, dealId)).at(-1)?.ip).toBe(recorded);
+      await app.close();
+    },
+  );
 
   it("downloads the exact bytes as a saved file that cannot run in the page", async () => {
     const { app, call, url, token, upload } = await sellerDeal();
