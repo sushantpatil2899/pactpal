@@ -5,6 +5,7 @@ import {
   RESEND_EMAILS_URL,
   ResendEmailSender,
   StandInEmailSender,
+  isReservedTestAddress,
   type EmailMessage,
 } from "./index.js";
 
@@ -13,7 +14,7 @@ const FROM = "PactPal <receipts@send.pactpal.test>";
 
 const message: EmailMessage = {
   kind: "receipt",
-  to: "chris@example.com",
+  to: "chris@buyer.pact-pal.app",
   subject: "Receipt",
   text: "Private text with a link https://pactpal.test/link#t=SECRET",
   idempotencyKey: "receipt:deal:v1:buyer:1",
@@ -65,7 +66,7 @@ describe("ResendEmailSender", () => {
     });
     expect(sentBody(call?.init)).toEqual({
       from: FROM,
-      to: ["chris@example.com"],
+      to: ["chris@buyer.pact-pal.app"],
       subject: "Receipt",
       text: message.text,
       attachments: [{ filename: "pactpal-receipt-v1.pdf", content: "JVBERg==" }],
@@ -107,7 +108,7 @@ describe("ResendEmailSender", () => {
   it.each([
     [
       422,
-      { name: "validation_error", message: "chris@example.com is invalid" },
+      { name: "validation_error", message: "chris@buyer.pact-pal.app is invalid" },
       "rejected",
       "Resend answered 422 (validation_error)",
     ],
@@ -128,7 +129,7 @@ describe("ResendEmailSender", () => {
       );
       const result = await sender(network(answers).deps).send(message);
       expect(result).toEqual({ ok: false, reason, detail });
-      expect(JSON.stringify(result)).not.toContain("chris@example.com");
+      expect(JSON.stringify(result)).not.toContain("chris@");
     },
   );
 
@@ -176,6 +177,32 @@ describe("ResendEmailSender", () => {
     expect(calls).toHaveLength(0);
     expect(JSON.stringify(sender(deps))).not.toContain(KEY);
   });
+
+  it.each([
+    "sb-47abc@business.example.com",
+    "buyer@personal.example.com",
+    "someone@EXAMPLE.org",
+    "x@example.net",
+    "rosa@example.test",
+    "a@shop.invalid",
+    "a@host.localhost",
+    "a@site.example",
+  ])("never sends to the reserved test address %s", async (to) => {
+    const { deps, calls } = network([]);
+    expect(await sender(deps).send({ ...message, to })).toEqual({
+      ok: false,
+      reason: "rejected",
+      detail: "reserved test address",
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each(["you+buyer@gmail.com", "a@notexample.com", "a@example.com.au", "a@testing.dev"])(
+    "sends to the real address %s",
+    (to) => {
+      expect(isReservedTestAddress(to)).toBe(false);
+    },
+  );
 
   it("refuses a message that is not valid before sending anything", async () => {
     const { deps, calls } = network([]);

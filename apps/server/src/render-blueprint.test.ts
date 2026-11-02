@@ -94,6 +94,13 @@ describe("render.yaml", () => {
     expect(loaded.ok && loaded.config.trustProxyHops).toBe(2);
   });
 
+  it("sends email from the verified domain, as a plain value the server accepts", () => {
+    const from = /- key: EMAIL_FROM\n\s+value: (\S+)\n/.exec(serviceSection)?.[1];
+    expect(from).toBe("receipts@updates.pact-pal.app");
+    const loaded = loadConfig({ EMAIL_FROM: from, RESEND_API_KEY: "re_test" });
+    expect(loaded.ok && loaded.config.email?.from).toBe("PactPal <receipts@updates.pact-pal.app>");
+  });
+
   it("knows no settings for an unknown feature", () => {
     expect(settingsFor("Nope")).toEqual([]);
   });

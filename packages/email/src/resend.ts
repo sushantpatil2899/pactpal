@@ -34,6 +34,22 @@ const sentAnswer = z.looseObject({ id: z.string().min(1) });
 /** Resend's error answers carry a short error name, e.g. "validation_error"; only that is shown. */
 const errorAnswer = z.looseObject({ name: z.string().regex(/^[\w.-]{1,64}$/) });
 
+/**
+ * Domains set aside for examples and testing (RFC 2606 and 6761): they never receive mail.
+ * PayPal sandbox accounts and test buyers use them, and sending there would only bounce.
+ */
+const RESERVED_DOMAINS = ["example.com", "example.net", "example.org"];
+const RESERVED_ENDINGS = [".example", ".test", ".invalid", ".localhost"];
+
+/** Whether an address is on a domain reserved for examples and testing (subdomains included). */
+export function isReservedTestAddress(address: string): boolean {
+  const domain = address.slice(address.lastIndexOf("@") + 1).toLowerCase();
+  return (
+    RESERVED_DOMAINS.some((name) => domain === name || domain.endsWith(`.${name}`)) ||
+    RESERVED_ENDINGS.some((ending) => domain.endsWith(ending))
+  );
+}
+
 class EmailNetworkError extends Error {
   constructor(readonly timedOut: boolean) {
     super(timedOut ? "timed out" : "could not reach Resend");
@@ -62,7 +78,8 @@ export interface ResendOptions {
 }
 
 /**
- * Sends email through Resend's API over HTTPS. Failures come back as values. The key goes only in
+ * Sends email through Resend's API over HTTPS. Failures come back as values. Addresses on
+ * domains reserved for testing are refused without calling Resend. The key goes only in
  * the request header; failure details hold the status and Resend's short error name, never the
  * address, the text or the key.
  */
@@ -84,6 +101,10 @@ export class ResendEmailSender implements EmailSender {
     const message = emailMessageSchema.parse(input);
     if (this.#key === undefined) {
       return { ok: false, reason: "not_configured", detail: "RESEND_API_KEY is not set" };
+    }
+    // A bounce would hurt the sending domain's reputation, so these are never sent.
+    if (isReservedTestAddress(message.to)) {
+      return { ok: false, reason: "rejected", detail: "reserved test address" };
     }
     const body = {
       from: this.#from,
