@@ -7,6 +7,7 @@ import { DraftPanel } from "./DraftPanel";
 import type { DraftFill } from "./draft-fill";
 import { when } from "./format";
 import { FilesPanel } from "./FilesPanel";
+import { logLabels } from "./log-labels";
 import { ScopePanel } from "./ScopePanel";
 import {
   SIGN_IN_PATH,
@@ -18,53 +19,6 @@ import {
   type LedgerCheck,
   type LedgerEntryView,
 } from "./api";
-
-/** Plain words for the evidence log's event types; unknown types are shown as they are. */
-const EVENT_LABELS: Record<string, string> = {
-  DEAL_CREATED: "Deal created",
-  BUYER_ADDED: "Buyer added",
-  SOURCE_ADDED: "Source added",
-  DELIVERABLE_ADDED: "Delivery file added",
-  SCOPE_VERSIONED: "Agreed work saved",
-  SCOPE_DRAFTED: "AI draft made",
-  SCOPE_CONFIRMED: "Agreed work confirmed from an AI draft",
-  ACCEPTANCE_REQUESTED: "Sent to the buyer for acceptance",
-  ACCEPTANCE_WITHDRAWN: "Acceptance request withdrawn",
-  ACCEPTED: "Buyer signed",
-  DECLINED: "Buyer declined",
-  RECEIPT_SENT: "Receipt emailed",
-  INVOICE_SENT: "Invoice sent",
-  PAYMENT_RECEIVED: "Payment received",
-  DELIVERY_SENT: "Delivery sent",
-  DELIVERY_EMAILED: "Delivery emailed to the buyer",
-  DELIVERY_VIEWED: "Delivery opened",
-  DELIVERY_DOWNLOADED: "File downloaded",
-  MILESTONE_APPROVED: "Approved",
-  CHANGE_REQUESTED: "Changes requested",
-  NOTE_ADDED: "Note added",
-};
-
-/** The entry's label; a saved version names its number, an added file its name. */
-function labelOf(entry: LedgerEntryView): string {
-  const label = EVENT_LABELS[entry.type] ?? entry.type;
-  const { payload } = entry;
-  const field = (name: string): unknown =>
-    typeof payload === "object" && payload !== null && name in payload
-      ? (payload as Record<string, unknown>)[name]
-      : undefined;
-  const version = field("version");
-  const filename = field("filename");
-  const to = field("to");
-  const stage = field("stage");
-  const recipient =
-    to === "buyer" || to === "seller"
-      ? ` to the ${to}`
-      : typeof stage === "number"
-        ? ` for stage ${String(stage)}`
-        : "";
-  if (typeof version === "number") return `${label}${recipient} (version ${String(version)})`;
-  return typeof filename === "string" ? `${label}: ${filename}` : label;
-}
 
 const who = (entry: LedgerEntryView) =>
   entry.actor === "system" ? "PactPal" : (entry.actorName ?? entry.actor);
@@ -117,6 +71,7 @@ export function DealPage({ dealId }: { dealId: string }) {
     );
   }
   if (!deal || !entries) return <p aria-busy="true">Loading the deal…</p>;
+  const labels = logLabels(entries);
   return (
     <>
       <p>
@@ -188,9 +143,9 @@ export function DealPage({ dealId }: { dealId: string }) {
       <section aria-labelledby="evidence-log">
         <h3 id="evidence-log">Evidence log</h3>
         <ol>
-          {entries.map((entry) => (
+          {entries.map((entry, i) => (
             <li key={entry.seq}>
-              {labelOf(entry)} by {who(entry)}, {when(entry.serverTime)}{" "}
+              {labels[i]} by {who(entry)}, {when(entry.serverTime)}{" "}
               <code title="This entry's fingerprint">{entry.entryHash.slice(0, 12)}…</code>
             </li>
           ))}
