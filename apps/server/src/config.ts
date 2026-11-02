@@ -22,11 +22,14 @@ const PAYPAL_APPS = {
 
 export type PayPalApp = keyof typeof PAYPAL_APPS;
 /** `ai:<VARIABLE>` is one AI host key, taken from the model registry. */
-type Part = PayPalApp | "webhook" | "database" | "publicUrl" | `ai:${string}`;
+type Part = PayPalApp | "webhook" | "database" | "publicUrl" | "email" | `ai:${string}`;
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
 const DATABASE_URL = "DATABASE_URL";
 const PUBLIC_BASE_URL = "PUBLIC_BASE_URL";
+const RESEND_API_KEY = "RESEND_API_KEY";
+/** The sender's address on the domain verified in Resend; "PactPal" is added as its name. */
+const EMAIL_FROM = "EMAIL_FROM";
 const DEFAULT_PORT = 3000;
 
 function appVars(app: PayPalApp): { id: string; secret: string } {
@@ -44,6 +47,7 @@ function partVars(part: Part): string[] {
   if (part === "webhook") return [WEBHOOK_ID];
   if (part === "database") return [DATABASE_URL];
   if (part === "publicUrl") return [PUBLIC_BASE_URL];
+  if (part === "email") return [RESEND_API_KEY, EMAIL_FROM];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
@@ -57,6 +61,7 @@ export const SETTING_NAMES: readonly string[] = [
   "webhook" as const,
   "database" as const,
   "publicUrl" as const,
+  "email" as const,
   ...AI_KEYS.map((name): Part => `ai:${name}`),
 ].flatMap(partVars);
 
@@ -69,6 +74,8 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Webhooks", needs: ["seller", "webhook", "database"], runtime: true },
   { name: "Database", needs: ["database"], runtime: true },
   { name: "Sign in with PayPal", needs: ["seller", "publicUrl", "database"], runtime: true },
+  // Without it the server uses a stand-in that sends nothing; links can still be copied by hand.
+  { name: "Email (Resend)", needs: ["email"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
   // Not runtime yet: the server starts using AI models in sub-phase 3d.
@@ -121,6 +128,7 @@ const ADDRESS_RULES: Record<string, { valid: (url: URL) => boolean; message: str
 
 /** True unless the setting is an address that breaks its rule. */
 function addressAllowed(name: string, value: string): boolean {
+  if (name === EMAIL_FROM) return z.email().safeParse(value).success;
   const rule = ADDRESS_RULES[name];
   const url = parseUrl(value);
   return rule === undefined || (url !== undefined && rule.valid(url));
@@ -152,6 +160,8 @@ export interface Config {
   ai: { keys: Record<string, Secret> };
   /** The site's own address without a trailing slash, e.g. https://pactpal-server.onrender.com. */
   publicBaseUrl?: string;
+  /** Resend's key and the sender, e.g. `PactPal <receipts@send.example.com>`; absent until both are set. */
+  email?: { apiKey: Secret; from: string };
   /**
    * How many proxies stand in front of the server, from `TRUST_PROXY_HOPS`. Absent until measured:
    * visitors' IP addresses are then not recorded, because the address seen would be the proxy's.
@@ -194,7 +204,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     if (!parsed.success) {
       errors.push(`${name} ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
     } else if (!addressAllowed(name, parsed.data)) {
-      errors.push(`${name} ${ADDRESS_RULES[name]?.message ?? ""}`);
+      errors.push(`${name} ${ADDRESS_RULES[name]?.message ?? "must be an email address"}`);
     } else {
       values.set(name, parsed.data);
     }
@@ -246,6 +256,11 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
   const publicBaseUrl = values.get(PUBLIC_BASE_URL);
   if (publicBaseUrl !== undefined) config.publicBaseUrl = new URL(publicBaseUrl).origin;
   if (trustProxyHops !== undefined) config.trustProxyHops = trustProxyHops;
+  const resendKey = values.get(RESEND_API_KEY);
+  const emailFrom = values.get(EMAIL_FROM);
+  if (resendKey !== undefined && emailFrom !== undefined) {
+    config.email = { apiKey: new Secret(resendKey), from: `PactPal <${emailFrom}>` };
+  }
   return { ok: true, config, report };
 }
 

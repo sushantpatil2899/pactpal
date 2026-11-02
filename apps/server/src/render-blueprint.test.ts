@@ -48,6 +48,8 @@ describe("render.yaml", () => {
     expect(keys).toEqual([
       ...settingsFor("Webhooks").filter((name) => name !== "DATABASE_URL"),
       ...aiKeys,
+      // The email sender is not secret: it is a plain value, added once the domain is verified.
+      ...settingsFor("Email (Resend)").filter((name) => name !== "EMAIL_FROM"),
     ]);
     // Sign-in needs nothing secret beyond those.
     for (const name of settingsFor("Sign in with PayPal")) {

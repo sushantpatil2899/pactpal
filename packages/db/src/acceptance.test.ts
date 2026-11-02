@@ -1,3 +1,4 @@
+import { sha256Hex } from "@pactpal/ledger";
 import { describe, expect, it } from "vitest";
 import {
   AcceptanceIntegrityError,
@@ -8,6 +9,7 @@ import {
   getDeal,
   getLatestAcceptance,
   readLedger,
+  recordReceiptSent,
   requestAcceptance,
   saveScopeVersion,
   verifyStoredLedger,
@@ -290,5 +292,37 @@ describe("acceptance", () => {
     await db.query("ALTER TABLE acceptances DISABLE TRIGGER acceptances_append_only");
     await db.query(`UPDATE acceptances SET document = '{"format": 1, "title": "Changed"}'`);
     await expect(getLatestAcceptance(db, dealId)).rejects.toBeInstanceOf(AcceptanceIntegrityError);
+  });
+
+  it("records a receipt email by the system, with the address only as a fingerprint", async () => {
+    const { dealId, request, signing } = await savedDeal();
+    await requestAcceptance(db, request, at(2));
+    await acceptTerms(db, signing, at(3));
+    const entry = await recordReceiptSent(
+      db,
+      {
+        dealId,
+        version: 1,
+        to: "buyer",
+        receiptSha256: "d".repeat(64),
+        email: "Chris@Example.com",
+        providerMessageId: "msg_1",
+      },
+      at(4),
+    );
+    expect(entry).toMatchObject({
+      type: "RECEIPT_SENT",
+      actor: "system",
+      payload: {
+        version: 1,
+        to: "buyer",
+        receiptSha256: "d".repeat(64),
+        emailSha256: sha256Hex("chris@example.com"),
+        providerMessageId: "msg_1",
+      },
+    });
+    expect(entry.actorId).toBeUndefined();
+    expect(JSON.stringify(entry)).not.toContain("xample.com");
+    expect((await verifyStoredLedger(db, dealId)).valid).toBe(true);
   });
 });

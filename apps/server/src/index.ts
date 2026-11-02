@@ -9,6 +9,7 @@ import {
   PayPalRestClient,
   PayPalWebhooks,
 } from "@pactpal/paypal";
+import { ResendEmailSender } from "@pactpal/email";
 import { buildApp, closeOnSignals } from "./app.js";
 import { councilClients, createDraftingRuntime } from "./drafting/runtime.js";
 import { formatErrors, loadConfig } from "./config.js";
@@ -38,6 +39,8 @@ const app = buildApp(report, {
   drafting:
     database && members.length > 0 ? createDraftingRuntime({ clients: members }) : undefined,
   webDir: existsSync(webDir) ? webDir : undefined,
+  // Without Resend's key and a sender the app uses its stand-in, which sends nothing.
+  ...(config.email ? { email: new ResendEmailSender(config.email) } : {}),
   ...(config.trustProxyHops === undefined ? {} : { trustProxyHops: config.trustProxyHops }),
   signIn: {
     // The seller app stands in for PactPal's own PayPal app until Phase 6.

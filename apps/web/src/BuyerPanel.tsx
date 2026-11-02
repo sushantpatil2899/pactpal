@@ -15,7 +15,9 @@ export function BuyerPanel({
   deal: DealSummary;
   onDealChange: (deal: DealSummary) => void;
 }) {
-  const [link, setLink] = useState<{ url: string; expiresAt: string } | undefined>();
+  const [link, setLink] = useState<
+    { url: string; expiresAt: string; emailed: boolean } | undefined
+  >();
   const [problem, setProblem] = useState<string | undefined>();
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -119,8 +121,10 @@ export function BuyerPanel({
               </p>
               <p>
                 Works until {dateOf(link.expiresAt)} and opens only this deal. Making a new link
-                cancels the old one. Email sending is not set up yet: copy the link and send it to
-                the buyer yourself.
+                cancels the old one.{" "}
+                {link.emailed
+                  ? "It was also emailed to the buyer."
+                  : "It was not emailed: copy the link and send it to the buyer yourself."}
               </p>
             </div>
           )}

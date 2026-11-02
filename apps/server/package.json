@@ -27,6 +27,7 @@
     "@pactpal/ai": "workspace:*",
     "@pactpal/council": "workspace:*",
     "@pactpal/db": "workspace:*",
+    "@pactpal/email": "workspace:*",
     "@pactpal/ledger": "workspace:*",
     "@pactpal/net": "workspace:*",
     "@pactpal/paypal": "workspace:*",

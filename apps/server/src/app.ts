@@ -7,7 +7,7 @@ import { linkRoutes } from "./auth/links.js";
 import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
 import { dealRoutes } from "./deals/routes.js";
 import type { DraftingRuntime } from "./drafting/runtime.js";
-import { StandInEmailSender, type EmailSender } from "./email/sender.js";
+import { StandInEmailSender, type EmailSender } from "@pactpal/email";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";

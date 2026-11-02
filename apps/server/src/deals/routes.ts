@@ -14,9 +14,10 @@ import {
   type Database,
   type Deal,
 } from "@pactpal/db";
+import { sha256Hex } from "@pactpal/ledger";
 import type { FastifyPluginAsync } from "fastify";
 import { dealLinkEmail, dealLinkUrl } from "../email/deal-link-email.js";
-import type { EmailSender } from "../email/sender.js";
+import type { EmailSender } from "@pactpal/email";
 import { dealAccess, readBody, requireViewer } from "./access.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { draftRoutes } from "./draft-routes.js";
@@ -95,7 +96,14 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
 
   const { visibleDeal, sellersDeal, buyersDeal } = dealAccess(database, clock);
   void app.register(scopeRoutes, { visibleDeal, sellersDeal, clock });
-  void app.register(acceptanceRoutes, { visibleDeal, sellersDeal, buyersDeal, clock, recordIp });
+  void app.register(acceptanceRoutes, {
+    visibleDeal,
+    sellersDeal,
+    buyersDeal,
+    clock,
+    recordIp,
+    email,
+  });
   void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId, recordIp });
   void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
 
@@ -170,8 +178,8 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
       { dealId: deal.id, userId: buyer.id },
       clock(),
     );
-    await email.send(
-      dealLinkEmail({
+    const sent = await email.send({
+      ...dealLinkEmail({
         publicBaseUrl,
         to: buyer.email,
         token,
@@ -179,11 +187,22 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
         sellerName: nameOf(viewer.user, "Seller"),
         expiresAt,
       }),
-    );
+      // A repeat of the same link is one email; the key holds only the link's fingerprint.
+      idempotencyKey: `deal-link:${sha256Hex(token)}`,
+    });
+    if (sent.ok)
+      request.log.info({ dealId: deal.id, providerMessageId: sent.id }, "Buyer link emailed");
+    else if (email.live) {
+      request.log.warn(
+        { dealId: deal.id, reason: sent.reason, detail: sent.detail },
+        "Buyer link email not sent",
+      );
+    }
     request.log.info({ dealId: deal.id }, "Buyer link made");
     return reply.send({
       url: dealLinkUrl(publicBaseUrl, token),
       expiresAt: expiresAt.toISOString(),
+      emailed: sent.ok,
     });
   });
 

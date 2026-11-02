@@ -3,33 +3,44 @@ import { TEST_NOW, testId } from "@pactpal/db/testing";
 import { buildApp } from "../app.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
-import type { EmailMessage } from "../email/sender.js";
+import { StandInEmailSender, type EmailMessage, type EmailSender } from "@pactpal/email";
 
 /**
  * Test code only: the app with deal routes on a test database, a fixed clock and numbered ids
- * (from 200), capturing sent email and log lines, optionally trusting a number of proxies. `call` sends a request, signed in when given a
- * session token, with an optional body and headers.
+ * (from 200), capturing sent email and log lines, optionally trusting a number of proxies.
+ * Email is "live" and succeeds unless the address is in `failEmailTo`, or is off with
+ * `emailOff`. `call` sends a request, signed in when given a session token, with an optional
+ * body and headers.
  */
 export function dealTestApp(
   db: Database | undefined,
   drafting?: DraftingRuntime,
-  options: { trustProxyHops?: number } = {},
+  options: { trustProxyHops?: number; emailOff?: boolean } = {},
 ) {
   let ids = 200;
   const sent: EmailMessage[] = [];
+  const failEmailTo = new Set<string>();
   const logs: string[] = [];
+  const { emailOff = false, ...appOptions } = options;
+  const email: EmailSender = emailOff
+    ? new StandInEmailSender({ info: () => undefined })
+    : {
+        live: true,
+        send: (message) => {
+          if (failEmailTo.has(message.to)) {
+            return Promise.resolve({ ok: false, reason: "server", detail: "Resend answered 500" });
+          }
+          sent.push(message);
+          return Promise.resolve({ ok: true, id: `msg_${String(sent.length)}` });
+        },
+      };
   const app = buildApp(
     { settings: [], features: [] },
     {
       logger: { stream: { write: (line) => logs.push(line) } },
-      email: {
-        send: (message) => {
-          sent.push(message);
-          return Promise.resolve();
-        },
-      },
+      email,
       ...(drafting ? { drafting } : {}),
-      ...options,
+      ...appOptions,
       // Only the routes get the database: the app would close it when the app closes.
       signIn: {
         login: undefined,
@@ -54,7 +65,7 @@ export function dealTestApp(
       ...(headers ? { headers } : {}),
       ...(token ? { cookies: { [SESSION_COOKIE]: token } } : {}),
     });
-  return { app, call, sent, logs };
+  return { app, call, sent, failEmailTo, logs };
 }
 
 /** A signed-in (PayPal) session token for a user. */

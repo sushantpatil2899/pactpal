@@ -154,5 +154,10 @@ export async function buildReceipt(acceptance: Acceptance, entry: LedgerEntry | 
     replacedCharactersNote:
       "Some characters could not be shown here; the exact text is in the signed record.",
   });
-  return { bytes, filename: `pactpal-receipt-v${String(acceptance.version)}.pdf` };
+  return {
+    bytes,
+    filename: `pactpal-receipt-v${String(acceptance.version)}.pdf`,
+    /** The signed page the receipt was made from, already checked. */
+    document: document.data,
+  };
 }

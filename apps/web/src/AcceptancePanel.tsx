@@ -3,6 +3,7 @@ import { AcceptanceDocument } from "./AcceptanceDocument";
 import {
   acceptTerms,
   declineTerms,
+  emailReceiptAgain,
   getAcceptance,
   receiptUrl,
   requestAcceptance,
@@ -12,6 +13,38 @@ import {
 } from "./api";
 import { when } from "./format";
 import { FULL_WIDTH } from "./styles";
+
+/**
+ * When the receipt was emailed: the buyer sees their own; the seller sees both and can send it
+ * again when one is missing or was lost.
+ */
+function ReceiptEmails({
+  emails,
+  role,
+  busy,
+  onResend,
+}: {
+  emails: { buyer: string | null; seller: string | null };
+  role: "seller" | "buyer";
+  busy: boolean;
+  onResend: () => void;
+}) {
+  const line = (at: string | null, who: string) =>
+    at === null
+      ? `Receipt not emailed to ${who} yet.`
+      : `Receipt emailed to ${who} on ${when(at)}.`;
+  if (role === "buyer") return <p>{line(emails.buyer, "you")}</p>;
+  return (
+    <>
+      <p>
+        {line(emails.seller, "you")} {line(emails.buyer, "the buyer")}
+      </p>
+      <button type="button" disabled={busy} onClick={onResend}>
+        Email the receipt again
+      </button>
+    </>
+  );
+}
 
 const textOf = (value: FormDataEntryValue | null) =>
   typeof value === "string" ? value.trim() : "";
@@ -97,6 +130,17 @@ export function AcceptancePanel({
             Download the receipt (PDF)
           </a>
         </p>
+        {view.emailOn && view.receiptEmails && (
+          <ReceiptEmails
+            emails={view.receiptEmails}
+            role={deal.role}
+            busy={busy}
+            onResend={() => {
+              run(emailReceiptAgain(deal.id));
+            }}
+          />
+        )}
+        {alert}
         {shown && (
           <details>
             <summary>The page as it was signed</summary>

@@ -16,6 +16,7 @@ const fullEnv: Record<string, string> = {
   ),
   DATABASE_URL,
   PUBLIC_BASE_URL: "https://pactpal.example.com",
+  EMAIL_FROM: "receipts@send.pactpal.example.com",
 };
 
 const unsetSettings = (report: ConfigReport) =>
@@ -45,6 +46,8 @@ describe("loadConfig", () => {
     expect(config.paypal.webhookId).toBe(fullEnv.PAYPAL_WEBHOOK_ID);
     expect(config.database?.url.reveal()).toBe(DATABASE_URL);
     expect(config.publicBaseUrl).toBe("https://pactpal.example.com");
+    expect(config.email?.from).toBe("PactPal <receipts@send.pactpal.example.com>");
+    expect(config.email?.apiKey.reveal()).toBe(fullEnv.RESEND_API_KEY);
     expect(Object.keys(config.ai.keys)).toEqual([
       "GEMINI_API_KEY",
       "GROQ_API_KEY",
@@ -78,6 +81,7 @@ describe("loadConfig", () => {
       Webhooks: ["PAYPAL_WEBHOOK_ID", "DATABASE_URL"],
       Database: ["DATABASE_URL"],
       "Sign in with PayPal": ["PUBLIC_BASE_URL", "DATABASE_URL"],
+      "Email (Resend)": ["RESEND_API_KEY", "EMAIL_FROM"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
       "AI model: gemini": ["GEMINI_API_KEY"],
@@ -165,6 +169,15 @@ describe("loadConfig", () => {
     expect(expectErrors({ PORT: port })).toEqual(["PORT must be a whole number from 1 to 65535"]);
   });
 
+  it("turns email on only when both the key and the sender are set, and checks the sender", () => {
+    expect(expectLoaded({ RESEND_API_KEY: "re_key" }).config.email).toBeUndefined();
+    expect(expectLoaded({ EMAIL_FROM: "a@b.example" }).config.email).toBeUndefined();
+    expect(expectErrors({ EMAIL_FROM: "not-an-address" })).toEqual([
+      "EMAIL_FROM must be an email address",
+    ]);
+    expect(JSON.stringify(expectLoaded(fullEnv).config)).not.toContain(fullEnv.RESEND_API_KEY);
+  });
+
   it("reads how many proxies stand in front of the server, and leaves it unset by default", () => {
     expect(expectLoaded({}).config.trustProxyHops).toBeUndefined();
     expect(expectLoaded({ TRUST_PROXY_HOPS: "0" }).config.trustProxyHops).toBe(0);
@@ -195,6 +208,8 @@ describe("missingRuntimeSettings", () => {
       "PAYPAL_WEBHOOK_ID",
       "DATABASE_URL",
       "PUBLIC_BASE_URL",
+      "RESEND_API_KEY",
+      "EMAIL_FROM",
     ]);
   });
 
@@ -205,6 +220,8 @@ describe("missingRuntimeSettings", () => {
       PAYPAL_WEBHOOK_ID: "hook",
       DATABASE_URL,
       PUBLIC_BASE_URL: "https://pactpal.example.com",
+      RESEND_API_KEY: "re_key",
+      EMAIL_FROM: "receipts@send.pactpal.example.com",
     });
     expect(missingRuntimeSettings(report)).toEqual([]);
   });

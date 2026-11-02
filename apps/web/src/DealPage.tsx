@@ -30,6 +30,7 @@ const EVENT_LABELS: Record<string, string> = {
   ACCEPTANCE_WITHDRAWN: "Acceptance request withdrawn",
   ACCEPTED: "Buyer signed",
   DECLINED: "Buyer declined",
+  RECEIPT_SENT: "Receipt emailed",
   NOTE_ADDED: "Note added",
 };
 
@@ -43,7 +44,9 @@ function labelOf(entry: LedgerEntryView): string {
       : undefined;
   const version = field("version");
   const filename = field("filename");
-  if (typeof version === "number") return `${label} (version ${String(version)})`;
+  const to = field("to");
+  const recipient = to === "buyer" || to === "seller" ? ` to the ${to}` : "";
+  if (typeof version === "number") return `${label}${recipient} (version ${String(version)})`;
   return typeof filename === "string" ? `${label}: ${filename}` : label;
 }
 

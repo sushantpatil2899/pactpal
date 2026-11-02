@@ -15,6 +15,8 @@ import {
   type Database,
   type Deal,
 } from "@pactpal/db";
+import type { EmailSender } from "@pactpal/email";
+import type { LedgerEntry } from "@pactpal/ledger";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
@@ -22,6 +24,7 @@ import {
   acceptanceDocument,
   fingerprinted,
 } from "../acceptance/document.js";
+import { MAX_RECEIPT_EMAILS, emailReceipt, receiptsSent } from "../acceptance/receipt-mail.js";
 import { ReceiptIntegrityError, buildReceipt } from "../acceptance/receipt.js";
 import { requestOrigin, type RequestOrigin } from "../request-origin.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
@@ -36,6 +39,8 @@ export interface AcceptanceRouteOptions {
   clock: () => Date;
   /** Whether visitors' IP addresses are known (the number of proxies is set). */
   recordIp: boolean;
+  /** Sends the receipt to both sides after signing; the stand-in when email is off. */
+  email: EmailSender;
 }
 
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/);
@@ -73,21 +78,37 @@ async function currentDocument(db: Database, deal: Deal) {
 }
 
 /** When the buyer last declined, if that is the latest acceptance step: what the seller sees. */
-async function lastDecline(db: Database, dealId: string) {
-  const steps = (await readLedger(db, dealId)).filter((entry) => ACCEPTANCE_EVENTS.has(entry.type));
+function lastDecline(entries: readonly LedgerEntry[]) {
+  const steps = entries.filter((entry) => ACCEPTANCE_EVENTS.has(entry.type));
   const last = steps.at(-1);
   if (last?.type !== "DECLINED") return null;
   const parsed = z.object({ reason: z.string().optional() }).safeParse(last.payload);
   return { at: last.serverTime, reason: parsed.success ? (parsed.data.reason ?? null) : null };
 }
 
+/** When the receipt was last emailed to each side for this version, or null. */
+function receiptEmailTimes(entries: readonly LedgerEntry[], version: number) {
+  const sent = receiptsSent(entries, version);
+  const last = (to: "buyer" | "seller") => sent.filter((s) => s.to === to).at(-1)?.at ?? null;
+  return { buyer: last("buyer"), seller: last("seller") };
+}
+
 /**
  * The acceptance as the pages see it. While waiting, both sides see the document for the newest
  * version; in a draft only the seller does (as a preview). Once signed, both see the stored
- * document exactly as it was signed, with the typed name and time.
+ * document exactly as it was signed, with the typed name and time, and when the receipt was
+ * emailed to each side (`emailOn` says whether email is set up at all).
  */
-async function acceptanceView(db: Database, deal: Deal, role: "seller" | "buyer") {
-  const accepted = await getLatestAcceptance(db, deal.id);
+async function acceptanceView(
+  db: Database,
+  deal: Deal,
+  role: "seller" | "buyer",
+  emailOn: boolean,
+) {
+  const [accepted, entries] = await Promise.all([
+    getLatestAcceptance(db, deal.id),
+    readLedger(db, deal.id),
+  ]);
   const signed = accepted !== undefined && deal.status !== "draft";
   const current =
     !signed && (deal.status === "awaiting_acceptance" || role === "seller")
@@ -104,8 +125,9 @@ async function acceptanceView(db: Database, deal: Deal, role: "seller" | "buyer"
           at: accepted.createdAt.toISOString(),
         }
       : null,
-    lastDecline:
-      role === "seller" && deal.status === "draft" ? await lastDecline(db, deal.id) : null,
+    lastDecline: role === "seller" && deal.status === "draft" ? lastDecline(entries) : null,
+    emailOn,
+    receiptEmails: signed ? receiptEmailTimes(entries, accepted.version) : null,
   };
 }
 
@@ -115,13 +137,29 @@ async function acceptanceView(db: Database, deal: Deal, role: "seller" | "buyer"
  * or sends terms they did not see.
  */
 export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app, options) => {
-  const { visibleDeal, sellersDeal, buyersDeal, clock, recordIp } = options;
+  const { visibleDeal, sellersDeal, buyersDeal, clock, recordIp, email } = options;
 
   /** Answers with the deal's acceptance as it is now, for the person asking. */
   const answer = async (reply: FastifyReply, { db, deal, viewer }: FoundDeal) => {
     const fresh = (await getDeal(db, deal.id)) ?? deal;
-    return reply.send(await acceptanceView(db, fresh, roleIn(viewer, fresh)));
+    return reply.send(await acceptanceView(db, fresh, roleIn(viewer, fresh), email.live));
   };
+
+  /**
+   * Emails the receipt right after signing. The signature already stands, so a failure here is
+   * logged (never with an address) and the seller can send it again; it never undoes the signing.
+   */
+  async function emailAfterSigning(db: Database, dealId: string) {
+    try {
+      const deal = await getDeal(db, dealId);
+      if (deal) await emailReceipt({ db, email, clock, log: app.log }, deal);
+    } catch (error) {
+      app.log.error(
+        { dealId, err: error instanceof Error ? error.name : "unknown" },
+        "Receipt email failed after signing",
+      );
+    }
+  }
 
   /**
    * The document the step is about, after checking the deal is at `status` and that the person's
@@ -176,12 +214,46 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
       if (!acceptance) return await reply.code(404).send({ error: "not signed yet" });
       const entry = (await readLedger(db, deal.id)).find((e) => e.seq === acceptance.ledgerSeq);
       const receipt = await buildReceipt(acceptance, entry);
-      return await sendDownload(reply, { mediaType: "application/pdf", ...receipt });
+      return await sendDownload(reply, {
+        mediaType: "application/pdf",
+        filename: receipt.filename,
+        bytes: receipt.bytes,
+      });
     } catch (error) {
       if (!(error instanceof AcceptanceIntegrityError || error instanceof ReceiptIntegrityError)) {
         throw error;
       }
       request.log.error({ dealId: deal.id }, "Signed copy failed its check; no receipt sent");
+      return reply.code(409).send({ error: "this receipt failed its check and was not sent" });
+    }
+  });
+
+  // The seller sends the receipt to both sides again (after a failed send, or on request).
+  app.post("/api/deals/:id/acceptance/receipt-email", async (request, reply) => {
+    const found = await sellersDeal(request, reply);
+    if (!found) return reply;
+    try {
+      const result = await emailReceipt(
+        { db: found.db, email, clock, log: request.log },
+        found.deal,
+      );
+      switch (result.status) {
+        case "email-off":
+          return await reply.code(503).send({ error: "email is not set up" });
+        case "not-signed":
+          return await reply.code(404).send({ error: "not signed yet" });
+        case "limit-reached":
+          return await reply.code(429).send({
+            error: `this receipt was already emailed ${String(MAX_RECEIPT_EMAILS)} times`,
+          });
+        case "done":
+          return await answer(reply, found);
+      }
+    } catch (error) {
+      if (!(error instanceof AcceptanceIntegrityError || error instanceof ReceiptIntegrityError)) {
+        throw error;
+      }
+      request.log.error({ dealId: found.deal.id }, "Signed copy failed its check; no receipt sent");
       return reply.code(409).send({ error: "this receipt failed its check and was not sent" });
     }
   });
@@ -261,19 +333,25 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
     });
   }
 
-  buyerStep("accept", acceptBody, "Terms accepted", (body, common, { current, db, access }) =>
-    acceptTerms(
-      db,
-      {
-        ...common,
-        contentSha256: current.scope.contentSha256,
-        document: current.document,
-        noticeVersion: ACCEPTANCE_NOTICE_VERSION,
-        typedName: body.typedName,
-        access,
-      },
-      clock(),
-    ),
+  buyerStep(
+    "accept",
+    acceptBody,
+    "Terms accepted",
+    async (body, common, { current, db, access }) => {
+      await acceptTerms(
+        db,
+        {
+          ...common,
+          contentSha256: current.scope.contentSha256,
+          document: current.document,
+          noticeVersion: ACCEPTANCE_NOTICE_VERSION,
+          typedName: body.typedName,
+          access,
+        },
+        clock(),
+      );
+      await emailAfterSigning(db, common.dealId);
+    },
   );
 
   buyerStep("decline", declineBody, "Terms declined", (body, common, { current, db }) =>

@@ -375,3 +375,46 @@ export async function getLatestAcceptance(
   );
   return rows[0] === undefined ? undefined : checkedAcceptance(rows[0]);
 }
+
+export const receiptSentSchema = z.object({
+  dealId: z.uuid(),
+  version,
+  to: z.enum(["buyer", "seller"]),
+  receiptSha256: sha256,
+  /** Only its SHA-256 (lower-cased) is logged, as with `BUYER_ADDED`. */
+  email: z.email(),
+  /** The email service's id for the message, so a delivery can be traced with the provider. */
+  providerMessageId: z.string().min(1).max(200),
+});
+export type ReceiptSent = z.input<typeof receiptSentSchema>;
+
+/**
+ * Records that the email service accepted a receipt email for one side: a `RECEIPT_SENT` entry
+ * (by the system) with the version, which side, the receipt's fingerprint, the provider's message
+ * id and a SHA-256 of the address, never the address itself.
+ */
+export async function recordReceiptSent(
+  db: Database,
+  input: ReceiptSent,
+  now: Date,
+): Promise<LedgerEntry> {
+  const sent = receiptSentSchema.parse(input);
+  return db.transaction((tx) =>
+    appendLedgerEvent(
+      tx,
+      {
+        dealId: sent.dealId,
+        type: "RECEIPT_SENT",
+        actor: "system",
+        payload: {
+          version: sent.version,
+          to: sent.to,
+          receiptSha256: sent.receiptSha256,
+          emailSha256: sha256Hex(sent.email.toLowerCase()),
+          providerMessageId: sent.providerMessageId,
+        },
+      },
+      now,
+    ),
+  );
+}

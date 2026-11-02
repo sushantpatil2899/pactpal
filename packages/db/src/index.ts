@@ -116,6 +116,8 @@ export {
   declineTerms,
   documentFingerprint,
   getLatestAcceptance,
+  receiptSentSchema,
+  recordReceiptSent,
   requestAcceptance,
   typedNameSchema,
   withdrawAcceptance,
@@ -125,6 +127,7 @@ export type {
   Acceptance,
   AcceptanceRefusal,
   DeclineTerms,
+  ReceiptSent,
   RequestAcceptance,
   WithdrawAcceptance,
 } from "./acceptance.js";

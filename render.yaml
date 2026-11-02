@@ -46,6 +46,11 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      # Email through Resend: a key with sending access only, for the verified sending domain. The
+      # sender address (EMAIL_FROM) is added here once that domain is verified; until both are set,
+      # the server sends no email.
+      - key: RESEND_API_KEY
+        sync: false
 
 databases:
   - name: pactpal-db

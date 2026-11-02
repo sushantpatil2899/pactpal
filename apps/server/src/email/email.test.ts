@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dealLinkEmail, dealLinkUrl } from "./deal-link-email.js";
-import { StandInEmailSender } from "./sender.js";
+import { receiptEmail } from "./receipt-email.js";
 
 const email = dealLinkEmail({
   publicBaseUrl: "https://pactpal.test",
@@ -29,18 +29,43 @@ describe("dealLinkEmail", () => {
   });
 });
 
-describe("StandInEmailSender", () => {
-  it("sends nothing and logs only the kind of email, never the address or the link", async () => {
-    const lines: string[] = [];
-    const sender = new StandInEmailSender({
-      info: (details, message) => lines.push(JSON.stringify({ details, message })),
+describe("receiptEmail", () => {
+  const base = {
+    to: "chris@example.com",
+    dealTitle: "Character illustration",
+    sellerName: "Maya",
+    typedName: "Chris Buyer",
+    signedAt: new Date("2026-11-01T22:06:00.000Z"),
+    version: 2,
+    receipt: {
+      filename: "pactpal-receipt-v2.pdf",
+      bytes: new Uint8Array([1, 2]),
+      sha256: "a".repeat(64),
+    },
+    idempotencyKey: "receipt:deal:v2:buyer:1",
+  };
+
+  it("tells the buyer what they signed, attaches the receipt and gives its fingerprint", () => {
+    const mail = receiptEmail({ ...base, role: "buyer" });
+    expect(mail).toMatchObject({
+      kind: "receipt",
+      to: "chris@example.com",
+      subject: 'Receipt: "Character illustration" was signed on PactPal',
+      idempotencyKey: "receipt:deal:v2:buyer:1",
+      attachments: [{ filename: "pactpal-receipt-v2.pdf", bytes: base.receipt.bytes }],
     });
-    await sender.send(email);
-    expect(lines).toEqual([
-      JSON.stringify({
-        details: { kind: "deal-link" },
-        message: "Email not sent: no email service yet",
-      }),
-    ]);
+    expect(mail.text.split("\n")[0]).toBe(
+      'You signed the agreement "Character illustration" with Maya on 1 Nov 2026, 22:06 UTC (version 2).',
+    );
+    expect(mail.text).toContain(`Receipt fingerprint (SHA-256): ${"a".repeat(64)}`);
+    expect(mail.text).toContain("not proof of identity");
+    expect(mail.text).toContain("sandbox demo: no real money moves");
+  });
+
+  it("tells the seller who signed", () => {
+    const mail = receiptEmail({ ...base, role: "seller", to: "maya@example.com" });
+    expect(mail.text.split("\n")[0]).toBe(
+      'Chris Buyer signed your agreement "Character illustration" on 1 Nov 2026, 22:06 UTC (version 2).',
+    );
   });
 });

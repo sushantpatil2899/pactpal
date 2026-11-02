@@ -1,4 +1,4 @@
-import type { EmailMessage } from "./sender.js";
+import type { EmailMessage } from "@pactpal/email";
 
 /** The page that opens a buyer link; the secret goes after `#`, so it never reaches the server's logs. */
 export const LINK_PAGE = "/link";

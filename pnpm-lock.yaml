@@ -59,6 +59,9 @@ importers:
       '@pactpal/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@pactpal/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@pactpal/ledger':
         specifier: workspace:*
         version: link:../../packages/ledger
@@ -159,6 +162,19 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+
+  packages/email:
+    dependencies:
+      '@pactpal/net':
+        specifier: workspace:*
+        version: link:../net
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
 
   packages/ledger:
     devDependencies:

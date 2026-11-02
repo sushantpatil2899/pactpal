@@ -341,6 +341,10 @@ export interface AcceptanceView {
   accepted: { version: number; typedName: string; at: string } | null;
   /** Seller only, in a draft: the buyer's last answer was a decline. */
   lastDecline: { at: string; reason: string | null } | null;
+  /** Whether email is set up on the server at all. */
+  emailOn: boolean;
+  /** Once signed: when the receipt was last emailed to each side, or null if not yet. */
+  receiptEmails: { buyer: string | null; seller: string | null } | null;
 }
 
 const isDocument = (value: unknown): value is AcceptanceDocument =>
@@ -361,7 +365,9 @@ const isAcceptance = (value: unknown): value is AcceptanceView =>
   (value.documentSha256 === null || typeof value.documentSha256 === "string") &&
   (value.accepted === null ||
     (isObject(value.accepted) && typeof value.accepted.typedName === "string")) &&
-  (value.lastDecline === null || isObject(value.lastDecline));
+  (value.lastDecline === null || isObject(value.lastDecline)) &&
+  typeof value.emailOn === "boolean" &&
+  (value.receiptEmails === null || isObject(value.receiptEmails));
 
 const acceptanceUrl = (dealId: string, step = "") =>
   `/api/deals/${encodeURIComponent(dealId)}/acceptance${step === "" ? "" : `/${step}`}`;
@@ -376,7 +382,7 @@ export async function getAcceptance(dealId: string): Promise<AcceptanceView> {
 /** One acceptance step; a refusal becomes an error with the server's plain message. */
 async function acceptanceStep(
   dealId: string,
-  step: "request" | "withdraw" | "accept" | "decline",
+  step: "request" | "withdraw" | "accept" | "decline" | "receipt-email",
   body: object,
   what: string,
 ): Promise<AcceptanceView> {
@@ -404,6 +410,10 @@ export const acceptTerms = (dealId: string, input: { documentSha256: string; typ
 
 export const declineTerms = (dealId: string, input: { documentSha256: string; reason?: string }) =>
   acceptanceStep(dealId, "decline", input, "decline");
+
+/** The seller emails the signed receipt to both sides again. */
+export const emailReceiptAgain = (dealId: string) =>
+  acceptanceStep(dealId, "receipt-email", {}, "email the receipt");
 
 // --- Files -------------------------------------------------------------------------------------
 
@@ -457,15 +467,21 @@ export async function addFile(dealId: string, file: File): Promise<DealFile> {
   return readChecked(response, isFile, "add the file");
 }
 
-export async function makeBuyerLink(dealId: string): Promise<{ url: string; expiresAt: string }> {
+/** A new buyer link; `emailed` says whether it was emailed to the buyer too. */
+export async function makeBuyerLink(
+  dealId: string,
+): Promise<{ url: string; expiresAt: string; emailed: boolean }> {
   const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/buyer-link`, {
     method: "POST",
   });
   if (!response.ok) throw new Error(await errorMessage(response, "Could not make the link"));
   return readChecked(
     response,
-    (b): b is { url: string; expiresAt: string } =>
-      isObject(b) && typeof b.url === "string" && typeof b.expiresAt === "string",
+    (b): b is { url: string; expiresAt: string; emailed: boolean } =>
+      isObject(b) &&
+      typeof b.url === "string" &&
+      typeof b.expiresAt === "string" &&
+      typeof b.emailed === "boolean",
     "make the link",
   );
 }
