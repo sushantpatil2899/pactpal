@@ -33,6 +33,7 @@ const EVENT_LABELS: Record<string, string> = {
   DECLINED: "Buyer declined",
   RECEIPT_SENT: "Receipt emailed",
   INVOICE_SENT: "Invoice sent",
+  PAYMENT_RECEIVED: "Payment received",
   NOTE_ADDED: "Note added",
 };
 

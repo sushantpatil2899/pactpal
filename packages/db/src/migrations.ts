@@ -282,4 +282,16 @@ CREATE TRIGGER acceptances_no_truncate BEFORE TRUNCATE ON acceptances
   )
 )`,
   },
+  {
+    id: "0011_milestone_payments",
+    // When PayPal confirms a stage's invoice is fully paid: the time, the PAYMENT_RECEIVED ledger
+    // entry and PayPal's transaction id. A paid stage must have its entry.
+    sql: `ALTER TABLE milestones ADD COLUMN paid_at timestamptz;
+ALTER TABLE milestones ADD COLUMN payment_ledger_seq integer;
+ALTER TABLE milestones ADD COLUMN transaction_id text CHECK (transaction_id <> '');
+ALTER TABLE milestones ADD CONSTRAINT milestones_payment_in_ledger
+  FOREIGN KEY (deal_id, payment_ledger_seq) REFERENCES ledger_entries (deal_id, seq);
+ALTER TABLE milestones ADD CONSTRAINT milestones_paid_state
+  CHECK ((status = 'paid') = (paid_at IS NOT NULL AND payment_ledger_seq IS NOT NULL))`,
+  },
 ];

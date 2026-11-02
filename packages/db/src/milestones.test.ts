@@ -4,7 +4,9 @@ import {
   MilestoneNotAllowedError,
   createDeal,
   dropFailedInvoice,
+  findMilestoneByInvoice,
   listMilestones,
+  markInvoicePaid,
   markInvoiceSent,
   readLedger,
   recordInvoiceId,
@@ -153,5 +155,93 @@ describe("milestone invoices", () => {
         ),
       ).rejects.toEqual(refusal("not-signed"));
     }
+  });
+
+  it("records a payment once, from PayPal's own answer, and finds the stage by invoice", async () => {
+    const { dealId, start, sent } = await signed();
+    await startInvoice(db, start, at(1));
+    await markInvoiceSent(db, sent, at(2));
+    expect(await findMilestoneByInvoice(db, "INV2-AAAA-BBBB")).toMatchObject({
+      stage: 1,
+      status: "sent",
+    });
+    expect(await findMilestoneByInvoice(db, "INV2-UNKNOWN")).toBeUndefined();
+
+    const paid = {
+      dealId,
+      version: 1,
+      stage: 1,
+      invoiceId: "INV2-AAAA-BBBB",
+      paidAmount: { minor: 12_000, currency: "USD" },
+      transactions: [
+        { paymentId: "5TY05013RG002845M", paymentDate: "2026-11-02", method: "PAYPAL" },
+        {},
+      ],
+      source: "notification" as const,
+      eventId: "WH-PAID-1",
+    };
+    const { milestone, entry } = await markInvoicePaid(db, paid, at(3));
+    expect(milestone).toMatchObject({
+      status: "paid",
+      paidAt: at(3),
+      paymentLedgerSeq: entry?.seq,
+      transactionId: "5TY05013RG002845M",
+    });
+    expect(entry).toMatchObject({
+      type: "PAYMENT_RECEIVED",
+      actor: "system",
+      payload: {
+        version: 1,
+        stage: 1,
+        invoiceId: "INV2-AAAA-BBBB",
+        amountMinor: 12_000,
+        currency: "USD",
+        transactions: [
+          { paymentId: "5TY05013RG002845M", paymentDate: "2026-11-02", method: "PAYPAL" },
+          { paymentId: null, paymentDate: null, method: null },
+        ],
+        source: "notification",
+        eventId: "WH-PAID-1",
+      },
+    });
+    expect(entry?.actorId).toBeUndefined();
+
+    // Learned again (a repeat notification, or the button): nothing new.
+    const again = await markInvoicePaid(
+      db,
+      { ...paid, source: "status-check", eventId: undefined },
+      at(4),
+    );
+    expect(again.entry).toBeUndefined();
+    expect(
+      (await readLedger(db, dealId)).filter((e) => e.type === "PAYMENT_RECEIVED"),
+    ).toHaveLength(1);
+    expect((await verifyStoredLedger(db, dealId)).valid).toBe(true);
+  });
+
+  it("refuses to mark paid a stage never sent, another invoice, or an unknown deal", async () => {
+    const { dealId, start, sent } = await signed();
+    const paid = {
+      dealId,
+      version: 1,
+      stage: 1,
+      invoiceId: "INV2-AAAA-BBBB",
+      paidAmount: { minor: 12_000, currency: "USD" },
+      transactions: [],
+      source: "status-check" as const,
+    };
+    await expect(markInvoicePaid(db, paid, at(1))).rejects.toEqual(refusal("not-sent"));
+    await startInvoice(db, start, at(1));
+    await expect(markInvoicePaid(db, paid, at(2))).rejects.toEqual(refusal("not-sent"));
+    await markInvoiceSent(db, sent, at(2));
+    await expect(markInvoicePaid(db, { ...paid, invoiceId: "INV2-OTHER" }, at(3))).rejects.toEqual(
+      refusal("not-sent"),
+    );
+    expect(
+      (await markInvoicePaid(db, { ...paid, transactions: [] }, at(3))).milestone.transactionId,
+    ).toBeNull();
+    await expect(markInvoicePaid(db, { ...paid, dealId: testId(999) }, at(4))).rejects.toThrow(
+      /No deal/,
+    );
   });
 });

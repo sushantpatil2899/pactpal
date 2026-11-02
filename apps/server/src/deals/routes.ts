@@ -23,7 +23,8 @@ import type { DraftingRuntime } from "../drafting/runtime.js";
 import { draftRoutes } from "./draft-routes.js";
 import { fileRoutes } from "./file-routes.js";
 import { acceptanceRoutes } from "./acceptance-routes.js";
-import { milestoneRoutes, type InvoiceSender } from "./milestone-routes.js";
+import type { InvoiceSender } from "../payments/invoice-sender.js";
+import { milestoneRoutes } from "./milestone-routes.js";
 import { categoryLabelOf, categoryLabels, nameOf, partiesOf } from "./parties.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
@@ -116,7 +117,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     recordIp,
     email,
   });
-  void app.register(milestoneRoutes, { visibleDeal, sellersDeal, clock, invoices });
+  void app.register(milestoneRoutes, { visibleDeal, sellersDeal, clock, invoices, email });
   void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId, recordIp });
   void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
 

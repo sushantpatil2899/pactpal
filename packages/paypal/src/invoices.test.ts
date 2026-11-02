@@ -183,6 +183,32 @@ describe("PayPalInvoices.get", () => {
         recipientEmail: undefined,
         note: undefined,
         payerViewUrl: undefined,
+        payments: { paidAmount: undefined, transactions: [] },
+      },
+    });
+  });
+
+  it("reads what has been paid: the total and each payment", async () => {
+    const paid = {
+      ...invoiceBody,
+      status: "PAID",
+      payments: {
+        paid_amount: { currency_code: "USD", value: "10.50" },
+        transactions: [
+          { payment_id: "5TY0", payment_date: "2026-11-02", method: "PAYPAL", type: "PAYPAL" },
+          {},
+        ],
+      },
+    };
+    const { invoices } = setup({ rest: [paid] });
+    expect((await invoices.get("INV2-AAAA")).data).toMatchObject({
+      status: "PAID",
+      payments: {
+        paidAmount: { minor: 1050, currency: "USD" },
+        transactions: [
+          { paymentId: "5TY0", paymentDate: "2026-11-02", method: "PAYPAL" },
+          { paymentId: undefined, paymentDate: undefined, method: undefined },
+        ],
       },
     });
   });

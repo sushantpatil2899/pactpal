@@ -135,14 +135,18 @@ export {
   MILESTONE_STATUSES,
   MilestoneNotAllowedError,
   dropFailedInvoice,
+  findMilestoneByInvoice,
+  invoicePaidSchema,
   invoiceSentSchema,
   listMilestones,
+  markInvoicePaid,
   markInvoiceSent,
   recordInvoiceId,
   startInvoice,
   startInvoiceSchema,
 } from "./milestones.js";
 export type {
+  InvoicePaid,
   InvoiceSent,
   Milestone,
   MilestoneRefusal,

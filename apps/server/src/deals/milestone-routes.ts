@@ -1,8 +1,6 @@
 import {
   MilestoneNotAllowedError,
   dropFailedInvoice,
-  getLatestAcceptance,
-  getScopeVersion,
   getUser,
   listMilestones,
   markInvoiceSent,
@@ -12,21 +10,23 @@ import {
   type Deal,
   type Milestone,
 } from "@pactpal/db";
+import type { EmailSender } from "@pactpal/email";
 import {
   InvoiceSendError,
   PayPalApiError,
   PayPalNetworkError,
   PayPalResponseError,
-  type PayPalInvoices,
 } from "@pactpal/paypal";
 import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
-import { invoiceFor, type StageInvoice } from "../payments/invoice-text.js";
+import { invoiceEmail } from "../email/invoice-email.js";
+import type { InvoiceSender } from "../payments/invoice-sender.js";
+import { invoiceFor, stageFacts, type StageInvoice } from "../payments/invoice-text.js";
+import { checkInvoicePaid } from "../payments/payment-sync.js";
+import { signedRecord } from "../payments/signed-record.js";
+import { nameOf } from "./parties.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
 import { roleIn } from "./visibility.js";
-
-/** What the routes need from PayPal: create and send an invoice, and read one back. */
-export type InvoiceSender = Pick<PayPalInvoices, "createAndSend" | "get">;
 
 export interface MilestoneRouteOptions {
   visibleDeal: DealLookup;
@@ -34,23 +34,15 @@ export interface MilestoneRouteOptions {
   clock: () => Date;
   /** Absent until the seller app's PayPal keys are set. */
   invoices: InvoiceSender | undefined;
+  /** Emails the buyer each invoice's link, and both sides each payment. */
+  email: EmailSender;
 }
+
+/** A deal's payment status is checked with PayPal at most once in this many milliseconds. */
+export const CHECK_INTERVAL_MS = 30_000;
 
 const stageParams = z.object({ stage: z.coerce.number().int().min(1).max(20) });
 const sendBody = z.object({ invoiceSha256: z.string().regex(/^[0-9a-f]{64}$/) });
-
-/** The signed record a deal's invoices are made from, or undefined if it is not signed. */
-async function signedRecord(db: Database, deal: Deal) {
-  if (deal.status !== "active" && deal.status !== "completed") return undefined;
-  const acceptance = await getLatestAcceptance(db, deal.id);
-  if (!acceptance || deal.buyerId === undefined) return undefined;
-  const [scope, buyer] = await Promise.all([
-    getScopeVersion(db, deal.id, acceptance.version),
-    getUser(db, deal.buyerId),
-  ]);
-  if (!scope || !buyer) return undefined;
-  return { acceptance, scope, buyer };
-}
 
 /** One stage as the pages see it; the seller also sees the exact invoice before sending it. */
 function stageView(
@@ -66,6 +58,8 @@ function stageView(
     status: row?.status ?? "not_invoiced",
     sentAt: row?.sentAt?.toISOString() ?? null,
     payUrl: row?.payUrl ?? null,
+    paidAt: row?.paidAt?.toISOString() ?? null,
+    transactionId: row?.transactionId ?? null,
     ...(preview && row?.status !== "sent" && row?.status !== "paid"
       ? {
           invoice: {
@@ -108,7 +102,43 @@ function paypalProblem(error: unknown): { message: string; keepReservation: bool
  * Every send of a stage reaches PayPal with the same request id, so it is never invoiced twice.
  */
 export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, options) => {
-  const { visibleDeal, sellersDeal, clock, invoices } = options;
+  const { visibleDeal, sellersDeal, clock, invoices, email } = options;
+  /** When each deal was last checked with PayPal (this server only; enough for one instance). */
+  const lastChecked = new Map<string, number>();
+
+  /**
+   * Emails the buyer the new invoice's link. The invoice already exists, so a failure here is
+   * logged (never with the address) and the page still shows the link.
+   */
+  async function emailInvoice(
+    db: Database,
+    deal: Deal,
+    invoice: StageInvoice,
+    buyerEmail: string,
+    payUrl: string | undefined,
+    log: FastifyBaseLogger,
+  ) {
+    try {
+      const seller = await getUser(db, deal.sellerId);
+      const sent = await email.send(
+        invoiceEmail({
+          to: buyerEmail,
+          sellerName: nameOf(seller, "Seller"),
+          facts: stageFacts(invoice),
+          payUrl,
+          idempotencyKey: invoice.requestId.replace(/^pp-/, "invoice:"),
+        }),
+      );
+      if (sent.ok || email.live) {
+        log.info({ dealId: deal.id, stage: invoice.stage, sent: sent.ok }, "Invoice email");
+      }
+    } catch (error) {
+      log.error(
+        { dealId: deal.id, err: error instanceof Error ? error.name : "unknown" },
+        "Invoice email failed",
+      );
+    }
+  }
 
   async function answer(reply: FastifyReply, { db, deal, viewer }: FoundDeal) {
     const record = await signedRecord(db, deal);
@@ -189,6 +219,40 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
       { dealId: deal.id, stage: invoice.stage, invoiceId: sent.invoiceId },
       "Invoice sent",
     );
+    await emailInvoice(db, deal, invoice, record.buyer.email, sent.payUrl, request.log);
+    return answer(reply, found);
+  });
+
+  // Either side asks PayPal whether the sent invoices were paid (a backup for its notifications).
+  app.post("/api/deals/:id/milestones/check", async (request, reply) => {
+    const found = await visibleDeal(request, reply);
+    if (!found) return reply;
+    if (!invoices) return reply.code(503).send({ error: "PayPal invoicing is not set up" });
+    const { db, deal } = found;
+    const now = clock().getTime();
+    const last = lastChecked.get(deal.id);
+    if (last !== undefined && now - last < CHECK_INTERVAL_MS) {
+      return reply.code(429).send({ error: "checked a moment ago; try again in a few seconds" });
+    }
+    lastChecked.set(deal.id, now);
+    // Sent and not yet paid: the invoices worth asking PayPal about.
+    const waiting = (await listMilestones(db, deal.id)).flatMap((row) =>
+      row.status === "sent" && row.invoiceId !== null
+        ? [{ stage: row.stage, invoiceId: row.invoiceId }]
+        : [],
+    );
+    const deps = { db, invoices, email, clock, log: request.log };
+    let failed = false;
+    for (const row of waiting) {
+      try {
+        await checkInvoicePaid(deps, row.invoiceId, { kind: "status-check" });
+      } catch (error) {
+        if (!paypalProblem(error)) throw error;
+        request.log.warn({ dealId: deal.id, stage: row.stage }, "Payment status not checked");
+        failed = true;
+      }
+    }
+    if (failed) return reply.code(502).send({ error: "PayPal did not answer; try again" });
     return answer(reply, found);
   });
 

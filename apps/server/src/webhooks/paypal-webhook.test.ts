@@ -32,6 +32,7 @@ function setup(
     noEvents?: boolean;
     failSaving?: boolean;
     events?: { record(event: NewWebhookEvent): Promise<RecordResult> };
+    process?: (event: { eventId: string; eventType: string }) => Promise<void>;
   } = {},
 ) {
   const logs: string[] = [];
@@ -64,6 +65,7 @@ function setup(
       verifier: options.noVerifier ? undefined : verifier,
       webhookId: "webhookId" in options ? options.webhookId : "WEBHOOK-1",
       events: options.noEvents ? undefined : events,
+      ...(options.process ? { process: options.process } : {}),
     },
   });
   const post = (payload = rawBody) =>
@@ -203,6 +205,33 @@ describe("POST /webhooks/paypal with the real event log", () => {
         body: event,
       },
     ]);
+    await app.close();
+  });
+
+  it("hands each saved notification, new or repeated, to processing", async () => {
+    const seen: string[] = [];
+    const { app, post } = setup({
+      process: (e) => {
+        seen.push(`${e.eventId}:${e.eventType}`);
+        return Promise.resolve();
+      },
+    });
+    expect((await post()).json()).toEqual({ status: "received" });
+    expect((await post()).json()).toEqual({ status: "repeat" });
+    expect(seen).toEqual(["WH-1:INVOICING.INVOICE.CREATED", "WH-1:INVOICING.INVOICE.CREATED"]);
+    await app.close();
+  });
+
+  it("answers 500 when processing fails, so PayPal sends it again", async () => {
+    const { app, post, logs, saved } = setup({
+      process: () => Promise.reject(new TypeError("PayPal down")),
+    });
+    const res = await post();
+    expect(res.statusCode).toBe(500);
+    expect(res.json()).toEqual({ error: "could not process" });
+    expect(saved).toHaveLength(1);
+    expect(logs.join("")).toContain("stored but not processed");
+    expect(logs.join("")).not.toContain("buyer@example.com");
     await app.close();
   });
 });

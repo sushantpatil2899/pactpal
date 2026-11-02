@@ -427,6 +427,9 @@ export interface StageView {
   sentAt: string | null;
   /** Where the buyer views and pays the invoice on PayPal. */
   payUrl: string | null;
+  /** When PayPal confirmed it paid, and PayPal's transaction id. */
+  paidAt: string | null;
+  transactionId: string | null;
   /** Seller only, before sending: exactly what PayPal will show the buyer. */
   invoice?: {
     to: string;
@@ -459,6 +462,16 @@ const isMilestones = (value: unknown): value is MilestonesView =>
   );
 
 const milestonesUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/milestones`;
+
+/** Asks PayPal whether the sent invoices were paid (a backup for PayPal's notifications). */
+export async function checkPayments(dealId: string): Promise<MilestonesView> {
+  const response = await fetch(`${milestonesUrl(dealId)}/check`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not check the payments"));
+  return readChecked(response, isMilestones, "check the payments");
+}
 
 export async function getMilestones(dealId: string): Promise<MilestonesView> {
   return readChecked(await fetch(milestonesUrl(dealId)), isMilestones, "load the payment stages");

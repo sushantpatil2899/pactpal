@@ -39,6 +39,18 @@ export interface InvoiceDetails {
   note: string | undefined;
   /** Where the buyer views and pays the invoice. */
   payerViewUrl: string | undefined;
+  /** What has been paid: the total and each payment, as PayPal records them. */
+  payments: {
+    paidAmount: MinorAmount | undefined;
+    transactions: {
+      /** PayPal's transaction id for the payment. */
+      paymentId: string | undefined;
+      /** When it was paid, as PayPal writes it (e.g. "2026-11-02" or a timestamp). */
+      paymentDate: string | undefined;
+      /** How it was paid, e.g. "PAYPAL" or, for a payment recorded by hand, "BANK_TRANSFER". */
+      method: string | undefined;
+    }[];
+  };
 }
 
 /** The invoice was created but sending it failed; retrying the send is safe. */
@@ -86,6 +98,20 @@ const invoiceDetails = z
       )
       .optional(),
     amount: payPalAmount.optional(),
+    payments: z
+      .looseObject({
+        paid_amount: payPalAmount.optional(),
+        transactions: z
+          .array(
+            z.looseObject({
+              payment_id: z.string().optional(),
+              payment_date: z.string().optional(),
+              method: z.string().optional(),
+            }),
+          )
+          .optional(),
+      })
+      .optional(),
   })
   .transform((invoice): InvoiceDetails => ({
     invoiceId: invoice.id,
@@ -94,6 +120,14 @@ const invoiceDetails = z
     recipientEmail: invoice.primary_recipients?.[0]?.billing_info?.email_address,
     note: invoice.detail?.note,
     payerViewUrl: invoice.detail?.metadata?.recipient_view_url,
+    payments: {
+      paidAmount: invoice.payments?.paid_amount,
+      transactions: (invoice.payments?.transactions ?? []).map((payment) => ({
+        paymentId: payment.payment_id,
+        paymentDate: payment.payment_date,
+        method: payment.method,
+      })),
+    },
   }));
 
 function route<T>({ transport, fallbackReason, debugId }: PayPalResult<T>): Route {

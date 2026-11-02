@@ -11,6 +11,7 @@ import {
   databaseFromPool,
   documentFingerprint,
   finishDraft,
+  markInvoicePaid,
   markInvoiceSent,
   getArtifact,
   listArtifacts,
@@ -419,6 +420,54 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       );
       expect(sent.filter((r) => r.entry !== undefined)).toHaveLength(1);
       expect(await db.query("SELECT 1 FROM milestones")).toHaveLength(1);
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true });
+    });
+  });
+
+  it("records one payment when PayPal's notification and a status check arrive at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller, scope } = await createSignedTestDeal(db);
+      const key = { dealId: testId(100), version: 1, stage: 1 };
+      await startInvoice(
+        db,
+        {
+          ...key,
+          sellerId: seller.id,
+          amountMinor: 12_000,
+          currency: "USD",
+          requestId: "pp-pay-1",
+          invoiceSha256: "a".repeat(64),
+        },
+        TEST_NOW,
+      );
+      await markInvoiceSent(
+        db,
+        {
+          ...key,
+          sellerId: seller.id,
+          invoiceId: "INV2-PAY",
+          transport: "rest",
+          recipientEmail: "chris@example.com",
+          contentSha256: scope.contentSha256,
+        },
+        TEST_NOW,
+      );
+      const results = await Promise.all(
+        (["notification", "status-check", "notification"] as const).map((source) =>
+          markInvoicePaid(
+            db,
+            {
+              ...key,
+              invoiceId: "INV2-PAY",
+              paidAmount: { minor: 12_000, currency: "USD" },
+              transactions: [],
+              source,
+            },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(results.filter((r) => r.entry !== undefined)).toHaveLength(1);
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true });
     });
   });

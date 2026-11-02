@@ -36,7 +36,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4d)
+## Built (sub-phases 2b to 4e)
 
 ### `users`: everyone
 
@@ -208,16 +208,19 @@ The **receipt PDF** (4b) is not stored: it is made from the newest row each time
 
 Built in 4d (migration 0010). One row per payment stage of the **signed** version that has a PayPal invoice; the stage's title, amount and due date stay in the signed version (`scope_versions`), so they are fingerprinted with it. Not append-only: the status moves on, and the evidence is the `INVOICE_SENT` entry.
 
-| Column                        | Meaning                                                                                                                                            |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deal_id`, `version`, `stage` | The deal, the signed version and the stage number (from 1). Together the key                                                                       |
-| `amount_minor`, `currency`    | What was invoiced                                                                                                                                  |
-| `status`                      | `sending` (reserved before PayPal is asked), `sent` (PayPal confirmed), `paid` (4e)                                                                |
-| `request_id`                  | The fixed `PayPal-Request-Id`, `pp-<deal>-v<version>-s<stage>`: every retry reaches PayPal as the same request, so a stage is never invoiced twice |
-| `invoice_sha256`              | Fingerprint of the item name, description, note and amount the seller confirmed                                                                    |
-| `invoice_id`, `pay_url`       | PayPal's invoice id (also kept for a created-but-unsent invoice, so a retry re-sends it) and the buyer's view-and-pay link                         |
-| `ledger_seq`, `sent_at`       | The `INVOICE_SENT` entry and when it was sent; set together with `sent`                                                                            |
-| `created_at`                  | When the stage was reserved                                                                                                                        |
+| Column                                            | Meaning                                                                                                                                            |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deal_id`, `version`, `stage`                     | The deal, the signed version and the stage number (from 1). Together the key                                                                       |
+| `amount_minor`, `currency`                        | What was invoiced                                                                                                                                  |
+| `status`                                          | `sending` (reserved before PayPal is asked), `sent` (PayPal confirmed), `paid` (4e)                                                                |
+| `request_id`                                      | The fixed `PayPal-Request-Id`, `pp-<deal>-v<version>-s<stage>`: every retry reaches PayPal as the same request, so a stage is never invoiced twice |
+| `invoice_sha256`                                  | Fingerprint of the item name, description, note and amount the seller confirmed                                                                    |
+| `invoice_id`, `pay_url`                           | PayPal's invoice id (also kept for a created-but-unsent invoice, so a retry re-sends it) and the buyer's view-and-pay link                         |
+| `ledger_seq`, `sent_at`                           | The `INVOICE_SENT` entry and when it was sent; set together with `sent`                                                                            |
+| `paid_at`, `payment_ledger_seq`, `transaction_id` | Once PayPal confirms the invoice fully paid (4e): when, the `PAYMENT_RECEIVED` entry, and PayPal's transaction id. Set together with `paid`        |
+| `created_at`                                      | When the stage was reserved                                                                                                                        |
+
+`PAYMENT_RECEIVED` (by the system, 4e) holds the version, stage, PayPal invoice id, the amount PayPal says was paid, PayPal's transactions (id, date, method) and how PactPal learned of it (`notification` with PayPal's event id, or `status-check`). It is written once, only after PactPal re-read the invoice from PayPal and found it `PAID`.
 
 `INVOICE_SENT` (by the seller) holds the version, stage, PayPal invoice id, amount and currency, the fingerprints of the agreed work and of the invoice text, a SHA-256 of the buyer's lower-cased address (never the address) and the route PayPal answered by (`rest`).
 

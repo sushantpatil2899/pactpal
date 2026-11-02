@@ -42,6 +42,7 @@ describe("formatInvoiceReport", () => {
         recipientEmail: "buyer@example.com",
         note: "Agreed scope: test",
         payerViewUrl: "https://www.sandbox.paypal.com/invoice/p/#INV2-AAAA",
+        payments: { paidAmount: undefined, transactions: [] },
       },
       { transport: "rest", fallbackReason: "MCP paused after 3 failures in a row" },
     );
@@ -64,6 +65,7 @@ describe("formatInvoiceReport", () => {
         recipientEmail: undefined,
         note: undefined,
         payerViewUrl: undefined,
+        payments: { paidAmount: undefined, transactions: [] },
       },
       { transport: "rest" },
     );

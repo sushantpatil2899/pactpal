@@ -3,8 +3,9 @@ import { TEST_NOW, testId } from "@pactpal/db/testing";
 import { buildApp } from "../app.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
-import type { InvoiceSender } from "./milestone-routes.js";
-import { StandInEmailSender, type EmailMessage, type EmailSender } from "@pactpal/email";
+import type { InvoiceSender } from "../payments/invoice-sender.js";
+import { StandInEmailSender } from "@pactpal/email";
+import { capturingEmail } from "../email/email-test-support.js";
 
 /**
  * Test code only: the app with deal routes on a test database, a fixed clock and numbered ids
@@ -19,22 +20,11 @@ export function dealTestApp(
   options: { trustProxyHops?: number; emailOff?: boolean; invoices?: InvoiceSender } = {},
 ) {
   let ids = 200;
-  const sent: EmailMessage[] = [];
-  const failEmailTo = new Set<string>();
+  const mail = capturingEmail();
+  const { sent, failEmailTo } = mail;
   const logs: string[] = [];
   const { emailOff = false, ...appOptions } = options;
-  const email: EmailSender = emailOff
-    ? new StandInEmailSender({ info: () => undefined })
-    : {
-        live: true,
-        send: (message) => {
-          if (failEmailTo.has(message.to)) {
-            return Promise.resolve({ ok: false, reason: "server", detail: "Resend answered 500" });
-          }
-          sent.push(message);
-          return Promise.resolve({ ok: true, id: `msg_${String(sent.length)}` });
-        },
-      };
+  const email = emailOff ? new StandInEmailSender({ info: () => undefined }) : mail.email;
   const app = buildApp(
     { settings: [], features: [] },
     {

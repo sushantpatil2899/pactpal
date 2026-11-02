@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  checkPayments,
   getMilestones,
   sendInvoice,
   type DealSummary,
@@ -43,7 +44,10 @@ function Preview({
         <li>Description: {invoice.description}</li>
         <li>Note: {invoice.note}</li>
       </ul>
-      <p>Invoices are sent from PactPal's sandbox seller account.</p>
+      <p>
+        Invoices are sent from PactPal's sandbox seller account. The buyer will also get this link
+        by email from PactPal.
+      </p>
       <button type="button" disabled={busy} onClick={onSend}>
         Send to PayPal
       </button>{" "}
@@ -73,11 +77,11 @@ export function PaymentsPanel({ deal, onChange }: { deal: DealSummary; onChange:
   useEffect(load, [deal.id, deal.status]);
 
   if (!view?.signed) return null;
-  const onSend = (stage: StageView) => {
-    if (!stage.invoice) return;
+  /** Runs a step that returns the new stages, then shows them and tells the page. */
+  const run = (work: Promise<MilestonesView>, fallback: string) => {
     setBusy(true);
     setProblem(undefined);
-    sendInvoice(deal.id, stage.stage, stage.invoice.invoiceSha256).then(
+    work.then(
       (updated) => {
         setBusy(false);
         setOpen(undefined);
@@ -86,11 +90,20 @@ export function PaymentsPanel({ deal, onChange }: { deal: DealSummary; onChange:
       },
       (error: unknown) => {
         setBusy(false);
-        setProblem(error instanceof Error ? error.message : "Could not send the invoice.");
+        setProblem(error instanceof Error ? error.message : fallback);
         load();
       },
     );
   };
+  const onSend = (stage: StageView) => {
+    if (stage.invoice) {
+      run(
+        sendInvoice(deal.id, stage.stage, stage.invoice.invoiceSha256),
+        "Could not send the invoice.",
+      );
+    }
+  };
+  const waiting = view.stages.some((stage) => stage.status === "sent");
   const seller = deal.role === "seller";
   return (
     <section aria-labelledby="payments">
@@ -123,7 +136,9 @@ export function PaymentsPanel({ deal, onChange }: { deal: DealSummary; onChange:
                 <td>{stage.dueDate === null ? "—" : dateOf(stage.dueDate)}</td>
                 <td>
                   {STATUS[stage.status]}
-                  {stage.sentAt !== null && ` on ${when(stage.sentAt)}`}
+                  {stage.status === "paid" && stage.paidAt !== null
+                    ? ` on ${when(stage.paidAt)}${stage.transactionId === null ? "" : ` (PayPal transaction ${stage.transactionId})`}`
+                    : stage.sentAt !== null && ` on ${when(stage.sentAt)}`}
                   {stage.payUrl !== null && (
                     <>
                       {" "}
@@ -152,6 +167,20 @@ export function PaymentsPanel({ deal, onChange }: { deal: DealSummary; onChange:
           </tbody>
         </table>
       </div>
+      {view.invoicing && waiting && (
+        <p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              run(checkPayments(deal.id), "Could not check the payments.");
+            }}
+          >
+            Check payment status
+          </button>{" "}
+          Payments usually show here within a minute of paying on PayPal.
+        </p>
+      )}
       {view.stages
         .filter((stage) => stage.stage === open)
         .map((stage) => (

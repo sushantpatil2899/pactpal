@@ -1,79 +1,17 @@
 import { listMilestones, readLedger, verifyStoredLedger } from "@pactpal/db";
 import { createSignedTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
-import {
-  InvoiceSendError,
-  PayPalApiError,
-  PayPalNetworkError,
-  type InvoiceDraft,
-} from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
-import type { InvoiceSender } from "./milestone-routes.js";
+import { fakePayPal } from "../payments/paypal-test-support.js";
+
+/** A fresh fake PayPal that already knows these invoices as paid (for a second app). */
+const signedPayPal = (paid: Set<string>) => {
+  const paypal = fakePayPal();
+  for (const id of paid) paypal.paid.add(id);
+  return paypal;
+};
 import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
-
-type Mode = "ok" | "refuse" | "unsent" | "down" | "no-link";
-
-/** A stand-in for PayPal: one invoice id per request id, as PayPal does; `mode` makes it fail. */
-function fakePayPal() {
-  const drafts: InvoiceDraft[] = [];
-  const ids = new Map<string, string>();
-  const state: { mode: Mode } = { mode: "ok" };
-  const invoices: InvoiceSender = {
-    createAndSend: (draft) => {
-      drafts.push(draft);
-      const invoiceId = ids.get(draft.requestId) ?? `INV2-TEST-${String(ids.size + 1)}`;
-      ids.set(draft.requestId, invoiceId);
-      switch (state.mode) {
-        case "refuse":
-          return Promise.reject(
-            new PayPalApiError(
-              "create invoice",
-              422,
-              "UNPROCESSABLE_ENTITY",
-              "x",
-              [
-                {
-                  field: "/primary_recipients",
-                  issue: "INVALID_EMAIL",
-                  description: "secret text",
-                },
-              ],
-              "dbg1",
-            ),
-          );
-        case "unsent":
-          return Promise.reject(
-            new InvoiceSendError(invoiceId, { cause: new Error("send failed") }),
-          );
-        case "down":
-          return Promise.reject(new PayPalNetworkError("create invoice", true));
-        case "ok":
-        case "no-link":
-          return Promise.resolve({
-            invoiceId,
-            create: { transport: "rest" },
-            send: { transport: "rest" },
-          });
-      }
-    },
-    get: (invoiceId) =>
-      state.mode === "no-link"
-        ? Promise.reject(new PayPalNetworkError("get invoice", false))
-        : Promise.resolve({
-            transport: "rest",
-            data: {
-              invoiceId,
-              status: "SENT",
-              amount: undefined,
-              recipientEmail: undefined,
-              note: undefined,
-              payerViewUrl: `https://www.sandbox.paypal.com/invoice/p/#${invoiceId}`,
-            },
-          }),
-  };
-  return { invoices, drafts, state };
-}
 
 interface StageView {
   stage: number;
@@ -258,5 +196,64 @@ describe("milestone invoices", () => {
     const { app, call, token } = await signedDeal();
     expect((await call("GET", `/api/deals/${testId(999)}/milestones`, token)).statusCode).toBe(404);
     await app.close();
+  });
+});
+
+describe("invoice and payment emails, and checking payment status", () => {
+  it("emails the buyer the invoice's link once it is sent", async () => {
+    const { app, send, sent, dealId } = await signedDeal();
+    await send(1);
+    expect(sent.map((m) => [m.kind, m.to, m.idempotencyKey])).toEqual([
+      ["invoice", "chris@example.com", `invoice:${dealId}-v1-s1`],
+    ]);
+    expect(sent[0]?.subject).toBe('Invoice for "Logo design": stage 1 of 2, Deposit (120.00 USD)');
+    expect(sent[0]?.text).toContain("Maya Seller sent you a PayPal invoice for stage 1 of 2");
+    expect(sent[0]?.text).toContain("https://www.sandbox.paypal.com/invoice/p/#INV2-TEST-1");
+    await app.close();
+  });
+
+  it("checks with PayPal, marks a paid stage, emails both sides, and is limited to one check at a time", async () => {
+    const { app, call, base, token, send, paid, sent, dealId } = await signedDeal();
+    await send(1);
+    const notYet = await call("POST", `${base}/check`, token);
+    expect(notYet.json<{ stages: StageView[] }>().stages[0]?.status).toBe("sent");
+    expect((await call("POST", `${base}/check`, token)).statusCode).toBe(429);
+    expect(
+      (await readLedger(db, dealId)).filter((e) => e.type === "PAYMENT_RECEIVED"),
+    ).toHaveLength(0);
+
+    paid.add("INV2-TEST-1");
+    const later = dealTestApp(db, undefined, { invoices: signedPayPal(paid).invoices });
+    const res = await later.call("POST", `${base}/check`, token);
+    expect(
+      res.json<{
+        stages: (StageView & { paidAt: string | null; transactionId: string | null })[];
+      }>().stages[0],
+    ).toMatchObject({
+      status: "paid",
+      transactionId: "TX-INV2-TEST-1",
+    });
+    expect(later.sent.map((m) => [m.kind, m.to])).toEqual([
+      ["payment", "chris@example.com"],
+      ["payment", "maya@example.com"],
+    ]);
+    expect(sent.filter((m) => m.kind === "payment")).toHaveLength(0);
+    await later.app.close();
+    await app.close();
+  });
+
+  it("lets the buyer check too, and reports PayPal not answering or not set up", async () => {
+    const { app, call, base, send, state, dealId, buyer } = await signedDeal();
+    await send(1);
+    const [buyerPayPal = ""] = await buyerVisitors(db, dealId, buyer.id);
+    state.mode = "down";
+    const res = await call("POST", `${base}/check`, buyerPayPal);
+    expect(res.statusCode).toBe(502);
+    expect(res.json()).toEqual({ error: "PayPal did not answer; try again" });
+    await app.close();
+
+    const off = dealTestApp(db);
+    expect((await off.call("POST", `${base}/check`, buyerPayPal)).statusCode).toBe(503);
+    await off.app.close();
   });
 });

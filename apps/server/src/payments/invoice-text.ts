@@ -1,6 +1,7 @@
 import type { Acceptance, Deal, ScopeVersion } from "@pactpal/db";
 import { canonicalJson, sha256Hex } from "@pactpal/ledger";
 import { invoiceNote, toPayPalMoney } from "@pactpal/paypal";
+import type { StageFacts } from "../email/common.js";
 
 /** Everything PayPal will show the buyer for one stage, and its fingerprint. */
 export interface StageInvoice {
@@ -70,3 +71,13 @@ export function invoiceFor(input: {
     ),
   };
 }
+
+/** What emails about this stage say: the deal, which stage of how many, and the amount. */
+export const stageFacts = (invoice: StageInvoice): StageFacts => ({
+  dealTitle: invoice.description,
+  stage: invoice.stage,
+  stageCount: invoice.stageCount,
+  stageTitle: invoice.title,
+  amountText: invoice.amount.text,
+  currency: invoice.amount.currency,
+});

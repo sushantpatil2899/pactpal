@@ -15,7 +15,9 @@ export type MilestoneRefusal =
   /** The deal is not signed, or the version is not the signed one. */
   | "not-signed"
   /** This stage already has a sent invoice. */
-  | "already-sent";
+  | "already-sent"
+  /** This stage's invoice was never sent, so it cannot be paid. */
+  | "not-sent";
 
 export class MilestoneNotAllowedError extends Error {
   override readonly name = "MilestoneNotAllowedError";
@@ -27,7 +29,8 @@ export class MilestoneNotAllowedError extends Error {
 /** The stored columns, named as the record's fields. */
 const COLUMNS = `deal_id AS "dealId", version, stage, amount_minor AS "amountMinor", currency, status,
   request_id AS "requestId", invoice_sha256 AS "invoiceSha256", invoice_id AS "invoiceId",
-  pay_url AS "payUrl", ledger_seq AS "ledgerSeq", created_at AS "createdAt", sent_at AS "sentAt"`;
+  pay_url AS "payUrl", ledger_seq AS "ledgerSeq", created_at AS "createdAt", sent_at AS "sentAt",
+  paid_at AS "paidAt", payment_ledger_seq AS "paymentLedgerSeq", transaction_id AS "transactionId"`;
 
 const milestoneRow = z.object({
   dealId: z.string(),
@@ -43,6 +46,9 @@ const milestoneRow = z.object({
   ledgerSeq: z.number().int().nullable(),
   createdAt: z.date(),
   sentAt: z.date().nullable(),
+  paidAt: z.date().nullable(),
+  paymentLedgerSeq: z.number().int().nullable(),
+  transactionId: z.string().nullable(),
 });
 export type Milestone = z.output<typeof milestoneRow>;
 
@@ -232,4 +238,100 @@ export async function listMilestones(q: Queryable, dealId: string): Promise<Mile
     [dealId],
   );
   return rows.map((row) => milestoneRow.parse(row));
+}
+
+export const invoicePaidSchema = z.object({
+  ...stageKey,
+  invoiceId: z.string().min(1).max(100),
+  /** What PayPal says was paid, read from PayPal itself. */
+  paidAmount: z.object({
+    minor: z.number().int().min(0),
+    currency: z.string().regex(/^[A-Z]{3}$/),
+  }),
+  transactions: z
+    .array(
+      z.object({
+        paymentId: z.string().min(1).max(100).optional(),
+        paymentDate: z.string().min(1).max(40).optional(),
+        method: z.string().min(1).max(40).optional(),
+      }),
+    )
+    .max(20),
+  /** How PactPal learned of it: PayPal's notification, or someone pressing "check". */
+  source: z.enum(["notification", "status-check"]),
+  /** PayPal's id for the notification, when that is how it was learned. */
+  eventId: z.string().min(1).max(100).optional(),
+});
+export type InvoicePaid = z.input<typeof invoicePaidSchema>;
+
+/**
+ * Records that PayPal confirmed a stage's invoice as paid: with the deal locked, the row becomes
+ * `paid` and a `PAYMENT_RECEIVED` entry (by the system) records the version, stage, invoice id,
+ * the amount PayPal says was paid, PayPal's transaction ids, dates and methods, and how PactPal
+ * learned of it. Done once: a stage already paid returns its row and no entry.
+ */
+export async function markInvoicePaid(
+  db: Database,
+  input: InvoicePaid,
+  now: Date,
+): Promise<{ milestone: Milestone; entry?: LedgerEntry }> {
+  const paid = invoicePaidSchema.parse(input);
+  return db.transaction(async (tx) => {
+    const locked = await tx.query("SELECT 1 FROM deals WHERE id = $1 FOR UPDATE", [paid.dealId]);
+    if (locked.length === 0) throw new DealNotFoundError(`No deal ${paid.dealId}`);
+    const row = await stageRow(tx, paid);
+    if (row?.status === "paid") return { milestone: row };
+    if (row?.status !== "sent" || row.invoiceId !== paid.invoiceId) {
+      throw new MilestoneNotAllowedError("not-sent");
+    }
+    const entry = await appendLedgerEvent(
+      tx,
+      {
+        dealId: paid.dealId,
+        type: "PAYMENT_RECEIVED",
+        actor: "system",
+        payload: {
+          version: paid.version,
+          stage: paid.stage,
+          invoiceId: paid.invoiceId,
+          amountMinor: paid.paidAmount.minor,
+          currency: paid.paidAmount.currency,
+          transactions: paid.transactions.map((t) => ({
+            paymentId: t.paymentId ?? null,
+            paymentDate: t.paymentDate ?? null,
+            method: t.method ?? null,
+          })),
+          source: paid.source,
+          ...(paid.eventId === undefined ? {} : { eventId: paid.eventId }),
+        },
+      },
+      now,
+    );
+    const rows = await tx.query(
+      `UPDATE milestones SET status = 'paid', paid_at = $4, payment_ledger_seq = $5,
+                             transaction_id = $6
+        WHERE deal_id = $1 AND version = $2 AND stage = $3
+        RETURNING ${COLUMNS}`,
+      [
+        paid.dealId,
+        paid.version,
+        paid.stage,
+        now,
+        entry.seq,
+        paid.transactions.find((t) => t.paymentId !== undefined)?.paymentId ?? null,
+      ],
+    );
+    return { milestone: milestoneRow.parse(rows[0]), entry };
+  });
+}
+
+/** The stage whose PayPal invoice this is, or undefined if PactPal did not send it. */
+export async function findMilestoneByInvoice(
+  q: Queryable,
+  invoiceId: string,
+): Promise<Milestone | undefined> {
+  const rows = await q.query(`SELECT ${COLUMNS} FROM milestones WHERE invoice_id = $1`, [
+    invoiceId,
+  ]);
+  return rows[0] === undefined ? undefined : milestoneRow.parse(rows[0]);
 }

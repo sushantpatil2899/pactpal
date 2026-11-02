@@ -1,4 +1,5 @@
 import type { EmailMessage } from "@pactpal/email";
+import { SANDBOX_FOOTER, utcDateTime } from "./common.js";
 
 export interface ReceiptEmailInput {
   to: string;
@@ -14,13 +15,10 @@ export interface ReceiptEmailInput {
   idempotencyKey: string;
 }
 
-const utc = (at: Date) =>
-  at.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
-
 /** The email that sends one side the signed receipt (wording approved by the owner, 4c). */
 export function receiptEmail(input: ReceiptEmailInput): EmailMessage {
   const { dealTitle, version, signedAt } = input;
-  const when = `${utc(signedAt)} UTC (version ${String(version)})`;
+  const when = `${utcDateTime(signedAt)} UTC (version ${String(version)})`;
   const first =
     input.role === "buyer"
       ? `You signed the agreement "${dealTitle}" with ${input.sellerName} on ${when}.`
@@ -37,7 +35,7 @@ export function receiptEmail(input: ReceiptEmailInput): EmailMessage {
       `Receipt fingerprint (SHA-256): ${input.receipt.sha256}`,
       "",
       "A typed name and an IP address are not proof of identity.",
-      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+      SANDBOX_FOOTER,
     ].join("\n"),
     idempotencyKey: input.idempotencyKey,
     attachments: [{ filename: input.receipt.filename, bytes: input.receipt.bytes }],

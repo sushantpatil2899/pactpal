@@ -1,4 +1,5 @@
 import type { NewWebhookEvent, RecordResult } from "@pactpal/db";
+import type { JsonValue } from "@pactpal/ledger";
 import type { PayPalWebhooks } from "@pactpal/paypal";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
@@ -12,6 +13,11 @@ export interface PayPalWebhookOptions {
   webhookId: string | undefined;
   /** Saves each notification; undefined until `DATABASE_URL` is set. */
   events: { record(event: NewWebhookEvent): Promise<RecordResult> } | undefined;
+  /**
+   * Acts on a saved notification (new or repeated; it must be safe to run twice). A failure is
+   * answered 500, so PayPal sends the notification again and it is tried again.
+   */
+  process?: (event: { eventId: string; eventType: string; body: JsonValue }) => Promise<void>;
 }
 
 // Only the envelope is read; the event's contents are used by later phases.
@@ -44,8 +50,11 @@ function toDate(value: string | undefined): Date | undefined {
  * then saved in full; only then is it acknowledged, so an event we have not
  * saved is never acknowledged. Repeats are acknowledged without being saved again.
  *
+ * A saved notification (new or repeated) is then handed to `process`, if given.
+ *
  * Answers: 200 saved or repeat; 400 not genuine or malformed (PayPal stops);
- * 500 PayPal could not be asked or the event could not be saved (PayPal retries);
+ * 500 PayPal could not be asked, the event could not be saved, or it could not be processed
+ * (PayPal retries);
  * 503 not configured yet (no seller keys, webhook id or database).
  * Bodies, signatures and personal data are never logged.
  */
@@ -101,11 +110,22 @@ export const paypalWebhookRoutes: FastifyPluginAsync<PayPalWebhookOptions> = (ap
       return reply.code(500).send({ error: "could not save" });
     }
     if (result === "repeat") {
-      request.log.info({ eventId: id, eventType }, "PayPal notification repeated; ignored");
-      return reply.code(200).send({ status: "repeat" });
+      request.log.info({ eventId: id, eventType }, "PayPal notification repeated");
+    } else {
+      request.log.info({ eventId: id, eventType, createdAt }, "PayPal notification stored");
     }
-    request.log.info({ eventId: id, eventType, createdAt }, "PayPal notification stored");
-    return reply.code(200).send({ status: "received" });
+    if (options.process) {
+      try {
+        await options.process({ eventId: id, eventType, body: body.value });
+      } catch (error) {
+        request.log.error(
+          { eventId: id, eventType, err: error instanceof Error ? error.name : "unknown" },
+          "PayPal notification stored but not processed; PayPal will send it again",
+        );
+        return reply.code(500).send({ error: "could not process" });
+      }
+    }
+    return reply.code(200).send({ status: result === "repeat" ? "repeat" : "received" });
   });
 
   return Promise.resolve();

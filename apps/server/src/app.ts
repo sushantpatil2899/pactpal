@@ -5,11 +5,12 @@ import { MIGRATIONS, migrationStatus, type Database, type Migration } from "@pac
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { linkRoutes } from "./auth/links.js";
 import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
-import type { InvoiceSender } from "./deals/milestone-routes.js";
+import type { InvoiceSender } from "./payments/invoice-sender.js";
 import { dealRoutes } from "./deals/routes.js";
 import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "@pactpal/email";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
+import { paymentNotifications } from "./payments/payment-sync.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
 
@@ -110,22 +111,37 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
   };
   void app.register(signInRoutes, signIn);
   void app.register(linkRoutes, { database: signIn.database, clock: signIn.clock });
+  const email = opts.email ?? new StandInEmailSender(app.log);
   void app.register(dealRoutes, {
     database: signIn.database,
     clock: signIn.clock,
     newId: signIn.newId,
     publicBaseUrl: signIn.publicBaseUrl,
-    email: opts.email ?? new StandInEmailSender(app.log),
+    email,
     drafting: opts.drafting,
     recordIp: trustProxyHops !== undefined,
     invoices: opts.invoices,
   });
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 
-  void app.register(
-    paypalWebhookRoutes,
-    opts.webhooks ?? { verifier: undefined, webhookId: undefined, events: undefined },
-  );
+  // A paid invoice's notification is checked with PayPal and recorded, when both are available.
+  const webhooks = opts.webhooks ?? {
+    verifier: undefined,
+    webhookId: undefined,
+    events: undefined,
+  };
+  const process =
+    webhooks.process ??
+    (database && opts.invoices
+      ? paymentNotifications({
+          db: database,
+          invoices: opts.invoices,
+          email,
+          clock: signIn.clock,
+          log: app.log,
+        })
+      : undefined);
+  void app.register(paypalWebhookRoutes, process ? { ...webhooks, process } : webhooks);
 
   return app;
 }
