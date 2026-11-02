@@ -18,6 +18,9 @@ export interface InvoiceDraft {
   requestId: string;
 }
 
+/** The invoice's note as PayPal shows it to the buyer: the agreed scope it pays for. */
+export const invoiceNote = (scopeReference: string): string => `Agreed scope: ${scopeReference}`;
+
 /** Which route served a step, and why MCP was not used. */
 export type Route = Omit<PayPalResult<unknown>, "data">;
 
@@ -105,7 +108,7 @@ export class PayPalInvoices extends PayPalOperations {
   /** Creates the invoice, then sends it to the recipient. */
   async createAndSend(draft: InvoiceDraft): Promise<SentInvoice> {
     const unitAmount = toPayPalMoney(draft.amount);
-    const note = `Agreed scope: ${draft.scopeReference}`;
+    const note = invoiceNote(draft.scopeReference);
     const primary_recipients = [{ billing_info: { email_address: draft.recipientEmail } }];
     const items = [
       {

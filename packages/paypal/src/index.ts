@@ -102,6 +102,7 @@ export {
 export {
   InvoiceSendError,
   PayPalInvoices,
+  invoiceNote,
   type InvoiceDetails,
   type InvoiceDraft,
   type Route,

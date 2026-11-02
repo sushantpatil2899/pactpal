@@ -131,3 +131,21 @@ export type {
   RequestAcceptance,
   WithdrawAcceptance,
 } from "./acceptance.js";
+export {
+  MILESTONE_STATUSES,
+  MilestoneNotAllowedError,
+  dropFailedInvoice,
+  invoiceSentSchema,
+  listMilestones,
+  markInvoiceSent,
+  recordInvoiceId,
+  startInvoice,
+  startInvoiceSchema,
+} from "./milestones.js";
+export type {
+  InvoiceSent,
+  Milestone,
+  MilestoneRefusal,
+  MilestoneStatus,
+  StartInvoice,
+} from "./milestones.js";

@@ -11,6 +11,7 @@ import {
   databaseFromPool,
   documentFingerprint,
   finishDraft,
+  markInvoiceSent,
   getArtifact,
   listArtifacts,
   migrate,
@@ -20,11 +21,19 @@ import {
   requestAcceptance,
   saveScopeVersion,
   startDraft,
+  startInvoice,
   verifyStoredLedger,
   type PgClient,
   type PgPool,
 } from "./index.js";
-import { TEST_NOW, createTestDeal, createTestParties, testDeal, testId } from "./testing.js";
+import {
+  TEST_NOW,
+  createSignedTestDeal,
+  createTestDeal,
+  createTestParties,
+  testDeal,
+  testId,
+} from "./testing.js";
 
 type Call = [string, unknown[] | undefined];
 
@@ -370,6 +379,47 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       expect(await db.query("SELECT 1 FROM acceptances")).toHaveLength(1);
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true, length: 4 });
+    });
+  });
+
+  it("reserves a stage once and records its invoice once when both arrive several times at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller, scope } = await createSignedTestDeal(db);
+      const key = { dealId: testId(100), sellerId: seller.id, version: 1, stage: 1 };
+      const started = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          startInvoice(
+            db,
+            {
+              ...key,
+              amountMinor: 12_000,
+              currency: "USD",
+              requestId: "pp-test-v1-s1",
+              invoiceSha256: "a".repeat(64),
+            },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(new Set(started.map((m) => m.requestId)).size).toBe(1);
+      const sent = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          markInvoiceSent(
+            db,
+            {
+              ...key,
+              invoiceId: "INV2-ONE",
+              transport: "rest",
+              recipientEmail: "chris@example.com",
+              contentSha256: scope.contentSha256,
+            },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(sent.filter((r) => r.entry !== undefined)).toHaveLength(1);
+      expect(await db.query("SELECT 1 FROM milestones")).toHaveLength(1);
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true });
     });
   });
 });

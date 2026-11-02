@@ -251,4 +251,35 @@ CREATE TRIGGER acceptances_append_only BEFORE UPDATE OR DELETE ON acceptances
 CREATE TRIGGER acceptances_no_truncate BEFORE TRUNCATE ON acceptances
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0010_milestones",
+    // One row per payment stage of a signed version that has a PayPal invoice: reserved as
+    // 'sending' before PayPal is asked, 'sent' once PayPal confirms (with its INVOICE_SENT ledger
+    // entry), 'paid' later (4e). Not append-only: the status moves on; the ledger is the evidence.
+    sql: `CREATE TABLE milestones (
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL CHECK (version >= 1),
+  stage integer NOT NULL CHECK (stage >= 1),
+  amount_minor integer NOT NULL CHECK (amount_minor > 0),
+  currency text NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  status text NOT NULL CHECK (status IN ('sending', 'sent', 'paid')),
+  request_id text NOT NULL UNIQUE,
+  invoice_sha256 text NOT NULL CHECK (invoice_sha256 ~ '^[0-9a-f]{64}$'),
+  invoice_id text UNIQUE CHECK (invoice_id <> ''),
+  pay_url text CHECK (pay_url <> ''),
+  ledger_seq integer,
+  created_at timestamptz NOT NULL,
+  sent_at timestamptz,
+  PRIMARY KEY (deal_id, version, stage),
+  CONSTRAINT milestones_version_exists FOREIGN KEY (deal_id, version)
+    REFERENCES scope_versions (deal_id, version),
+  CONSTRAINT milestones_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT milestones_state CHECK (
+    (status = 'sending' AND ledger_seq IS NULL AND sent_at IS NULL)
+    OR (status <> 'sending' AND ledger_seq IS NOT NULL AND sent_at IS NOT NULL
+      AND invoice_id IS NOT NULL)
+  )
+)`,
+  },
 ];

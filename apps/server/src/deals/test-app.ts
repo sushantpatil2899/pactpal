@@ -3,6 +3,7 @@ import { TEST_NOW, testId } from "@pactpal/db/testing";
 import { buildApp } from "../app.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
+import type { InvoiceSender } from "./milestone-routes.js";
 import { StandInEmailSender, type EmailMessage, type EmailSender } from "@pactpal/email";
 
 /**
@@ -15,7 +16,7 @@ import { StandInEmailSender, type EmailMessage, type EmailSender } from "@pactpa
 export function dealTestApp(
   db: Database | undefined,
   drafting?: DraftingRuntime,
-  options: { trustProxyHops?: number; emailOff?: boolean } = {},
+  options: { trustProxyHops?: number; emailOff?: boolean; invoices?: InvoiceSender } = {},
 ) {
   let ids = 200;
   const sent: EmailMessage[] = [];

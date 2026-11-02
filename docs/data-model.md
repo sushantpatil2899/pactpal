@@ -14,7 +14,9 @@ erDiagram
   scope_versions ||--o| acceptances : "version signed"
   ledger_entries |o--o| acceptances : "recorded by (ACCEPTED)"
   users ||--o{ acceptances : "signed by (buyer_id)"
-  deals ||--o{ milestones : "planned Phase 4"
+  deals ||--o{ milestones : "invoiced stages"
+  scope_versions ||--o{ milestones : "stage of"
+  ledger_entries |o--o| milestones : "recorded by (INVOICE_SENT)"
   deals ||--o{ artifacts : "has files"
   deals ||--o{ scope_drafts : "AI drafts"
   artifacts ||--o{ scope_drafts : "drafted from"
@@ -34,7 +36,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4a)
+## Built (sub-phases 2b to 4d)
 
 ### `users`: everyone
 
@@ -202,6 +204,23 @@ When the email service accepts a receipt email (4c), a **`RECEIPT_SENT`** entry 
 
 The **receipt PDF** (4b) is not stored: it is made from the newest row each time it is downloaded, after checking the row against its fingerprint and against its `ACCEPTED` entry (same document fingerprint, typed name and time). The same row always gives the same bytes.
 
+### `milestones`: payment stages invoiced through PayPal
+
+Built in 4d (migration 0010). One row per payment stage of the **signed** version that has a PayPal invoice; the stage's title, amount and due date stay in the signed version (`scope_versions`), so they are fingerprinted with it. Not append-only: the status moves on, and the evidence is the `INVOICE_SENT` entry.
+
+| Column                        | Meaning                                                                                                                                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deal_id`, `version`, `stage` | The deal, the signed version and the stage number (from 1). Together the key                                                                       |
+| `amount_minor`, `currency`    | What was invoiced                                                                                                                                  |
+| `status`                      | `sending` (reserved before PayPal is asked), `sent` (PayPal confirmed), `paid` (4e)                                                                |
+| `request_id`                  | The fixed `PayPal-Request-Id`, `pp-<deal>-v<version>-s<stage>`: every retry reaches PayPal as the same request, so a stage is never invoiced twice |
+| `invoice_sha256`              | Fingerprint of the item name, description, note and amount the seller confirmed                                                                    |
+| `invoice_id`, `pay_url`       | PayPal's invoice id (also kept for a created-but-unsent invoice, so a retry re-sends it) and the buyer's view-and-pay link                         |
+| `ledger_seq`, `sent_at`       | The `INVOICE_SENT` entry and when it was sent; set together with `sent`                                                                            |
+| `created_at`                  | When the stage was reserved                                                                                                                        |
+
+`INVOICE_SENT` (by the seller) holds the version, stage, PayPal invoice id, amount and currency, the fingerprints of the agreed work and of the invoice text, a SHA-256 of the buyer's lower-cased address (never the address) and the route PayPal answered by (`rest`).
+
 ### `scope_drafts`: AI drafts of the agreed work
 
 A draft is a proposal made by the council from a chat saved as a text source file. It is not evidence and not an agreement, so it lives in its own table and is not append-only: a row starts as `running` and moves once to `ready` or `failed`. Only a `ready` draft is recorded in the ledger (`SCOPE_DRAFTED`, by fingerprint, never with text). Nothing becomes agreed work until the seller confirms it (3e).
@@ -229,5 +248,4 @@ Lines of the chat that look like orders to an AI are not stored anywhere; they a
 | `webhook_events`                    | 2d        | PayPal notifications as received, one row per event id, so repeats are skipped even after a restart                          |
 | `link_tokens`                       | 2e-2      | Single-purpose expiring links tied to one deal and one person, for buyers who do not sign in; only hashes are stored         |
 | `scope_versions`                    | 2f-3      | The agreed work, each version kept and never edited, with its payment stages                                                 |
-| `milestones`                        | Phase 4   | Each payment stage's PayPal invoice and payment status, pointing at a version and stage number of the agreed work            |
 | disputes and evidence packets       | Phase 5   | Created when Phase 5 is designed                                                                                             |

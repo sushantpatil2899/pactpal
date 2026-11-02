@@ -5,6 +5,7 @@ import { MIGRATIONS, migrationStatus, type Database, type Migration } from "@pac
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { linkRoutes } from "./auth/links.js";
 import { signInRoutes, type SignInOptions } from "./auth/sign-in.js";
+import type { InvoiceSender } from "./deals/milestone-routes.js";
 import { dealRoutes } from "./deals/routes.js";
 import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "@pactpal/email";
@@ -33,6 +34,8 @@ export interface AppOptions {
    * visitors' IP addresses are then not recorded in the evidence log.
    */
   trustProxyHops?: number;
+  /** PayPal invoices from the seller app; absent until its keys are set. */
+  invoices?: InvoiceSender;
 }
 
 /**
@@ -115,6 +118,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     email: opts.email ?? new StandInEmailSender(app.log),
     drafting: opts.drafting,
     recordIp: trustProxyHops !== undefined,
+    invoices: opts.invoices,
   });
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 

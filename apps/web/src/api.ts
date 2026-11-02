@@ -415,6 +415,70 @@ export const declineTerms = (dealId: string, input: { documentSha256: string; re
 export const emailReceiptAgain = (dealId: string) =>
   acceptanceStep(dealId, "receipt-email", {}, "email the receipt");
 
+// --- Payment stages and invoices ----------------------------------------------------------------
+
+/** One payment stage of the signed agreement and its PayPal invoice. */
+export interface StageView {
+  stage: number;
+  title: string;
+  amount: Money & { currency: string };
+  dueDate: string | null;
+  status: "not_invoiced" | "sending" | "sent" | "paid";
+  sentAt: string | null;
+  /** Where the buyer views and pays the invoice on PayPal. */
+  payUrl: string | null;
+  /** Seller only, before sending: exactly what PayPal will show the buyer. */
+  invoice?: {
+    to: string;
+    itemName: string;
+    description: string;
+    note: string;
+    invoiceSha256: string;
+  };
+}
+
+export interface MilestonesView {
+  signed: boolean;
+  /** Whether PayPal invoicing is set up on the server. */
+  invoicing: boolean;
+  stages: StageView[];
+}
+
+const isMilestones = (value: unknown): value is MilestonesView =>
+  isObject(value) &&
+  typeof value.signed === "boolean" &&
+  typeof value.invoicing === "boolean" &&
+  Array.isArray(value.stages) &&
+  value.stages.every(
+    (stage) =>
+      isObject(stage) &&
+      typeof stage.stage === "number" &&
+      typeof stage.title === "string" &&
+      isMoney(stage.amount) &&
+      typeof stage.status === "string",
+  );
+
+const milestonesUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/milestones`;
+
+export async function getMilestones(dealId: string): Promise<MilestonesView> {
+  return readChecked(await fetch(milestonesUrl(dealId)), isMilestones, "load the payment stages");
+}
+
+/** The seller sends one stage's invoice, naming the invoice text they confirmed. */
+export async function sendInvoice(
+  dealId: string,
+  stage: number,
+  invoiceSha256: string,
+): Promise<MilestonesView> {
+  const response = await fetch(`${milestonesUrl(dealId)}/${String(stage)}/invoice`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ invoiceSha256 }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not send the invoice"));
+  return readChecked(response, isMilestones, "send the invoice");
+}
+
 // --- Files -------------------------------------------------------------------------------------
 
 /** The largest file the server accepts (10 MB), checked here too so nothing big is sent in vain. */

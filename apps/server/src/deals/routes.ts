@@ -23,6 +23,7 @@ import type { DraftingRuntime } from "../drafting/runtime.js";
 import { draftRoutes } from "./draft-routes.js";
 import { fileRoutes } from "./file-routes.js";
 import { acceptanceRoutes } from "./acceptance-routes.js";
+import { milestoneRoutes, type InvoiceSender } from "./milestone-routes.js";
 import { categoryLabelOf, categoryLabels, nameOf, partiesOf } from "./parties.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
@@ -41,6 +42,8 @@ export interface DealOptions {
   drafting?: DraftingRuntime | undefined;
   /** Whether visitors' IP addresses are known (the number of proxies is set); false by default. */
   recordIp?: boolean;
+  /** PayPal invoices from the seller app; undefined until its keys are set. */
+  invoices?: InvoiceSender | undefined;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -86,7 +89,16 @@ const describe = async (db: Database, deal: Deal, viewer: Viewer) =>
  * answers 404, so its existence is not revealed.
  */
 export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
-  const { database, clock, newId, publicBaseUrl, email, drafting, recordIp = false } = options;
+  const {
+    database,
+    clock,
+    newId,
+    publicBaseUrl,
+    email,
+    drafting,
+    recordIp = false,
+    invoices,
+  } = options;
   app.get("/api/deal-options", (_request, reply) =>
     reply.send({
       categories: [...categoryLabels].map(([id, label]) => ({ id, label })),
@@ -104,6 +116,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     recordIp,
     email,
   });
+  void app.register(milestoneRoutes, { visibleDeal, sellersDeal, clock, invoices });
   void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId, recordIp });
   void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
 

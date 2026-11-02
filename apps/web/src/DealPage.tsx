@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AcceptancePanel } from "./AcceptancePanel";
+import { PaymentsPanel } from "./PaymentsPanel";
 import { BuyerPanel } from "./BuyerPanel";
 import { DraftPanel } from "./DraftPanel";
 import type { DraftFill } from "./draft-fill";
@@ -31,6 +32,7 @@ const EVENT_LABELS: Record<string, string> = {
   ACCEPTED: "Buyer signed",
   DECLINED: "Buyer declined",
   RECEIPT_SENT: "Receipt emailed",
+  INVOICE_SENT: "Invoice sent",
   NOTE_ADDED: "Note added",
 };
 
@@ -45,7 +47,13 @@ function labelOf(entry: LedgerEntryView): string {
   const version = field("version");
   const filename = field("filename");
   const to = field("to");
-  const recipient = to === "buyer" || to === "seller" ? ` to the ${to}` : "";
+  const stage = field("stage");
+  const recipient =
+    to === "buyer" || to === "seller"
+      ? ` to the ${to}`
+      : typeof stage === "number"
+        ? ` for stage ${String(stage)}`
+        : "";
   if (typeof version === "number") return `${label}${recipient} (version ${String(version)})`;
   return typeof filename === "string" ? `${label}: ${filename}` : label;
 }
@@ -162,6 +170,7 @@ export function DealPage({ dealId }: { dealId: string }) {
       {deal.role === "seller" && (
         <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
       )}
+      <PaymentsPanel deal={deal} onChange={refreshLog} />
       <FilesPanel
         dealId={deal.id}
         canAdd={deal.role === "seller" && !linkOnly}

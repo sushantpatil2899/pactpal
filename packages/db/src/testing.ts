@@ -5,6 +5,8 @@ import { migrate } from "./migrate.js";
 import { MIGRATIONS } from "./migrations.js";
 import { createUser, type User } from "./users.js";
 import { createDeal, type NewDeal } from "./deals.js";
+import { acceptTerms, documentFingerprint, requestAcceptance } from "./acceptance.js";
+import { saveScopeVersion } from "./scope.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
 interface Engine {
@@ -117,4 +119,57 @@ export async function createTestDeal(
   const { seller, buyer } = await createTestParties(db);
   const { deal } = await createDeal(db, testDeal(seller.id, { buyerId: buyer.id }), TEST_NOW);
   return { seller, buyer, dealId: deal.id };
+}
+
+/**
+ * The test deal (id 100) signed by its buyer: version 1 of the agreed work with two payment
+ * stages (120.00 and 130.00 USD), sent for acceptance and accepted at `TEST_NOW`.
+ */
+export async function createSignedTestDeal(db: Database) {
+  const { seller, buyer, dealId } = await createTestDeal(db);
+  const { scope } = await saveScopeVersion(
+    db,
+    {
+      dealId,
+      sellerId: seller.id,
+      content: {
+        format: 1,
+        summary: "A character illustration",
+        deliverables: ["Full-body character, transparent PNG"],
+        exclusions: [],
+        milestones: [
+          { title: "Deposit", amountMinor: 12_000 },
+          { title: "Final files", amountMinor: 13_000, dueDate: "2026-11-27" },
+        ],
+      },
+    },
+    TEST_NOW,
+  );
+  const document = { format: 1, version: 1 };
+  await requestAcceptance(
+    db,
+    {
+      dealId,
+      sellerId: seller.id,
+      version: 1,
+      contentSha256: scope.contentSha256,
+      documentSha256: documentFingerprint(document),
+    },
+    TEST_NOW,
+  );
+  const { acceptance } = await acceptTerms(
+    db,
+    {
+      dealId,
+      buyerId: buyer.id,
+      version: 1,
+      contentSha256: scope.contentSha256,
+      document,
+      noticeVersion: 1,
+      typedName: "Chris Buyer",
+      access: "link",
+    },
+    TEST_NOW,
+  );
+  return { seller, buyer, dealId, scope, acceptance };
 }

@@ -5,6 +5,8 @@ import { MODEL_REGISTRY } from "@pactpal/ai";
 import { connectPostgres, failRunningDrafts, recordWebhookEvent } from "@pactpal/db";
 import {
   AccessTokenProvider,
+  McpFallback,
+  PayPalInvoices,
   PayPalLogin,
   PayPalRestClient,
   PayPalWebhooks,
@@ -23,6 +25,8 @@ if (!result.ok) {
 
 const { config, report } = result;
 const seller = config.paypal.apps.seller;
+// One login per seller app, shared by webhook checks and invoices.
+const sellerRest = seller && new PayPalRestClient(new AccessTokenProvider(seller));
 const database =
   config.database &&
   connectPostgres({
@@ -39,6 +43,9 @@ const app = buildApp(report, {
   drafting:
     database && members.length > 0 ? createDraftingRuntime({ clients: members }) : undefined,
   webDir: existsSync(webDir) ? webDir : undefined,
+  // Invoices go over REST only: PayPal's MCP tool takes no request id, so a retry could create a
+  // second invoice (docs/decisions.md, 4d). No MCP client means McpFallback goes straight to REST.
+  ...(sellerRest ? { invoices: new PayPalInvoices(sellerRest, undefined, new McpFallback()) } : {}),
   // Without Resend's key and a sender the app uses its stand-in, which sends nothing.
   ...(config.email ? { email: new ResendEmailSender(config.email) } : {}),
   ...(config.trustProxyHops === undefined ? {} : { trustProxyHops: config.trustProxyHops }),
@@ -51,7 +58,7 @@ const app = buildApp(report, {
     newId: randomUUID,
   },
   webhooks: {
-    verifier: seller && new PayPalWebhooks(new PayPalRestClient(new AccessTokenProvider(seller))),
+    verifier: sellerRest && new PayPalWebhooks(sellerRest),
     webhookId: config.paypal.webhookId,
     events: database && {
       record: (event) => recordWebhookEvent(database, event, new Date()),
