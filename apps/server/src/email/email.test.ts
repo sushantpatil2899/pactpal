@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dealLinkEmail, dealLinkUrl } from "./deal-link-email.js";
+import { deliveryEmail } from "./delivery-email.js";
 import { receiptEmail } from "./receipt-email.js";
 
 const email = dealLinkEmail({
@@ -67,5 +68,51 @@ describe("receiptEmail", () => {
     expect(mail.text.split("\n")[0]).toBe(
       'Chris Buyer signed your agreement "Character illustration" on 1 Nov 2026, 22:06 UTC (version 2).',
     );
+  });
+});
+
+describe("deliveryEmail", () => {
+  const facts = {
+    dealTitle: "Food truck logo",
+    stage: 1,
+    stageCount: 2,
+    stageTitle: "Deposit",
+    amountText: "150.00",
+    currency: "USD",
+  };
+  const base = {
+    to: "diego@example.com",
+    sellerName: "Lena",
+    facts,
+    link: "https://pactpal.test/link#t=SECRET",
+    linkExpiresAt: new Date("2026-11-16T18:00:00Z"),
+    idempotencyKey: "delivery:1:abc",
+  };
+
+  it("says what was delivered, quotes the message and gives the private link", () => {
+    const mail = deliveryEmail({ ...base, fileCount: 2, message: "Here is the sketch" });
+    expect(mail).toMatchObject({
+      kind: "delivery",
+      subject: 'Delivery for "Food truck logo": stage 1 of 2, Deposit',
+      idempotencyKey: "delivery:1:abc",
+    });
+    expect(mail.text.split("\n")).toEqual([
+      'Lena delivered work for stage 1 of 2 of "Food truck logo" (Deposit): 2 files.',
+      "",
+      'Message from Lena: "Here is the sketch"',
+      "",
+      "Open the delivery (private link, works until 16 Nov 2026, 18:00 UTC, this deal only; please do not forward it):",
+      "https://pactpal.test/link#t=SECRET",
+      "",
+      "PactPal records when you open the delivery and when you download each file, with the file's fingerprint. A typed name and an IP address are not proof of identity.",
+      "",
+      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+    ]);
+  });
+
+  it("leaves out the message line when there is none, and counts one file", () => {
+    const mail = deliveryEmail({ ...base, fileCount: 1, message: undefined });
+    expect(mail.text).toContain("(Deposit): 1 file.");
+    expect(mail.text).not.toContain("Message from");
   });
 });

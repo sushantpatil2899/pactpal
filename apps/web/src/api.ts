@@ -492,6 +492,78 @@ export async function sendInvoice(
   return readChecked(response, isMilestones, "send the invoice");
 }
 
+// --- Deliveries ------------------------------------------------------------------------------
+
+export interface DeliveryView {
+  id: string;
+  stage: number;
+  stageTitle: string;
+  message: string | null;
+  sentAt: string;
+  files: { id: string; filename: string; mediaType: string; sizeBytes: number; sha256: string }[];
+  access: {
+    emailedAt: string | null;
+    emailCount: number;
+    opened: { count: number; lastAt: string | null };
+    downloads: Partial<Record<string, { count: number; lastAt: string }>>;
+  };
+}
+
+export interface DeliveriesView {
+  signed: boolean;
+  emailOn: boolean;
+  /** Seller only: the stages to deliver for. */
+  stages: { stage: number; title: string }[];
+  deliveries: DeliveryView[];
+}
+
+const isDeliveries = (value: unknown): value is DeliveriesView =>
+  isObject(value) &&
+  typeof value.signed === "boolean" &&
+  typeof value.emailOn === "boolean" &&
+  Array.isArray(value.stages) &&
+  Array.isArray(value.deliveries) &&
+  value.deliveries.every(
+    (d) => isObject(d) && typeof d.id === "string" && Array.isArray(d.files) && isObject(d.access),
+  );
+
+const deliveriesUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/deliveries`;
+
+export async function getDeliveries(dealId: string): Promise<DeliveriesView> {
+  return readChecked(await fetch(deliveriesUrl(dealId)), isDeliveries, "load the deliveries");
+}
+
+/** A delivery step that answers with the deliveries; a refusal becomes the server's message. */
+async function deliveryStep(url: string, body: object | undefined, what: string) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, `Could not ${what}`));
+  return readChecked(response, isDeliveries, what);
+}
+
+/** The seller sends uploaded delivered files for one stage, with an optional message. */
+export const sendDelivery = (
+  dealId: string,
+  input: { stage: number; message?: string; fileIds: string[] },
+) => deliveryStep(deliveriesUrl(dealId), input, "send the delivery");
+
+export const emailDeliveryAgain = (dealId: string, deliveryId: string) =>
+  deliveryStep(`${deliveriesUrl(dealId)}/${deliveryId}/email`, undefined, "email the delivery");
+
+/** The buyer opens a delivery; the server logs it. */
+export const openDelivery = (dealId: string, deliveryId: string) =>
+  deliveryStep(`${deliveriesUrl(dealId)}/${deliveryId}/open`, undefined, "open the delivery");
+
+/** Where one delivered file downloads from (the buyer's downloads are logged). */
+export const deliveryFileUrl = (dealId: string, deliveryId: string, fileId: string) =>
+  `${deliveriesUrl(dealId)}/${deliveryId}/files/${fileId}`;
+
 // --- Files -------------------------------------------------------------------------------------
 
 /** The largest file the server accepts (10 MB), checked here too so nothing big is sent in vain. */
@@ -530,8 +602,13 @@ export const fileUrl = (dealId: string, fileId: string) =>
   `/api/deals/${encodeURIComponent(dealId)}/files/${encodeURIComponent(fileId)}`;
 
 /** Sends a file's bytes, with its name in a header; the server checks the type from the bytes. */
-export async function addFile(dealId: string, file: File): Promise<DealFile> {
-  const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/files`, {
+/** Uploads a file: a source of the deal, or (`deliverable`) delivered work for a delivery. */
+export async function addFile(
+  dealId: string,
+  file: File,
+  kind: "source" | "deliverable" = "source",
+): Promise<DealFile> {
+  const response = await fetch(`/api/deals/${encodeURIComponent(dealId)}/files?kind=${kind}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/octet-stream",

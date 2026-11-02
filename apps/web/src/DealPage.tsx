@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AcceptancePanel } from "./AcceptancePanel";
+import { DeliveriesPanel } from "./DeliveriesPanel";
 import { PaymentsPanel } from "./PaymentsPanel";
 import { BuyerPanel } from "./BuyerPanel";
 import { DraftPanel } from "./DraftPanel";
@@ -34,6 +35,10 @@ const EVENT_LABELS: Record<string, string> = {
   RECEIPT_SENT: "Receipt emailed",
   INVOICE_SENT: "Invoice sent",
   PAYMENT_RECEIVED: "Payment received",
+  DELIVERY_SENT: "Delivery sent",
+  DELIVERY_EMAILED: "Delivery emailed to the buyer",
+  DELIVERY_VIEWED: "Delivery opened",
+  DELIVERY_DOWNLOADED: "File downloaded",
   NOTE_ADDED: "Note added",
 };
 
@@ -172,6 +177,7 @@ export function DealPage({ dealId }: { dealId: string }) {
         <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
       )}
       <PaymentsPanel deal={deal} onChange={refreshLog} />
+      <DeliveriesPanel deal={deal} onChange={refreshLog} />
       <FilesPanel
         dealId={deal.id}
         canAdd={deal.role === "seller" && !linkOnly}

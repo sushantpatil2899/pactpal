@@ -25,7 +25,7 @@ Phase 4 is split into small pieces, built one at a time in this order. Each need
 | 4c        | Real email (receipt, buyer links); the email service is the owner's choice                            | ✅     |
 | 4d        | Milestone invoices, one per payment stage, each sent only when the seller presses send                | ✅     |
 | 4e        | Payment notification marks a stage paid; "check status" as a backup                                   | ✅     |
-| 4f        | Delivery: upload, send, buyer delivery page, views and downloads logged                               |        |
+| 4f        | Delivery: upload, send, buyer delivery page, views and downloads logged                               | ✅     |
 | 4g        | Buyer approves or requests changes, counted against the agreed revisions                              |        |
 | 4h        | Evidence completeness score                                                                           |        |
 | 4i        | Agreement editor with the chat side by side; "buyer provides" list with dates                         |        |

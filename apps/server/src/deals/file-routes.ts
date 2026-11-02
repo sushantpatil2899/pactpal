@@ -1,10 +1,7 @@
 import {
   ARTIFACT_LIMITS,
-  ArtifactIntegrityError,
-  ArtifactNotFoundError,
   ArtifactRejectedError,
   addArtifact,
-  getArtifact,
   listArtifacts,
   postgresContentStore,
   type Artifact,
@@ -14,7 +11,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requestOrigin } from "../request-origin.js";
 import type { DealLookup } from "./access.js";
-import { sendDownload } from "./download.js";
+import { sendCheckedFile } from "./download.js";
 
 export interface FileRouteOptions {
   database: Database | undefined;
@@ -40,6 +37,8 @@ const REFUSALS: Record<ArtifactRejectedError["reason"], { status: number; error:
 };
 
 const fileParams = z.object({ fileId: z.uuid() });
+/** An upload is a source file unless the seller marks it as delivered work. */
+const uploadQuery = z.object({ kind: z.enum(["source", "deliverable"]).default("source") });
 
 /** The header's file name, or undefined when it is missing or not valid URL encoding. */
 function fileNameFrom(header: string | string[] | undefined): string | undefined {
@@ -82,13 +81,15 @@ export const fileRoutes: FastifyPluginAsync<FileRouteOptions> = (app, options) =
   app.get("/api/deals/:id/files", async (request, reply) => {
     const found = await visibleDeal(request, reply);
     if (!found) return reply;
-    const files = await listArtifacts(found.db, found.deal.id);
+    const files = await listArtifacts(found.db, found.deal.id, "source");
     return reply.send({ files: files.map(fileView) });
   });
 
   app.post("/api/deals/:id/files", { bodyLimit: UPLOAD_BODY_LIMIT }, async (request, reply) => {
     const found = await sellersDeal(request, reply);
     if (!found || !store) return reply;
+    const query = uploadQuery.safeParse(request.query);
+    if (!query.success) return reply.code(400).send({ error: "invalid", fields: ["kind"] });
     const filename = fileNameFrom(request.headers[FILE_NAME_HEADER]);
     if (filename === undefined) return reply.code(400).send({ error: "the file name is missing" });
     const { deal, db, viewer } = found;
@@ -99,7 +100,7 @@ export const fileRoutes: FastifyPluginAsync<FileRouteOptions> = (app, options) =
         {
           id: newId(),
           dealId: deal.id,
-          kind: "source",
+          kind: query.data.kind,
           filename,
           bytes: Buffer.isBuffer(request.body) ? request.body : new Uint8Array(),
           addedBy: { actor: "seller", actorId: viewer.user.id },
@@ -116,33 +117,19 @@ export const fileRoutes: FastifyPluginAsync<FileRouteOptions> = (app, options) =
     }
   });
 
+  // Source files only: delivered files are reached through their delivery, so each download is logged.
   app.get("/api/deals/:id/files/:fileId", async (request, reply) => {
     const found = await visibleDeal(request, reply);
     if (!found || !store) return reply;
     const params = fileParams.safeParse(request.params);
     if (!params.success) return reply.code(404).send({ error: "not found" });
-    try {
-      const { artifact, bytes } = await getArtifact(
-        found.db,
-        store,
-        params.data.fileId,
-        found.deal.id,
-      );
-      return await sendDownload(reply, {
-        mediaType: artifact.mediaType,
-        filename: artifact.filename,
-        bytes,
-      });
-    } catch (error) {
-      if (error instanceof ArtifactNotFoundError)
-        return reply.code(404).send({ error: "not found" });
-      if (!(error instanceof ArtifactIntegrityError)) throw error;
-      request.log.error(
-        { dealId: found.deal.id, fileId: params.data.fileId },
-        "File failed its fingerprint check",
-      );
-      return reply.code(409).send({ error: "this file failed its check and was not sent" });
-    }
+    return sendCheckedFile(reply, request.log, {
+      db: found.db,
+      store,
+      dealId: found.deal.id,
+      fileId: params.data.fileId,
+      kind: "source",
+    });
   });
 
   return Promise.resolve();

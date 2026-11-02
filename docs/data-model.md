@@ -15,6 +15,9 @@ erDiagram
   ledger_entries |o--o| acceptances : "recorded by (ACCEPTED)"
   users ||--o{ acceptances : "signed by (buyer_id)"
   deals ||--o{ milestones : "invoiced stages"
+  deals ||--o{ deliveries : "delivered work"
+  deliveries ||--o{ delivery_files : "files"
+  artifacts ||--o{ delivery_files : "delivered as"
   scope_versions ||--o{ milestones : "stage of"
   ledger_entries |o--o| milestones : "recorded by (INVOICE_SENT)"
   deals ||--o{ artifacts : "has files"
@@ -36,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4e)
+## Built (sub-phases 2b to 4f)
 
 ### `users`: everyone
 
@@ -223,6 +226,24 @@ Built in 4d (migration 0010). One row per payment stage of the **signed** versio
 `PAYMENT_RECEIVED` (by the system, 4e) holds the version, stage, PayPal invoice id, the amount PayPal says was paid, PayPal's transactions (id, date, method) and how PactPal learned of it (`notification` with PayPal's event id, or `status-check`). It is written once, only after PactPal re-read the invoice from PayPal and found it `PAID`.
 
 `INVOICE_SENT` (by the seller) holds the version, stage, PayPal invoice id, amount and currency, the fingerprints of the agreed work and of the invoice text, a SHA-256 of the buyer's lower-cased address (never the address) and the route PayPal answered by (`rest`).
+
+### `deliveries` and `delivery_files`: delivered work
+
+Built in 4f (migration 0012); both append-only. A delivery is a set of the deal's delivered files (`artifacts` of kind `deliverable`) for one stage of the signed version, with an optional message (up to 1,000 characters), sent by the seller. A stage can have several deliveries. `delivery_files` lists each delivery's files in order and only allows files of the same deal.
+
+| Column (`deliveries`)                 | Meaning                                                  |
+| ------------------------------------- | -------------------------------------------------------- |
+| `id`, `deal_id`                       | The delivery and its deal                                |
+| `version`, `stage`                    | The signed version and the payment stage it delivers for |
+| `message`                             | The seller's message to the buyer, if any                |
+| `sent_by`, `ledger_seq`, `created_at` | The seller, the `DELIVERY_SENT` entry and when           |
+
+Delivered files are not listed or served with the deal's source files: they are reached only through their delivery, so every buyer download is logged. The log entries:
+
+- `DELIVERY_SENT` (seller): the delivery, version, stage, message and each file's id, name, size and SHA-256.
+- `DELIVERY_EMAILED` (system): the delivery, a SHA-256 of the buyer's lower-cased address and the email service's message id; written only when the email was accepted. Each email carries a fresh private buyer link.
+- `DELIVERY_VIEWED` (buyer, with IP address and browser): the delivery and how the buyer came in (`link` or `paypal`); at most once per delivery every 10 minutes.
+- `DELIVERY_DOWNLOADED` (buyer, with IP address and browser): the delivery and the file's id, name, size and SHA-256; every download, after the file's bytes passed their fingerprint check. The seller's own downloads are not logged.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

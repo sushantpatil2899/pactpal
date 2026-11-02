@@ -153,3 +153,15 @@ export type {
   MilestoneStatus,
   StartInvoice,
 } from "./milestones.js";
+export {
+  DeliveryNotAllowedError,
+  MAX_DELIVERY_FILES,
+  VIEW_REPEAT_MS,
+  listDeliveries,
+  recordDeliveryDownloaded,
+  recordDeliveryEmailed,
+  recordDeliveryViewed,
+  sendDelivery,
+  sendDeliverySchema,
+} from "./deliveries.js";
+export type { Delivery, DeliveryFile, DeliveryRefusal, SendDelivery } from "./deliveries.js";

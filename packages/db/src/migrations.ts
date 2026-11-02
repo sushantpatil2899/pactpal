@@ -294,4 +294,48 @@ ALTER TABLE milestones ADD CONSTRAINT milestones_payment_in_ledger
 ALTER TABLE milestones ADD CONSTRAINT milestones_paid_state
   CHECK ((status = 'paid') = (paid_at IS NOT NULL AND payment_ledger_seq IS NOT NULL))`,
   },
+  {
+    id: "0012_deliveries",
+    // Each delivery the seller sends (files for one stage of the signed version, with an optional
+    // message) and its files; both append-only. The DELIVERY_SENT ledger entry names every file
+    // by fingerprint (docs/data-model.md).
+    sql: `CREATE TABLE deliveries (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL CHECK (version >= 1),
+  stage integer NOT NULL CHECK (stage >= 1),
+  message text CHECK (char_length(message) BETWEEN 1 AND 1000),
+  sent_by uuid NOT NULL REFERENCES users (id),
+  ledger_seq integer NOT NULL,
+  created_at timestamptz NOT NULL,
+  UNIQUE (deal_id, id),
+  UNIQUE (deal_id, ledger_seq),
+  CONSTRAINT deliveries_version_exists FOREIGN KEY (deal_id, version)
+    REFERENCES scope_versions (deal_id, version),
+  CONSTRAINT deliveries_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq)
+);
+
+CREATE TABLE delivery_files (
+  deal_id uuid NOT NULL,
+  delivery_id uuid NOT NULL,
+  artifact_id uuid NOT NULL,
+  position integer NOT NULL CHECK (position >= 1),
+  PRIMARY KEY (delivery_id, artifact_id),
+  UNIQUE (delivery_id, position),
+  CONSTRAINT delivery_files_delivery FOREIGN KEY (deal_id, delivery_id)
+    REFERENCES deliveries (deal_id, id),
+  CONSTRAINT delivery_files_file_of_deal FOREIGN KEY (deal_id, artifact_id)
+    REFERENCES artifacts (deal_id, id)
+);
+
+CREATE TRIGGER deliveries_append_only BEFORE UPDATE OR DELETE ON deliveries
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER deliveries_no_truncate BEFORE TRUNCATE ON deliveries
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER delivery_files_append_only BEFORE UPDATE OR DELETE ON delivery_files
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER delivery_files_no_truncate BEFORE TRUNCATE ON delivery_files
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

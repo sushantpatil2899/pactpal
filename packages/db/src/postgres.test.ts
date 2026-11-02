@@ -18,9 +18,11 @@ import {
   migrate,
   migrationStatus,
   postgresContentStore,
+  recordDeliveryViewed,
   recordWebhookEvent,
   requestAcceptance,
   saveScopeVersion,
+  sendDelivery,
   startDraft,
   startInvoice,
   verifyStoredLedger,
@@ -468,6 +470,48 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
         ),
       );
       expect(results.filter((r) => r.entry !== undefined)).toHaveLength(1);
+      expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true });
+    });
+  });
+
+  it("logs one opening when the buyer opens a delivery from several tabs at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller, buyer } = await createSignedTestDeal(db);
+      const file = await addArtifact(
+        db,
+        postgresContentStore(db, () => TEST_NOW),
+        {
+          id: testId(600),
+          dealId: testId(100),
+          kind: "deliverable",
+          filename: "sketch.png",
+          bytes: new TextEncoder().encode("sketch"),
+          addedBy: { actor: "seller", actorId: seller.id },
+        },
+        TEST_NOW,
+      );
+      await sendDelivery(
+        db,
+        {
+          id: testId(601),
+          dealId: testId(100),
+          sellerId: seller.id,
+          version: 1,
+          stage: 1,
+          artifactIds: [file.id],
+        },
+        TEST_NOW,
+      );
+      const opened = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          recordDeliveryViewed(
+            db,
+            { dealId: testId(100), deliveryId: testId(601), buyerId: buyer.id, access: "link" },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(opened.filter((entry) => entry !== undefined)).toHaveLength(1);
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true });
     });
   });

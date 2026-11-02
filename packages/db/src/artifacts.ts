@@ -200,27 +200,36 @@ export async function addArtifact(
   });
 }
 
-/** A deal's files, in the order they were added. */
-export async function listArtifacts(q: Queryable, dealId: string): Promise<Artifact[]> {
-  const rows = await q.query("SELECT * FROM artifacts WHERE deal_id = $1 ORDER BY ledger_seq", [
-    dealId,
-  ]);
+/** A deal's files, in the order they were added; with `kind`, only files of that kind. */
+export async function listArtifacts(
+  q: Queryable,
+  dealId: string,
+  kind?: ArtifactKind,
+): Promise<Artifact[]> {
+  const rows = await q.query(
+    `SELECT * FROM artifacts WHERE deal_id = $1 AND ($2::text IS NULL OR kind = $2)
+      ORDER BY ledger_seq`,
+    [dealId, kind ?? null],
+  );
   return rows.map((row) => artifactRow.parse(row));
 }
 
 /**
  * A file's record and bytes, after checking the bytes still match the recorded fingerprint. With
- * `dealId`, a file of another deal counts as not found, before any bytes are read.
+ * `dealId`, a file of another deal counts as not found, before any bytes are read; with `kind`,
+ * so does a file of another kind.
  */
 export async function getArtifact(
   q: Queryable,
   store: ContentStore,
   id: string,
   dealId?: string,
+  kind?: ArtifactKind,
 ): Promise<{ artifact: Artifact; bytes: Uint8Array }> {
   const rows = await q.query(
-    "SELECT * FROM artifacts WHERE id = $1 AND ($2::uuid IS NULL OR deal_id = $2)",
-    [id, dealId ?? null],
+    `SELECT * FROM artifacts WHERE id = $1 AND ($2::uuid IS NULL OR deal_id = $2)
+        AND ($3::text IS NULL OR kind = $3)`,
+    [id, dealId ?? null, kind ?? null],
   );
   if (rows[0] === undefined) throw new ArtifactNotFoundError(`No artifact ${id}`);
   const artifact = artifactRow.parse(rows[0]);

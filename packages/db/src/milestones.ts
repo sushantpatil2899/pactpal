@@ -1,8 +1,8 @@
 import { sha256Hex, type LedgerEntry } from "@pactpal/ledger";
 import { z } from "zod";
 import type { Database, Queryable } from "./database.js";
-import { DEAL_STATUSES } from "./deals.js";
 import { DealNotFoundError, appendLedgerEvent } from "./ledger-store.js";
+import { lockSignedDeal } from "./signed.js";
 
 /** Where a payment stage's invoice is: being created at PayPal, sent to the buyer, or paid (4e). */
 export const MILESTONE_STATUSES = ["sending", "sent", "paid"] as const;
@@ -25,6 +25,8 @@ export class MilestoneNotAllowedError extends Error {
     super(`The invoice step was refused: ${reason}`);
   }
 }
+
+const refuse = (reason: MilestoneRefusal) => new MilestoneNotAllowedError(reason);
 
 /** The stored columns, named as the record's fields. */
 const COLUMNS = `deal_id AS "dealId", version, stage, amount_minor AS "amountMinor", currency, status,
@@ -85,31 +87,6 @@ export const invoiceSentSchema = z.object({
 });
 export type InvoiceSent = z.input<typeof invoiceSentSchema>;
 
-const lockedDeal = z.object({ seller_id: z.string(), status: z.enum(DEAL_STATUSES) });
-const signedVersion = z.object({ version: z.number().int() });
-
-/**
- * Locks the deal row and checks that `sellerId` is its seller, that it is signed, and that
- * `version` is the signed version (the newest acceptance's).
- */
-async function lockSigned(tx: Queryable, dealId: string, sellerId: string, version: number) {
-  const rows = await tx.query("SELECT seller_id, status FROM deals WHERE id = $1 FOR UPDATE", [
-    dealId,
-  ]);
-  const deal = lockedDeal.safeParse(rows[0]);
-  if (!deal.success) throw new DealNotFoundError(`No deal ${dealId}`);
-  if (deal.data.seller_id !== sellerId) throw new MilestoneNotAllowedError("not-your-deal");
-  const signed = await tx.query(
-    "SELECT version FROM acceptances WHERE deal_id = $1 ORDER BY ledger_seq DESC LIMIT 1",
-    [dealId],
-  );
-  const accepted = signedVersion.safeParse(signed[0]);
-  const isSigned = deal.data.status === "active" || deal.data.status === "completed";
-  if (!isSigned || !accepted.success || accepted.data.version !== version) {
-    throw new MilestoneNotAllowedError("not-signed");
-  }
-}
-
 async function stageRow(q: Queryable, key: { dealId: string; version: number; stage: number }) {
   const rows = await q.query(
     `SELECT ${COLUMNS} FROM milestones WHERE deal_id = $1 AND version = $2 AND stage = $3`,
@@ -130,7 +107,7 @@ export async function startInvoice(
 ): Promise<Milestone> {
   const request = startInvoiceSchema.parse(input);
   return db.transaction(async (tx) => {
-    await lockSigned(tx, request.dealId, request.sellerId, request.version);
+    await lockSignedDeal(tx, request, refuse);
     const existing = await stageRow(tx, request);
     if (existing) {
       if (existing.status !== "sending") throw new MilestoneNotAllowedError("already-sent");
@@ -195,7 +172,7 @@ export async function markInvoiceSent(
 ): Promise<{ milestone: Milestone; entry?: LedgerEntry }> {
   const sent = invoiceSentSchema.parse(input);
   return db.transaction(async (tx) => {
-    await lockSigned(tx, sent.dealId, sent.sellerId, sent.version);
+    await lockSignedDeal(tx, sent, refuse);
     const row = await stageRow(tx, sent);
     if (!row) throw new MilestoneNotAllowedError("not-signed");
     if (row.status !== "sending") return { milestone: row };
