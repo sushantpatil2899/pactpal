@@ -156,6 +156,8 @@ export type {
 export {
   DeliveryNotAllowedError,
   MAX_DELIVERY_FILES,
+  answerDelivery,
+  deliveryAnswers,
   VIEW_REPEAT_MS,
   listDeliveries,
   recordDeliveryDownloaded,
@@ -164,4 +166,11 @@ export {
   sendDelivery,
   sendDeliverySchema,
 } from "./deliveries.js";
-export type { Delivery, DeliveryFile, DeliveryRefusal, SendDelivery } from "./deliveries.js";
+export type {
+  AnswerInput,
+  Delivery,
+  DeliveryAnswer,
+  DeliveryFile,
+  DeliveryRefusal,
+  SendDelivery,
+} from "./deliveries.js";

@@ -35,7 +35,7 @@ interface DeliveriesView {
 
 /** A signed deal, the app (optionally trusting 1 proxy), the seller and both buyer sessions. */
 async function signedDeal(options: { emailOff?: boolean } = {}) {
-  const deal = await createSignedTestDeal(db);
+  const deal = await createSignedTestDeal(db, { revisionsIncluded: 2 });
   const env = dealTestApp(db, undefined, { trustProxyHops: 1, ...options });
   const token = await signedInAs(db, deal.seller.id);
   const [buyerPayPal = "", buyerLink = ""] = await buyerVisitors(db, deal.dealId, deal.buyer.id);
@@ -222,5 +222,99 @@ describe("deliveries before signing", () => {
       error: "the deal is not signed yet",
     });
     await env.app.close();
+  });
+});
+
+describe("answers to deliveries", () => {
+  interface Answered extends DeliveriesView {
+    revisions: { used: number; included: number | null };
+    deliveries: (DeliveryView & {
+      answer: { kind: string; request: string | null; revision: number | null } | null;
+    })[];
+  }
+
+  it("lets the buyer request changes on an opened delivery, counts the revision and emails the seller", async () => {
+    const env = await signedDeal();
+    const { app, call, base, buyerLink, token, sent, dealId, deliverSketch, logs } = env;
+    const { id } = await deliverSketch();
+    const ask = (who: string, body: object = { request: "Turn the wheel" }) =>
+      call("POST", `${base}/${id}/request-changes`, who, body);
+    expect((await ask(buyerLink)).json()).toEqual({ error: "open the delivery first" });
+    await call("POST", `${base}/${id}/open`, buyerLink);
+    expect((await ask(token)).statusCode).toBe(403);
+    expect((await ask(buyerLink, { request: " " })).statusCode).toBe(400);
+    const res = await ask(buyerLink, { request: " Turn the wheel " });
+    expect(res.statusCode).toBe(200);
+    const view = res.json<Answered>();
+    expect(view.revisions).toEqual({ used: 1, included: 2 });
+    expect(view.deliveries[0]?.answer).toMatchObject({
+      kind: "changes",
+      request: "Turn the wheel",
+      revision: 1,
+    });
+    expect((await ask(buyerLink)).json()).toEqual({ error: "this delivery was already answered" });
+    const mail = sent.filter((m) => m.kind === "changes");
+    expect(mail.map((m) => [m.to, m.idempotencyKey])).toEqual([
+      ["maya@example.com", `answer:${id}`],
+    ]);
+    expect(mail[0]?.text).toContain("This is revision 1 of the 2 included in the agreement.");
+    expect((await readLedger(db, dealId)).at(-1)).toMatchObject({
+      type: "CHANGE_REQUESTED",
+      actor: "buyer",
+      payload: {
+        request: "Turn the wheel",
+        revision: 1,
+        revisionsIncluded: 2,
+        beyondIncluded: false,
+      },
+    });
+    expect(logs.join("")).not.toContain("Turn the wheel");
+    await app.close();
+  });
+
+  it("completes the deal when every stage is approved, and says so to the seller", async () => {
+    const env = await signedDeal();
+    const { app, call, base, buyerLink, token, sent, dealId, upload } = env;
+    const approveStage = async (stage: number, n: number) => {
+      const file = await upload(`stage${String(stage)}.png`, n);
+      const id =
+        (await call("POST", base, token, { stage, fileIds: [file] }))
+          .json<DeliveriesView>()
+          .deliveries.at(-1)?.id ?? "";
+      await call("POST", `${base}/${id}/open`, buyerLink);
+      return call("POST", `${base}/${id}/approve`, buyerLink);
+    };
+    expect((await approveStage(1, 1)).statusCode).toBe(200);
+    expect((await call("GET", `/api/deals/${dealId}`, token)).json()).toMatchObject({
+      status: "active",
+    });
+    const last = await approveStage(2, 2);
+    expect(last.json<Answered>().deliveries.map((d) => d.answer?.kind)).toEqual([
+      "approved",
+      "approved",
+    ]);
+    expect((await call("GET", `/api/deals/${dealId}`, token)).json()).toMatchObject({
+      status: "completed",
+    });
+    const approvals = sent.filter((m) => m.kind === "approved");
+    expect(approvals).toHaveLength(2);
+    expect(approvals[0]?.text).not.toContain("Every stage of the agreement is now approved.");
+    expect(approvals[1]?.text).toContain("Every stage of the agreement is now approved.");
+    // A completed deal still shows its deliveries and can still be delivered to.
+    expect((await call("GET", base, buyerLink)).json<Answered>().signed).toBe(true);
+    await app.close();
+  });
+
+  it("keeps the answer when the seller's email fails", async () => {
+    const env = await signedDeal();
+    const { app, call, base, buyerLink, failEmailTo, dealId, deliverSketch, logs } = env;
+    const { id } = await deliverSketch();
+    await call("POST", `${base}/${id}/open`, buyerLink);
+    failEmailTo.add("maya@example.com");
+    expect((await call("POST", `${base}/${id}/approve`, buyerLink)).statusCode).toBe(200);
+    expect((await readLedger(db, dealId)).at(-1)?.type).toBe("MILESTONE_APPROVED");
+    expect(logs.join("")).toContain('"sent":false');
+    expect((await call("POST", `${base}/x/approve`, buyerLink)).statusCode).toBe(404);
+    await app.close();
   });
 });

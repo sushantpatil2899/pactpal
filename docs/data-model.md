@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4f)
+## Built (sub-phases 2b to 4g)
 
 ### `users`: everyone
 
@@ -80,6 +80,7 @@ How the status moves (4a), each change in one transaction with its log entry:
 | `awaiting_acceptance` | `draft`               | The seller withdraws the request                | `ACCEPTANCE_WITHDRAWN` |
 | `awaiting_acceptance` | `draft`               | The buyer declines (optional reason)            | `DECLINED`             |
 | `awaiting_acceptance` | `active`              | The buyer signs with a typed name               | `ACCEPTED`             |
+| `active`              | `completed`           | The buyer approves the last unapproved stage    | `MILESTONE_APPROVED`   |
 
 The agreed work can be edited only in `draft`, so the version sent is the version signed.
 
@@ -244,6 +245,25 @@ Delivered files are not listed or served with the deal's source files: they are 
 - `DELIVERY_EMAILED` (system): the delivery, a SHA-256 of the buyer's lower-cased address and the email service's message id; written only when the email was accepted. Each email carries a fresh private buyer link.
 - `DELIVERY_VIEWED` (buyer, with IP address and browser): the delivery and how the buyer came in (`link` or `paypal`); at most once per delivery every 10 minutes.
 - `DELIVERY_DOWNLOADED` (buyer, with IP address and browser): the delivery and the file's id, name, size and SHA-256; every download, after the file's bytes passed their fingerprint check. The seller's own downloads are not logged.
+
+### `delivery_answers`: the buyer's answer to a delivery
+
+Built in 4g (migration 0013); append-only. The buyer answers a delivery once, and only after opening it (a `DELIVERY_VIEWED` exists): they approve it, or they request changes. The database refuses a second answer to the same delivery, so two tabs cannot answer twice. After a change request the seller sends a new delivery for the same stage, which can be answered in turn.
+
+| Column                                    | Meaning                                                                                         |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `delivery_id`, `deal_id`                  | The delivery answered (the key) and its deal                                                    |
+| `kind`                                    | `approved` or `changes`                                                                         |
+| `request`                                 | What should change (1 to 2,000 characters); only for `changes`                                  |
+| `revision`                                | Which change request of the deal this is (earlier change requests plus one); only for `changes` |
+| `answered_by`, `ledger_seq`, `created_at` | The buyer, the log entry and when                                                               |
+
+Revisions are counted across the whole deal and compared with the signed version's `revisionsIncluded`. A request beyond that number is never refused: it is recorded as beyond the included revisions. The log entries (both by the buyer, with IP address and browser):
+
+- `MILESTONE_APPROVED`: the delivery, version, stage and each delivered file's id and SHA-256.
+- `CHANGE_REQUESTED`: the delivery, version, stage, the request, the revision number, the revisions included (or none when the agreement states no limit) and `beyondIncluded`.
+
+When an approval leaves every payment stage of the signed version with an approved delivery, the deal's status becomes `completed` in the same transaction; the approvals are the evidence, so there is no separate entry. Invoices and deliveries still work on a completed deal.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

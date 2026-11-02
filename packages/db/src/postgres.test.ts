@@ -4,6 +4,7 @@ import {
   ArtifactRejectedError,
   MIGRATIONS,
   acceptTerms,
+  answerDelivery,
   addArtifact,
   appendLedgerEvent,
   connectPostgres,
@@ -474,7 +475,7 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
     });
   });
 
-  it("logs one opening when the buyer opens a delivery from several tabs at once", async () => {
+  it("logs one opening, and keeps one answer, when the buyer uses several tabs at once", async () => {
     await withRealDatabase(async (db) => {
       const { seller, buyer } = await createSignedTestDeal(db);
       const file = await addArtifact(
@@ -512,6 +513,23 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
         ),
       );
       expect(opened.filter((entry) => entry !== undefined)).toHaveLength(1);
+      // Two tabs answer the same delivery at once: only one answer is kept.
+      const answers = await Promise.allSettled(
+        (["approved", "changes"] as const).map((kind) =>
+          answerDelivery(
+            db,
+            {
+              dealId: testId(100),
+              deliveryId: testId(601),
+              buyerId: buyer.id,
+              answer: kind === "approved" ? { kind } : { kind, request: "Smaller" },
+            },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(answers.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(await db.query("SELECT 1 FROM delivery_answers")).toHaveLength(1);
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true });
     });
   });

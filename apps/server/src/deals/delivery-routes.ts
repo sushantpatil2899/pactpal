@@ -9,6 +9,10 @@ import {
   recordDeliveryDownloaded,
   recordDeliveryEmailed,
   recordDeliveryViewed,
+  answerDelivery,
+  deliveryAnswers,
+  type AnswerInput,
+  type DeliveryAnswer,
   sendDelivery,
   type Database,
   type Deal,
@@ -18,6 +22,7 @@ import type { EmailSender } from "@pactpal/email";
 import { sha256Hex, type LedgerEntry } from "@pactpal/ledger";
 import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
+import { answerEmail } from "../email/answer-email.js";
 import { deliveryEmail } from "../email/delivery-email.js";
 import { dealLinkUrl } from "../email/deal-link-email.js";
 import { invoiceFor, stageFacts } from "../payments/invoice-text.js";
@@ -59,7 +64,23 @@ const REFUSALS: Record<DeliveryNotAllowedError["reason"], { status: number; erro
   "no-stage": { status: 400, error: "the agreement has no such payment stage" },
   "bad-files": { status: 400, error: "those files are not this deal's delivered files" },
   "not-found": { status: 404, error: "not found" },
+  "not-opened": { status: 409, error: "open the delivery first" },
+  "already-answered": { status: 409, error: "this delivery was already answered" },
 };
+
+/** The buyer's request for changes: what to change, 1 to 2,000 characters. */
+const changesBody = z.object({ request: z.string().trim().min(1).max(2000) });
+
+/** A delivery's answer as the pages see it, or null before the buyer answers. */
+const answerView = (answer: DeliveryAnswer | undefined) =>
+  answer === undefined
+    ? null
+    : {
+        kind: answer.kind,
+        request: answer.kind === "changes" ? answer.request : null,
+        revision: answer.kind === "changes" ? answer.revision : null,
+        at: answer.createdAt.toISOString(),
+      };
 
 const deliveryId = z.object({ deliveryId: z.string() });
 const download = deliveryId.extend({ artifactId: z.string() });
@@ -100,9 +121,10 @@ export const deliveryRoutes: FastifyPluginAsync<DeliveryRouteOptions> = (app, op
     const record = await signedRecord(db, deal);
     if (!record)
       return reply.send({ signed: false, emailOn: email.live, stages: [], deliveries: [] });
-    const [deliveries, entries] = await Promise.all([
+    const [deliveries, entries, answers] = await Promise.all([
       listDeliveries(db, deal.id),
       readLedger(db, deal.id),
+      deliveryAnswers(db, deal.id),
     ]);
     const stages = record.scope.content.milestones.map((stage, n) => ({
       stage: n + 1,
@@ -111,6 +133,11 @@ export const deliveryRoutes: FastifyPluginAsync<DeliveryRouteOptions> = (app, op
     return reply.send({
       signed: true,
       emailOn: email.live,
+      // Change requests so far across the deal, against the revisions the agreement includes.
+      revisions: {
+        used: answers.filter((a) => a.kind === "changes").length,
+        included: record.scope.content.revisionsIncluded ?? null,
+      },
       // The seller picks a stage from these; the buyer sees them as names.
       stages: roleIn(viewer, deal) === "seller" ? stages : [],
       deliveries: deliveries.map((delivery) => ({
@@ -127,6 +154,7 @@ export const deliveryRoutes: FastifyPluginAsync<DeliveryRouteOptions> = (app, op
           sha256: file.sha256,
         })),
         access: accessSummary(entries, delivery.id),
+        answer: answerView(answers.find((a) => a.deliveryId === delivery.id)),
       })),
     });
   }
@@ -256,17 +284,25 @@ export const deliveryRoutes: FastifyPluginAsync<DeliveryRouteOptions> = (app, op
     return answer(reply, found);
   });
 
-  app.post("/api/deals/:id/deliveries/:deliveryId/open", async (request, reply) => {
+  /** The buyer's deal and the delivery named in the path, or undefined once refused. */
+  async function buyersDelivery(...[request, reply]: Parameters<DealLookup>) {
     const found = await buyersDeal(request, reply);
-    if (!found) return reply;
+    if (!found) return undefined;
     const params = deliveryParams.safeParse(request.params);
-    if (!params.success) return reply.code(404).send({ error: "not found" });
+    if (params.success) return { ...found, deliveryId: params.data.deliveryId };
+    await reply.code(404).send({ error: "not found" });
+    return undefined;
+  }
+
+  app.post("/api/deals/:id/deliveries/:deliveryId/open", async (request, reply) => {
+    const found = await buyersDelivery(request, reply);
+    if (!found) return reply;
     return step(reply, found, () =>
       recordDeliveryViewed(
         found.db,
         {
           dealId: found.deal.id,
-          deliveryId: params.data.deliveryId,
+          deliveryId: found.deliveryId,
           buyerId: found.viewer.user.id,
           access: found.viewer.access.method,
           ...requestOrigin(request, options.recordIp),
@@ -275,6 +311,85 @@ export const deliveryRoutes: FastifyPluginAsync<DeliveryRouteOptions> = (app, op
       ),
     );
   });
+
+  /**
+   * The buyer's answer to a delivery they opened: recorded once (with where they connected from),
+   * then the seller is emailed. The email never undoes the answer.
+   */
+  function answerRoute(path: "approve" | "request-changes") {
+    app.post(`/api/deals/:id/deliveries/:deliveryId/${path}`, async (request, reply) => {
+      const found = await buyersDelivery(request, reply);
+      if (!found) return reply;
+      let given: AnswerInput = { kind: "approved" };
+      if (path === "request-changes") {
+        const body = await readBody(changesBody, request, reply);
+        if (!body) return reply;
+        given = { kind: "changes", request: body.request };
+      }
+      return step(reply, found, async () => {
+        const result = await answerDelivery(
+          found.db,
+          {
+            dealId: found.deal.id,
+            deliveryId: found.deliveryId,
+            buyerId: found.viewer.user.id,
+            answer: given,
+            ...requestOrigin(request, options.recordIp),
+          },
+          clock(),
+        );
+        request.log.info({ dealId: found.deal.id, kind: given.kind }, "Delivery answered");
+        await emailAnswer(found.db, found.deal, result, request.log);
+      });
+    });
+  }
+  answerRoute("approve");
+  answerRoute("request-changes");
+
+  /** Emails the seller the buyer's answer; a failure is logged (never the address or the text). */
+  async function emailAnswer(
+    db: Database,
+    deal: Deal,
+    result: Awaited<ReturnType<typeof answerDelivery>>,
+    log: FastifyBaseLogger,
+  ) {
+    try {
+      const deliveries = await listDeliveries(db, deal.id);
+      const delivery = deliveries.find((d) => d.id === result.answer.deliveryId);
+      const [record, seller] = await Promise.all([
+        signedRecord(db, deal),
+        getUser(db, deal.sellerId),
+      ]);
+      const invoice = record && delivery && invoiceFor({ deal, ...record, stage: delivery.stage });
+      if (!invoice || !seller) return;
+      const { answer } = result;
+      const sent = await email.send(
+        answerEmail({
+          to: seller.email,
+          facts: stageFacts(invoice),
+          answer:
+            answer.kind === "approved"
+              ? { kind: "approved", completesDeal: result.completed }
+              : {
+                  kind: "changes",
+                  request: answer.request,
+                  revision: answer.revision,
+                  revisionsIncluded: result.revisionsIncluded,
+                },
+          answeredAt: answer.createdAt,
+          idempotencyKey: `answer:${answer.deliveryId}`,
+        }),
+      );
+      if (sent.ok || email.live) {
+        log.info({ dealId: deal.id, sent: sent.ok }, "Answer email to the seller");
+      }
+    } catch (error) {
+      log.error(
+        { dealId: deal.id, err: error instanceof Error ? error.name : "unknown" },
+        "Answer email failed",
+      );
+    }
+  }
 
   app.get("/api/deals/:id/deliveries/:deliveryId/files/:fileId", async (request, reply) => {
     const found = await visibleDeal(request, reply);

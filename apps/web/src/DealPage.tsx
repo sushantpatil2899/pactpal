@@ -39,6 +39,8 @@ const EVENT_LABELS: Record<string, string> = {
   DELIVERY_EMAILED: "Delivery emailed to the buyer",
   DELIVERY_VIEWED: "Delivery opened",
   DELIVERY_DOWNLOADED: "File downloaded",
+  MILESTONE_APPROVED: "Approved",
+  CHANGE_REQUESTED: "Changes requested",
   NOTE_ADDED: "Note added",
 };
 

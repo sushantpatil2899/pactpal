@@ -8,6 +8,7 @@ import {
   type DeliveriesView,
   type DeliveryView,
 } from "./api";
+import { AnswerBox } from "./AnswerBox";
 import { DeliverPanel } from "./DeliverPanel";
 import { when } from "./format";
 import { WRAP } from "./styles";
@@ -83,6 +84,14 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
         </p>
       )}
       {view.deliveries.length === 0 && <p>Nothing delivered yet.</p>}
+      {seller && view.revisions && (
+        <p>
+          Change requests so far: {view.revisions.used}
+          {view.revisions.included === null
+            ? " (the agreement states no revision limit)."
+            : ` of the ${String(view.revisions.included)} revisions included.`}
+        </p>
+      )}
       {view.deliveries.map((delivery) => {
         // Opened before (the evidence log says so) or just now: the files show, also after a reload.
         const visible = seller || opened.has(delivery.id) || delivery.access.opened.count > 0;
@@ -122,6 +131,18 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
                 </ul>
                 {!seller && <p>Each download is recorded with the file&apos;s fingerprint.</p>}
               </>
+            )}
+            {view.revisions && (
+              <AnswerBox
+                dealId={deal.id}
+                delivery={delivery}
+                revisions={view.revisions}
+                canAnswer={!seller && visible}
+                busy={busy}
+                run={(work) => {
+                  run(work);
+                }}
+              />
             )}
             {seller && <AccessLine delivery={delivery} />}
             {seller && view.emailOn && delivery.access.emailCount < 3 && (

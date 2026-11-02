@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dealLinkEmail, dealLinkUrl } from "./deal-link-email.js";
+import { answerEmail } from "./answer-email.js";
 import { deliveryEmail } from "./delivery-email.js";
 import { receiptEmail } from "./receipt-email.js";
 
@@ -114,5 +115,68 @@ describe("deliveryEmail", () => {
     const mail = deliveryEmail({ ...base, fileCount: 1, message: undefined });
     expect(mail.text).toContain("(Deposit): 1 file.");
     expect(mail.text).not.toContain("Message from");
+  });
+});
+
+describe("answerEmail", () => {
+  const facts = {
+    dealTitle: "Food truck logo",
+    stage: 1,
+    stageCount: 2,
+    stageTitle: "Sketch",
+    amountText: "150.00",
+    currency: "USD",
+  };
+  const base = {
+    to: "lena@example.com",
+    facts,
+    answeredAt: new Date("2026-11-03T09:30:00Z"),
+    idempotencyKey: "answer:d1",
+  };
+  const lines = (answer: Parameters<typeof answerEmail>[0]["answer"]) =>
+    answerEmail({ ...base, answer }).text.split("\n");
+
+  it("tells the seller a stage was approved, and when it completes the deal", () => {
+    const mail = answerEmail({ ...base, answer: { kind: "approved", completesDeal: false } });
+    expect(mail).toMatchObject({
+      kind: "approved",
+      subject: 'Approved: "Food truck logo", stage 1 of 2 (Sketch)',
+      idempotencyKey: "answer:d1",
+    });
+    expect(mail.text.split("\n")).toEqual([
+      'The buyer approved your delivery for stage 1 of 2 of "Food truck logo" (Sketch) on 3 Nov 2026, 09:30 UTC.',
+      "",
+      "The approval is in this deal's evidence log.",
+      "",
+      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+    ]);
+    expect(lines({ kind: "approved", completesDeal: true })[1]).toBe(
+      "Every stage of the agreement is now approved.",
+    );
+  });
+
+  it("tells the seller what to change and where it stands against the revisions included", () => {
+    const changes = {
+      kind: "changes" as const,
+      request: "Turn the wheel",
+      revision: 1,
+      revisionsIncluded: 2,
+    };
+    const mail = answerEmail({ ...base, answer: changes });
+    expect(mail.subject).toBe('Changes requested: "Food truck logo", stage 1 of 2 (Sketch)');
+    expect(mail.text.split("\n").slice(0, 6)).toEqual([
+      'The buyer asked for changes to your delivery for stage 1 of 2 of "Food truck logo" (Sketch) on 3 Nov 2026, 09:30 UTC.',
+      "This is revision 1 of the 2 included in the agreement.",
+      "",
+      'Their request: "Turn the wheel"',
+      "",
+      "Open the deal in PactPal to deliver again.",
+    ]);
+    expect(lines({ ...changes, revision: 3 })[1]).toBe(
+      "This is beyond the 2 revisions included in the agreement; it may be extra work.",
+    );
+    expect(lines({ ...changes, revisionsIncluded: undefined })[1]).toBe(
+      "The agreement states no revision limit.",
+    );
   });
 });

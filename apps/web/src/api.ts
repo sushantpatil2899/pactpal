@@ -507,6 +507,13 @@ export interface DeliveryView {
     opened: { count: number; lastAt: string | null };
     downloads: Partial<Record<string, { count: number; lastAt: string }>>;
   };
+  /** The buyer's answer, once given: approved, or changes requested (with the revision number). */
+  answer: {
+    kind: "approved" | "changes";
+    request: string | null;
+    revision: number | null;
+    at: string;
+  } | null;
 }
 
 export interface DeliveriesView {
@@ -514,6 +521,8 @@ export interface DeliveriesView {
   emailOn: boolean;
   /** Seller only: the stages to deliver for. */
   stages: { stage: number; title: string }[];
+  /** Change requests so far, against the revisions the agreement includes (null: no limit). */
+  revisions?: { used: number; included: number | null };
   deliveries: DeliveryView[];
 }
 
@@ -559,6 +568,18 @@ export const emailDeliveryAgain = (dealId: string, deliveryId: string) =>
 /** The buyer opens a delivery; the server logs it. */
 export const openDelivery = (dealId: string, deliveryId: string) =>
   deliveryStep(`${deliveriesUrl(dealId)}/${deliveryId}/open`, undefined, "open the delivery");
+
+/** The buyer approves a delivery they opened. */
+export const approveDelivery = (dealId: string, deliveryId: string) =>
+  deliveryStep(`${deliveriesUrl(dealId)}/${deliveryId}/approve`, undefined, "approve the delivery");
+
+/** The buyer asks for changes to a delivery they opened. */
+export const requestChanges = (dealId: string, deliveryId: string, request: string) =>
+  deliveryStep(
+    `${deliveriesUrl(dealId)}/${deliveryId}/request-changes`,
+    { request },
+    "request changes",
+  );
 
 /** Where one delivered file downloads from (the buyer's downloads are logged). */
 export const deliveryFileUrl = (dealId: string, deliveryId: string, fileId: string) =>

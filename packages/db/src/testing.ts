@@ -123,9 +123,13 @@ export async function createTestDeal(
 
 /**
  * The test deal (id 100) signed by its buyer: version 1 of the agreed work with two payment
- * stages (120.00 and 130.00 USD), sent for acceptance and accepted at `TEST_NOW`.
+ * stages (120.00 and 130.00 USD) and, when given, a number of revisions included; sent for
+ * acceptance and accepted at `TEST_NOW`.
  */
-export async function createSignedTestDeal(db: Database) {
+export async function createSignedTestDeal(
+  db: Database,
+  terms: { revisionsIncluded?: number } = {},
+) {
   const { seller, buyer, dealId } = await createTestDeal(db);
   const { scope } = await saveScopeVersion(
     db,
@@ -137,6 +141,7 @@ export async function createSignedTestDeal(db: Database) {
         summary: "A character illustration",
         deliverables: ["Full-body character, transparent PNG"],
         exclusions: [],
+        ...terms,
         milestones: [
           { title: "Deposit", amountMinor: 12_000 },
           { title: "Final files", amountMinor: 13_000, dueDate: "2026-11-27" },

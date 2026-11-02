@@ -338,4 +338,31 @@ CREATE TRIGGER delivery_files_append_only BEFORE UPDATE OR DELETE ON delivery_fi
 CREATE TRIGGER delivery_files_no_truncate BEFORE TRUNCATE ON delivery_files
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0013_delivery_answers",
+    // The buyer's one answer to a delivery: approved, or changes requested (with the request and
+    // its revision number). Append-only; the key makes a second answer impossible.
+    sql: `CREATE TABLE delivery_answers (
+  delivery_id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL,
+  kind text NOT NULL CHECK (kind IN ('approved', 'changes')),
+  request text CHECK (char_length(request) BETWEEN 1 AND 2000),
+  revision integer CHECK (revision >= 1),
+  answered_by uuid NOT NULL REFERENCES users (id),
+  ledger_seq integer NOT NULL,
+  created_at timestamptz NOT NULL,
+  UNIQUE (deal_id, ledger_seq),
+  CONSTRAINT delivery_answers_delivery FOREIGN KEY (deal_id, delivery_id)
+    REFERENCES deliveries (deal_id, id),
+  CONSTRAINT delivery_answers_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT delivery_answers_changes_have_request
+    CHECK ((kind = 'changes') = (request IS NOT NULL AND revision IS NOT NULL))
+);
+
+CREATE TRIGGER delivery_answers_append_only BEFORE UPDATE OR DELETE ON delivery_answers
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER delivery_answers_no_truncate BEFORE TRUNCATE ON delivery_answers
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

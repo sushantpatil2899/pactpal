@@ -4,6 +4,9 @@ import {
   DeliveryNotAllowedError,
   VIEW_REPEAT_MS,
   addArtifact,
+  answerDelivery,
+  deliveryAnswers,
+  getDeal,
   getArtifact,
   listArtifacts,
   listDeliveries,
@@ -14,6 +17,7 @@ import {
   recordDeliveryViewed,
   sendDelivery,
   verifyStoredLedger,
+  type AnswerInput,
   type ArtifactKind,
   type SendDelivery,
 } from "./index.js";
@@ -26,8 +30,8 @@ const store = postgresContentStore(db, () => TEST_NOW);
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 
 /** A signed deal with two delivered files and one source file, and a delivery ready to send. */
-async function withFiles() {
-  const deal = await createSignedTestDeal(db);
+async function withFiles(terms: { revisionsIncluded?: number } = {}) {
+  const deal = await createSignedTestDeal(db, terms);
   const add = (n: number, kind: ArtifactKind, name: string) =>
     addArtifact(
       db,
@@ -266,6 +270,154 @@ describe("deliveries", () => {
     );
     expect((await getArtifact(db, store, sketch.id, dealId, "deliverable")).artifact.id).toBe(
       sketch.id,
+    );
+  });
+});
+
+describe("answers to deliveries", () => {
+  /** Sends a delivery (test id 400 + n) of the sketch for `stage` and opens it as the buyer. */
+  async function delivered(deal: Awaited<ReturnType<typeof withFiles>>, n: number, stage = 1) {
+    const id = testId(400 + n);
+    await sendDelivery(db, { ...deal.send, id, stage, artifactIds: [deal.sketch.id] }, at(n));
+    await recordDeliveryViewed(
+      db,
+      { dealId: deal.dealId, deliveryId: id, buyerId: deal.buyer.id, access: "link" },
+      at(n),
+    );
+    return id;
+  }
+  const answer = (
+    deal: Awaited<ReturnType<typeof withFiles>>,
+    deliveryId: string,
+    reply: AnswerInput,
+    minutes: number,
+  ) =>
+    answerDelivery(
+      db,
+      { dealId: deal.dealId, deliveryId, buyerId: deal.buyer.id, answer: reply, ip: "203.0.113.4" },
+      at(minutes),
+    );
+
+  it("counts change requests across the deal against the revisions included, never refusing one", async () => {
+    const deal = await withFiles({ revisionsIncluded: 2 });
+    const results = [];
+    for (const n of [1, 2, 3]) {
+      const id = await delivered(deal, n);
+      results.push(
+        await answer(deal, id, { kind: "changes", request: ` Change ${String(n)} ` }, n),
+      );
+    }
+    expect(results.map((r) => r.entry.payload)).toEqual([
+      expect.objectContaining({
+        request: "Change 1",
+        revision: 1,
+        revisionsIncluded: 2,
+        beyondIncluded: false,
+      }),
+      expect.objectContaining({ revision: 2, beyondIncluded: false }),
+      expect.objectContaining({ revision: 3, beyondIncluded: true }),
+    ]);
+    expect(results[0]?.entry).toMatchObject({
+      type: "CHANGE_REQUESTED",
+      actor: "buyer",
+      ip: "203.0.113.4",
+    });
+    expect(results[0]?.answer).toMatchObject({ kind: "changes", request: "Change 1", revision: 1 });
+    expect(results.every((r) => !r.completed)).toBe(true);
+    expect(
+      (await deliveryAnswers(db, deal.dealId)).map((a) => (a.kind === "changes" ? a.revision : 0)),
+    ).toEqual([1, 2, 3]);
+  });
+
+  it("says when the agreement states no revision limit", async () => {
+    const deal = await withFiles();
+    const id = await delivered(deal, 1);
+    const { entry, revisionsIncluded } = await answer(
+      deal,
+      id,
+      { kind: "changes", request: "Bigger" },
+      2,
+    );
+    expect(revisionsIncluded).toBeUndefined();
+    expect(entry.payload).toMatchObject({
+      revision: 1,
+      revisionsIncluded: null,
+      beyondIncluded: false,
+    });
+  });
+
+  it("approves a stage naming its files, and completes the deal once every stage is approved", async () => {
+    const deal = await withFiles();
+    const first = await delivered(deal, 1, 1);
+    const one = await answer(deal, first, { kind: "approved" }, 2);
+    expect(one.entry).toMatchObject({
+      type: "MILESTONE_APPROVED",
+      payload: {
+        deliveryId: first,
+        version: 1,
+        stage: 1,
+        files: [{ artifactId: deal.sketch.id, sha256: deal.sketch.sha256 }],
+      },
+    });
+    expect(one.completed).toBe(false);
+    expect(one.answer).toEqual(expect.objectContaining({ kind: "approved" }));
+    expect(one.answer).not.toHaveProperty("request");
+    // A second delivery for an approved stage, approved too, does not complete the deal.
+    expect(
+      (await answer(deal, await delivered(deal, 3, 1), { kind: "approved" }, 4)).completed,
+    ).toBe(false);
+    const last = await answer(deal, await delivered(deal, 5, 2), { kind: "approved" }, 6);
+    expect(last.completed).toBe(true);
+    expect((await getDeal(db, deal.dealId))?.status).toBe("completed");
+    // A completed deal can still be delivered to and answered.
+    expect(
+      (await answer(deal, await delivered(deal, 7, 2), { kind: "changes", request: "One more" }, 8))
+        .completed,
+    ).toBe(false);
+    expect((await verifyStoredLedger(db, deal.dealId)).valid).toBe(true);
+  });
+
+  it("refuses an unopened delivery, a second answer, another person and an unknown delivery", async () => {
+    const deal = await withFiles();
+    await sendDelivery(db, { ...deal.send, id: testId(401), artifactIds: [deal.sketch.id] }, at(1));
+    await expect(answer(deal, testId(401), { kind: "approved" }, 2)).rejects.toEqual(
+      refusal("not-opened"),
+    );
+    const id = await delivered(deal, 2);
+    await answer(deal, id, { kind: "approved" }, 3);
+    await expect(answer(deal, id, { kind: "changes", request: "x" }, 4)).rejects.toEqual(
+      refusal("already-answered"),
+    );
+    await expect(
+      answerDelivery(
+        db,
+        {
+          dealId: deal.dealId,
+          deliveryId: id,
+          buyerId: deal.seller.id,
+          answer: { kind: "approved" },
+        },
+        at(5),
+      ),
+    ).rejects.toEqual(refusal("not-your-deal"));
+    await expect(answer(deal, testId(499), { kind: "approved" }, 5)).rejects.toEqual(
+      refusal("not-found"),
+    );
+    await expect(
+      answerDelivery(
+        db,
+        {
+          dealId: testId(999),
+          deliveryId: id,
+          buyerId: deal.buyer.id,
+          answer: { kind: "approved" },
+        },
+        at(5),
+      ),
+    ).rejects.toThrow(/No deal/);
+    await expect(answer(deal, id, { kind: "changes", request: "   " }, 6)).rejects.toThrow();
+    await expect(db.query("UPDATE delivery_answers SET kind = 'changes'")).rejects.toThrow(
+      /append-only/,
     );
   });
 });
