@@ -84,7 +84,8 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
       )}
       {view.deliveries.length === 0 && <p>Nothing delivered yet.</p>}
       {view.deliveries.map((delivery) => {
-        const visible = seller || opened.has(delivery.id);
+        // Opened before (the evidence log says so) or just now: the files show, also after a reload.
+        const visible = seller || opened.has(delivery.id) || delivery.access.opened.count > 0;
         return (
           <article key={delivery.id} aria-label={`Delivery for stage ${String(delivery.stage)}`}>
             <h4>
