@@ -78,6 +78,17 @@ export function receiptBlocks(
           { kind: "paragraph", text: "Not included", style: "bold" },
           { kind: "list", items: terms.exclusions },
         ] satisfies Block[])),
+    ...(terms.buyerProvides === undefined || terms.buyerProvides.length === 0
+      ? []
+      : ([
+          { kind: "paragraph", text: "The buyer provides", style: "bold" },
+          {
+            kind: "list",
+            items: terms.buyerProvides.map((item) =>
+              item.dueDate === null ? item.text : `${item.text} (by ${day(item.dueDate)})`,
+            ),
+          },
+        ] satisfies Block[])),
     ...(extras.length === 0 ? [] : [{ kind: "fields", rows: extras } satisfies Block]),
     {
       kind: "table",

@@ -1,4 +1,4 @@
-import type { DraftCandidate, DraftView } from "./api";
+import type { ChatLine, Citation, DraftCandidate, DraftView } from "./api";
 
 /** One wording suggestion from a draft: shown beside the form, never applied by itself. */
 export interface Suggestion {
@@ -7,6 +7,37 @@ export interface Suggestion {
   kind: "subjective" | "unmeasurable";
   rewrite: string;
 }
+
+/** A drafted list item and the chat lines it was quoted from. */
+export interface SourcedItem {
+  text: string;
+  lines: number[];
+}
+
+/** Which chat lines each drafted field came from, for the "From the chat" buttons. */
+export interface FillSources {
+  summary: number[];
+  deliverables: SourcedItem[];
+  exclusions: SourcedItem[];
+  revisionsIncluded: number[];
+  dueDate: number[];
+  price: number[];
+  paymentTerms: number[];
+}
+
+/** The chat the draft was made from, numbered, with the lines hidden from the models. */
+export interface FillChat {
+  lines: ChatLine[];
+  hidden: number[];
+}
+
+/** The distinct line numbers of some quotes, in order. */
+export const linesOf = (citations: readonly Citation[]): number[] =>
+  [...new Set(citations.map((citation) => citation.line))].sort((a, b) => a - b);
+
+/** The lines behind a field the chat either states or does not. */
+const statedLines = (field: { status: "found"; citations: Citation[] } | { status: "missing" }) =>
+  field.status === "found" ? linesOf(field.citations) : [];
 
 /** What "Use this draft" puts into the agreed-work form. Fields the chat did not state are left out. */
 export interface DraftFill {
@@ -22,6 +53,9 @@ export interface DraftFill {
   stage?: { title: string; amount: string };
   paymentTerms?: string;
   suggestions: Suggestion[];
+  sources: FillSources;
+  /** Undefined when the chat could not be read back. */
+  chat: FillChat | undefined;
 }
 
 /**
@@ -50,5 +84,24 @@ export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill
       kind: term.kind,
       rewrite: term.suggestedRewrite,
     })),
+    sources: {
+      summary: statedLines(draft.summary),
+      deliverables: draft.deliverables.map((item) => ({
+        text: item.text,
+        lines: linesOf(item.citations),
+      })),
+      exclusions: draft.exclusions.map((item) => ({
+        text: item.text,
+        lines: linesOf(item.citations),
+      })),
+      revisionsIncluded: statedLines(draft.revisionsIncluded),
+      dueDate: statedLines(draft.dueDate),
+      price: statedLines(draft.price),
+      paymentTerms: statedLines(draft.paymentTerms),
+    },
+    chat:
+      view.source.lines === null
+        ? undefined
+        : { lines: view.source.lines, hidden: view.source.hiddenLines ?? [] },
   };
 }

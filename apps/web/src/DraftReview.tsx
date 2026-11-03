@@ -1,4 +1,5 @@
 import type { Citation, DraftCategory, DraftContent, DraftView } from "./api";
+import { ChatPane } from "./ChatPane";
 import { CouncilPanel } from "./CouncilPanel";
 import { fillFrom, type DraftFill } from "./draft-fill";
 import { lineNumbers } from "./format";
@@ -325,23 +326,16 @@ export function DraftReview({
 
       {view.council !== null && <CouncilPanel council={view.council} />}
 
-      <details>
-        <summary>The chat with line numbers</summary>
-        {view.source.lines === null ? (
-          <p>The chat could not be shown.</p>
-        ) : (
-          <ol style={{ listStyle: "none", paddingLeft: 0 }}>
-            {view.source.lines.map((line) => (
-              <li key={line.n} id={`chat-line-${String(line.n)}`}>
-                <code>{line.n}</code> {line.text}
-                {view.source.hiddenLines?.includes(line.n) === true && (
-                  <strong style={{ color: "#8a1c1c" }}> (hidden from the AI)</strong>
-                )}
-              </li>
-            ))}
-          </ol>
-        )}
-      </details>
+      {view.source.lines === null ? (
+        <p>The chat could not be shown.</p>
+      ) : (
+        <ChatPane
+          idPrefix="chat-line"
+          lines={view.source.lines}
+          hidden={view.source.hiddenLines ?? []}
+          layout="folded"
+        />
+      )}
     </div>
   );
 }

@@ -241,6 +241,8 @@ export interface ScopeTerms {
   dueDate: string | null;
   milestones: { title: string; amount: Money; dueDate: string | null }[];
   total: Money;
+  /** What the buyer provides; absent when the version lists nothing. */
+  buyerProvides?: { text: string; dueDate: string | null }[];
 }
 
 /** One saved version of a deal's agreed work: its terms and when it was saved. */
@@ -260,6 +262,7 @@ export interface ScopeInput {
   revisionsIncluded?: number;
   dueDate?: string;
   milestones: { title: string; amount: string; dueDate?: string }[];
+  buyerProvides?: { text: string; dueDate?: string }[];
 }
 
 /** The server refused some fields; `fields` names them, e.g. "milestones.0.amount". */
@@ -283,7 +286,10 @@ const isTerms = (value: unknown): value is ScopeTerms =>
   Array.isArray(value.exclusions) &&
   Array.isArray(value.milestones) &&
   value.milestones.every((stage) => isObject(stage) && isMoney(stage.amount)) &&
-  isMoney(value.total);
+  isMoney(value.total) &&
+  (value.buyerProvides === undefined ||
+    (Array.isArray(value.buyerProvides) &&
+      value.buyerProvides.every((item) => isObject(item) && typeof item.text === "string")));
 
 const isScope = (value: unknown): value is ScopeView =>
   isTerms(value) && isObject(value) && typeof value.savedAt === "string";

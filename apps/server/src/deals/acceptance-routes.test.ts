@@ -105,6 +105,28 @@ describe("acceptance", () => {
     await app.close();
   });
 
+  it("shows what the buyer provides on the page the buyer signs and in the receipt", async () => {
+    const env = await savedDeal();
+    const { app, call, base, read, token, buyerLink, dealId } = env;
+    const provides = [{ text: "Reference sketches", dueDate: "2026-11-10" }];
+    await call("POST", `/api/deals/${dealId}/scope`, token, { ...work, buyerProvides: provides });
+    const documentSha256 = await send(env);
+    expect((await read(buyerLink)).document?.terms).toMatchObject({
+      version: 2,
+      buyerProvides: [{ text: "Reference sketches", dueDate: "2026-11-10" }],
+    });
+    const signedRes = await call("POST", `${base}/accept`, buyerLink, {
+      documentSha256,
+      typedName: "Chris Buyer",
+    });
+    expect(signedRes.statusCode).toBe(200);
+    const receipt = await call("GET", `${base}/receipt`, buyerLink);
+    expect(pdfTextLines(receipt.rawPayload).join("\n")).toContain(
+      "Reference sketches (by 10 Nov 2026)",
+    );
+    await app.close();
+  });
+
   it("sends, then the buyer signs by link: the deal is active, the signed copy is kept and logged", async () => {
     const env = await savedDeal();
     const { app, call, base, read, token, buyerLink, buyer, dealId, logs } = env;

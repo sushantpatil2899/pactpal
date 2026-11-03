@@ -48,6 +48,10 @@ export const acceptanceDocumentSchema = z.strictObject({
       z.strictObject({ title: z.string(), amount: money, dueDate: z.string().nullable() }),
     ),
     total: money,
+    /** What the buyer provides; absent for versions without it (and documents made before 4i). */
+    buyerProvides: z
+      .array(z.strictObject({ text: z.string(), dueDate: z.string().nullable() }))
+      .optional(),
   }),
   notice: z.strictObject({
     version: z.number().int(),

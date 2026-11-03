@@ -25,6 +25,15 @@ export function scopeTerms(scope: ScopeVersion, currency: string) {
       dueDate: stage.dueDate ?? null,
     })),
     total: money(scopeTotalMinor(content), currency),
+    // Only when the version has one, so documents for older versions are rebuilt byte for byte.
+    ...(content.buyerProvides === undefined
+      ? {}
+      : {
+          buyerProvides: content.buyerProvides.map((item) => ({
+            text: item.text,
+            dueDate: item.dueDate ?? null,
+          })),
+        }),
   };
 }
 

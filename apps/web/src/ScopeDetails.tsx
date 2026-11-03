@@ -34,6 +34,19 @@ export function ScopeDetails({ scope }: { scope: ScopeTerms }) {
           </ul>
         </>
       )}
+      {scope.buyerProvides !== undefined && scope.buyerProvides.length > 0 && (
+        <>
+          <h4>The buyer provides</h4>
+          <ul>
+            {scope.buyerProvides.map((item, n) => (
+              <li key={n}>
+                {item.text}
+                {item.dueDate !== null && ` (by ${dateOf(item.dueDate)})`}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {scope.revisionsIncluded !== null && <p>Revisions included: {scope.revisionsIncluded}</p>}
       {scope.dueDate !== null && <p>Due: {dateOf(scope.dueDate)}</p>}
       <table>

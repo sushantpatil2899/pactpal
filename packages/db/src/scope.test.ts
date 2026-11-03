@@ -158,6 +158,15 @@ describe("scopeContentSchema", () => {
     ["too many revisions", { revisionsIncluded: 21 }],
     ["a date that is not a calendar date", { dueDate: "20 November" }],
     ["an unknown field", { notes: "extra" } as Partial<ScopeContentInput>],
+    ["an empty buyer-provides item", { buyerProvides: [{ text: " " }] }],
+    [
+      "a buyer-provides date that is not a date",
+      { buyerProvides: [{ text: "Photos", dueDate: "soon" }] },
+    ],
+    [
+      "more than 20 buyer-provides items",
+      { buyerProvides: Array.from({ length: 21 }, (_, n) => ({ text: `Item ${String(n)}` })) },
+    ],
   ])("refuses %s", (_name, overrides) => {
     expect(scopeContentSchema.safeParse(content(overrides)).success).toBe(false);
   });
@@ -170,6 +179,33 @@ describe("scopeContentSchema", () => {
     });
     expect(parsed.milestones[0]?.amountMinor).toBe(MAX_MILESTONE_MINOR);
     expect(parsed.dueDate).toBeUndefined();
+  });
+});
+
+describe("what the buyer provides", () => {
+  it("is saved with its dates, and an empty list is left out so the fingerprint is unchanged", async () => {
+    const { seller, dealId } = await createTestDeal(db);
+    const provides = [
+      { text: "Menu text and photos", dueDate: "2026-11-20" },
+      { text: "Brand colours" },
+    ];
+    const withList = await saveScopeVersion(
+      db,
+      { dealId, sellerId: seller.id, content: content({ buyerProvides: provides }) },
+      at(1),
+    );
+    expect(withList.scope.content.buyerProvides).toEqual(provides);
+    expect((await getScopeVersion(db, dealId, 1))?.content.buyerProvides).toEqual(provides);
+
+    const empty = await saveScopeVersion(
+      db,
+      { dealId, sellerId: seller.id, content: content({ buyerProvides: [] }) },
+      at(2),
+    );
+    const without = scopeContentSchema.parse(content());
+    expect(empty.scope.content).toEqual(without);
+    expect("buyerProvides" in empty.scope.content).toBe(false);
+    expect(empty.scope.contentSha256).toBe(sha256Hex(canonicalJson(without)));
   });
 });
 

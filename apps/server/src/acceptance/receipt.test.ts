@@ -104,6 +104,24 @@ describe("buildReceipt", () => {
     );
   });
 
+  it("lists what the buyer provides, with dates where agreed", async () => {
+    const withList: AcceptanceDocument = {
+      ...document,
+      terms: {
+        ...document.terms,
+        buyerProvides: [
+          { text: "Reference sketches", dueDate: "2026-11-10" },
+          { text: "Game logo", dueDate: null },
+        ],
+      },
+    };
+    const { acceptance, accepted } = signed(withList);
+    const text = pdfTextLines((await buildReceipt(acceptance, accepted)).bytes).join("\n");
+    expect(text).toContain("The buyer provides");
+    expect(text).toContain("Reference sketches (by 10 Nov 2026)");
+    expect(text).toMatch(/Game logo$/m);
+  });
+
   it("gives the same bytes every time, dated at the signing time", async () => {
     const { acceptance, accepted } = signed();
     const [first, second] = await Promise.all([
@@ -131,6 +149,7 @@ describe("buildReceipt", () => {
     expect(text).not.toContain("Not included");
     expect(text).not.toContain("Revisions included");
     expect(text).not.toContain("Due date");
+    expect(text).not.toContain("The buyer provides");
   });
 
   it.each([

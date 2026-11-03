@@ -187,6 +187,8 @@ When a version is saved from an AI draft (see `scope_drafts`), the ledger also g
 
 Payment stages are part of the content, so their titles and amounts are fingerprinted and frozen with the rest: changing an amount means saving a new version. Only the seller can save, and only while the deal is a draft.
 
+Since 4i the content can also hold `buyerProvides`: up to 20 things the buyer provides, each with text (1 to 500 characters) and an optional date. It is still format 1: the list is optional and never stored empty, so versions saved before it existed keep their exact content and fingerprint. The acceptance document's terms carry it only when present, so documents for older versions are rebuilt byte for byte.
+
 ### `acceptances`: signed agreements
 
 What the buyer signed, kept whole. Built in 4a (migration 0009). Append-only: the database refuses edits, deletes and emptying the table.

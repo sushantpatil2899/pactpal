@@ -16,6 +16,12 @@ const milestoneSchema = z.strictObject({
   dueDate: z.iso.date().optional(),
 });
 
+/** Something the buyer must provide for the work, and by when if the agreement says so. */
+const buyerProvidesSchema = z.strictObject({
+  text: line,
+  dueDate: z.iso.date().optional(),
+});
+
 /**
  * What a deal covers, format 1: written by the seller. A later format (AI drafts with quotes from
  * the source chat, Phase 3) gets its own number so stored versions keep their meaning.
@@ -29,6 +35,11 @@ export const scopeContentSchema = z.strictObject({
   revisionsIncluded: z.number().int().min(0).max(20).optional(),
   dueDate: z.iso.date().optional(),
   milestones: z.array(milestoneSchema).min(1).max(20),
+  /**
+   * What the buyer provides (4i). Optional and never stored empty, so content written before it
+   * existed keeps its exact fingerprint.
+   */
+  buyerProvides: z.array(buyerProvidesSchema).max(20).optional(),
 });
 export type ScopeContent = z.output<typeof scopeContentSchema>;
 export type ScopeContentInput = z.input<typeof scopeContentSchema>;
@@ -125,7 +136,10 @@ export const confirmedFromSchema = z.object({
 export const saveScopeSchema = z.object({
   dealId: z.uuid(),
   sellerId: z.uuid(),
-  content: scopeContentSchema,
+  // An empty "buyer provides" list is left out, so the fingerprint matches content without one.
+  content: scopeContentSchema.transform(({ buyerProvides, ...rest }) =>
+    buyerProvides === undefined || buyerProvides.length === 0 ? rest : { ...rest, buyerProvides },
+  ),
   confirmedFrom: confirmedFromSchema.optional(),
 });
 export type SaveScope = z.input<typeof saveScopeSchema>;

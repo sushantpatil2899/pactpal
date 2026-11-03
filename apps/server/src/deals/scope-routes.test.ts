@@ -79,6 +79,31 @@ describe("agreed work", () => {
     await app.close();
   });
 
+  it("keeps what the buyer provides, with dates, and leaves an empty list out", async () => {
+    const { app, call, url, token } = await sellerDeal();
+    const provides = [{ text: "Menu text and photos", dueDate: "2026-11-20" }, { text: "Logo" }];
+    const saved = await call("POST", url, token, work({ buyerProvides: provides }));
+    expect(saved.json<{ scope: unknown }>().scope).toMatchObject({
+      buyerProvides: [
+        { text: "Menu text and photos", dueDate: "2026-11-20" },
+        { text: "Logo", dueDate: null },
+      ],
+    });
+    // Without a list, the terms have no such field, so documents for such versions are unchanged.
+    const bare = (await call("POST", url, token, work({ buyerProvides: [] }))).json<{
+      scope: Record<string, unknown>;
+    }>().scope;
+    expect("buyerProvides" in bare).toBe(false);
+    const bad = await call(
+      "POST",
+      url,
+      token,
+      work({ buyerProvides: [{ text: "Photos", dueDate: "soon" }] }),
+    );
+    expect(bad.json()).toEqual({ error: "invalid", fields: ["buyerProvides.0.dueDate"] });
+    await app.close();
+  });
+
   it("lets the buyer and a buyer-link visitor read it but not save it", async () => {
     const { app, call, url, token, buyer, dealId } = await sellerDeal();
     await call("POST", url, token, work());
