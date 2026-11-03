@@ -867,3 +867,49 @@ export async function startDraft(dealId: string, sourceFileId: string): Promise<
 /** Saves pasted text as a text source file on the deal (the same upload as any other file). */
 export const addPastedChat = (dealId: string, text: string): Promise<DealFile> =>
   addFile(dealId, new File([text], "pasted-chat.txt", { type: "text/plain" }));
+
+/** One item of the evidence completeness score. */
+export interface CompletenessItem {
+  id: string;
+  label: string;
+  points: number;
+  earned: number;
+  status: "helping" | "missing" | "not-measured";
+  detail: string;
+  fix?: string;
+}
+
+/** How complete a deal's records are (seller only); never a prediction of any outcome. */
+export interface CompletenessView {
+  score: number;
+  measurable: number;
+  items: CompletenessItem[];
+}
+
+const ITEM_STATUSES = new Set(["helping", "missing", "not-measured"]);
+
+const isCompleteness = (value: unknown): value is CompletenessView =>
+  isObject(value) &&
+  typeof value.score === "number" &&
+  typeof value.measurable === "number" &&
+  Array.isArray(value.items) &&
+  value.items.every(
+    (item) =>
+      isObject(item) &&
+      typeof item.id === "string" &&
+      typeof item.label === "string" &&
+      typeof item.points === "number" &&
+      typeof item.earned === "number" &&
+      typeof item.status === "string" &&
+      ITEM_STATUSES.has(item.status) &&
+      typeof item.detail === "string" &&
+      (item.fix === undefined || typeof item.fix === "string"),
+  );
+
+export async function getCompleteness(dealId: string): Promise<CompletenessView> {
+  return readChecked(
+    await fetch(`/api/deals/${encodeURIComponent(dealId)}/completeness`),
+    isCompleteness,
+    "load the evidence completeness score",
+  );
+}

@@ -265,6 +265,10 @@ Revisions are counted across the whole deal and compared with the signed version
 
 When an approval leaves every payment stage of the signed version with an approved delivery, the deal's status becomes `completed` in the same transaction; the approvals are the evidence, so there is no separate entry. Invoices and deliveries still work on a completed deal.
 
+### Evidence completeness score: computed, not stored
+
+The score (4h) has no table. It is worked out from `ledger_entries` and the signed (or newest) version in `scope_versions` each time the seller's page asks, so it always matches the log.
+
 ### `scope_drafts`: AI drafts of the agreed work
 
 A draft is a proposal made by the council from a chat saved as a text source file. It is not evidence and not an agreement, so it lives in its own table and is not append-only: a row starts as `running` and moves once to `ready` or `failed`. Only a `ready` draft is recorded in the ledger (`SCOPE_DRAFTED`, by fingerprint, never with text). Nothing becomes agreed work until the seller confirms it (3e).

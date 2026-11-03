@@ -77,6 +77,9 @@ importers:
       '@pactpal/scope-draft':
         specifier: workspace:*
         version: link:../../packages/scope-draft
+      '@pactpal/score':
+        specifier: workspace:*
+        version: link:../../packages/score
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
@@ -231,6 +234,16 @@ importers:
       zod:
         specifier: ^4.6.7
         version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+
+  packages/score:
+    dependencies:
+      '@pactpal/ledger':
+        specifier: workspace:*
+        version: link:../ledger
     devDependencies:
       '@types/node':
         specifier: ^22.10.2

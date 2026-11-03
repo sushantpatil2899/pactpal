@@ -3,6 +3,7 @@ import { AcceptancePanel } from "./AcceptancePanel";
 import { DeliveriesPanel } from "./DeliveriesPanel";
 import { PaymentsPanel } from "./PaymentsPanel";
 import { BuyerPanel } from "./BuyerPanel";
+import { CompletenessPanel } from "./CompletenessPanel";
 import { DraftPanel } from "./DraftPanel";
 import type { DraftFill } from "./draft-fill";
 import { when } from "./format";
@@ -95,6 +96,7 @@ export function DealPage({ dealId }: { dealId: string }) {
       {deal.role === "buyer" && (
         <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
       )}
+      {deal.role === "seller" && <CompletenessPanel dealId={deal.id} logLength={entries.length} />}
       {deal.role === "seller" && (
         <BuyerPanel
           deal={deal}

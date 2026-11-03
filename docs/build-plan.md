@@ -27,7 +27,7 @@ Phase 4 is split into small pieces, built one at a time in this order. Each need
 | 4e        | Payment notification marks a stage paid; "check status" as a backup                                   | ✅     |
 | 4f        | Delivery: upload, send, buyer delivery page, views and downloads logged                               | ✅     |
 | 4g        | Buyer approves or requests changes, counted against the agreed revisions                              | ✅     |
-| 4h        | Evidence completeness score                                                                           |        |
+| 4h        | Evidence completeness score                                                                           | ✅     |
 | 4i        | Agreement editor with the chat side by side; "buyer provides" list with dates                         |        |
 | 4j        | Change orders: proposed by the seller, accepted or declined by the buyer                              |        |
 | 4k        | Buyer questions on the acceptance page (AI; model and prompt approved by the owner)                   |        |

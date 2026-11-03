@@ -33,6 +33,7 @@
     "@pactpal/paypal": "workspace:*",
     "@pactpal/pdf": "workspace:*",
     "@pactpal/scope-draft": "workspace:*",
+    "@pactpal/score": "workspace:*",
     "fastify": "^5.12.7",
     "pg": "^8.23.1",
     "zod": "^4.6.7"
