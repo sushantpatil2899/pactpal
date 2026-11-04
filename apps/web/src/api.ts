@@ -1,3 +1,4 @@
+import type { LineMark } from "@pactpal/words";
 /** The one place the web app talks to the server. Answers are checked before use. */
 
 export interface Me {
@@ -230,6 +231,9 @@ export interface Money {
 }
 
 /** The terms of one version of a deal's agreed work. */
+/** How a delivered line can be judged; `null` when the seller did not mark it. */
+export type DeliverableKind = LineMark;
+
 export interface ScopeTerms {
   version: number;
   contentSha256: string;
@@ -241,6 +245,8 @@ export interface ScopeTerms {
   dueDate: string | null;
   milestones: { title: string; amount: Money; dueDate: string | null }[];
   total: Money;
+  /** One mark per delivered line; absent when no line is marked. */
+  deliverableKinds?: DeliverableKind[];
   /** What the buyer provides; absent when the version lists nothing. */
   buyerProvides?: { text: string; dueDate: string | null }[];
 }
@@ -263,6 +269,7 @@ export interface ScopeInput {
   dueDate?: string;
   milestones: { title: string; amount: string; dueDate?: string }[];
   buyerProvides?: { text: string; dueDate?: string }[];
+  deliverableKinds?: DeliverableKind[];
 }
 
 /** The server refused some fields; `fields` names them, e.g. "milestones.0.amount". */
@@ -520,6 +527,8 @@ export interface DeliveryView {
     revision: number | null;
     at: string;
   } | null;
+  /** Delivered lines marked as matters of taste that approving this stage also accepts. */
+  mattersOfTaste?: string[];
 }
 
 export interface DeliveriesView {

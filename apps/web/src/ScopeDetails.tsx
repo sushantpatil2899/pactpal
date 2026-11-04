@@ -1,4 +1,5 @@
 import type { ScopeTerms } from "./api";
+import { markWords } from "@pactpal/words";
 
 /** A date (YYYY-MM-DD) as people read it, e.g. "20 Nov 2026". */
 export const dateOf = (isoDate: string) =>
@@ -20,9 +21,15 @@ export function ScopeDetails({ scope }: { scope: ScopeTerms }) {
       <p>{scope.summary}</p>
       <h4>What will be delivered</h4>
       <ul>
-        {scope.deliverables.map((item, n) => (
-          <li key={n}>{item}</li>
-        ))}
+        {scope.deliverables.map((item, n) => {
+          const words = markWords(scope.deliverableKinds?.[n], scope.milestones);
+          return (
+            <li key={n}>
+              {item}
+              {words !== "" && <span style={{ color: "#555" }}> {words}</span>}
+            </li>
+          );
+        })}
       </ul>
       {scope.exclusions.length > 0 && (
         <>

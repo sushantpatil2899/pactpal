@@ -104,6 +104,27 @@ describe("agreed work", () => {
     await app.close();
   });
 
+  it("keeps the marks on delivered lines, and refuses a matter of taste with no such stage", async () => {
+    const { app, call, url, token } = await sellerDeal();
+    const marks = [{ kind: "objective" }, { kind: "subjective", approvalStage: 1 }];
+    const saved = await call("POST", url, token, work({ deliverableKinds: marks }));
+    expect(saved.json<{ scope: unknown }>().scope).toMatchObject({ deliverableKinds: marks });
+    const bad = await call(
+      "POST",
+      url,
+      token,
+      work({ deliverableKinds: [null, { kind: "subjective", approvalStage: 5 }] }),
+    );
+    expect(bad.json()).toEqual({ error: "invalid", fields: ["deliverableKinds.1.approvalStage"] });
+    const unmarked = (
+      await call("POST", url, token, work({ deliverableKinds: [null, null] }))
+    ).json<{
+      scope: Record<string, unknown>;
+    }>().scope;
+    expect("deliverableKinds" in unmarked).toBe(false);
+    await app.close();
+  });
+
   it("lets the buyer and a buyer-link visitor read it but not save it", async () => {
     const { app, call, url, token, buyer, dealId } = await sellerDeal();
     await call("POST", url, token, work());

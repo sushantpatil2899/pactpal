@@ -27,6 +27,7 @@ import { deliveryEmail } from "../email/delivery-email.js";
 import { dealLinkUrl } from "../email/deal-link-email.js";
 import { invoiceFor, stageFacts } from "../payments/invoice-text.js";
 import { signedRecord } from "../payments/signed-record.js";
+import { mattersOfTaste } from "./scope-view.js";
 import { requestOrigin } from "../request-origin.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
 import { sendCheckedFile } from "./download.js";
@@ -155,6 +156,8 @@ export const deliveryRoutes: FastifyPluginAsync<DeliveryRouteOptions> = (app, op
         })),
         access: accessSummary(entries, delivery.id),
         answer: answerView(answers.find((a) => a.deliveryId === delivery.id)),
+        // What approving this stage also accepts, as the signed agreement says.
+        mattersOfTaste: mattersOfTaste(record.scope.content, delivery.stage),
       })),
     });
   }

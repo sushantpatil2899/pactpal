@@ -6,7 +6,7 @@ import { MIGRATIONS } from "./migrations.js";
 import { createUser, type User } from "./users.js";
 import { createDeal, type NewDeal } from "./deals.js";
 import { acceptTerms, documentFingerprint, requestAcceptance } from "./acceptance.js";
-import { saveScopeVersion } from "./scope.js";
+import { saveScopeVersion, type ScopeContentInput } from "./scope.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
 interface Engine {
@@ -128,7 +128,7 @@ export async function createTestDeal(
  */
 export async function createSignedTestDeal(
   db: Database,
-  terms: { revisionsIncluded?: number } = {},
+  terms: Pick<ScopeContentInput, "revisionsIncluded" | "deliverableKinds"> = {},
 ) {
   const { seller, buyer, dealId } = await createTestDeal(db);
   const { scope } = await saveScopeVersion(

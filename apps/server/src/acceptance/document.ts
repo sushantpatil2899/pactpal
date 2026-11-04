@@ -48,6 +48,17 @@ export const acceptanceDocumentSchema = z.strictObject({
       z.strictObject({ title: z.string(), amount: money, dueDate: z.string().nullable() }),
     ),
     total: money,
+    /** One mark per delivered line; absent when no line is marked (and before 4i-2). */
+    deliverableKinds: z
+      .array(
+        z
+          .discriminatedUnion("kind", [
+            z.strictObject({ kind: z.enum(["objective", "process"]) }),
+            z.strictObject({ kind: z.literal("subjective"), approvalStage: z.number().int() }),
+          ])
+          .nullable(),
+      )
+      .optional(),
     /** What the buyer provides; absent for versions without it (and documents made before 4i). */
     buyerProvides: z
       .array(z.strictObject({ text: z.string(), dueDate: z.string().nullable() }))

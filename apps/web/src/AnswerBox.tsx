@@ -82,6 +82,12 @@ export function AnswerBox({
       {mode === "approve" && (
         <p>
           Approving tells the seller this stage is done and is recorded.{" "}
+          {(delivery.mattersOfTaste ?? []).length > 0 && (
+            <>
+              Approving this stage also accepts these matters of taste in the agreement:{" "}
+              {(delivery.mattersOfTaste ?? []).map((line) => `“${line}”`).join(", ")}.{" "}
+            </>
+          )}
           <button
             type="button"
             disabled={busy}

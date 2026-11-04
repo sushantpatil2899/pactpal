@@ -105,15 +105,21 @@ describe("acceptance", () => {
     await app.close();
   });
 
-  it("shows what the buyer provides on the page the buyer signs and in the receipt", async () => {
+  it("shows what the buyer provides and the line marks on the page the buyer signs and in the receipt", async () => {
     const env = await savedDeal();
     const { app, call, base, read, token, buyerLink, dealId } = env;
     const provides = [{ text: "Reference sketches", dueDate: "2026-11-10" }];
-    await call("POST", `/api/deals/${dealId}/scope`, token, { ...work, buyerProvides: provides });
+    const deliverableKinds = [{ kind: "subjective", approvalStage: 1 }];
+    await call("POST", `/api/deals/${dealId}/scope`, token, {
+      ...work,
+      buyerProvides: provides,
+      deliverableKinds,
+    });
     const documentSha256 = await send(env);
     expect((await read(buyerLink)).document?.terms).toMatchObject({
       version: 2,
       buyerProvides: [{ text: "Reference sketches", dueDate: "2026-11-10" }],
+      deliverableKinds,
     });
     const signedRes = await call("POST", `${base}/accept`, buyerLink, {
       documentSha256,
@@ -121,8 +127,10 @@ describe("acceptance", () => {
     });
     expect(signedRes.statusCode).toBe(200);
     const receipt = await call("GET", `${base}/receipt`, buyerLink);
-    expect(pdfTextLines(receipt.rawPayload).join("\n")).toContain(
-      "Reference sketches (by 10 Nov 2026)",
+    const receiptText = pdfTextLines(receipt.rawPayload).join(" ");
+    expect(receiptText).toContain("Reference sketches (by 10 Nov 2026)");
+    expect(receiptText).toContain(
+      "(a matter of taste: settled when the buyer approves stage 1, Sketch)",
     );
     await app.close();
   });

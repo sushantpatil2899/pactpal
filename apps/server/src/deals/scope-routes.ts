@@ -5,6 +5,7 @@ import {
   getDraft,
   getLatestScope,
   saveScopeVersion,
+  checkedScopeContentSchema,
   scopeContentSchema,
   type DraftRecord,
   type ScopeContent,
@@ -91,7 +92,7 @@ function toContent(
       return { ...stage, amountMinor: 0 };
     }
   });
-  const content = scopeContentSchema.safeParse({ ...body, format: 1, milestones: stages });
+  const content = checkedScopeContentSchema.safeParse({ ...body, format: 1, milestones: stages });
   if (content.success && fields.length === 0) return { ok: true, content: content.data };
   const issues = content.success ? [] : content.error.issues;
   for (const issue of issues) {

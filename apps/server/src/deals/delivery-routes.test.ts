@@ -19,6 +19,7 @@ interface DeliveryView {
   stageTitle: string;
   message: string | null;
   files: { id: string; filename: string; sha256: string }[];
+  mattersOfTaste: string[];
   access: {
     emailedAt: string | null;
     emailCount: number;
@@ -35,7 +36,11 @@ interface DeliveriesView {
 
 /** A signed deal, the app (optionally trusting 1 proxy), the seller and both buyer sessions. */
 async function signedDeal(options: { emailOff?: boolean } = {}) {
-  const deal = await createSignedTestDeal(db, { revisionsIncluded: 2 });
+  // Its one delivered line is a matter of taste settled when the buyer approves stage 1.
+  const deal = await createSignedTestDeal(db, {
+    revisionsIncluded: 2,
+    deliverableKinds: [{ kind: "subjective", approvalStage: 1 }],
+  });
   const env = dealTestApp(db, undefined, { trustProxyHops: 1, ...options });
   const token = await signedInAs(db, deal.seller.id);
   const [buyerPayPal = "", buyerLink = ""] = await buyerVisitors(db, deal.dealId, deal.buyer.id);
@@ -86,6 +91,7 @@ describe("deliveries", () => {
       ],
       access: { emailedAt: TEST_NOW.toISOString(), emailCount: 1, opened: { count: 0 } },
     });
+    expect(delivery?.mattersOfTaste).toEqual(["Full-body character, transparent PNG"]);
     expect(sent.map((m) => [m.kind, m.to])).toEqual([["delivery", "chris@example.com"]]);
     expect(sent[0]?.text).toContain("Maya Seller delivered work for stage 1 of 2");
     expect(sent[0]?.text).toMatch(/https:\/\/pactpal\.test\/link#t=[\w-]{43}/);

@@ -122,6 +122,30 @@ describe("buildReceipt", () => {
     expect(text).toMatch(/Game logo$/m);
   });
 
+  it("prints each delivered line with its mark", async () => {
+    const marked: AcceptanceDocument = {
+      ...document,
+      terms: {
+        ...document.terms,
+        deliverables: ["Transparent PNG", "Rough sketch first", "Warm hand-drawn style", "Notes"],
+        deliverableKinds: [
+          { kind: "objective" },
+          { kind: "process" },
+          { kind: "subjective", approvalStage: 1 },
+          null,
+        ],
+      },
+    };
+    const { acceptance, accepted } = signed(marked);
+    const text = pdfTextLines((await buildReceipt(acceptance, accepted)).bytes).join(" ");
+    expect(text).toContain("Transparent PNG (can be checked)");
+    expect(text).toContain("Rough sketch first (a step in the work)");
+    expect(text).toContain(
+      "Warm hand-drawn style (a matter of taste: settled when the buyer approves stage 1, Sketch)",
+    );
+    expect(text).toMatch(/Notes(?! \()/);
+  });
+
   it("gives the same bytes every time, dated at the signing time", async () => {
     const { acceptance, accepted } = signed();
     const [first, second] = await Promise.all([

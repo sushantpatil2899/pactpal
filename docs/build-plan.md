@@ -29,7 +29,7 @@ Phase 4 is split into small pieces, built one at a time in this order. Each need
 | 4g        | Buyer approves or requests changes, counted against the agreed revisions                              | ✅     |
 | 4h        | Evidence completeness score                                                                           | ✅     |
 | 4i        | Agreement editor with the chat side by side; "buyer provides" list with dates                         | ✅     |
-| 4i-2      | Checkable lines: each deliverable objective, process or a matter of taste tied to a stage approval    |        |
+| 4i-2      | Checkable lines: each deliverable objective, process or a matter of taste tied to a stage approval    | ✅     |
 | 4j        | Change orders: proposed by the seller, accepted or declined by the buyer                              |        |
 | 4k        | Buyer questions on the acceptance page (AI; model and prompt approved by the owner)                   |        |
 | 4l        | Pre-delivery check: code checks plus a vision model, advisory to the seller only                      |        |

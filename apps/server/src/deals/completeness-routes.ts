@@ -29,6 +29,9 @@ export const completenessRoutes: FastifyPluginAsync<CompletenessRouteOptions> = 
           version: scope.version,
           stages: scope.content.milestones.length,
           exclusions: scope.content.exclusions.length,
+          lines: scope.content.deliverables.length,
+          markedLines: (scope.content.deliverableKinds ?? []).filter((mark) => mark !== null)
+            .length,
           signed: record !== undefined,
         },
       }),

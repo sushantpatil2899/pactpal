@@ -15,6 +15,7 @@ import {
   getScopeVersion,
   readLedger,
   saveScopeVersion,
+  checkedScopeContentSchema,
   scopeContentSchema,
   verifyStoredLedger,
   type SaveScope,
@@ -206,6 +207,65 @@ describe("what the buyer provides", () => {
     expect(empty.scope.content).toEqual(without);
     expect("buyerProvides" in empty.scope.content).toBe(false);
     expect(empty.scope.contentSha256).toBe(sha256Hex(canonicalJson(without)));
+  });
+});
+
+describe("marks on delivered lines", () => {
+  const marks = [{ kind: "objective" as const }, { kind: "subjective" as const, approvalStage: 1 }];
+
+  it("are saved with the lines, and left out when no line is marked", async () => {
+    const { seller, dealId } = await createTestDeal(db);
+    const marked = await saveScopeVersion(
+      db,
+      { dealId, sellerId: seller.id, content: content({ deliverableKinds: marks }) },
+      at(1),
+    );
+    expect(marked.scope.content.deliverableKinds).toEqual(marks);
+    const plain = await saveScopeVersion(
+      db,
+      { dealId, sellerId: seller.id, content: content({ deliverableKinds: [null, null] }) },
+      at(2),
+    );
+    expect("deliverableKinds" in plain.scope.content).toBe(false);
+    expect(plain.scope.contentSha256).toBe(
+      sha256Hex(canonicalJson(scopeContentSchema.parse(content()))),
+    );
+    // A partly marked version keeps its "not marked" lines in place.
+    const partly = await saveScopeVersion(
+      db,
+      {
+        dealId,
+        sellerId: seller.id,
+        content: content({ deliverableKinds: [null, { kind: "process" }] }),
+      },
+      at(3),
+    );
+    expect(partly.scope.content.deliverableKinds).toEqual([null, { kind: "process" }]);
+  });
+
+  it.each([
+    ["fewer marks than lines", [{ kind: "objective" }], "deliverableKinds"],
+    [
+      "a matter of taste settled by a stage that does not exist",
+      [null, { kind: "subjective", approvalStage: 3 }],
+      "deliverableKinds.1.approvalStage",
+    ],
+    [
+      "a matter of taste with no stage",
+      [null, { kind: "subjective" }],
+      "deliverableKinds.1.approvalStage",
+    ],
+    [
+      "a stage on a line that can be checked",
+      [{ kind: "objective", approvalStage: 1 }, null],
+      "deliverableKinds.0",
+    ],
+  ])("refuses %s", (_name, deliverableKinds, path) => {
+    const result = checkedScopeContentSchema.safeParse(
+      content({ deliverableKinds } as Partial<ScopeContentInput>),
+    );
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(path);
   });
 });
 

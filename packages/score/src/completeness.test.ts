@@ -19,7 +19,14 @@ const entry = (type: EventType, payload: JsonValue): LedgerEntry => ({
   serverTime: "2026-11-03T10:00:00.000Z",
 });
 
-const signed: ScoredAgreement = { version: 1, stages: 2, exclusions: 1, signed: true };
+const signed: ScoredAgreement = {
+  version: 1,
+  stages: 2,
+  exclusions: 1,
+  lines: 2,
+  markedLines: 2,
+  signed: true,
+};
 
 /** The log entries of one stage delivered, emailed, downloaded and approved. */
 const stageDone = (stage: number, id: string, version = 1): LedgerEntry[] => [
@@ -45,12 +52,12 @@ describe("evidence completeness score", () => {
       entries: [...agreed(), ...stageDone(1, "d1"), ...stageDone(2, "d2")],
       agreement: signed,
     });
-    expect(result.score).toBe(81);
-    expect(result.measurable).toBe(81);
+    expect(result.score).toBe(93);
+    expect(result.measurable).toBe(93);
     expect(result.items.reduce((sum, i) => sum + i.points, 0)).toBe(100);
     expect(result.items.filter((i) => i.status === "missing")).toEqual([]);
     expect(result.items.filter((i) => i.status === "not-measured").map((i) => i.points)).toEqual([
-      12, 3, 4,
+      3, 4,
     ]);
     expect(byId(result).approvals).toMatchObject({ earned: 12, detail: "2 of 2 stages" });
   });
@@ -72,7 +79,7 @@ describe("evidence completeness score", () => {
     expect(items["delivery-access"]?.fix).toBe(
       "Ask the buyer to download the delivery for stages 2 and 3.",
     );
-    expect(result.score).toBe(10 + 8 + 15 + 3 + 3 + 4 + 4 + 4);
+    expect(result.score).toBe(10 + 8 + 12 + 15 + 3 + 3 + 4 + 4 + 4);
   });
 
   it("matches the Maya story: the final delivery downloaded but not approved", () => {
@@ -80,12 +87,12 @@ describe("evidence completeness score", () => {
       (e) => !(e.type === "MILESTONE_APPROVED" && JSON.stringify(e.payload).includes('"d2"')),
     );
     const result = completenessScore({ entries, agreement: signed });
-    expect(result.score).toBe(75);
+    expect(result.score).toBe(87);
     expect(byId(result).approvals?.fix).toBe("Ask the buyer to approve the delivery for stage 2.");
   });
 
   it("scores a draft before signing from its newest version, with fixes that still apply", () => {
-    const draft = { version: 2, stages: 2, exclusions: 0, signed: false };
+    const draft = { version: 2, stages: 2, exclusions: 0, lines: 3, markedLines: 0, signed: false };
     const result = completenessScore({
       entries: [entry("SCOPE_CONFIRMED", { version: 1 })],
       agreement: draft,
@@ -104,6 +111,29 @@ describe("evidence completeness score", () => {
     });
     expect(items.approvals?.fix).toBe("Ask the buyer to approve the delivery for stages 1 and 2.");
     expect(result.score).toBe(0);
+  });
+
+  it("earns checkable lines in proportion to the lines marked", () => {
+    const four = { ...signed, lines: 4, markedLines: 3 };
+    const partly = byId(completenessScore({ entries: [], agreement: four }))["checkable-lines"];
+    expect(partly).toMatchObject({
+      earned: 9,
+      status: "missing",
+      detail: "3 of 4 lines marked",
+      fix: expect.stringContaining("only a new signed version") as unknown,
+    });
+    const draft = { ...four, signed: false, lines: 1, markedLines: 0 };
+    expect(
+      byId(completenessScore({ entries: [], agreement: draft }))["checkable-lines"],
+    ).toMatchObject({
+      earned: 0,
+      detail: "0 of 1 line marked",
+      fix: "Mark each delivered line: can be checked, a step in the work, or a matter of taste settled by a stage approval.",
+    });
+    const empty = { ...four, lines: 0, markedLines: 0 };
+    expect(
+      byId(completenessScore({ entries: [], agreement: empty }))["checkable-lines"]?.earned,
+    ).toBe(0);
   });
 
   it("says a signed agreement's terms cannot change, and asks for a missing receipt", () => {

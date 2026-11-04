@@ -83,7 +83,7 @@ A 0–100 measure of how complete a deal's records are, with "what is helping" a
 | Delivery email matches the PayPal transaction email                        | 4      |
 | Retention settings in place                                                | 4      |
 
-Built in 4h for the seller's deal page. Today PactPal measures 81 of the 100 points: checkable lines, the coverage notice and retention settings are listed as "not measured yet" and count 0 until they are built. The email item compares the PayPal invoice's address with the delivery email's address, because the paying account's email is not recorded.
+Built in 4h for the seller's deal page. Checkable lines are measured since 4i-2 (the seller marks each delivered line; earned in proportion to the lines marked), so PactPal measures 93 of the 100 points: the coverage notice and retention settings are listed as "not measured yet" and count 0 until they are built. The email item compares the PayPal invoice's address with the delivery email's address, because the paying account's email is not recorded.
 
 ## Evidence packet
 

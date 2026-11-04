@@ -189,6 +189,8 @@ Payment stages are part of the content, so their titles and amounts are fingerpr
 
 Since 4i the content can also hold `buyerProvides`: up to 20 things the buyer provides, each with text (1 to 500 characters) and an optional date. It is still format 1: the list is optional and never stored empty, so versions saved before it existed keep their exact content and fingerprint. The acceptance document's terms carry it only when present, so documents for older versions are rebuilt byte for byte.
 
+Since 4i-2 the content can also hold `deliverableKinds`: one mark per line of what will be delivered, in the same order: `objective` (can be checked), `process` (a step in the work), `subjective` (a matter of taste, with the `approvalStage` whose approval by the buyer settles it), or `null` (not marked). It is stored only when at least one line is marked, must have one entry per line, and a stage must exist in the version. The acceptance document carries it only when present. The deliveries view lists, for each delivery, the matters of taste its stage settles.
+
 ### `acceptances`: signed agreements
 
 What the buyer signed, kept whole. Built in 4a (migration 0009). Append-only: the database refuses edits, deletes and emptying the table.

@@ -23,6 +23,21 @@ const buyerProvidesSchema = z.strictObject({
 });
 
 /**
+ * How a delivered line can be judged (4i-2): something anyone can check, a step in the work, or a
+ * matter of taste settled when the buyer approves the named payment stage. `null`: not marked.
+ */
+const deliverableKindSchema = z
+  .discriminatedUnion("kind", [
+    z.strictObject({ kind: z.enum(["objective", "process"]) }),
+    z.strictObject({
+      kind: z.literal("subjective"),
+      approvalStage: z.number().int().min(1).max(20),
+    }),
+  ])
+  .nullable();
+export type DeliverableKind = z.output<typeof deliverableKindSchema>;
+
+/**
  * What a deal covers, format 1: written by the seller. A later format (AI drafts with quotes from
  * the source chat, Phase 3) gets its own number so stored versions keep their meaning.
  */
@@ -40,9 +55,39 @@ export const scopeContentSchema = z.strictObject({
    * existed keeps its exact fingerprint.
    */
   buyerProvides: z.array(buyerProvidesSchema).max(20).optional(),
+  /**
+   * One mark per deliverable, in the same order (4i-2). Optional and never stored when no line is
+   * marked, for the same reason. The rules that compare fields are in `checkedScopeContentSchema`.
+   */
+  deliverableKinds: z.array(deliverableKindSchema).max(50).optional(),
 });
 export type ScopeContent = z.output<typeof scopeContentSchema>;
 export type ScopeContentInput = z.input<typeof scopeContentSchema>;
+
+/**
+ * The content with the rules that compare its fields: one mark per deliverable, and a matter of
+ * taste settled by a payment stage the agreement has. Used wherever content is accepted or read.
+ */
+export const checkedScopeContentSchema = scopeContentSchema.superRefine((content, context) => {
+  const kinds = content.deliverableKinds;
+  if (kinds === undefined) return;
+  if (kinds.length !== content.deliverables.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["deliverableKinds"],
+      message: "one mark per delivered line",
+    });
+  }
+  kinds.forEach((mark, n) => {
+    if (mark?.kind === "subjective" && mark.approvalStage > content.milestones.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["deliverableKinds", n, "approvalStage"],
+        message: "no such payment stage",
+      });
+    }
+  });
+});
 
 /** Why a version was not saved. */
 export type ScopeRefusal = "not-your-deal" | "not-draft" | "bad-draft";
@@ -102,7 +147,7 @@ export function scopeTotalMinor(content: ScopeContent): number {
 /** Checks a stored row's content against its fingerprint before it is trusted. */
 function checkedVersion(row: unknown): ScopeVersion {
   const stored = scopeRow.parse(row);
-  const content = scopeContentSchema.safeParse(stored.content);
+  const content = checkedScopeContentSchema.safeParse(stored.content);
   if (!content.success || scopeFingerprint(content.data) !== stored.contentSha256) {
     throw new ScopeIntegrityError(
       `Deal ${stored.dealId} version ${String(stored.version)}: content does not match its fingerprint`,
@@ -136,10 +181,15 @@ export const confirmedFromSchema = z.object({
 export const saveScopeSchema = z.object({
   dealId: z.uuid(),
   sellerId: z.uuid(),
-  // An empty "buyer provides" list is left out, so the fingerprint matches content without one.
-  content: scopeContentSchema.transform(({ buyerProvides, ...rest }) =>
-    buyerProvides === undefined || buyerProvides.length === 0 ? rest : { ...rest, buyerProvides },
-  ),
+  // An empty "buyer provides" list, and marks when no line is marked, are left out, so the
+  // fingerprint matches content written without them.
+  content: checkedScopeContentSchema.transform(({ buyerProvides, deliverableKinds, ...rest }) => ({
+    ...rest,
+    ...(buyerProvides === undefined || buyerProvides.length === 0 ? {} : { buyerProvides }),
+    ...(deliverableKinds === undefined || deliverableKinds.every((mark) => mark === null)
+      ? {}
+      : { deliverableKinds }),
+  })),
   confirmedFrom: confirmedFromSchema.optional(),
 });
 export type SaveScope = z.input<typeof saveScopeSchema>;

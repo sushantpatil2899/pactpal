@@ -80,6 +80,8 @@ export {
   saveScopeSchema,
   saveScopeVersion,
   scopeContentSchema,
+  checkedScopeContentSchema,
+  type DeliverableKind,
   scopeFingerprint,
   scopeTotalMinor,
 } from "./scope.js";

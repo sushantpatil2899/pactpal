@@ -1,6 +1,7 @@
 import type { Acceptance } from "@pactpal/db";
 import type { LedgerEntry } from "@pactpal/ledger";
 import { renderPdf, type Block } from "@pactpal/pdf";
+import { markedLine } from "@pactpal/words";
 import { z } from "zod";
 import { acceptanceDocumentSchema, type AcceptanceDocument } from "./document.js";
 
@@ -71,7 +72,12 @@ export function receiptBlocks(
     { kind: "heading", text: `What was agreed (version ${version})` },
     { kind: "paragraph", text: terms.summary },
     { kind: "paragraph", text: "What will be delivered", style: "bold" },
-    { kind: "list", items: terms.deliverables },
+    {
+      kind: "list",
+      items: terms.deliverables.map((line, n) =>
+        markedLine(line, terms.deliverableKinds?.[n], terms.milestones),
+      ),
+    },
     ...(terms.exclusions.length === 0
       ? []
       : ([

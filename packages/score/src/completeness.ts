@@ -10,6 +10,9 @@ export interface ScoredAgreement {
   stages: number;
   /** How many exclusions (what the price does not include) it lists. */
   exclusions: number;
+  /** How many "what will be delivered" lines it has, and how many of them are marked (4i-2). */
+  lines: number;
+  markedLines: number;
   signed: boolean;
 }
 
@@ -188,7 +191,7 @@ const termOf =
 const SIGNED_ONLY =
   "The signed agreement cannot change; only a new signed version (a change order) can add this.";
 
-/** The items PactPal measures, worth 81 of the 100 points. */
+/** The items PactPal measures, worth 93 of the 100 points. */
 const MEASURED: { id: string; label: string; points: number; measure: Measure }[] = [
   {
     id: "scope-citations",
@@ -211,6 +214,27 @@ const MEASURED: { id: string; label: string; points: number; measure: Measure }[
       "List what the price does not include before sending it for signature.",
       SIGNED_ONLY,
     ),
+  },
+  {
+    id: "checkable-lines",
+    label: "Each delivered line is checkable",
+    points: 12,
+    measure: (f) => {
+      if (f.agreement === undefined) {
+        return { earned: 0, detail: "no agreed work yet", fix: "Save the agreed work first." };
+      }
+      const { lines, markedLines, signed } = f.agreement;
+      const earned = lines === 0 ? 0 : Math.floor((12 * markedLines) / lines);
+      const detail = `${String(markedLines)} of ${String(lines)} ${lines === 1 ? "line" : "lines"} marked`;
+      if (markedLines >= lines) return { earned, detail };
+      return {
+        earned,
+        detail,
+        fix: signed
+          ? SIGNED_ONLY
+          : "Mark each delivered line: can be checked, a step in the work, or a matter of taste settled by a stage approval.",
+      };
+    },
   },
   {
     id: "acceptance",
@@ -299,14 +323,8 @@ const MEASURED: { id: string; label: string; points: number; measure: Measure }[
   },
 ];
 
-/** Items in product.md that PactPal cannot measure yet, worth the other 19 points. */
+/** Items in product.md that PactPal cannot measure yet, worth the other 7 points. */
 const NOT_MEASURED: { id: string; label: string; points: number; fix: string }[] = [
-  {
-    id: "checkable-lines",
-    label: "Checkable lines (objective or process; subjective lines tied to approvals)",
-    points: 12,
-    fix: "Comes with the agreement editor.",
-  },
   {
     id: "coverage-notice",
     label: "Coverage notice shown",

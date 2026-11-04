@@ -1,4 +1,4 @@
-import { scopeTotalMinor, type ScopeVersion } from "@pactpal/db";
+import { scopeTotalMinor, type ScopeContent, type ScopeVersion } from "@pactpal/db";
 import { toPayPalMoney } from "@pactpal/paypal";
 
 /** An amount for the pages: whole minor units, and the same as text in PayPal's format. */
@@ -25,7 +25,10 @@ export function scopeTerms(scope: ScopeVersion, currency: string) {
       dueDate: stage.dueDate ?? null,
     })),
     total: money(scopeTotalMinor(content), currency),
-    // Only when the version has one, so documents for older versions are rebuilt byte for byte.
+    // Each only when the version has it, so documents for older versions are rebuilt byte for byte.
+    ...(content.deliverableKinds === undefined
+      ? {}
+      : { deliverableKinds: content.deliverableKinds }),
     ...(content.buyerProvides === undefined
       ? {}
       : {
@@ -42,3 +45,10 @@ export const scopeView = (scope: ScopeVersion, currency: string) => ({
   ...scopeTerms(scope, currency),
   savedAt: scope.createdAt.toISOString(),
 });
+
+/** The delivered lines marked as matters of taste settled when the buyer approves this stage. */
+export const mattersOfTaste = (content: ScopeContent, stage: number): string[] =>
+  content.deliverables.filter((_, n) => {
+    const mark = content.deliverableKinds?.[n];
+    return mark?.kind === "subjective" && mark.approvalStage === stage;
+  });
