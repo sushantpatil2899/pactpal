@@ -294,6 +294,8 @@ The log entries:
 - `CHANGE_ORDER_DECLINED` (buyer, with IP address and browser): the change, the version and the reason, if any.
 - `CHANGE_ORDER_WITHDRAWN` (seller): the change and the version.
 
+The emails about a change (to the buyer when it is proposed, with a fresh private link; to the seller when it is answered, 4j-2) are notices and are not logged.
+
 **A stage is the same stage in every version**, because a change order only adds. So a deal has at most one invoice per stage (`milestones_one_per_stage`), an invoice, payment, delivery or approval counts for its stage whatever version it happened under, and the deal is completed when every stage of the current signed version is approved. A completed deal that gains stages is active again. Once signed, the deal page shows the signed version as the agreement; a waiting or declined change is shown on its own.
 
 ### `scope_drafts`: AI drafts of the agreed work

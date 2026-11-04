@@ -1,4 +1,4 @@
-import { markWords } from "@pactpal/words";
+import { changeLines } from "@pactpal/words";
 import { useEffect, useState, type FormEvent } from "react";
 import { AcceptanceDocument } from "./AcceptanceDocument";
 import {
@@ -34,7 +34,6 @@ import {
   type ProvideRow,
   type StageRow,
 } from "./FormRows";
-import { dateOf } from "./ScopeDetails";
 import { SignOrDecline } from "./SignOrDecline";
 import { FULL_WIDTH, WRAP } from "./styles";
 
@@ -50,32 +49,7 @@ function ChangeSummary({
   currency: string;
   stages: readonly { title: string }[];
 }) {
-  const items = [
-    ...change.addedLines.map((line) => {
-      const words = markWords(line.mark, stages);
-      return `Added: ${line.text}${words === "" ? "" : ` ${words}`}`;
-    }),
-    ...change.addedExclusions.map((text) => `Added to "not included": ${text}`),
-    ...change.addedBuyerProvides.map(
-      (item) =>
-        `The buyer also provides: ${item.text}${item.dueDate === null ? "" : ` (by ${dateOf(item.dueDate)})`}`,
-    ),
-    ...change.addedStages.map(
-      (stage) =>
-        `Added payment stage ${String(stage.stage)}: ${stage.title}, ${stage.amount.text} ${currency}${stage.dueDate === null ? "" : ` (due ${dateOf(stage.dueDate)})`}`,
-    ),
-    ...(change.dueDate === null
-      ? []
-      : [
-          `Due date: ${change.dueDate.from === null ? "none" : dateOf(change.dueDate.from)} → ${change.dueDate.to === null ? "none" : dateOf(change.dueDate.to)}`,
-        ]),
-    ...(change.revisionsIncluded === null
-      ? []
-      : [
-          `Revisions included: ${String(change.revisionsIncluded.from)} → ${String(change.revisionsIncluded.to)}`,
-        ]),
-    `Total: ${change.total.from.text} → ${change.total.to.text} ${currency}`,
-  ];
+  const items = changeLines(change, currency, stages);
   return (
     <ul style={WRAP}>
       {items.map((item, n) => (
@@ -269,6 +243,7 @@ export function ChangeOrderPanel({ deal, onChange }: { deal: DealSummary; onChan
   const [problem, setProblem] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [proposing, setProposing] = useState(false);
+  const [notice, setNotice] = useState<string | undefined>();
 
   const load = () => {
     Promise.all([getChangeOrders(deal.id), getScope(deal.id)]).then(
@@ -287,15 +262,20 @@ export function ChangeOrderPanel({ deal, onChange }: { deal: DealSummary; onChan
   const seller = deal.role === "seller";
 
   /** Runs a step, then shows the changes again and tells the page. */
-  const run = (work: Promise<ChangeOrdersView>, done?: () => void) => {
+  const run = (work: Promise<ChangeOrdersView>) => {
     setBusy(true);
     setProblem(undefined);
+    setNotice(undefined);
     work.then(
       (updated) => {
         setBusy(false);
         setProposing(false);
         setView(updated);
-        done?.();
+        if (updated.buyerEmail === "failed") {
+          setNotice(
+            "The change is saved, but the email to the buyer was not sent. Send them a link from the Buyer section.",
+          );
+        }
         load();
         onChange();
       },
@@ -355,6 +335,7 @@ export function ChangeOrderPanel({ deal, onChange }: { deal: DealSummary; onChan
           {problem}
         </p>
       )}
+      {notice && <p role="alert">{notice}</p>}
       {waiting && (
         <div>
           {seller && (

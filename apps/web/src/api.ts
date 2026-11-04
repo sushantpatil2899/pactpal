@@ -987,6 +987,8 @@ export interface ChangeOrdersView {
   /** The seller may propose a change now (signed, and none waiting). */
   canPropose: boolean;
   orders: ChangeOrderView[];
+  /** After a proposal: whether the buyer was emailed (`off`: email is not set up). */
+  buyerEmail?: "sent" | "failed" | "off";
 }
 
 /** What the seller adds in a change order; amounts as typed ("400.00"). */

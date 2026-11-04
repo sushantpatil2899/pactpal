@@ -1,7 +1,7 @@
 import type { Acceptance } from "@pactpal/db";
 import type { LedgerEntry } from "@pactpal/ledger";
 import { renderPdf, type Block } from "@pactpal/pdf";
-import { markedLine } from "@pactpal/words";
+import { dayWords, markedLine } from "@pactpal/words";
 import { z } from "zod";
 import { acceptanceDocumentSchema, type AcceptanceDocument } from "./document.js";
 
@@ -21,11 +21,7 @@ const acceptedPayload = z.object({
 
 const dateTime = (at: Date) =>
   `${at.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC`;
-const day = (isoDate: string) =>
-  new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  });
+const day = dayWords;
 
 const REACHED = { link: "by private link", paypal: "signed in with PayPal" } as const;
 

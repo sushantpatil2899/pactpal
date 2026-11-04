@@ -1,4 +1,4 @@
-import { markInvoiceSent, readLedger, startInvoice } from "@pactpal/db";
+import { markInvoiceSent, readLedger, redeemDealLink, startInvoice } from "@pactpal/db";
 import {
   TEST_NOW,
   createSignedTestDeal,
@@ -252,6 +252,76 @@ describe("change orders", () => {
       [2, "not_invoiced"],
       [3, "not_invoiced"],
     ]);
+    await app.close();
+  });
+});
+
+describe("change order emails", () => {
+  it("email the buyer the change with a working private link, and the seller each answer", async () => {
+    const env = await signedDeal();
+    const { app, call, base, propose, sign, sent } = env;
+    const proposed = await propose();
+    expect(proposed.json()).toMatchObject({ buyerEmail: "sent" });
+    const [notice] = sent.filter((m) => m.kind === "change-proposed");
+    expect(notice).toMatchObject({
+      to: "chris@example.com",
+      subject: 'Change proposed: "Logo design" (version 2)',
+    });
+    expect(notice?.idempotencyKey).toMatch(/^change:[0-9a-f-]{36}:[0-9a-f]{16}$/);
+    expect(notice?.text).toContain("- Added: Online ordering page (can be checked)");
+    expect(notice?.text).toContain('Message from Maya Seller: "Online ordering, as you asked"');
+    // The link opens the deal for the buyer, who sees the change waiting.
+    const token = /link#t=([\w-]{43})/.exec(notice?.text ?? "")?.[1] ?? "";
+    const redeemed = await redeemDealLink(db, token, TEST_NOW);
+    if (!redeemed.ok) throw new Error("the emailed link did not work");
+    const seen = (await call("GET", base, redeemed.session.token)).json<View>();
+    expect(seen.orders[0]?.status).toBe("proposed");
+
+    await sign();
+    const [accepted] = sent.filter((m) => m.kind === "change-accepted");
+    expect(accepted).toMatchObject({
+      to: "maya@example.com",
+      subject: 'Change accepted: "Logo design" (now version 2)',
+    });
+    expect(accepted?.idempotencyKey).toMatch(/^change-answer:/);
+    expect(accepted?.text).toContain("You can send the invoice for the new payment stages");
+
+    await propose({ addExclusions: ["Blog"] });
+    const waiting = (await call("GET", base, env.buyer))
+      .json<View>()
+      .orders.find((o) => o.status === "proposed");
+    await call("POST", `${base}/${waiting?.id ?? ""}/decline`, env.buyer, {
+      reason: "No blog, thanks",
+    });
+    const [declined] = sent.filter((m) => m.kind === "change-declined");
+    expect(declined?.text).toContain('Their reason: "No blog, thanks"');
+    // Withdrawing emails nobody.
+    const before = sent.length;
+    await propose({ addExclusions: ["Printing"] });
+    const third = (await call("GET", base, env.seller))
+      .json<View>()
+      .orders.find((o) => o.status === "proposed");
+    await call("POST", `${base}/${third?.id ?? ""}/withdraw`, env.seller);
+    expect(sent.length).toBe(before + 1);
+    await app.close();
+  });
+
+  it("keep the change when the buyer's email fails, and say so", async () => {
+    const env = await signedDeal();
+    env.failEmailTo.add("chris@example.com");
+    const res = await env.propose();
+    expect(res.json()).toMatchObject({ buyerEmail: "failed" });
+    expect(res.json<View>().orders[0]?.status).toBe("proposed");
+    expect(env.logs.join("")).not.toContain("chris@example.com");
+    await env.app.close();
+  });
+
+  it("say when email is off", async () => {
+    const deal = await createSignedTestDeal(db);
+    const { app, call } = dealTestApp(db, undefined, { emailOff: true });
+    const seller = await signedInAs(db, deal.seller.id);
+    const res = await call("POST", `/api/deals/${deal.dealId}/change-orders`, seller, ORDERING);
+    expect(res.json()).toMatchObject({ buyerEmail: "off" });
     await app.close();
   });
 });

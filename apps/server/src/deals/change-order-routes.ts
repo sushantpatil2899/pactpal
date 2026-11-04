@@ -1,5 +1,6 @@
 import {
   ChangeOrderNotAllowedError,
+  createDealLink,
   acceptChangeOrder,
   declineChangeOrder,
   declineReasonSchema,
@@ -10,6 +11,7 @@ import {
   scopeContentSchema,
   typedNameSchema,
   withdrawChangeOrder,
+  type ChangeOrder,
   type Database,
   type Deal,
   type ScopeChange,
@@ -17,7 +19,8 @@ import {
   type ScopeVersion,
 } from "@pactpal/db";
 import type { EmailSender } from "@pactpal/email";
-import type { FastifyPluginAsync, FastifyReply } from "fastify";
+import { sha256Hex } from "@pactpal/ledger";
+import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
   ACCEPTANCE_NOTICE_VERSION,
@@ -25,6 +28,12 @@ import {
   fingerprinted,
 } from "../acceptance/document.js";
 import { emailReceiptQuietly } from "../acceptance/receipt-mail.js";
+import {
+  changeAnswerEmail,
+  changeProposedEmail,
+  type ChangeAnswer,
+} from "../email/change-email.js";
+import { dealLinkUrl } from "../email/deal-link-email.js";
 import { signedRecord } from "../payments/signed-record.js";
 import { requestOrigin } from "../request-origin.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
@@ -40,6 +49,8 @@ export interface ChangeOrderRouteOptions {
   clock: () => Date;
   newId: () => string;
   recordIp: boolean;
+  /** Where buyer links in emails point; without it no link (and no proposal email) is sent. */
+  publicBaseUrl: string | undefined;
   /** Sends the receipt of the new version to both sides once the buyer signs a change. */
   email: EmailSender;
 }
@@ -164,7 +175,8 @@ async function changeDocument(db: Database, deal: Deal, to: ScopeVersion) {
  * a change still waiting. Both sides see every change and its answer.
  */
 export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (app, options) => {
-  const { visibleDeal, sellersDeal, buyersDeal, clock, newId, recordIp, email } = options;
+  const { visibleDeal, sellersDeal, buyersDeal, clock, newId, recordIp, email, publicBaseUrl } =
+    options;
 
   async function view(db: Database, deal: Deal, seller: boolean) {
     const [record, orders, entries] = await Promise.all([
@@ -202,13 +214,16 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
     };
   }
 
-  const answer = async (reply: FastifyReply, { db, deal, viewer }: FoundDeal) =>
-    reply.send(await view(db, deal, roleIn(viewer, deal) === "seller"));
+  const answer = async (reply: FastifyReply, { db, deal, viewer }: FoundDeal, extra?: object) =>
+    reply.send({ ...(await view(db, deal, roleIn(viewer, deal) === "seller")), ...extra });
 
   /** Runs a step, turning a refusal from the database into its answer. */
+  /** Runs a step, turning a refusal into its answer; what the step returns joins the view. */
   async function step(reply: FastifyReply, found: FoundDeal, work: () => Promise<unknown>) {
+    let extra: object | undefined;
     try {
-      await work();
+      const result = await work();
+      extra = typeof result === "object" && result !== null ? result : undefined;
     } catch (error) {
       if (!(error instanceof ChangeOrderNotAllowedError)) throw error;
       const { status, error: message } = REFUSALS[error.reason];
@@ -220,7 +235,90 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
             : { error: message },
         );
     }
-    return answer(reply, found);
+    return answer(reply, found, extra);
+  }
+
+  /**
+   * Emails the buyer the proposed change with a fresh private link into the deal (a new link
+   * cancels older ones). The change stands whatever happens here; the answer says how it went.
+   */
+  async function emailProposal(
+    { db, deal }: FoundDeal,
+    signed: ScopeVersion,
+    proposed: Awaited<ReturnType<typeof proposeChangeOrder>>,
+    message: string | undefined,
+    log: FastifyBaseLogger,
+  ): Promise<"sent" | "failed" | "off"> {
+    if (!email.live || publicBaseUrl === undefined) return "off";
+    try {
+      if (deal.buyerId === undefined) return "failed";
+      const [buyer, seller] = await Promise.all([
+        getUser(db, deal.buyerId),
+        getUser(db, deal.sellerId),
+      ]);
+      if (!buyer) return "failed";
+      const link = await createDealLink(db, { dealId: deal.id, userId: buyer.id }, clock());
+      const sent = await email.send(
+        changeProposedEmail({
+          to: buyer.email,
+          sellerName: nameOf(seller, "Seller"),
+          dealTitle: deal.title,
+          version: proposed.scope.version,
+          proposedAt: proposed.changeOrder.createdAt,
+          message,
+          change: changeView(proposed.change, signed, deal.currency),
+          currency: deal.currency,
+          stages: proposed.scope.content.milestones,
+          link: dealLinkUrl(publicBaseUrl, link.token),
+          linkExpiresAt: link.expiresAt,
+          // One key per link: a retry of this email is one email.
+          idempotencyKey: `change:${proposed.changeOrder.id}:${sha256Hex(link.token).slice(0, 16)}`,
+        }),
+      );
+      if (!sent.ok) {
+        log.warn({ dealId: deal.id, reason: sent.reason }, "Change order email not sent");
+        return "failed";
+      }
+      return "sent";
+    } catch (error) {
+      log.error(
+        { dealId: deal.id, err: error instanceof Error ? error.name : "unknown" },
+        "Change order email failed",
+      );
+      return "failed";
+    }
+  }
+
+  /** Emails the seller how the buyer answered a change; a failure is logged, never undoing it. */
+  async function emailAnswer(
+    { db, deal }: FoundDeal,
+    order: ChangeOrder,
+    log: FastifyBaseLogger,
+    answer: ChangeAnswer,
+  ) {
+    try {
+      const seller = await getUser(db, deal.sellerId);
+      if (!seller) return;
+      const sent = await email.send(
+        changeAnswerEmail({
+          to: seller.email,
+          dealTitle: deal.title,
+          fromVersion: order.fromVersion,
+          toVersion: order.toVersion,
+          answer,
+          answeredAt: clock(),
+          idempotencyKey: `change-answer:${order.id}`,
+        }),
+      );
+      if (!sent.ok && email.live) {
+        log.warn({ dealId: deal.id, reason: sent.reason }, "Change answer email not sent");
+      }
+    } catch (error) {
+      log.error(
+        { dealId: deal.id, err: error instanceof Error ? error.name : "unknown" },
+        "Change answer email failed",
+      );
+    }
   }
 
   app.get("/api/deals/:id/change-orders", async (request, reply) => {
@@ -238,7 +336,7 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
     const content = proposedContent(record.scope.content, body, found.deal.currency);
     if (!content.ok) return reply.code(400).send({ error: "invalid", fields: content.fields });
     return step(reply, found, async () => {
-      await proposeChangeOrder(
+      const proposed = await proposeChangeOrder(
         found.db,
         {
           id: newId(),
@@ -250,6 +348,9 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
         clock(),
       );
       request.log.info({ dealId: found.deal.id }, "Change order proposed");
+      return {
+        buyerEmail: await emailProposal(found, record.scope, proposed, body.message, request.log),
+      };
     });
   });
 
@@ -300,6 +401,11 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
         clock(),
       );
       request.log.info({ dealId: found.deal.id }, "Change order accepted");
+      await emailAnswer(found, named.order, request.log, {
+        kind: "accepted",
+        typedName: body.typedName,
+        addsStages: named.change.addedStages.length > 0,
+      });
       await emailReceiptQuietly({ db: found.db, email, clock, log: request.log }, found.deal.id);
     });
   });
@@ -325,6 +431,7 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
       );
       // The reason stays out of the server's logs; the evidence log has it.
       request.log.info({ dealId: found.deal.id }, "Change order declined");
+      await emailAnswer(found, named.order, request.log, { kind: "declined", reason: body.reason });
     });
   });
 

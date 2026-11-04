@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dealLinkEmail, dealLinkUrl } from "./deal-link-email.js";
 import { answerEmail } from "./answer-email.js";
+import { changeAnswerEmail, changeProposedEmail } from "./change-email.js";
 import { deliveryEmail } from "./delivery-email.js";
 import { receiptEmail } from "./receipt-email.js";
 
@@ -178,5 +179,103 @@ describe("answerEmail", () => {
     expect(lines({ ...changes, revisionsIncluded: undefined })[1]).toBe(
       "The agreement states no revision limit.",
     );
+  });
+});
+
+describe("change order emails", () => {
+  const AT = new Date("2026-11-04T18:40:00.000Z");
+  const change = {
+    addedLines: [{ text: "Online ordering page", mark: { kind: "objective" as const } }],
+    addedExclusions: [],
+    addedBuyerProvides: [],
+    addedStages: [{ stage: 3, title: "Ordering", amount: { text: "400.00" }, dueDate: null }],
+    dueDate: null,
+    revisionsIncluded: null,
+    total: { from: { text: "1500.00" }, to: { text: "1900.00" } },
+  };
+  const proposed = (message: string | undefined) =>
+    changeProposedEmail({
+      to: "rosa@example.com",
+      sellerName: "Daniel",
+      dealTitle: "Sunrise Bakes website",
+      version: 2,
+      proposedAt: AT,
+      message,
+      change,
+      currency: "USD",
+      stages: [{ title: "Design" }, { title: "Build" }, { title: "Ordering" }],
+      link: "https://pactpal.test/link#t=abc",
+      linkExpiresAt: new Date("2026-11-18T18:40:00.000Z"),
+      idempotencyKey: "change:1:ab",
+    });
+
+  it("tell the buyer what changes, with the seller's message and a private link", () => {
+    const email = proposed("Online ordering, as you asked");
+    expect(email).toMatchObject({
+      kind: "change-proposed",
+      to: "rosa@example.com",
+      subject: 'Change proposed: "Sunrise Bakes website" (version 2)',
+      idempotencyKey: "change:1:ab",
+    });
+    expect(email.text.split("\n")).toEqual([
+      'Daniel proposed a change to your agreement "Sunrise Bakes website" on 4 Nov 2026, 18:40 UTC.',
+      "",
+      'Message from Daniel: "Online ordering, as you asked"',
+      "",
+      "What changes:",
+      "- Added: Online ordering page (can be checked)",
+      "- Added payment stage 3: Ordering, 400.00 USD",
+      "- Total: 1500.00 → 1900.00 USD",
+      "",
+      "Nothing changes unless you agree. Read the full new agreement, then agree or decline (private link, works until 18 Nov 2026, 18:40 UTC, this deal only; please do not forward it):",
+      "https://pactpal.test/link#t=abc",
+      "",
+      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+    ]);
+    expect(proposed(undefined).text).not.toContain("Message from");
+  });
+
+  const answered = (answer: Parameters<typeof changeAnswerEmail>[0]["answer"]) =>
+    changeAnswerEmail({
+      to: "daniel@example.com",
+      dealTitle: "Sunrise Bakes website",
+      fromVersion: 1,
+      toVersion: 2,
+      answer,
+      answeredAt: AT,
+      idempotencyKey: "change-answer:1",
+    });
+
+  it("tell the seller the buyer agreed, and about invoicing new stages", () => {
+    const email = answered({ kind: "accepted", typedName: "Rosa Diaz", addsStages: true });
+    expect(email).toMatchObject({
+      kind: "change-accepted",
+      subject: 'Change accepted: "Sunrise Bakes website" (now version 2)',
+    });
+    expect(email.text).toContain(
+      'Rosa Diaz agreed to your change to "Sunrise Bakes website" on 4 Nov 2026, 18:40 UTC. Version 2 is now the signed agreement; its receipt comes in a separate email.',
+    );
+    expect(email.text).toContain("You can send the invoice for the new payment stages");
+    expect(
+      answered({ kind: "accepted", typedName: "Rosa Diaz", addsStages: false }).text,
+    ).not.toContain("invoice");
+  });
+
+  it("tell the seller the buyer declined, with the reason when given", () => {
+    const email = answered({ kind: "declined", reason: "No blog, thanks" });
+    expect(email).toMatchObject({
+      kind: "change-declined",
+      subject: 'Change declined: "Sunrise Bakes website" (version 2)',
+    });
+    expect(email.text.split("\n")).toEqual([
+      'The buyer declined your change to "Sunrise Bakes website" on 4 Nov 2026, 18:40 UTC.',
+      "",
+      'Their reason: "No blog, thanks"',
+      "",
+      "The signed agreement (version 1) stays as it was. The decline is in this deal's evidence log.",
+      "",
+      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+    ]);
+    expect(answered({ kind: "declined", reason: undefined }).text).not.toContain("reason");
   });
 });

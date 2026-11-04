@@ -1,12 +1,8 @@
 import type { ScopeTerms } from "./api";
-import { markWords } from "@pactpal/words";
+import { dayWords, markWords } from "@pactpal/words";
 
 /** A date (YYYY-MM-DD) as people read it, e.g. "20 Nov 2026". */
-export const dateOf = (isoDate: string) =>
-  new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
-    dateStyle: "medium",
-    timeZone: "UTC",
-  });
+export const dateOf = dayWords;
 
 /** A version's terms, read-only: shown on the deal page and on the acceptance page. */
 export function ScopeDetails({ scope }: { scope: ScopeTerms }) {

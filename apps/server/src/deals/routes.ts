@@ -143,6 +143,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     newId,
     recordIp,
     email,
+    publicBaseUrl,
   });
 
   app.post("/api/deals", async (request, reply) => {

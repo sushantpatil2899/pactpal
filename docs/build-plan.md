@@ -30,8 +30,8 @@ Phase 4 is split into small pieces, built one at a time in this order. Each need
 | 4h        | Evidence completeness score                                                                            | ✅                                                |
 | 4i        | Agreement editor with the chat side by side; "buyer provides" list with dates                          | ✅                                                |
 | 4i-2      | Checkable lines: each deliverable objective, process or a matter of taste tied to a stage approval     | ✅ built and checked locally; not tested live yet |
-| 4j        | Change orders: proposed by the seller, accepted or declined by the buyer                               | ✅                                                |
-| 4j-2      | Change order emails: "a change is proposed" to the buyer with a private link, the answer to the seller |                                                   |
+| 4j        | Change orders: proposed by the seller, accepted or declined by the buyer                               | ✅ built and checked locally; not tested live yet |
+| 4j-2      | Change order emails: "a change is proposed" to the buyer with a private link, the answer to the seller | ✅ built and checked locally; not tested live yet |
 | 4k        | Buyer questions on the acceptance page (AI; model and prompt approved by the owner)                    |                                                   |
 | 4l        | Pre-delivery check: code checks plus a vision model, advisory to the seller only                       |                                                   |
 | 4m        | Message watcher: new buyer messages labelled, with a drafted reply or change order                     |                                                   |
