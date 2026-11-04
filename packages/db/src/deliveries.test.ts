@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   DeliveryNotAllowedError,
   VIEW_REPEAT_MS,
+  acceptChangeOrder,
+  getScopeVersion,
+  proposeChangeOrder,
   addArtifact,
   answerDelivery,
   deliveryAnswers,
@@ -276,9 +279,18 @@ describe("deliveries", () => {
 
 describe("answers to deliveries", () => {
   /** Sends a delivery (test id 400 + n) of the sketch for `stage` and opens it as the buyer. */
-  async function delivered(deal: Awaited<ReturnType<typeof withFiles>>, n: number, stage = 1) {
+  async function delivered(
+    deal: Awaited<ReturnType<typeof withFiles>>,
+    n: number,
+    stage = 1,
+    version = 1,
+  ) {
     const id = testId(400 + n);
-    await sendDelivery(db, { ...deal.send, id, stage, artifactIds: [deal.sketch.id] }, at(n));
+    await sendDelivery(
+      db,
+      { ...deal.send, id, stage, version, artifactIds: [deal.sketch.id] },
+      at(n),
+    );
     await recordDeliveryViewed(
       db,
       { dealId: deal.dealId, deliveryId: id, buyerId: deal.buyer.id, access: "link" },
@@ -375,6 +387,44 @@ describe("answers to deliveries", () => {
         .completed,
     ).toBe(false);
     expect((await verifyStoredLedger(db, deal.dealId)).valid).toBe(true);
+  });
+
+  it("completes the deal only when every stage of the current signed version is approved", async () => {
+    const deal = await withFiles();
+    await answer(deal, await delivered(deal, 1, 1), { kind: "approved" }, 1);
+    // A change order adds stage 3; version 2 is signed.
+    const v1 = (await getScopeVersion(db, deal.dealId, 1))?.content;
+    if (!v1) throw new Error("no version 1");
+    const { scope } = await proposeChangeOrder(
+      db,
+      {
+        id: testId(600),
+        dealId: deal.dealId,
+        sellerId: deal.seller.id,
+        content: { ...v1, milestones: [...v1.milestones, { title: "Extra", amountMinor: 5_000 }] },
+      },
+      at(2),
+    );
+    await acceptChangeOrder(
+      db,
+      {
+        dealId: deal.dealId,
+        buyerId: deal.buyer.id,
+        changeOrderId: testId(600),
+        version: 2,
+        contentSha256: scope.contentSha256,
+        document: { format: 1, version: 2 },
+        noticeVersion: 1,
+        typedName: "Chris Buyer",
+        access: "link",
+      },
+      at(3),
+    );
+    // Stage 1 was approved under version 1 and still counts; stage 3 is still open.
+    const second = await answer(deal, await delivered(deal, 4, 2, 2), { kind: "approved" }, 4);
+    expect(second.completed).toBe(false);
+    const third = await answer(deal, await delivered(deal, 5, 3, 2), { kind: "approved" }, 5);
+    expect(third.completed).toBe(true);
   });
 
   it("refuses an unopened delivery, a second answer, another person and an unknown delivery", async () => {

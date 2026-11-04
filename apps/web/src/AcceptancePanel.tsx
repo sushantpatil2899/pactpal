@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { AcceptanceDocument } from "./AcceptanceDocument";
 import {
   acceptTerms,
@@ -12,7 +12,7 @@ import {
   type DealSummary,
 } from "./api";
 import { when } from "./format";
-import { FULL_WIDTH } from "./styles";
+import { SignOrDecline } from "./SignOrDecline";
 
 /**
  * When the receipt was emailed: the buyer sees their own; the seller sees both and can send it
@@ -46,9 +46,6 @@ function ReceiptEmails({
   );
 }
 
-const textOf = (value: FormDataEntryValue | null) =>
-  typeof value === "string" ? value.trim() : "";
-
 /**
  * Sending the agreed work for acceptance, and signing it. The seller previews exactly what the
  * buyer will see, sends it (editing locks) and can withdraw; the buyer reads one page and signs
@@ -68,7 +65,6 @@ export function AcceptancePanel({
   const [problem, setProblem] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [declining, setDeclining] = useState(false);
 
   const load = () => {
     setProblem(undefined);
@@ -86,7 +82,6 @@ export function AcceptancePanel({
       (updated) => {
         setBusy(false);
         setPreviewing(false);
-        setDeclining(false);
         setView(updated);
         onChange();
       },
@@ -155,54 +150,30 @@ export function AcceptancePanel({
     if (view.status !== "awaiting_acceptance" || !document || documentSha256 === null) {
       return null;
     }
-    const onSign = (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      const typedName = textOf(new FormData(event.currentTarget).get("typedName"));
-      run(acceptTerms(deal.id, { documentSha256, typedName }));
-    };
-    const onDecline = (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      const reason = textOf(new FormData(event.currentTarget).get("reason"));
-      run(declineTerms(deal.id, { documentSha256, ...(reason === "" ? {} : { reason }) }));
-    };
     return (
       <section aria-labelledby="acceptance">
         <h3 id="acceptance">Please review and sign</h3>
         {alert}
         {shown}
-        <form onSubmit={onSign}>
-          <p>
-            <label>
-              Type your full name{" "}
-              <input name="typedName" required minLength={2} maxLength={200} autoComplete="name" />
-            </label>
-          </p>
-          <button type="submit" disabled={busy}>
-            I agree and sign
-          </button>{" "}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setDeclining(!declining);
-            }}
-          >
-            Decline
-          </button>
-        </form>
-        {declining && (
-          <form onSubmit={onDecline}>
-            <p>
-              <label>
-                Why are you declining? (optional; the seller sees this)
-                <textarea name="reason" maxLength={1000} rows={3} style={FULL_WIDTH} />
-              </label>
-            </p>
-            <button type="submit" disabled={busy}>
-              Send my decline
-            </button>
-          </form>
-        )}
+        <SignOrDecline
+          busy={busy}
+          words={{
+            sign: "I agree and sign",
+            reasonLabel: "Why are you declining? (optional; the seller sees this)",
+            sendDecline: "Send my decline",
+          }}
+          onSign={(typedName) => {
+            run(acceptTerms(deal.id, { documentSha256, typedName }));
+          }}
+          onDecline={(reason) => {
+            run(
+              declineTerms(deal.id, {
+                documentSha256,
+                ...(reason === undefined ? {} : { reason }),
+              }),
+            );
+          }}
+        />
       </section>
     );
   }

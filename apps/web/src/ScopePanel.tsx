@@ -1,65 +1,29 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import {
-  InvalidFieldsError,
-  getScope,
-  saveScope,
-  type DeliverableKind,
-  type ScopeInput,
-  type ScopeView,
-} from "./api";
+import { InvalidFieldsError, getScope, saveScope, type ScopeInput, type ScopeView } from "./api";
 import { ChatPane, FromTheChat, type LineRequest } from "./ChatPane";
 import type { DraftFill, SourcedItem } from "./draft-fill";
 import { EditableRows } from "./EditableRows";
-import { KIND_CHOICES, draftHints } from "./mark-words";
+import {
+  EMPTY_LINE,
+  EMPTY_PROVIDE,
+  EMPTY_STAGE,
+  LineFields,
+  MAX_LINES,
+  MAX_PROVIDES,
+  MAX_STAGES,
+  ProvideFields,
+  StageFields,
+  lineRow,
+  markOf,
+  typedProvides,
+  typedStage,
+  type LineRow,
+  type ProvideRow,
+  type StageRow,
+} from "./FormRows";
+import { draftHints } from "./mark-words";
 import { ScopeDetails } from "./ScopeDetails";
 import { FULL_WIDTH } from "./styles";
-
-interface StageRow {
-  title: string;
-  amount: string;
-  dueDate: string;
-}
-
-const EMPTY_STAGE: StageRow = { title: "", amount: "", dueDate: "" };
-const MAX_STAGES = 20;
-
-/** One thing the buyer provides, as typed: the date may be empty. */
-interface ProvideRow {
-  text: string;
-  dueDate: string;
-}
-
-const EMPTY_PROVIDE: ProvideRow = { text: "", dueDate: "" };
-
-/** One delivered line as typed, with its mark ("" when not marked) and, for a matter of taste, its stage. */
-interface LineRow {
-  text: string;
-  kind: "" | "objective" | "process" | "subjective";
-  stage: string;
-}
-
-const EMPTY_LINE: LineRow = { text: "", kind: "", stage: "1" };
-const MAX_LINES = 50;
-
-const lineRow = (text: string, mark: DeliverableKind | undefined): LineRow => ({
-  text,
-  kind: mark?.kind ?? "",
-  stage: mark?.kind === "subjective" ? String(mark.approvalStage) : "1",
-});
-
-/** A typed line's mark as saved. */
-const markOf = (row: LineRow): DeliverableKind => {
-  switch (row.kind) {
-    case "":
-      return null;
-    case "objective":
-    case "process":
-      return { kind: row.kind };
-    case "subjective":
-      return { kind: "subjective", approvalStage: Number(row.stage) };
-  }
-};
-const MAX_PROVIDES = 20;
 
 /** Wide enough for the chat beside the form. */
 const WIDE_QUERY = "(min-width: 1000px)";
@@ -148,56 +112,6 @@ const linesFrom = (scope: ScopeView | null): LineRow[] =>
 
 const providesFrom = (scope: ScopeView | null): ProvideRow[] =>
   (scope?.buyerProvides ?? []).map((item) => ({ text: item.text, dueDate: item.dueDate ?? "" }));
-
-/** A row's required text (a delivered line, or something the buyer provides). */
-function TextField({
-  label,
-  row,
-  change,
-}: {
-  label: string;
-  row: { text: string };
-  change: (update: { text: string }) => void;
-}) {
-  return (
-    <label>
-      {label}{" "}
-      <input
-        required
-        maxLength={500}
-        value={row.text}
-        style={FULL_WIDTH}
-        onChange={(e) => {
-          change({ text: e.target.value });
-        }}
-      />
-    </label>
-  );
-}
-
-/** A row's optional date (a stage's due date, or when the buyer provides something). */
-function DueDateField({
-  label,
-  row,
-  change,
-}: {
-  label: string;
-  row: { dueDate: string };
-  change: (update: { dueDate: string }) => void;
-}) {
-  return (
-    <label>
-      {label}{" "}
-      <input
-        type="date"
-        value={row.dueDate}
-        onChange={(e) => {
-          change({ dueDate: e.target.value });
-        }}
-      />
-    </label>
-  );
-}
 
 /** Drafted list items, each with the chat lines it was quoted from. */
 function SourcedItems({ items, onShow }: { items: SourcedItem[]; onShow: (line: number) => void }) {
@@ -349,18 +263,8 @@ export function ScopePanel({
       exclusions: linesOf(form.get("exclusions")),
       ...(revisions === "" ? {} : { revisionsIncluded: Number(revisions) }),
       ...(dueDate === "" ? {} : { dueDate }),
-      milestones: stages.map((row) => ({
-        title: row.title.trim(),
-        amount: row.amount.trim(),
-        ...(row.dueDate === "" ? {} : { dueDate: row.dueDate }),
-      })),
-      buyerProvides: provides
-        .map((row) => ({ text: row.text.trim(), dueDate: row.dueDate }))
-        .filter((row) => row.text !== "" || row.dueDate !== "")
-        .map((row) => ({
-          text: row.text,
-          ...(row.dueDate === "" ? {} : { dueDate: row.dueDate }),
-        })),
+      milestones: stages.map(typedStage),
+      buyerProvides: typedProvides(provides),
     };
     setBusy(true);
     setProblem(undefined);
@@ -436,48 +340,19 @@ export function ScopePanel({
             const source = sources?.deliverables.find((item) => item.text === row.text);
             const hints = fill ? draftHints(row.text, fill.suggestions) : [];
             return (
-              <>
-                <TextField label={`Line ${String(n + 1)}`} row={row} change={change} />{" "}
-                <label>
-                  Mark{" "}
-                  <select
-                    value={row.kind}
-                    onChange={(e) => {
-                      const choice = KIND_CHOICES.find((c) => c.value === e.target.value);
-                      if (choice) change({ kind: choice.value });
-                    }}
-                  >
-                    {KIND_CHOICES.map((choice) => (
-                      <option key={choice.value} value={choice.value}>
-                        {choice.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>{" "}
-                {row.kind === "subjective" && (
-                  <label>
-                    Settled when the buyer approves stage{" "}
-                    <select
-                      value={row.stage}
-                      onChange={(e) => {
-                        change({ stage: e.target.value });
-                      }}
-                    >
-                      {stages.map((stage, i) => (
-                        <option key={i} value={String(i + 1)}>
-                          {i + 1}. {stage.title === "" ? "(no title yet)" : stage.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
+              <LineFields
+                number={n + 1}
+                row={row}
+                change={change}
+                stages={stages.map((stage) => stage.title)}
+              >
                 {hints.map((hint) => (
                   <span key={hint} style={{ display: "block", color: "#555", fontSize: 14 }}>
                     {hint}
                   </span>
                 ))}
                 {source && <FromTheChat lines={source.lines} onShow={show} />}
-              </>
+              </LineFields>
             );
           }}
         </EditableRows>
@@ -535,36 +410,7 @@ export function ScopePanel({
           addLabel="Add a payment stage"
           removeLabel={(n) => `Remove stage ${String(n)}`}
         >
-          {(row, n, change) => (
-            <>
-              <label>
-                Stage {n + 1}{" "}
-                <input
-                  required
-                  maxLength={200}
-                  value={row.title}
-                  onChange={(e) => {
-                    change({ title: e.target.value });
-                  }}
-                />
-              </label>{" "}
-              <label>
-                Amount{" "}
-                <input
-                  required
-                  inputMode="decimal"
-                  pattern="\d+(\.\d{1,2})?"
-                  placeholder="250.00"
-                  size={10}
-                  value={row.amount}
-                  onChange={(e) => {
-                    change({ amount: e.target.value });
-                  }}
-                />
-              </label>{" "}
-              <DueDateField label="Due (optional)" row={row} change={change} />
-            </>
-          )}
+          {(row, n, change) => <StageFields number={n + 1} row={row} change={change} />}
         </EditableRows>
       </fieldset>
       <fieldset>
@@ -578,12 +424,7 @@ export function ScopePanel({
           addLabel="Add an item"
           removeLabel={(n) => `Remove item ${String(n)}`}
         >
-          {(row, n, change) => (
-            <>
-              <TextField label={`What (item ${String(n + 1)})`} row={row} change={change} />{" "}
-              <DueDateField label="By (optional)" row={row} change={change} />
-            </>
-          )}
+          {(row, n, change) => <ProvideFields number={n + 1} row={row} change={change} />}
         </EditableRows>
       </fieldset>
       <p>

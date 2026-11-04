@@ -1,4 +1,5 @@
 import {
+  getDeal,
   getLatestAcceptance,
   getUser,
   readLedger,
@@ -122,4 +123,21 @@ export async function emailReceipt(deps: ReceiptMailDeps, deal: Deal): Promise<R
     total += 1;
   }
   return { status: "done", sent, failed };
+}
+
+/**
+ * Emails the receipt right after a signature (of the agreement or of a change order). The
+ * signature already stands, so a failure here is logged (never with an address) and the seller
+ * can send it again; it never undoes the signing.
+ */
+export async function emailReceiptQuietly(deps: ReceiptMailDeps, dealId: string): Promise<void> {
+  try {
+    const deal = await getDeal(deps.db, dealId);
+    if (deal) await emailReceipt(deps, deal);
+  } catch (error) {
+    deps.log.error(
+      { dealId, err: error instanceof Error ? error.name : "unknown" },
+      "Receipt email failed after signing",
+    );
+  }
 }

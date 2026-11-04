@@ -24,7 +24,12 @@ import {
   acceptanceDocument,
   fingerprinted,
 } from "../acceptance/document.js";
-import { MAX_RECEIPT_EMAILS, emailReceipt, receiptsSent } from "../acceptance/receipt-mail.js";
+import {
+  MAX_RECEIPT_EMAILS,
+  emailReceipt,
+  emailReceiptQuietly,
+  receiptsSent,
+} from "../acceptance/receipt-mail.js";
 import { ReceiptIntegrityError, buildReceipt } from "../acceptance/receipt.js";
 import { requestOrigin, type RequestOrigin } from "../request-origin.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
@@ -144,22 +149,6 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
     const fresh = (await getDeal(db, deal.id)) ?? deal;
     return reply.send(await acceptanceView(db, fresh, roleIn(viewer, fresh), email.live));
   };
-
-  /**
-   * Emails the receipt right after signing. The signature already stands, so a failure here is
-   * logged (never with an address) and the seller can send it again; it never undoes the signing.
-   */
-  async function emailAfterSigning(db: Database, dealId: string) {
-    try {
-      const deal = await getDeal(db, dealId);
-      if (deal) await emailReceipt({ db, email, clock, log: app.log }, deal);
-    } catch (error) {
-      app.log.error(
-        { dealId, err: error instanceof Error ? error.name : "unknown" },
-        "Receipt email failed after signing",
-      );
-    }
-  }
 
   /**
    * The document the step is about, after checking the deal is at `status` and that the person's
@@ -350,7 +339,7 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
         },
         clock(),
       );
-      await emailAfterSigning(db, common.dealId);
+      await emailReceiptQuietly({ db, email, clock, log: app.log }, common.dealId);
     },
   );
 

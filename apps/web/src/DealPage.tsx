@@ -3,6 +3,7 @@ import { AcceptancePanel } from "./AcceptancePanel";
 import { DeliveriesPanel } from "./DeliveriesPanel";
 import { PaymentsPanel } from "./PaymentsPanel";
 import { BuyerPanel } from "./BuyerPanel";
+import { ChangeOrderPanel } from "./ChangeOrderPanel";
 import { CompletenessPanel } from "./CompletenessPanel";
 import { DraftPanel } from "./DraftPanel";
 import type { DraftFill } from "./draft-fill";
@@ -52,6 +53,11 @@ export function DealPage({ dealId }: { dealId: string }) {
     getLedger(dealId).then(setEntries, () => undefined);
   };
   /** The deal's status and the log, after a step that changes them. */
+  /** After a change order is answered: the signed agreement and everything made from it. */
+  const refreshAgreement = () => {
+    setRevision((n) => n + 1);
+    refreshDeal();
+  };
   const refreshDeal = () => {
     getDeal(dealId).then(setDeal, () => undefined);
     refreshLog();
@@ -94,7 +100,10 @@ export function DealPage({ dealId }: { dealId: string }) {
         </p>
       )}
       {deal.role === "buyer" && (
-        <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+        <>
+          <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+          <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
+        </>
       )}
       {deal.role === "seller" && <CompletenessPanel dealId={deal.id} logLength={entries.length} />}
       {deal.role === "seller" && (
@@ -118,6 +127,7 @@ export function DealPage({ dealId }: { dealId: string }) {
       {/* While the buyer is asked to sign, the acceptance page above is their one view of the terms. */}
       {(deal.role === "seller" || deal.status !== "awaiting_acceptance") && (
         <ScopePanel
+          key={revision}
           dealId={deal.id}
           currency={deal.currency}
           canEdit={deal.role === "seller" && deal.status === "draft"}
@@ -133,10 +143,13 @@ export function DealPage({ dealId }: { dealId: string }) {
         />
       )}
       {deal.role === "seller" && (
-        <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+        <>
+          <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+          <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
+        </>
       )}
-      <PaymentsPanel deal={deal} onChange={refreshLog} />
-      <DeliveriesPanel deal={deal} onChange={refreshLog} />
+      <PaymentsPanel key={`payments-${String(revision)}`} deal={deal} onChange={refreshLog} />
+      <DeliveriesPanel key={`deliveries-${String(revision)}`} deal={deal} onChange={refreshLog} />
       <FilesPanel
         dealId={deal.id}
         canAdd={deal.role === "seller" && !linkOnly}

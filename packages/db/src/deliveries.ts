@@ -4,7 +4,7 @@ import type { Database, Queryable } from "./database.js";
 import { appendLedgerEvent } from "./ledger-store.js";
 import { getScopeVersion } from "./scope.js";
 import { DealNotFoundError } from "./ledger-store.js";
-import { lockSignedDeal } from "./signed.js";
+import { lockSignedDeal, signedVersionOf } from "./signed.js";
 
 /** Why a delivery step was refused. */
 export type DeliveryRefusal =
@@ -452,7 +452,9 @@ export async function answerDelivery(
     if (opened.length === 0) throw refuse("not-opened");
     const answers = await deliveryAnswers(tx, step.dealId);
     if (answers.some((a) => a.deliveryId === step.deliveryId)) throw refuse("already-answered");
-    const scope = await getScopeVersion(tx, step.dealId, delivery.version);
+    // Revisions and completion follow the current signed version (a change order may add some).
+    const signed = await signedVersionOf(tx, step.dealId);
+    const scope = signed === undefined ? undefined : await getScopeVersion(tx, step.dealId, signed);
     const revisionsIncluded = scope?.content.revisionsIncluded;
     // The number this would be as a change request: earlier requests across the deal, plus one.
     const revision = answers.filter((a) => a.kind === "changes").length + 1;
@@ -502,14 +504,15 @@ export async function answerDelivery(
       ],
     );
 
-    // Every stage of the signed version approved: the deal is completed.
+    // Every stage of the signed version approved, under whatever version it was delivered (a
+    // stage is the same stage in every version): the deal is completed.
     let completed = false;
     if (step.answer.kind === "approved" && scope && deal.data.status === "active") {
       const approved = await tx.query(
         `SELECT DISTINCT d.stage FROM delivery_answers a
            JOIN deliveries d ON d.id = a.delivery_id AND d.deal_id = a.deal_id
-          WHERE a.deal_id = $1 AND a.kind = 'approved' AND d.version = $2`,
-        [step.dealId, delivery.version],
+          WHERE a.deal_id = $1 AND a.kind = 'approved' AND d.stage <= $2`,
+        [step.dealId, scope.content.milestones.length],
       );
       if (approved.length >= scope.content.milestones.length) {
         await tx.query("UPDATE deals SET status = 'completed', updated_at = $2 WHERE id = $1", [

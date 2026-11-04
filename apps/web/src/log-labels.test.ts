@@ -46,11 +46,11 @@ describe("evidence log labels", () => {
     ]);
   });
 
-  it("counts each stage, and each agreement version, separately", () => {
+  it("counts each stage separately, across agreement versions", () => {
     expect(logLabels([sent(D1, 1), sent(D2, 2), sent(D3, 1, 2)])).toEqual([
       "Delivery 1 for stage 1 sent (agreement version 1)",
       "Delivery 1 for stage 2 sent (agreement version 1)",
-      "Delivery 1 for stage 1 sent (agreement version 2)",
+      "Delivery 2 for stage 1 sent (agreement version 2)",
     ]);
   });
 
@@ -88,6 +88,22 @@ describe("evidence log labels", () => {
       "Payment received for stage 1 (agreement version 1)",
       "Delivery file added: sketch.png",
       "Deal created",
+    ]);
+  });
+
+  it("names the version of each change order step", () => {
+    expect(
+      logLabels([
+        entry("CHANGE_ORDER_PROPOSED", { changeOrderId: D1, fromVersion: 1, version: 2 }),
+        entry("CHANGE_ORDER_ACCEPTED", { changeOrderId: D1, fromVersion: 1, version: 2 }),
+        entry("CHANGE_ORDER_DECLINED", { changeOrderId: D2, version: 3, reason: "No blog" }),
+        entry("CHANGE_ORDER_WITHDRAWN", { changeOrderId: D3, version: 4 }),
+      ]),
+    ).toEqual([
+      "Change order proposed (version 2)",
+      "Change order accepted (version 2)",
+      "Change order declined (version 3)",
+      "Change order withdrawn (version 4)",
     ]);
   });
 

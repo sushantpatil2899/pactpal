@@ -22,6 +22,10 @@ const EVENT_LABELS: Record<string, string> = {
   DELIVERY_DOWNLOADED: "File downloaded",
   MILESTONE_APPROVED: "Approved",
   CHANGE_REQUESTED: "Changes requested",
+  CHANGE_ORDER_PROPOSED: "Change order proposed",
+  CHANGE_ORDER_ACCEPTED: "Change order accepted",
+  CHANGE_ORDER_DECLINED: "Change order declined",
+  CHANGE_ORDER_WITHDRAWN: "Change order withdrawn",
   NOTE_ADDED: "Note added",
 };
 
@@ -118,8 +122,8 @@ function deliveryLabel(
 }
 
 /**
- * Plain-words labels for a deal's evidence log, in order. Deliveries are numbered per agreement
- * version and stage in log order (the log cannot be reordered), so every entry about a delivery
+ * Plain-words labels for a deal's evidence log, in order. Deliveries are numbered per stage, in
+ * log order (the log cannot be reordered), so every entry about a delivery
  * can say which one it is. Worked out for display only; nothing stored changes.
  */
 export function logLabels(entries: readonly LedgerEntryView[]): string[] {
@@ -136,7 +140,9 @@ export function logLabels(entries: readonly LedgerEntryView[]): string[] {
       version !== undefined &&
       stage !== undefined
     ) {
-      const key = `${String(version)}:${String(stage)}`;
+      // A stage is the same stage in every version (change orders only add), so deliveries
+      // are numbered per stage across versions.
+      const key = String(stage);
       const n = (perStage.get(key) ?? 0) + 1;
       perStage.set(key, n);
       numbers.set(deliveryId, { stage, n });

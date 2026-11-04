@@ -79,15 +79,30 @@ const textField = (entry: LedgerEntry, name: string) => {
 
 function readFacts({ entries, agreement }: CompletenessInput): Facts {
   const version = agreement?.version;
+  const entryVersion = (entry: LedgerEntry) => numberField(entry, "version");
   const ofVersion = (entry: LedgerEntry) =>
-    version !== undefined && numberField(entry, "version") === version;
+    version !== undefined && entryVersion(entry) === version;
+  // A change order only adds to what was signed, so the versions from the first signed one up to
+  // this one share their stages and terms. Before signing, only this version counts.
+  const firstSigned = entries.find((entry) => entry.type === "ACCEPTED");
+  const firstVersion = firstSigned === undefined ? undefined : entryVersion(firstSigned);
+  const from =
+    agreement?.signed === true && firstVersion !== undefined && version !== undefined
+      ? Math.min(firstVersion, version)
+      : version;
+  const upToVersion = (entry: LedgerEntry) => {
+    const of = entryVersion(entry);
+    return (
+      version !== undefined && from !== undefined && of !== undefined && of >= from && of <= version
+    );
+  };
   const stageOf = (entry: LedgerEntry) => {
     const stage = numberField(entry, "stage");
     return stage !== undefined && stage >= 1 && stage <= (agreement?.stages ?? 0)
       ? stage
       : undefined;
   };
-  // Deliveries of this version, by id: emails and downloads name only the delivery.
+  // Deliveries of this version or an earlier one, by id: emails and downloads name only the delivery.
   const deliveryStage = new Map<string, number>();
   const facts = {
     agreement,
@@ -101,18 +116,22 @@ function readFacts({ entries, agreement }: CompletenessInput): Facts {
     invoiceEmails: new Set<string>(),
     deliveryEmails: new Set<string>(),
   };
-  /** The stage of this version an entry is about, or of the delivery it names. */
-  const stage = (entry: LedgerEntry) => (ofVersion(entry) ? stageOf(entry) : undefined);
+  /** The stage an entry is about (a stage is the same stage in every version up to this one). */
+  const stage = (entry: LedgerEntry) => (upToVersion(entry) ? stageOf(entry) : undefined);
   const delivery = (entry: LedgerEntry) => deliveryStage.get(textField(entry, "deliveryId") ?? "");
   const addTo = (set: Set<number>, value: number | undefined) => {
     if (value !== undefined) set.add(value);
   };
   // Only the entry types the score reads; every other type is ignored.
   const readers: Partial<Record<EventType, (entry: LedgerEntry) => void>> = {
+    // Confirmed from the chat: this version, or an earlier one a change order added to.
     SCOPE_CONFIRMED: (entry) => {
-      facts.confirmedFromDraft ||= ofVersion(entry);
+      facts.confirmedFromDraft ||= upToVersion(entry);
     },
     ACCEPTED: (entry) => {
+      facts.accepted ||= ofVersion(entry);
+    },
+    CHANGE_ORDER_ACCEPTED: (entry) => {
       facts.accepted ||= ofVersion(entry);
     },
     RECEIPT_SENT: (entry) => {

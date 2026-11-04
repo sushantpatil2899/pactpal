@@ -109,9 +109,9 @@ describe("milestone invoices", () => {
     const { dealId, start } = await signed();
     await startInvoice(db, start, at(1));
     await startInvoice(db, { ...start, stage: 2, amountMinor: 13_000, requestId: "r2" }, at(1));
-    await recordInvoiceId(db, { dealId, version: 1, stage: 1 }, "INV2-KEPT");
-    await dropFailedInvoice(db, { dealId, version: 1, stage: 1 });
-    await dropFailedInvoice(db, { dealId, version: 1, stage: 2 });
+    await recordInvoiceId(db, { dealId, stage: 1 }, "INV2-KEPT");
+    await dropFailedInvoice(db, { dealId, stage: 1 });
+    await dropFailedInvoice(db, { dealId, stage: 2 });
     expect((await listMilestones(db, dealId)).map((m) => [m.stage, m.invoiceId])).toEqual([
       [1, "INV2-KEPT"],
     ]);

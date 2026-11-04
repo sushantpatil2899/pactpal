@@ -365,4 +365,59 @@ CREATE TRIGGER delivery_answers_append_only BEFORE UPDATE OR DELETE ON delivery_
 CREATE TRIGGER delivery_answers_no_truncate BEFORE TRUNCATE ON delivery_answers
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0014_change_orders",
+    // A change order (4j): the seller proposes a later version of a signed agreement (stored in
+    // scope_versions) and the buyer accepts it (a new acceptances row) or declines it, or the
+    // seller withdraws it. The status moves once from 'proposed'; rows are never removed. At most
+    // one waits per deal. A payment stage is the same stage in every version (change orders only
+    // add), so a deal has at most one invoice per stage.
+    sql: `CREATE TABLE change_orders (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  from_version integer NOT NULL CHECK (from_version >= 1),
+  to_version integer NOT NULL,
+  message text CHECK (char_length(message) BETWEEN 1 AND 1000),
+  status text NOT NULL CHECK (status IN ('proposed', 'accepted', 'declined', 'withdrawn')),
+  reason text CHECK (char_length(reason) BETWEEN 1 AND 1000),
+  proposed_by uuid NOT NULL REFERENCES users (id),
+  proposed_seq integer NOT NULL,
+  answered_seq integer,
+  created_at timestamptz NOT NULL,
+  answered_at timestamptz,
+  UNIQUE (deal_id, to_version),
+  CHECK (to_version > from_version),
+  CONSTRAINT change_orders_version FOREIGN KEY (deal_id, to_version)
+    REFERENCES scope_versions (deal_id, version),
+  CONSTRAINT change_orders_proposed_in_ledger FOREIGN KEY (deal_id, proposed_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT change_orders_answered_in_ledger FOREIGN KEY (deal_id, answered_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT change_orders_answered_state
+    CHECK ((status = 'proposed') = (answered_seq IS NULL AND answered_at IS NULL)),
+  CONSTRAINT change_orders_reason_on_decline CHECK (reason IS NULL OR status = 'declined')
+);
+
+CREATE UNIQUE INDEX change_orders_one_waiting ON change_orders (deal_id) WHERE status = 'proposed';
+
+CREATE FUNCTION pactpal_change_order_answered_once() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP <> 'UPDATE' OR OLD.status <> 'proposed' OR NEW.status = 'proposed'
+     OR NEW.id <> OLD.id OR NEW.deal_id <> OLD.deal_id OR NEW.from_version <> OLD.from_version
+     OR NEW.to_version <> OLD.to_version OR NEW.message IS DISTINCT FROM OLD.message
+     OR NEW.proposed_by <> OLD.proposed_by OR NEW.proposed_seq <> OLD.proposed_seq
+     OR NEW.created_at <> OLD.created_at THEN
+    RAISE EXCEPTION 'change_orders: only a proposed change can be answered, once (append-only)'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER change_orders_answered_once BEFORE UPDATE OR DELETE ON change_orders
+  FOR EACH ROW EXECUTE FUNCTION pactpal_change_order_answered_once();
+CREATE TRIGGER change_orders_no_truncate BEFORE TRUNCATE ON change_orders
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change();
+
+CREATE UNIQUE INDEX milestones_one_per_stage ON milestones (deal_id, stage)`,
+  },
 ];

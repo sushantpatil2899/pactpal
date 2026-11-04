@@ -18,26 +18,27 @@ The end-to-end build in eight phases, in dependency order. Phases 1–5 form the
 
 Phase 4 is split into small pieces, built one at a time in this order. Each needs the owner's approval of its plan first.
 
-| Sub-phase | What                                                                                                  | Status |
-| --------- | ----------------------------------------------------------------------------------------------------- | ------ |
-| 4a        | Send for acceptance and sign: one page for the buyer, typed name, signed copy kept, decline, withdraw | ✅     |
-| 4b        | Receipt PDF with fingerprints, downloadable by both sides                                             | ✅     |
-| 4c        | Real email (receipt, buyer links); the email service is the owner's choice                            | ✅     |
-| 4d        | Milestone invoices, one per payment stage, each sent only when the seller presses send                | ✅     |
-| 4e        | Payment notification marks a stage paid; "check status" as a backup                                   | ✅     |
-| 4f        | Delivery: upload, send, buyer delivery page, views and downloads logged                               | ✅     |
-| 4g        | Buyer approves or requests changes, counted against the agreed revisions                              | ✅     |
-| 4h        | Evidence completeness score                                                                           | ✅     |
-| 4i        | Agreement editor with the chat side by side; "buyer provides" list with dates                         | ✅     |
-| 4i-2      | Checkable lines: each deliverable objective, process or a matter of taste tied to a stage approval    | ✅     |
-| 4j        | Change orders: proposed by the seller, accepted or declined by the buyer                              |        |
-| 4k        | Buyer questions on the acceptance page (AI; model and prompt approved by the owner)                   |        |
-| 4l        | Pre-delivery check: code checks plus a vision model, advisory to the seller only                      |        |
-| 4m        | Message watcher: new buyer messages labelled, with a drafted reply or change order                    |        |
-| 4n        | Drafting prompt version 3 ("buyer provides"), second eval run, Nemotron keep-or-drop                  |        |
-| 4o        | Chat screenshots read to text by a vision model and checked by the seller                             |        |
-| 4p        | Email forwarding and a secured "create deal from text" address (Zapier connection itself in Phase 7)  |        |
-| 4q        | The Maya story end to end in the sandbox                                                              |        |
+| Sub-phase | What                                                                                                   | Status                                            |
+| --------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| 4a        | Send for acceptance and sign: one page for the buyer, typed name, signed copy kept, decline, withdraw  | ✅                                                |
+| 4b        | Receipt PDF with fingerprints, downloadable by both sides                                              | ✅                                                |
+| 4c        | Real email (receipt, buyer links); the email service is the owner's choice                             | ✅                                                |
+| 4d        | Milestone invoices, one per payment stage, each sent only when the seller presses send                 | ✅                                                |
+| 4e        | Payment notification marks a stage paid; "check status" as a backup                                    | ✅                                                |
+| 4f        | Delivery: upload, send, buyer delivery page, views and downloads logged                                | ✅                                                |
+| 4g        | Buyer approves or requests changes, counted against the agreed revisions                               | ✅                                                |
+| 4h        | Evidence completeness score                                                                            | ✅                                                |
+| 4i        | Agreement editor with the chat side by side; "buyer provides" list with dates                          | ✅                                                |
+| 4i-2      | Checkable lines: each deliverable objective, process or a matter of taste tied to a stage approval     | ✅ built and checked locally; not tested live yet |
+| 4j        | Change orders: proposed by the seller, accepted or declined by the buyer                               | ✅                                                |
+| 4j-2      | Change order emails: "a change is proposed" to the buyer with a private link, the answer to the seller |                                                   |
+| 4k        | Buyer questions on the acceptance page (AI; model and prompt approved by the owner)                    |                                                   |
+| 4l        | Pre-delivery check: code checks plus a vision model, advisory to the seller only                       |                                                   |
+| 4m        | Message watcher: new buyer messages labelled, with a drafted reply or change order                     |                                                   |
+| 4n        | Drafting prompt version 3 ("buyer provides"), second eval run, Nemotron keep-or-drop                   |                                                   |
+| 4o        | Chat screenshots read to text by a vision model and checked by the seller                              |                                                   |
+| 4p        | Email forwarding and a secured "create deal from text" address (Zapier connection itself in Phase 7)   |                                                   |
+| 4q        | The Maya story end to end in the sandbox                                                               |                                                   |
 
 ## Dependencies
 

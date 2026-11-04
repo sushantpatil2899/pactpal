@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4g)
+## Built (sub-phases 2b to 4j)
 
 ### `users`: everyone
 
@@ -272,6 +272,29 @@ When an approval leaves every payment stage of the signed version with an approv
 ### Evidence completeness score: computed, not stored
 
 The score (4h) has no table. It is worked out from `ledger_entries` and the signed (or newest) version in `scope_versions` each time the seller's page asks, so it always matches the log.
+
+### `change_orders`: changes to a signed agreement
+
+Built in 4j (migration 0014). After the buyer has signed, the seller can propose a change order: a later version of the agreed work, stored in `scope_versions` like any other, that only adds to the signed one (lines with their marks, exclusions, buyer-provides items and payment stages after the signed ones, a new overall due date, more revisions when the agreement states a number). The buyer signs it as they signed the agreement (a new `acceptances` row for the new version), or declines it; the seller can withdraw it while it waits. At most one change waits per deal.
+
+| Column                                      | Meaning                                                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `id`, `deal_id`                             | The change and its deal                                                                                            |
+| `from_version`, `to_version`                | The signed version it changes and the proposed version (in `scope_versions`)                                       |
+| `message`                                   | The seller's message to the buyer, if any (up to 1,000 characters)                                                 |
+| `status`                                    | `proposed`, then once `accepted`, `declined` or `withdrawn`; the database refuses any other change and any removal |
+| `reason`                                    | The buyer's reason, when declined (optional)                                                                       |
+| `proposed_by`, `proposed_seq`, `created_at` | The seller, the `CHANGE_ORDER_PROPOSED` entry and when                                                             |
+| `answered_seq`, `answered_at`               | The answering entry and when; empty while waiting                                                                  |
+
+The log entries:
+
+- `CHANGE_ORDER_PROPOSED` (seller): the change, both versions, the new content's fingerprint and total, how much was added, and the message.
+- `CHANGE_ORDER_ACCEPTED` (buyer, with IP address and browser): what `ACCEPTED` records, plus the change and the version it changed. The receipt of the new version is emailed as after the first signature.
+- `CHANGE_ORDER_DECLINED` (buyer, with IP address and browser): the change, the version and the reason, if any.
+- `CHANGE_ORDER_WITHDRAWN` (seller): the change and the version.
+
+**A stage is the same stage in every version**, because a change order only adds. So a deal has at most one invoice per stage (`milestones_one_per_stage`), an invoice, payment, delivery or approval counts for its stage whatever version it happened under, and the deal is completed when every stage of the current signed version is approved. A completed deal that gains stages is active again. Once signed, the deal page shows the signed version as the agreement; a waiting or declined change is shown on its own.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

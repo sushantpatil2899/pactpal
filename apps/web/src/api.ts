@@ -558,7 +558,16 @@ export async function getDeliveries(dealId: string): Promise<DeliveriesView> {
 }
 
 /** A delivery step that answers with the deliveries; a refusal becomes the server's message. */
-async function deliveryStep(url: string, body: object | undefined, what: string) {
+/**
+ * Posts one step and reads the checked answer. A refusal naming fields becomes
+ * `InvalidFieldsError`; any other refusal an error with the server's plain message.
+ */
+async function postStep<T>(
+  url: string,
+  body: object | undefined,
+  what: string,
+  check: (value: unknown) => value is T,
+): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -567,9 +576,20 @@ async function deliveryStep(url: string, body: object | undefined, what: string)
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  if (!response.ok) throw new Error(await errorMessage(response, `Could not ${what}`));
-  return readChecked(response, isDeliveries, what);
+  if (!response.ok) {
+    const answer: unknown = await response.json().catch(() => null);
+    if (isObject(answer) && Array.isArray(answer.fields)) {
+      throw new InvalidFieldsError(answer.fields.filter((f): f is string => typeof f === "string"));
+    }
+    throw new Error(
+      isObject(answer) && typeof answer.error === "string" ? answer.error : `Could not ${what}`,
+    );
+  }
+  return readChecked(response, check, what);
 }
+
+const deliveryStep = (url: string, body: object | undefined, what: string) =>
+  postStep(url, body, what, isDeliveries);
 
 /** The seller sends uploaded delivered files for one stage, with an optional message. */
 export const sendDelivery = (
@@ -928,3 +948,112 @@ export async function getCompleteness(dealId: string): Promise<CompletenessView>
     "load the evidence completeness score",
   );
 }
+
+// --- Change orders -----------------------------------------------------------------------------
+
+/** What a change order adds to, or changes in, the signed agreement. */
+export interface ChangeView {
+  addedLines: { text: string; mark: DeliverableKind }[];
+  addedExclusions: string[];
+  addedBuyerProvides: { text: string; dueDate: string | null }[];
+  addedStages: { stage: number; title: string; amount: Money; dueDate: string | null }[];
+  dueDate: { from: string | null; to: string | null } | null;
+  revisionsIncluded: { from: number; to: number } | null;
+  total: { from: Money; to: Money };
+}
+
+export type ChangeOrderStatus = "proposed" | "accepted" | "declined" | "withdrawn";
+
+/** One change order; the one waiting carries the page the buyer signs and its fingerprint. */
+export interface ChangeOrderView {
+  id: string;
+  status: ChangeOrderStatus;
+  fromVersion: number;
+  toVersion: number;
+  message: string | null;
+  reason: string | null;
+  proposedAt: string;
+  answeredAt: string | null;
+  /** For an accepted change: the name the buyer typed to sign it. */
+  acceptedBy: string | null;
+  change: ChangeView;
+  document?: AcceptanceDocument;
+  documentSha256?: string;
+}
+
+export interface ChangeOrdersView {
+  signed: boolean;
+  signedVersion: number | null;
+  /** The seller may propose a change now (signed, and none waiting). */
+  canPropose: boolean;
+  orders: ChangeOrderView[];
+}
+
+/** What the seller adds in a change order; amounts as typed ("400.00"). */
+export interface ChangeProposal {
+  addLines: { text: string; mark: DeliverableKind }[];
+  addExclusions: string[];
+  addBuyerProvides: { text: string; dueDate?: string }[];
+  addStages: { title: string; amount: string; dueDate?: string }[];
+  dueDate?: string;
+  revisionsIncluded?: number;
+  message?: string;
+}
+
+const CHANGE_STATUSES = new Set(["proposed", "accepted", "declined", "withdrawn"]);
+
+const isChangeOrders = (value: unknown): value is ChangeOrdersView =>
+  isObject(value) &&
+  typeof value.signed === "boolean" &&
+  typeof value.canPropose === "boolean" &&
+  Array.isArray(value.orders) &&
+  value.orders.every(
+    (order) =>
+      isObject(order) &&
+      typeof order.id === "string" &&
+      typeof order.status === "string" &&
+      CHANGE_STATUSES.has(order.status) &&
+      typeof order.toVersion === "number" &&
+      isObject(order.change) &&
+      Array.isArray(order.change.addedLines) &&
+      Array.isArray(order.change.addedStages) &&
+      (order.document === undefined || isDocument(order.document)),
+  );
+
+const changeOrdersUrl = (dealId: string) =>
+  `/api/deals/${encodeURIComponent(dealId)}/change-orders`;
+
+export async function getChangeOrders(dealId: string): Promise<ChangeOrdersView> {
+  return readChecked(await fetch(changeOrdersUrl(dealId)), isChangeOrders, "load the changes");
+}
+
+/** The seller proposes a change; throws `InvalidFieldsError` naming parts that are not right. */
+export const proposeChange = (dealId: string, proposal: ChangeProposal) =>
+  postStep(changeOrdersUrl(dealId), proposal, "propose the change", isChangeOrders);
+
+const changeStep = (
+  dealId: string,
+  changeId: string,
+  step: "accept" | "decline" | "withdraw",
+  body: object | undefined,
+  what: string,
+) =>
+  postStep(
+    `${changeOrdersUrl(dealId)}/${encodeURIComponent(changeId)}/${step}`,
+    body,
+    what,
+    isChangeOrders,
+  );
+
+/** The buyer signs the change shown (named by its page's fingerprint). */
+export const acceptChange = (
+  dealId: string,
+  changeId: string,
+  input: { documentSha256: string; typedName: string },
+) => changeStep(dealId, changeId, "accept", input, "sign the change");
+
+export const declineChange = (dealId: string, changeId: string, input: { reason?: string }) =>
+  changeStep(dealId, changeId, "decline", input, "decline the change");
+
+export const withdrawChange = (dealId: string, changeId: string) =>
+  changeStep(dealId, changeId, "withdraw", undefined, "withdraw the change");

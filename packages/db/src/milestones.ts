@@ -87,10 +87,14 @@ export const invoiceSentSchema = z.object({
 });
 export type InvoiceSent = z.input<typeof invoiceSentSchema>;
 
-async function stageRow(q: Queryable, key: { dealId: string; version: number; stage: number }) {
+/**
+ * A stage's invoice row, whatever version it was invoiced under: change orders only add stages,
+ * so a stage is the same stage in every version, and the database allows one invoice per stage.
+ */
+async function stageRow(q: Queryable, key: { dealId: string; stage: number }) {
   const rows = await q.query(
-    `SELECT ${COLUMNS} FROM milestones WHERE deal_id = $1 AND version = $2 AND stage = $3`,
-    [key.dealId, key.version, key.stage],
+    `SELECT ${COLUMNS} FROM milestones WHERE deal_id = $1 AND stage = $2`,
+    [key.dealId, key.stage],
   );
   return rows[0] === undefined ? undefined : milestoneRow.parse(rows[0]);
 }
@@ -136,26 +140,25 @@ export async function startInvoice(
 /** Keeps the id of an invoice PayPal created but did not send, so a retry re-sends that one. */
 export async function recordInvoiceId(
   q: Queryable,
-  key: { dealId: string; version: number; stage: number },
+  key: { dealId: string; stage: number },
   invoiceId: string,
 ): Promise<void> {
   await q.query(
-    `UPDATE milestones SET invoice_id = $4
-      WHERE deal_id = $1 AND version = $2 AND stage = $3 AND status = 'sending'`,
-    [key.dealId, key.version, key.stage, invoiceId],
+    `UPDATE milestones SET invoice_id = $3
+      WHERE deal_id = $1 AND stage = $2 AND status = 'sending'`,
+    [key.dealId, key.stage, invoiceId],
   );
 }
 
 /** Removes a reservation PayPal refused, before any invoice existed, so the stage can be tried again. */
 export async function dropFailedInvoice(
   q: Queryable,
-  key: { dealId: string; version: number; stage: number },
+  key: { dealId: string; stage: number },
 ): Promise<void> {
   await q.query(
     `DELETE FROM milestones
-      WHERE deal_id = $1 AND version = $2 AND stage = $3 AND status = 'sending'
-        AND invoice_id IS NULL`,
-    [key.dealId, key.version, key.stage],
+      WHERE deal_id = $1 AND stage = $2 AND status = 'sending' AND invoice_id IS NULL`,
+    [key.dealId, key.stage],
   );
 }
 
@@ -198,11 +201,11 @@ export async function markInvoiceSent(
       now,
     );
     const rows = await tx.query(
-      `UPDATE milestones SET status = 'sent', invoice_id = $4, pay_url = $5, ledger_seq = $6,
-                             sent_at = $7
-        WHERE deal_id = $1 AND version = $2 AND stage = $3
+      `UPDATE milestones SET status = 'sent', invoice_id = $3, pay_url = $4, ledger_seq = $5,
+                             sent_at = $6
+        WHERE deal_id = $1 AND stage = $2
         RETURNING ${COLUMNS}`,
-      [sent.dealId, sent.version, sent.stage, sent.invoiceId, sent.payUrl ?? null, entry.seq, now],
+      [sent.dealId, sent.stage, sent.invoiceId, sent.payUrl ?? null, entry.seq, now],
     );
     return { milestone: milestoneRow.parse(rows[0]), entry };
   });
@@ -285,13 +288,12 @@ export async function markInvoicePaid(
       now,
     );
     const rows = await tx.query(
-      `UPDATE milestones SET status = 'paid', paid_at = $4, payment_ledger_seq = $5,
-                             transaction_id = $6
-        WHERE deal_id = $1 AND version = $2 AND stage = $3
+      `UPDATE milestones SET status = 'paid', paid_at = $3, payment_ledger_seq = $4,
+                             transaction_id = $5
+        WHERE deal_id = $1 AND stage = $2
         RETURNING ${COLUMNS}`,
       [
         paid.dealId,
-        paid.version,
         paid.stage,
         now,
         entry.seq,

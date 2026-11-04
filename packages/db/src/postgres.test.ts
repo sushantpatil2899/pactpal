@@ -3,6 +3,7 @@ import type { Database, Row } from "./database.js";
 import {
   ArtifactRejectedError,
   MIGRATIONS,
+  acceptChangeOrder,
   acceptTerms,
   answerDelivery,
   addArtifact,
@@ -18,7 +19,9 @@ import {
   listArtifacts,
   migrate,
   migrationStatus,
+  getScopeVersion,
   postgresContentStore,
+  proposeChangeOrder,
   recordDeliveryViewed,
   recordWebhookEvent,
   requestAcceptance,
@@ -531,6 +534,58 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       expect(answers.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       expect(await db.query("SELECT 1 FROM delivery_answers")).toHaveLength(1);
       expect(await verifyStoredLedger(db, testId(100))).toMatchObject({ valid: true });
+    });
+  });
+
+  it("keeps one waiting change, and one answer to it, when requests arrive at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller, buyer, dealId } = await createSignedTestDeal(db);
+      const v1 = (await getScopeVersion(db, dealId, 1))?.content;
+      if (!v1) throw new Error("no version 1");
+      const content = {
+        ...v1,
+        milestones: [...v1.milestones, { title: "Extra", amountMinor: 5_000 }],
+      };
+      // Three proposals at once: one waits, the others are refused.
+      const proposals = await Promise.allSettled(
+        [0, 1, 2].map((n) =>
+          proposeChangeOrder(
+            db,
+            { id: testId(600 + n), dealId, sellerId: seller.id, content },
+            TEST_NOW,
+          ),
+        ),
+      );
+      const made = proposals.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+      expect(made).toHaveLength(1);
+      const [proposal] = made;
+      if (!proposal) throw new Error("no proposal");
+      // The buyer signs from three tabs at once: one acceptance of version 2.
+      const signed = await Promise.allSettled(
+        [0, 1, 2].map(() =>
+          acceptChangeOrder(
+            db,
+            {
+              dealId,
+              buyerId: buyer.id,
+              changeOrderId: proposal.changeOrder.id,
+              version: proposal.scope.version,
+              contentSha256: proposal.scope.contentSha256,
+              document: { format: 1, version: proposal.scope.version },
+              noticeVersion: 1,
+              typedName: "Chris Buyer",
+              access: "link",
+            },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(signed.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(await db.query("SELECT version FROM acceptances ORDER BY version")).toEqual([
+        { version: 1 },
+        { version: 2 },
+      ]);
+      expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
     });
   });
 });

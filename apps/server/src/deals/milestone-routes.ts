@@ -148,7 +148,9 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
     const preview = roleIn(viewer, deal) === "seller" ? { to: record.buyer.email } : undefined;
     const stages = record.scope.content.milestones.flatMap((_, n) => {
       const invoice = invoiceFor({ deal, ...record, stage: n + 1 });
-      const row = rows.find((r) => r.version === record.scope.version && r.stage === n + 1);
+      // A stage is the same stage in every version (change orders only add): its invoice may
+      // have been sent under an earlier signed version.
+      const row = rows.find((r) => r.stage === n + 1);
       return invoice ? [stageView(invoice, row, preview)] : [];
     });
     return reply.send({ signed: true, invoicing: invoices !== undefined, stages });
@@ -176,8 +178,9 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
       return reply.code(409).send({ error: "the invoice changed; reload the page" });
     }
     const key = { dealId: deal.id, version: record.scope.version, stage: invoice.stage };
+    let reservation;
     try {
-      await startInvoice(
+      reservation = await startInvoice(
         db,
         {
           ...key,
@@ -196,7 +199,10 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
       return reply.code(409).send({ error: "the deal is not signed yet" });
     }
 
-    const sent = await sendToPayPal(invoices, invoice, record.buyer.email, request.log, key);
+    // A retry reaches PayPal with the reservation's own request id, even if it was made under an
+    // earlier signed version, so PayPal never creates a second invoice for the stage.
+    const sending = { ...invoice, requestId: reservation.requestId };
+    const sent = await sendToPayPal(invoices, sending, record.buyer.email, request.log, key);
     if (!sent.ok) {
       if (!sent.keepReservation) await dropFailedInvoice(db, key);
       else if (sent.invoiceId !== undefined) await recordInvoiceId(db, key, sent.invoiceId);

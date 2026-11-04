@@ -178,18 +178,24 @@ export const confirmedFromSchema = z.object({
   fields: z.record(z.string(), z.string()),
 });
 
-export const saveScopeSchema = z.object({
-  dealId: z.uuid(),
-  sellerId: z.uuid(),
-  // An empty "buyer provides" list, and marks when no line is marked, are left out, so the
-  // fingerprint matches content written without them.
-  content: checkedScopeContentSchema.transform(({ buyerProvides, deliverableKinds, ...rest }) => ({
+/**
+ * Content as it is stored. An empty "buyer provides" list, and marks when no line is marked, are
+ * left out, so the fingerprint matches content written without them.
+ */
+export const storableScopeContentSchema = checkedScopeContentSchema.transform(
+  ({ buyerProvides, deliverableKinds, ...rest }) => ({
     ...rest,
     ...(buyerProvides === undefined || buyerProvides.length === 0 ? {} : { buyerProvides }),
     ...(deliverableKinds === undefined || deliverableKinds.every((mark) => mark === null)
       ? {}
       : { deliverableKinds }),
-  })),
+  }),
+);
+
+export const saveScopeSchema = z.object({
+  dealId: z.uuid(),
+  sellerId: z.uuid(),
+  content: storableScopeContentSchema,
   confirmedFrom: confirmedFromSchema.optional(),
 });
 export type SaveScope = z.input<typeof saveScopeSchema>;
@@ -227,11 +233,7 @@ export async function saveScopeVersion(
       if (drafts.length === 0) throw new ScopeNotAllowedError("bad-draft");
     }
 
-    const last = await tx.query(
-      "SELECT COALESCE(MAX(version), 0) AS last FROM scope_versions WHERE deal_id = $1",
-      [dealId],
-    );
-    const version = lastVersion.parse(last[0]).last + 1;
+    const version = await nextScopeVersion(tx, dealId);
     const contentSha256 = scopeFingerprint(content);
     const entry = await appendLedgerEvent(
       tx,
@@ -251,22 +253,14 @@ export async function saveScopeVersion(
       },
       now,
     );
-    const saved = await tx.query(
-      `INSERT INTO scope_versions (deal_id, version, format, content, content_sha256, created_by,
-                                   ledger_seq, created_at)
-       VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
-       RETURNING *`,
-      [
-        dealId,
-        version,
-        content.format,
-        JSON.stringify(content),
-        contentSha256,
-        sellerId,
-        entry.seq,
-        now,
-      ],
-    );
+    const scope = await insertScopeVersion(tx, {
+      dealId,
+      version,
+      content,
+      createdBy: sellerId,
+      ledgerSeq: entry.seq,
+      now,
+    });
     const confirmation =
       confirmedFrom === undefined
         ? undefined
@@ -290,8 +284,51 @@ export async function saveScopeVersion(
             },
             now,
           );
-    return { scope: checkedVersion(saved[0]), entry, ...(confirmation ? { confirmation } : {}) };
+    return { scope, entry, ...(confirmation ? { confirmation } : {}) };
   });
+}
+
+/**
+ * Stores a version, recorded by the given log entry, and returns it checked. Inside the caller's
+ * transaction, after its log entry (a save, or a change order).
+ */
+export async function insertScopeVersion(
+  tx: Queryable,
+  row: {
+    dealId: string;
+    version: number;
+    content: ScopeContent;
+    createdBy: string;
+    ledgerSeq: number;
+    now: Date;
+  },
+): Promise<ScopeVersion> {
+  const saved = await tx.query(
+    `INSERT INTO scope_versions (deal_id, version, format, content, content_sha256, created_by,
+                                 ledger_seq, created_at)
+     VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, $8)
+     RETURNING *`,
+    [
+      row.dealId,
+      row.version,
+      row.content.format,
+      JSON.stringify(row.content),
+      scopeFingerprint(row.content),
+      row.createdBy,
+      row.ledgerSeq,
+      row.now,
+    ],
+  );
+  return checkedVersion(saved[0]);
+}
+
+/** The next version number of a deal's agreed work. */
+export async function nextScopeVersion(tx: Queryable, dealId: string): Promise<number> {
+  const last = await tx.query(
+    "SELECT COALESCE(MAX(version), 0) AS last FROM scope_versions WHERE deal_id = $1",
+    [dealId],
+  );
+  return lastVersion.parse(last[0]).last + 1;
 }
 
 /** The deal's newest version, checked against its fingerprint; undefined before the first save. */

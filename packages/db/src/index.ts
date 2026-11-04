@@ -176,3 +176,21 @@ export type {
   DeliveryRefusal,
   SendDelivery,
 } from "./deliveries.js";
+export {
+  CHANGE_ORDER_STATUSES,
+  ChangeOrderNotAllowedError,
+  acceptChangeOrder,
+  changeOf,
+  declineChangeOrder,
+  listChangeOrders,
+  proposeChangeOrder,
+  withdrawChangeOrder,
+  type AcceptChange,
+  type ChangeOrder,
+  type ChangeOrderRefusal,
+  type ChangeOrderStatus,
+  type DeclineChange,
+  type ProposeChange,
+  type ScopeChange,
+  type WithdrawChange,
+} from "./change-orders.js";

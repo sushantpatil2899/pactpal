@@ -190,6 +190,30 @@ describe("evidence completeness score", () => {
     );
   });
 
+  it("carries stages and the chat confirmation into a change order's version", () => {
+    const v2 = { ...signed, version: 2, stages: 3 };
+    const result = byId(
+      completenessScore({
+        entries: [
+          entry("SCOPE_CONFIRMED", { version: 1 }),
+          entry("ACCEPTED", { version: 1 }),
+          ...stageDone(1, "d1"),
+          entry("CHANGE_ORDER_ACCEPTED", { version: 2 }),
+          entry("RECEIPT_SENT", { version: 2, to: "buyer" }),
+          ...stageDone(3, "d3", 2),
+          // A proposal after the signed version counts for nothing yet.
+          entry("SCOPE_CONFIRMED", { version: 3 }),
+          ...stageDone(2, "d2", 3),
+        ],
+        agreement: v2,
+      }),
+    );
+    expect(result["scope-citations"]?.earned).toBe(10);
+    expect(result.acceptance?.earned).toBe(15);
+    expect(result.approvals).toMatchObject({ detail: "2 of 3 stages", earned: 8 });
+    expect(result.payment?.earned).toBe(6);
+  });
+
   it("ignores other versions, unknown stages, unknown deliveries and odd payloads", () => {
     const result = completenessScore({
       entries: [

@@ -143,7 +143,7 @@ async function lockFor(
 }
 
 /** The connection details of a buyer's step, for its log entry; absent ones are left out. */
-const originOf = ({
+export const originOf = ({
   ip,
   userAgent,
 }: {
@@ -294,36 +294,53 @@ export async function acceptTerms(
         type: "ACCEPTED",
         actor: "buyer",
         actorId: request.buyerId,
-        payload: {
-          version: request.version,
-          contentSha256: request.contentSha256,
-          documentSha256,
-          typedName: request.typedName,
-          noticeVersion: request.noticeVersion,
-          access: request.access,
-        },
+        payload: signaturePayload(request, documentSha256),
         ...originOf(request),
       },
       now,
     );
-    const saved = await tx.query(
-      `INSERT INTO acceptances (deal_id, version, document, document_sha256, buyer_id, typed_name,
-                                ledger_seq, created_at)
-       VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8)
-       RETURNING ${ACCEPTANCE_COLUMNS}`,
-      [
-        request.dealId,
-        request.version,
-        JSON.stringify(request.document),
-        documentSha256,
-        request.buyerId,
-        request.typedName,
-        entry.seq,
-        now,
-      ],
-    );
-    return { acceptance: checkedAcceptance(saved[0]), entry };
+    return { acceptance: await insertAcceptance(tx, request, entry, now), entry };
   });
+}
+
+/** What a signature's log entry records: the version, fingerprints, typed name and notice. */
+export const signaturePayload = (request: AcceptTerms, documentSha256: string) => ({
+  version: request.version,
+  contentSha256: request.contentSha256,
+  documentSha256,
+  typedName: request.typedName.trim(),
+  noticeVersion: request.noticeVersion,
+  access: request.access,
+});
+
+/**
+ * Stores what the buyer signed (the document whole, its fingerprint and the typed name), recorded
+ * by `entry`. Inside the caller's transaction: a first signature, or an accepted change order.
+ */
+export async function insertAcceptance(
+  tx: Queryable,
+  request: AcceptTerms,
+  entry: LedgerEntry,
+  now: Date,
+): Promise<Acceptance> {
+  const signed = acceptTermsSchema.parse(request);
+  const saved = await tx.query(
+    `INSERT INTO acceptances (deal_id, version, document, document_sha256, buyer_id, typed_name,
+                              ledger_seq, created_at)
+     VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8)
+     RETURNING ${ACCEPTANCE_COLUMNS}`,
+    [
+      signed.dealId,
+      signed.version,
+      JSON.stringify(signed.document),
+      documentFingerprint(signed.document),
+      signed.buyerId,
+      signed.typedName,
+      entry.seq,
+      now,
+    ],
+  );
+  return checkedAcceptance(saved[0]);
 }
 
 /**

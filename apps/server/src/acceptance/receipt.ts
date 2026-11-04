@@ -137,7 +137,8 @@ export function receiptBlocks(
 
 /**
  * The receipt PDF for a signed acceptance, after checking that the stored copy is a format 1
- * document and that its `ACCEPTED` log entry names the same fingerprint, typed name and time.
+ * document and that its `ACCEPTED` (or, for a change order, `CHANGE_ORDER_ACCEPTED`) log entry
+ * names the same fingerprint, typed name and time.
  * The same acceptance always gives the same bytes (the file is dated at the signing time).
  */
 export async function buildReceipt(acceptance: Acceptance, entry: LedgerEntry | undefined) {
@@ -145,7 +146,7 @@ export async function buildReceipt(acceptance: Acceptance, entry: LedgerEntry | 
   const payload = acceptedPayload.safeParse(entry?.payload);
   if (
     !document.success ||
-    entry?.type !== "ACCEPTED" ||
+    (entry?.type !== "ACCEPTED" && entry?.type !== "CHANGE_ORDER_ACCEPTED") ||
     !payload.success ||
     // The log entry is protected by the chain; the stored row must say exactly what it says.
     payload.data.documentSha256 !== acceptance.documentSha256 ||

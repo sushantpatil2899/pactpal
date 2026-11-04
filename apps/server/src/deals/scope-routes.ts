@@ -5,18 +5,17 @@ import {
   getDraft,
   getLatestScope,
   saveScopeVersion,
-  checkedScopeContentSchema,
   scopeContentSchema,
   type DraftRecord,
-  type ScopeContent,
 } from "@pactpal/db";
-import { fromPayPalMoney } from "@pactpal/paypal";
 import type { FastifyPluginAsync } from "fastify";
 import { scopeDraftSchema, type ScopeDraft } from "@pactpal/scope-draft";
 import { z } from "zod";
 import { compareWithDraft } from "../drafting/confirmation.js";
 import { councilRecordSchema, isUnranked } from "../drafting/council-record.js";
 import { readBody, type DealLookup } from "./access.js";
+import { checkedContent, stagesInMinor, typedStageSchema } from "./content-input.js";
+import { signedRecord } from "../payments/signed-record.js";
 import { scopeView } from "./scope-view.js";
 
 export interface ScopeRouteOptions {
@@ -24,8 +23,6 @@ export interface ScopeRouteOptions {
   sellersDeal: DealLookup;
   clock: () => Date;
 }
-
-const { milestones } = scopeContentSchema.shape;
 
 /**
  * What the seller sends: the agreed work with each stage's amount as typed ("250.00"). The rules
@@ -36,14 +33,7 @@ const scopeBody = scopeContentSchema.omit({ format: true, milestones: true }).ex
   draftId: z.uuid().optional(),
   /** With `draftId`: the letter of the draft the seller chose when the council could not rank them. */
   draftLabel: z.string().min(1).max(8).optional(),
-  milestones: z
-    .array(
-      milestones.element
-        .omit({ amountMinor: true })
-        .extend({ amount: z.string().trim().min(1).max(20) }),
-    )
-    .min(1)
-    .max(20),
+  milestones: z.array(typedStageSchema).min(1).max(20),
 });
 type ScopeBody = Omit<z.output<typeof scopeBody>, "draftId" | "draftLabel">;
 
@@ -72,34 +62,10 @@ const SCOPE_REFUSALS: Record<ScopeNotAllowedError["reason"], { status: number; e
   "bad-draft": { status: 400, error: "invalid" },
 };
 
-/**
- * The body as stored content, converting each typed amount without floating point; or the
- * fields that are wrong (an amount that is not a number of the currency's format, zero, or too large).
- */
-function toContent(
-  body: ScopeBody,
-  currency: string,
-): { ok: true; content: ScopeContent } | { ok: false; fields: string[] } {
-  const fields: string[] = [];
-  const stages = body.milestones.map(({ amount, ...stage }, n) => {
-    try {
-      return {
-        ...stage,
-        amountMinor: fromPayPalMoney({ currency_code: currency, value: amount }).minor,
-      };
-    } catch {
-      fields.push(`milestones.${String(n)}.amount`);
-      return { ...stage, amountMinor: 0 };
-    }
-  });
-  const content = checkedScopeContentSchema.safeParse({ ...body, format: 1, milestones: stages });
-  if (content.success && fields.length === 0) return { ok: true, content: content.data };
-  const issues = content.success ? [] : content.error.issues;
-  for (const issue of issues) {
-    const field = issue.path.join(".").replace(/amountMinor$/, "amount");
-    if (!fields.includes(field)) fields.push(field);
-  }
-  return { ok: false, fields };
+/** The body as stored content, or the fields that are wrong. */
+function toContent(body: ScopeBody, currency: string) {
+  const { stages, fields } = stagesInMinor(body.milestones, currency, "milestones");
+  return checkedContent({ ...body, format: 1, milestones: stages }, fields);
 }
 
 /**
@@ -112,7 +78,10 @@ export const scopeRoutes: FastifyPluginAsync<ScopeRouteOptions> = (app, options)
   app.get("/api/deals/:id/scope", async (request, reply) => {
     const found = await visibleDeal(request, reply);
     if (!found) return reply;
-    const scope = await getLatestScope(found.db, found.deal.id);
+    // Once signed, the agreement is the signed version: a change waiting for the buyer (or one
+    // declined) is shown on its own, never as the agreement.
+    const record = await signedRecord(found.db, found.deal);
+    const scope = record?.scope ?? (await getLatestScope(found.db, found.deal.id));
     return reply.send({ scope: scope ? scopeView(scope, found.deal.currency) : null });
   });
 

@@ -23,6 +23,7 @@ import type { DraftingRuntime } from "../drafting/runtime.js";
 import { draftRoutes } from "./draft-routes.js";
 import { fileRoutes } from "./file-routes.js";
 import { acceptanceRoutes } from "./acceptance-routes.js";
+import { changeOrderRoutes } from "./change-order-routes.js";
 import { completenessRoutes } from "./completeness-routes.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
 import { deliveryRoutes } from "./delivery-routes.js";
@@ -134,6 +135,15 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId, recordIp });
   void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
   void app.register(completenessRoutes, { sellersDeal });
+  void app.register(changeOrderRoutes, {
+    visibleDeal,
+    sellersDeal,
+    buyersDeal,
+    clock,
+    newId,
+    recordIp,
+    email,
+  });
 
   app.post("/api/deals", async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });
