@@ -71,6 +71,26 @@ describe("OpenAiCompatibleClient", () => {
     });
   });
 
+  it("sends images after the text as content parts", async () => {
+    const { client, sentBody } = setup([completion("OK")]);
+    await client.complete({
+      messages: [
+        { role: "system", content: "Look", images: [] },
+        { role: "user", content: PROMPT, images: [{ mediaType: "image/png", base64: "iVBORw0=" }] },
+      ],
+    });
+    expect(sentBody().messages).toEqual([
+      { role: "system", content: "Look" },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: PROMPT },
+          { type: "image_url", image_url: { url: "data:image/png;base64,iVBORw0=" } },
+        ],
+      },
+    ]);
+  });
+
   it("uses the limits the caller gives", async () => {
     const { ask, sentBody } = setup([completion("OK")]);
     await ask({ maxTokens: 50, temperature: 0 });

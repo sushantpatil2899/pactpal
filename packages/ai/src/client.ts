@@ -9,6 +9,7 @@ import { z } from "zod";
 import type {
   ChatClient,
   ChatFailureKind,
+  ChatMessage,
   ChatOutcome,
   ChatRequest,
   ModelSpec,
@@ -128,6 +129,21 @@ export interface ClientOptions {
   policy?: RetryPolicy;
 }
 
+/** A message as the host reads it: plain text, or text then images as content parts. */
+function wireMessage({ role, content, images }: ChatMessage) {
+  if (images === undefined || images.length === 0) return { role, content };
+  return {
+    role,
+    content: [
+      { type: "text", text: content },
+      ...images.map((image) => ({
+        type: "image_url",
+        image_url: { url: `data:${image.mediaType};base64,${image.base64}` },
+      })),
+    ],
+  };
+}
+
 /**
  * Talks to one model over the OpenAI chat format. Failures come back as
  * values, not exceptions. The key is sent only in the request header; error
@@ -157,7 +173,7 @@ export class OpenAiCompatibleClient implements ChatClient {
     const format = responseFormat(spec, request.reply);
     const body = {
       model: spec.model,
-      messages: request.messages,
+      messages: request.messages.map(wireMessage),
       max_tokens: request.maxTokens ?? DEFAULT_MAX_TOKENS,
       temperature: request.temperature ?? DEFAULT_TEMPERATURE,
       ...(format === undefined ? {} : { response_format: format }),

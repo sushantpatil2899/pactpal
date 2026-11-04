@@ -1,3 +1,4 @@
+import type { ImageFacts, LineCodeResult, Look } from "@pactpal/delivery-check";
 import type { LineMark } from "@pactpal/words";
 /** The one place the web app talks to the server. Answers are checked before use. */
 
@@ -1121,3 +1122,56 @@ export const askSellerInstead = (dealId: string, questionId: string) =>
 
 export const answerBuyerQuestion = (dealId: string, questionId: string, answer: string) =>
   postStep(questionStep(dealId, questionId, "answer"), { answer }, "send the answer", isQuestions);
+
+/** One image's look in a pre-delivery check, or that no model answered. */
+export type LookView =
+  { fileId: string; promptVersion: number; look: Look } | { fileId: string; unavailable: true };
+
+/** A pre-delivery check as its seller sees it (4l): advice, never shown to the buyer. */
+export interface DeliveryCheckView {
+  id: string;
+  stage: number;
+  version: number;
+  checkedAt: string;
+  files: { fileId: string; filename: string }[];
+  report: {
+    lines: { n: number; text: string }[];
+    files: { fileId: string; filename: string; facts: ImageFacts }[];
+    code: LineCodeResult[];
+    looks: LookView[];
+  };
+}
+
+export interface DeliveryChecksView {
+  checks: DeliveryCheckView[];
+}
+
+const isChecks = (value: unknown): value is DeliveryChecksView =>
+  isObject(value) &&
+  Array.isArray(value.checks) &&
+  value.checks.every(
+    (c) =>
+      isObject(c) &&
+      typeof c.id === "string" &&
+      isObject(c.report) &&
+      Array.isArray(c.report.lines) &&
+      Array.isArray(c.report.files) &&
+      Array.isArray(c.report.code) &&
+      Array.isArray(c.report.looks),
+  );
+
+const checksUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/delivery-checks`;
+
+export async function getDeliveryChecks(dealId: string): Promise<DeliveryChecksView> {
+  return readChecked(await fetch(checksUrl(dealId)), isChecks, "load the checks");
+}
+
+/** Checks uploaded delivered files; `copies` are the browser's smaller copies of the images. */
+export const runDeliveryCheck = (
+  dealId: string,
+  input: {
+    stage: number;
+    fileIds: string[];
+    copies: { fileId: string; mediaType: "image/jpeg"; base64: string }[];
+  },
+) => postStep(checksUrl(dealId), input, "check the files", isChecks);

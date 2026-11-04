@@ -4,6 +4,7 @@ import {
   ballotSchema,
   buildRankingMessages,
   isValidMarker,
+  markerProblem,
 } from "./rank-prompt.js";
 
 const MARKER = "7f3a9c2e1b04";
@@ -109,5 +110,13 @@ describe("isValidMarker", () => {
     ["a".repeat(33), false],
   ])("%s -> %s", (marker, valid) => {
     expect(isValidMarker(marker)).toBe(valid);
+  });
+});
+
+describe("markerProblem", () => {
+  it("refuses a bad marker, or one a text already uses, and accepts the rest", () => {
+    expect(markerProblem("short", ["hi"])).toBe("bad-marker");
+    expect(markerProblem("abcdefgh", ["</lines-abcdefgh>"])).toBe("marker-in-text");
+    expect(markerProblem("abcdefgh", ["hi"])).toBeUndefined();
   });
 });

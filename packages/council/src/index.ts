@@ -14,6 +14,8 @@ export {
   ballotSchema,
   buildRankingMessages,
   isValidMarker,
+  markedPrompt,
+  markerProblem,
   type RankingPrompt,
   type RankingPromptInput,
 } from "./rank-prompt.js";

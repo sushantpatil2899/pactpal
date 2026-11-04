@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4k)
+## Built (sub-phases 2b to 4l)
 
 ### `users`: everyone
 
@@ -325,6 +325,20 @@ The log entries:
 - `QUESTION_ANSWERED` (seller): the question and the seller's answer.
 
 The emails about a question (to the seller when it is sent to them; to the buyer, with a fresh private link, when the seller answers, 4k-2) are notices and are not logged.
+
+### `delivery_checks`: the seller's pre-delivery checks
+
+Built in 4l (migration 0016). Advice for the seller only, kept apart from the evidence log: nothing about a check is logged, and the buyer never sees it. Rows are never changed or removed. At most 20 per deal.
+
+| Column          | Meaning                                                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`, `deal_id` | The check and its deal                                                                                                                                                                                 |
+| `version`       | The signed version whose lines were checked                                                                                                                                                            |
+| `stage`         | The payment stage the seller chose                                                                                                                                                                     |
+| `files`         | The checked files: id, name and SHA-256 (1 to 10; each one of the deal's delivered files)                                                                                                              |
+| `report`        | The lines checked, what code read from each file (type, size, pixel size, transparency), the code results per line, and the model's look per image as a draft (model, prompt version, verdicts, notes) |
+| `checked_by`    | The seller                                                                                                                                                                                             |
+| `created_at`    | When                                                                                                                                                                                                   |
 
 ### `scope_drafts`: AI drafts of the agreed work
 

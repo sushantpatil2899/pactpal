@@ -6,6 +6,7 @@ import {
   readyModels,
   registryProblems,
   schemaEnforced,
+  visionModels,
 } from "./registry.js";
 import { STRUCTURED_OUTPUT_LEVELS } from "./types.js";
 import { testSpec } from "./testing.js";
@@ -14,6 +15,11 @@ describe("MODEL_REGISTRY", () => {
   it("is valid and has several families", () => {
     expect(registryProblems(MODEL_REGISTRY)).toEqual([]);
     expect(new Set(MODEL_REGISTRY.map((spec) => spec.family)).size).toBeGreaterThanOrEqual(4);
+  });
+
+  it("marks the models that look at images (4l: Gemini and Qwen, the owner's choice)", () => {
+    const clients = MODEL_REGISTRY.map((spec) => ({ spec }));
+    expect(visionModels(clients).map((c) => c.spec.name)).toEqual(["gemini", "qwen-groq"]);
   });
 
   it("names the keys that .env.example documents", () => {

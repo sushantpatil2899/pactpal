@@ -12,6 +12,8 @@ export interface ModelSpec {
   model: string;
   /** How much of the reply's shape the host enforces itself (see `StructuredOutput`). */
   structuredOutput: StructuredOutput;
+  /** True when the model also reads images (the pre-delivery check, 4l). */
+  vision?: boolean;
 }
 
 /**
@@ -30,9 +32,17 @@ export type JsonSchema = Record<string, unknown>;
 /** The shape the caller wants the reply in. */
 export type ReplyFormat = "json" | { name: string; schema: JsonSchema };
 
+/** An image sent with a message, as its bytes in base64 (sent as a `data:` address). */
+export interface ChatImage {
+  mediaType: "image/png" | "image/jpeg";
+  base64: string;
+}
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  /** Images after the text, for a model with `vision`; sent in the OpenAI content-parts form. */
+  images?: readonly ChatImage[];
 }
 
 export interface ChatRequest {

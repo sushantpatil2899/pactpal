@@ -1,7 +1,8 @@
 import { createDealLink, createSession, redeemDealLink, type Database } from "@pactpal/db";
 import { TEST_NOW, testId } from "@pactpal/db/testing";
 import { buildApp } from "../app.js";
-import type { DraftingRuntime } from "../drafting/runtime.js";
+import type { ChatClient } from "@pactpal/ai";
+import { createDraftingRuntime, type DraftingRuntime } from "../drafting/runtime.js";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
 import { StandInEmailSender } from "@pactpal/email";
@@ -70,3 +71,12 @@ export async function buyerVisitors(db: Database, dealId: string, buyerId: strin
   if (!redeemed.ok) throw new Error("expected a link session");
   return [await signedInAs(db, buyerId), redeemed.session.token];
 }
+
+/** Stand-in models as a drafting runtime with fixed markers, or none (no model has a key). */
+export const testDrafting = (clients: readonly ChatClient[] | undefined) =>
+  clients
+    ? createDraftingRuntime({
+        clients,
+        council: { rng: () => 0.5, newMarker: () => "abcdef123456", now: () => 0 },
+      })
+    : undefined;

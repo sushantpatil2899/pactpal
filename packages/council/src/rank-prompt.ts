@@ -1,4 +1,4 @@
-import type { ChatMessage, JsonSchema } from "@pactpal/ai";
+import type { ChatImage, ChatMessage, JsonSchema } from "@pactpal/ai";
 
 /**
  * Which wording voters were given. Any change to the text below needs a new number and the
@@ -8,6 +8,43 @@ export const COUNCIL_RANK_PROMPT_VERSION = 1;
 
 /** Random markers are 8 to 32 lowercase letters and digits. */
 export const isValidMarker = (marker: string): boolean => /^[a-z0-9]{8,32}$/.test(marker);
+
+/**
+ * Why a marker cannot wrap these untrusted texts: it is not a valid marker, or a text already
+ * contains an element name made with it (so it could fake the end of its element). Undefined
+ * when it is safe to use.
+ */
+export function markerProblem(
+  marker: string,
+  texts: readonly string[],
+): "bad-marker" | "marker-in-text" | undefined {
+  if (!isValidMarker(marker)) return "bad-marker";
+  return texts.some((text) => text.includes(`-${marker}`)) ? "marker-in-text" : undefined;
+}
+
+/**
+ * A system message and a user message around untrusted texts, both naming their elements with
+ * `marker` (`{MARKER}` in the system message is replaced); refused when the marker cannot be
+ * used for these texts. `images` go after the user message's text.
+ */
+export function markedPrompt(input: {
+  system: string;
+  marker: string;
+  untrusted: readonly string[];
+  user: string;
+  images?: readonly ChatImage[];
+}): { ok: true; messages: ChatMessage[] } | { ok: false; reason: "bad-marker" | "marker-in-text" } {
+  const { system, marker, user, images } = input;
+  const problem = markerProblem(marker, input.untrusted);
+  if (problem !== undefined) return { ok: false, reason: problem };
+  return {
+    ok: true,
+    messages: [
+      { role: "system", content: system.replaceAll("{MARKER}", marker) },
+      { role: "user", content: user, ...(images === undefined ? {} : { images }) },
+    ],
+  };
+}
 
 /** `{MARKER}` is replaced by the request's random marker; `{SUMMARY}` and `{CRITERIA}` come from the task. */
 const SYSTEM_MESSAGE = `<role>

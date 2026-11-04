@@ -494,4 +494,27 @@ CREATE TRIGGER buyer_questions_moves_on BEFORE UPDATE OR DELETE ON buyer_questio
 CREATE TRIGGER buyer_questions_no_truncate BEFORE TRUNCATE ON buyer_questions
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0016_delivery_checks",
+    // A seller's pre-delivery check (4l): code checks and a vision model's look at delivered
+    // files against the signed agreement. Advice for the seller only, kept apart from the
+    // evidence log and never changed or removed.
+    sql: `CREATE TABLE delivery_checks (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL,
+  stage integer NOT NULL CHECK (stage BETWEEN 1 AND 20),
+  files jsonb NOT NULL CHECK (jsonb_typeof(files) = 'array' AND jsonb_array_length(files) BETWEEN 1 AND 10),
+  report jsonb NOT NULL,
+  checked_by uuid NOT NULL REFERENCES users (id),
+  created_at timestamptz NOT NULL,
+  CONSTRAINT delivery_checks_version FOREIGN KEY (deal_id, version)
+    REFERENCES scope_versions (deal_id, version)
+);
+CREATE INDEX delivery_checks_by_deal ON delivery_checks (deal_id, created_at);
+CREATE TRIGGER delivery_checks_append_only BEFORE UPDATE OR DELETE ON delivery_checks
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER delivery_checks_no_truncate BEFORE TRUNCATE ON delivery_checks
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

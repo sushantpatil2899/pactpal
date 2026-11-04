@@ -27,9 +27,11 @@ import { changeOrderRoutes } from "./change-order-routes.js";
 import { completenessRoutes } from "./completeness-routes.js";
 import { questionRoutes } from "./question-routes.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
+import { deliveryCheckRoutes } from "./delivery-check-routes.js";
 import { deliveryRoutes } from "./delivery-routes.js";
 import { milestoneRoutes } from "./milestone-routes.js";
 import { categoryLabelOf, categoryLabels, nameOf, partiesOf } from "./parties.js";
+import { modelMemory } from "../drafting/model-memory.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 
@@ -136,6 +138,8 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId, recordIp });
   void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
   void app.register(completenessRoutes, { sellersDeal });
+  // One record of recent model outcomes for every feature that chooses a model.
+  const models = modelMemory(clock);
   void app.register(questionRoutes, {
     visibleDeal,
     sellersDeal,
@@ -146,7 +150,9 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     drafting,
     email,
     publicBaseUrl,
+    models,
   });
+  void app.register(deliveryCheckRoutes, { sellersDeal, clock, newId, drafting, models });
   void app.register(changeOrderRoutes, {
     visibleDeal,
     sellersDeal,

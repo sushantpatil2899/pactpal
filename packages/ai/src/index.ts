@@ -7,6 +7,7 @@
 export type {
   ChatClient,
   ChatFailureKind,
+  ChatImage,
   ChatMessage,
   ChatOutcome,
   ChatRequest,
@@ -23,6 +24,8 @@ export {
   readyModels,
   registryProblems,
   schemaEnforced,
+  visionModels,
 } from "./registry.js";
 export { parseJsonReply, type JsonReply } from "./json-reply.js";
 export { AI_RETRY_POLICY, OpenAiCompatibleClient, type ClientOptions } from "./client.js";
+export { DEFAULT_MODEL, RECENT_FAILURE_MS, rankModels, type ModelRecord } from "./rank.js";

@@ -2,8 +2,8 @@ import { sha256Hex, type LedgerEntry } from "@pactpal/ledger";
 import { z } from "zod";
 import { originOf } from "./acceptance.js";
 import type { Database, Queryable } from "./database.js";
-import { DEAL_STATUSES } from "./deals.js";
-import { DealNotFoundError, appendLedgerEvent } from "./ledger-store.js";
+import { lockDeal } from "./deal-lock.js";
+import { appendLedgerEvent } from "./ledger-store.js";
 
 /** At most this many questions per deal, so a page cannot spend the models' free limits. */
 export const MAX_QUESTIONS_PER_DEAL = 20;
@@ -75,23 +75,6 @@ const questionRow = z.object({
   updatedAt: z.date(),
 });
 export type BuyerQuestion = z.output<typeof questionRow>;
-
-const lockedDeal = z.object({
-  seller_id: z.string(),
-  buyer_id: z.string().nullable(),
-  status: z.enum(DEAL_STATUSES),
-});
-
-/** Locks the deal row and returns its parties and status. Call inside a transaction. */
-async function lockDeal(tx: Queryable, dealId: string) {
-  const rows = await tx.query(
-    "SELECT seller_id, buyer_id, status FROM deals WHERE id = $1 FOR UPDATE",
-    [dealId],
-  );
-  const deal = lockedDeal.safeParse(rows[0]);
-  if (!deal.success) throw new DealNotFoundError(`No deal ${dealId}`);
-  return deal.data;
-}
 
 /** The question named, locked with its deal, if it is at one of `statuses`; or refused. */
 async function lockedQuestion(

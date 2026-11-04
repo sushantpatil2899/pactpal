@@ -6,8 +6,8 @@ export interface ModelRecord {
   at: Date;
 }
 
-/** The model used when there is no record to choose by (the owner's default, 4k). */
-export const DEFAULT_QUESTION_MODEL = "qwen-groq";
+/** The model used when there is no record to choose by (the owner's default for questions, 4k, and image checks, 4l). */
+export const DEFAULT_MODEL = "qwen-groq";
 
 /** A model that failed this recently is skipped (for example, rate-limited). */
 export const RECENT_FAILURE_MS = 10 * 60_000;
@@ -21,7 +21,7 @@ const median = (values: number[]): number => {
 };
 
 /**
- * The order to try models in for a question: those with a record first, by success rate over
+ * The order to try models in for one task (a buyer question, an image check): those with a record first, by success rate over
  * their newest 20 records, then by median speed; then those without a record, the default first.
  * A model that failed in the last 10 minutes is left out. With no usable model, the default
  * alone (if it has a key). Pure.
@@ -55,11 +55,8 @@ export function rankModels(
     .sort((a, b) => b.rate - a.rate || a.speed - b.speed);
   const unrated = scored
     .filter((entry) => !entry.rated)
-    .sort(
-      (a, b) =>
-        Number(b.model === DEFAULT_QUESTION_MODEL) - Number(a.model === DEFAULT_QUESTION_MODEL),
-    );
+    .sort((a, b) => Number(b.model === DEFAULT_MODEL) - Number(a.model === DEFAULT_MODEL));
   const order = [...rated, ...unrated].map((entry) => entry.model);
   if (order.length > 0) return order;
-  return available.includes(DEFAULT_QUESTION_MODEL) ? [DEFAULT_QUESTION_MODEL] : [];
+  return available.includes(DEFAULT_MODEL) ? [DEFAULT_MODEL] : [];
 }

@@ -16,8 +16,7 @@ import {
   TEST_NOW,
 } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
-import { createDraftingRuntime } from "../drafting/runtime.js";
-import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
+import { buyerVisitors, dealTestApp, signedInAs, testDrafting } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
 
@@ -63,12 +62,7 @@ const model = (name: string, answer: (request: ChatRequest) => string | ChatOutc
 /** A deal waiting for the buyer's signature, the app with these models, and both sides. */
 async function awaitingDeal(clients: FakeChatClient[] | undefined, emailOff = false) {
   const deal = await createAwaitingTestDeal(db);
-  const drafting = clients
-    ? createDraftingRuntime({
-        clients,
-        council: { rng: () => 0.5, newMarker: () => "abcdef123456", now: () => 0 },
-      })
-    : undefined;
+  const drafting = testDrafting(clients);
   const env = dealTestApp(db, drafting, { trustProxyHops: 1, emailOff });
   const seller = await signedInAs(db, deal.seller.id);
   const [, buyer = ""] = await buyerVisitors(db, deal.dealId, deal.buyer.id);

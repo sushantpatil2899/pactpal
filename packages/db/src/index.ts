@@ -216,3 +216,12 @@ export {
   type QuestionStatus,
   type RecordAiAnswer,
 } from "./questions.js";
+export {
+  DeliveryCheckNotAllowedError,
+  MAX_CHECKS_PER_DEAL,
+  listDeliveryChecks,
+  recordDeliveryCheck,
+  type DeliveryCheck,
+  type DeliveryCheckRefusal,
+  type NewDeliveryCheck,
+} from "./delivery-checks.js";

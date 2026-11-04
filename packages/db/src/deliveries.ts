@@ -38,12 +38,17 @@ export const VIEW_REPEAT_MS = 10 * 60 * 1000;
 /** The most files one delivery can carry. */
 export const MAX_DELIVERY_FILES = 10;
 
-export const sendDeliverySchema = z.object({
+/** Who does a seller's step for one payment stage of a signed version, and its id. */
+export const sellerStageStep = {
   id: z.uuid(),
   dealId: z.uuid(),
   sellerId: z.uuid(),
   version: z.number().int().min(1),
   stage: z.number().int().min(1),
+};
+
+export const sendDeliverySchema = z.object({
+  ...sellerStageStep,
   /** The seller's note to the buyer; blank counts as none. */
   message: z
     .string()

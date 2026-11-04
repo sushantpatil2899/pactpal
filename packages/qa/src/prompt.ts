@@ -1,5 +1,5 @@
 import type { ChatMessage } from "@pactpal/ai";
-import { isValidMarker } from "@pactpal/council";
+import { markedPrompt } from "@pactpal/council";
 import type { AgreementLine } from "./lines.js";
 
 /**
@@ -47,16 +47,10 @@ export function buildQuestionMessages(input: {
   marker: string;
 }): QuestionPrompt {
   const { lines, question, marker } = input;
-  if (!isValidMarker(marker)) return { ok: false, reason: "bad-marker" };
-  const texts = [question, ...lines.map((line) => line.text)];
-  if (texts.some((text) => text.includes(`-${marker}`))) {
-    return { ok: false, reason: "marker-in-text" };
-  }
-  return {
-    ok: true,
-    messages: [
-      { role: "system", content: SYSTEM_MESSAGE.replaceAll("{MARKER}", marker) },
-      { role: "user", content: userMessage(lines, question, marker) },
-    ],
-  };
+  return markedPrompt({
+    system: SYSTEM_MESSAGE,
+    marker,
+    untrusted: [question, ...lines.map((line) => line.text)],
+    user: userMessage(lines, question, marker),
+  });
 }

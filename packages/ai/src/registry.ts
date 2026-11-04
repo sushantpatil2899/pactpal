@@ -15,6 +15,7 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     apiKeyEnv: "GEMINI_API_KEY",
     model: "gemini-3.6-flash",
     structuredOutput: "schema",
+    vision: true,
   },
   {
     name: "qwen-groq",
@@ -23,6 +24,7 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     apiKeyEnv: "GROQ_API_KEY",
     model: "qwen/qwen3.8-27b",
     structuredOutput: "schema",
+    vision: true,
   },
   {
     name: "gpt-oss-groq",
@@ -39,6 +41,7 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     apiKeyEnv: "MISTRAL_API_KEY",
     model: "ministral-14b-latest",
     structuredOutput: "schema",
+    // Reads images, but misjudged a simple figure in the 4l live check; not used for images.
   },
   {
     name: "nemotron-openrouter",
@@ -49,6 +52,10 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     structuredOutput: "none",
   },
 ];
+
+/** The clients whose model also reads images. */
+export const visionModels = <T extends { spec: ModelSpec }>(clients: readonly T[]): T[] =>
+  clients.filter((client) => client.spec.vision === true);
 
 /** True when the host itself makes the reply fit the schema, so the prompt need not describe it. */
 export function schemaEnforced(spec: ModelSpec): boolean {

@@ -6,7 +6,6 @@ import {
   askQuestion,
   forwardQuestion,
   listQuestions,
-  recentModelRecords,
   recordAiAnswer,
   type BuyerQuestion,
   type Database,
@@ -18,15 +17,14 @@ import {
   agreementLines,
   buildQuestionMessages,
   checkAnswer,
-  rankModels,
   type AgreementLine,
   type CheckedAnswer,
-  type ModelRecord,
 } from "@pactpal/qa";
 import type { EmailSender } from "@pactpal/email";
 import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
 import { currentDocument } from "../acceptance/document.js";
+import type { ModelMemory } from "../drafting/model-memory.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { emailBuyerWithLink, emailSellerQuietly } from "../email/deal-mail.js";
 import { questionForSellerEmail, sellerAnswerEmail } from "../email/question-email.js";
@@ -47,13 +45,12 @@ export interface QuestionRouteOptions {
   email: EmailSender;
   /** Where buyer links in emails point; without it the buyer is not emailed. */
   publicBaseUrl: string | undefined;
+  /** Recent model outcomes, shared with the pre-delivery check, to choose the model. */
+  models: ModelMemory;
 }
 
 /** At most this many models are asked for one question (the first may fail or be refused). */
 export const MODELS_PER_QUESTION = 2;
-
-/** This server's own recent answers per model, kept in memory to choose the next model. */
-const MEMORY = 100;
 
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/);
 const askBody = z.object({ question: z.string().trim().min(1).max(500), documentSha256: sha256 });
@@ -100,12 +97,7 @@ type Attempt =
  */
 export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, options) => {
   const { visibleDeal, sellersDeal, buyersDeal, clock, newId, recordIp, drafting } = options;
-  const { email, publicBaseUrl } = options;
-  const memory: ModelRecord[] = [];
-  const remember = (record: ModelRecord) => {
-    memory.unshift(record);
-    memory.length = Math.min(memory.length, MEMORY);
-  };
+  const { email, publicBaseUrl, models } = options;
 
   async function view(db: Database, deal: Deal, buyer: boolean) {
     const questions = await listQuestions(db, deal.id);
@@ -170,12 +162,7 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
     const parsed = parseJsonReply(outcome);
     const checked = parsed.ok ? checkAnswer(parsed.value, lines) : undefined;
     const usable = checked?.ok === true || checked?.reason === "not-in-agreement";
-    remember({
-      model: client.spec.name,
-      ok: usable,
-      ...(outcome.ok ? { latencyMs: outcome.latencyMs } : {}),
-      at: clock(),
-    });
+    models.remember(client.spec.name, usable, outcome.ok ? outcome.latencyMs : undefined);
     if (!parsed.ok) return { kind: "failed", reason: "no-model" };
     if (checked?.ok === true) return { kind: "answered", answer: checked.answer };
     return checked?.reason === "not-in-agreement"
@@ -197,16 +184,9 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
     const step = { dealId: deal.id, questionId: question.id };
     let reason: ForwardReason = "no-model";
     try {
-      const clients = drafting?.clients ?? [];
-      const records = [...memory, ...(await recentModelRecords(db))];
-      const order = rankModels(
-        clients.map((c) => c.spec.name),
-        records,
-        clock(),
-      ).slice(0, MODELS_PER_QUESTION);
-      for (const name of order) {
-        const client = clients.find((c) => c.spec.name === name);
-        if (!client) continue;
+      const order = await models.order(db, drafting?.clients ?? [], MODELS_PER_QUESTION);
+      for (const client of order) {
+        const name = client.spec.name;
         const result = await attempt(client, lines, question.question);
         if (result.kind === "answered") {
           await recordAiAnswer(
