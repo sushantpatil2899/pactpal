@@ -74,6 +74,9 @@ importers:
       '@pactpal/pdf':
         specifier: workspace:*
         version: link:../../packages/pdf
+      '@pactpal/qa':
+        specifier: workspace:*
+        version: link:../../packages/qa
       '@pactpal/scope-draft':
         specifier: workspace:*
         version: link:../../packages/scope-draft
@@ -221,6 +224,28 @@ importers:
       pdf-lib:
         specifier: 1.17.1
         version: 1.17.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+
+  packages/qa:
+    dependencies:
+      '@pactpal/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@pactpal/council':
+        specifier: workspace:*
+        version: link:../council
+      '@pactpal/scope-draft':
+        specifier: workspace:*
+        version: link:../scope-draft
+      '@pactpal/words':
+        specifier: workspace:*
+        version: link:../words
       zod:
         specifier: ^4.6.7
         version: 4.6.7

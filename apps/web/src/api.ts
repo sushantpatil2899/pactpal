@@ -1059,3 +1059,63 @@ export const declineChange = (dealId: string, changeId: string, input: { reason?
 
 export const withdrawChange = (dealId: string, changeId: string) =>
   changeStep(dealId, changeId, "withdraw", undefined, "withdraw the change");
+
+export type QuestionStatus = "asked" | "answered" | "forwarded" | "seller-answered";
+export type ForwardReason = "not-in-agreement" | "quote-not-found" | "no-model" | "buyer-asked";
+
+/** One buyer question as both sides see it; the automatic answer quotes numbered agreement lines. */
+export interface QuestionView {
+  id: string;
+  version: number;
+  question: string;
+  status: QuestionStatus;
+  askedAt: string;
+  answer: { text: string; citations: { line: number; quote: string }[] } | null;
+  forwardReason: ForwardReason | null;
+  sellerAnswer: string | null;
+  updatedAt: string;
+}
+
+export interface QuestionsView {
+  /** The buyer may ask now (asked to sign, none being answered, under the limit). */
+  canAsk: boolean;
+  questions: QuestionView[];
+}
+
+const QUESTION_STATUSES = new Set(["asked", "answered", "forwarded", "seller-answered"]);
+
+const isQuestions = (value: unknown): value is QuestionsView =>
+  isObject(value) &&
+  typeof value.canAsk === "boolean" &&
+  Array.isArray(value.questions) &&
+  value.questions.every(
+    (q) =>
+      isObject(q) &&
+      typeof q.id === "string" &&
+      typeof q.question === "string" &&
+      typeof q.status === "string" &&
+      QUESTION_STATUSES.has(q.status) &&
+      (q.answer === null || (isObject(q.answer) && Array.isArray(q.answer.citations))),
+  );
+
+const questionsUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/questions`;
+
+export async function getQuestions(dealId: string): Promise<QuestionsView> {
+  return readChecked(await fetch(questionsUrl(dealId)), isQuestions, "load the questions");
+}
+
+/** The buyer asks about the page they see (named by its fingerprint); answered before it returns. */
+export const askAboutAgreement = (
+  dealId: string,
+  input: { question: string; documentSha256: string },
+) => postStep(questionsUrl(dealId), input, "send the question", isQuestions);
+
+const questionStep = (dealId: string, questionId: string, step: "forward" | "answer") =>
+  `${questionsUrl(dealId)}/${encodeURIComponent(questionId)}/${step}`;
+
+/** "Ask the seller instead": the buyer sends an automatically answered question on. */
+export const askSellerInstead = (dealId: string, questionId: string) =>
+  postStep(questionStep(dealId, questionId, "forward"), undefined, "ask the seller", isQuestions);
+
+export const answerBuyerQuestion = (dealId: string, questionId: string, answer: string) =>
+  postStep(questionStep(dealId, questionId, "answer"), { answer }, "send the answer", isQuestions);

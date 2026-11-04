@@ -2,10 +2,8 @@ import { canonicalJson, sha256Hex } from "@pactpal/ledger";
 import { describe, expect, it } from "vitest";
 import {
   DealNotFoundError,
-  addArtifact,
   failDraft,
   finishDraft,
-  postgresContentStore,
   startDraft,
   MAX_MILESTONE_MINOR,
   ScopeIntegrityError,
@@ -21,7 +19,14 @@ import {
   type SaveScope,
   type ScopeContentInput,
 } from "./index.js";
-import { TEST_NOW, createTestDeal, testDeal, testId, useMigratedTestDatabase } from "./testing.js";
+import {
+  TEST_NOW,
+  createTestDeal,
+  createTestDealWithChat,
+  testDeal,
+  testId,
+  useMigratedTestDatabase,
+} from "./testing.js";
 
 const db = useMigratedTestDatabase();
 const at = (minutes: number) => new Date(TEST_NOW.getTime() + minutes * 60_000);
@@ -309,20 +314,7 @@ describe("stored versions", () => {
 describe("saveScopeVersion from an AI draft", () => {
   /** A ready draft (test id 900) of the test deal, made from a saved chat. */
   async function readyDraft() {
-    const { seller, dealId } = await createTestDeal(db);
-    const file = await addArtifact(
-      db,
-      postgresContentStore(db, () => TEST_NOW),
-      {
-        id: testId(500),
-        dealId,
-        kind: "source",
-        filename: "chat.txt",
-        bytes: new TextEncoder().encode("Maya: a logo for $250"),
-        addedBy: { actor: "seller", actorId: seller.id },
-      },
-      at(1),
-    );
+    const { seller, dealId, file } = await createTestDealWithChat(db, at(1));
     const start = (id: string) =>
       startDraft(
         db,

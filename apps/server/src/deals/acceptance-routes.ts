@@ -6,8 +6,6 @@ import {
   declineTerms,
   getDeal,
   getLatestAcceptance,
-  getLatestScope,
-  getUser,
   readLedger,
   requestAcceptance,
   typedNameSchema,
@@ -19,11 +17,7 @@ import type { EmailSender } from "@pactpal/email";
 import type { LedgerEntry } from "@pactpal/ledger";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
-import {
-  ACCEPTANCE_NOTICE_VERSION,
-  acceptanceDocument,
-  fingerprinted,
-} from "../acceptance/document.js";
+import { ACCEPTANCE_NOTICE_VERSION, currentDocument } from "../acceptance/document.js";
 import {
   MAX_RECEIPT_EMAILS,
   emailReceipt,
@@ -34,7 +28,6 @@ import { ReceiptIntegrityError, buildReceipt } from "../acceptance/receipt.js";
 import { requestOrigin, type RequestOrigin } from "../request-origin.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
 import { sendDownload } from "./download.js";
-import { nameOf } from "./parties.js";
 import { roleIn } from "./visibility.js";
 
 export interface AcceptanceRouteOptions {
@@ -73,14 +66,6 @@ const ACCEPTANCE_EVENTS = new Set([
   "ACCEPTED",
   "DECLINED",
 ]);
-
-/** The acceptance document for the newest version as it would be shown now, or undefined. */
-async function currentDocument(db: Database, deal: Deal) {
-  const scope = await getLatestScope(db, deal.id);
-  if (!scope) return undefined;
-  const sellerName = nameOf(await getUser(db, deal.sellerId), "Seller");
-  return { scope, ...fingerprinted(acceptanceDocument({ deal, sellerName, scope })) };
-}
 
 /** When the buyer last declined, if that is the latest acceptance step: what the seller sees. */
 function lastDecline(entries: readonly LedgerEntry[]) {

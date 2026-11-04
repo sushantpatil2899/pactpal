@@ -22,11 +22,7 @@ import type { EmailSender } from "@pactpal/email";
 import { sha256Hex } from "@pactpal/ledger";
 import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
-import {
-  ACCEPTANCE_NOTICE_VERSION,
-  acceptanceDocument,
-  fingerprinted,
-} from "../acceptance/document.js";
+import { ACCEPTANCE_NOTICE_VERSION, documentFor } from "../acceptance/document.js";
 import { emailReceiptQuietly } from "../acceptance/receipt-mail.js";
 import {
   changeAnswerEmail,
@@ -163,12 +159,6 @@ function changeView(change: ScopeChange, from: ScopeVersion, currency: string) {
   };
 }
 
-/** The page the buyer signs for a change: the full new agreement, built as for the first one. */
-async function changeDocument(db: Database, deal: Deal, to: ScopeVersion) {
-  const sellerName = nameOf(await getUser(db, deal.sellerId), "Seller");
-  return fingerprinted(acceptanceDocument({ deal, sellerName, scope: to }));
-}
-
 /**
  * Change orders: on a signed deal the seller proposes a change that only adds to the agreement,
  * and the buyer signs it (it becomes the signed version) or declines it; the seller can withdraw
@@ -208,7 +198,7 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
           acceptedBy: order.status === "accepted" ? signedBy(order.answeredSeq) : null,
           change: changeView(change, from, deal.currency),
           // Only the change waiting has a page to sign.
-          ...(order.status === "proposed" ? await changeDocument(db, deal, to) : {}),
+          ...(order.status === "proposed" ? await documentFor(db, deal, to) : {}),
         })),
       ),
     };
@@ -379,7 +369,7 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
     if (!body) return reply;
     const named = await waitingChange(found, request.params, reply);
     if (!named) return reply;
-    const { document, documentSha256 } = await changeDocument(found.db, found.deal, named.to);
+    const { document, documentSha256 } = await documentFor(found.db, found.deal, named.to);
     if (documentSha256 !== body.documentSha256) {
       return reply.code(409).send({ error: REFUSALS.stale.error });
     }

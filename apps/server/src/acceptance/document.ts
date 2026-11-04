@@ -1,6 +1,13 @@
-import { documentFingerprint, type Deal, type ScopeVersion } from "@pactpal/db";
+import {
+  documentFingerprint,
+  getLatestScope,
+  getUser,
+  type Database,
+  type Deal,
+  type ScopeVersion,
+} from "@pactpal/db";
 import { z } from "zod";
-import { categoryLabelOf } from "../deals/parties.js";
+import { categoryLabelOf, nameOf } from "../deals/parties.js";
 import { scopeTerms } from "../deals/scope-view.js";
 
 /** Changes whenever the notice wording changes; recorded with every acceptance. */
@@ -96,4 +103,16 @@ export function acceptanceDocument(input: {
 /** The document with its fingerprint (SHA-256 of its canonical JSON). */
 export function fingerprinted(document: AcceptanceDocument) {
   return { document, documentSha256: documentFingerprint(document) };
+}
+
+/** The page the buyer signs for a version, with its fingerprint (the seller's name read now). */
+export async function documentFor(db: Database, deal: Deal, scope: ScopeVersion) {
+  const sellerName = nameOf(await getUser(db, deal.sellerId), "Seller");
+  return fingerprinted(acceptanceDocument({ deal, sellerName, scope }));
+}
+
+/** The acceptance document for the newest version as it would be shown now, or undefined. */
+export async function currentDocument(db: Database, deal: Deal) {
+  const scope = await getLatestScope(db, deal.id);
+  return scope ? { scope, ...(await documentFor(db, deal, scope)) } : undefined;
 }

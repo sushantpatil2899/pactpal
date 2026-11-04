@@ -107,6 +107,32 @@ describe("evidence log labels", () => {
     ]);
   });
 
+  it("numbers the questions and names them in every entry about them", () => {
+    expect(
+      logLabels([
+        entry("BUYER_QUESTION", { questionId: D1, version: 1, question: "T-shirts?" }),
+        entry("AI_ANSWER_SHOWN", { questionId: D1, model: "qwen-groq", citedLines: [6] }),
+        entry("QUESTION_FORWARDED", { questionId: D1, reason: "buyer-asked" }),
+        entry("BUYER_QUESTION", { questionId: D2, version: 1, question: "A banner?" }),
+        entry("QUESTION_FORWARDED", { questionId: D2, reason: "not-in-agreement" }),
+        entry("QUESTION_ANSWERED", { questionId: D2, answer: "60 USD more" }),
+        entry("QUESTION_FORWARDED", { questionId: D3, reason: "odd" }),
+        entry("BUYER_QUESTION", { questionId: D3 }),
+        entry("QUESTION_FORWARDED", { questionId: D3, reason: "odd" }),
+      ]),
+    ).toEqual([
+      "Buyer asked question 1 (version 1)",
+      "Automatic answer shown for question 1",
+      "Question 1 sent to the seller: the buyer asked",
+      "Buyer asked question 2 (version 1)",
+      "Question 2 sent to the seller: the agreement does not answer it",
+      "Seller answered question 2",
+      "Question sent to the seller",
+      "Buyer asked question 3",
+      "Question 3 sent to the seller",
+    ]);
+  });
+
   it("falls back to plain words for unknown types, unknown deliveries and odd payloads", () => {
     expect(
       logLabels([

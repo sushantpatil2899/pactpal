@@ -26,6 +26,10 @@ const EVENT_LABELS: Record<string, string> = {
   CHANGE_ORDER_ACCEPTED: "Change order accepted",
   CHANGE_ORDER_DECLINED: "Change order declined",
   CHANGE_ORDER_WITHDRAWN: "Change order withdrawn",
+  BUYER_QUESTION: "Buyer asked a question",
+  AI_ANSWER_SHOWN: "Automatic answer shown",
+  QUESTION_FORWARDED: "Question sent to the seller",
+  QUESTION_ANSWERED: "Seller answered a question",
   NOTE_ADDED: "Note added",
 };
 
@@ -121,6 +125,33 @@ function deliveryLabel(
   }
 }
 
+/** Why a question went to the seller, as the log shows it. */
+const FORWARD_REASONS: Record<string, string> = {
+  "not-in-agreement": "the agreement does not answer it",
+  "quote-not-found": "the automatic answer could not be checked",
+  "no-model": "no automatic answer was available",
+  "buyer-asked": "the buyer asked",
+};
+
+/** The label for an entry about a numbered question, or undefined when the type names none. */
+function questionLabel(type: string, fields: Fields, n: number): string | undefined {
+  const which = `question ${String(n)}`;
+  const version = fields.number("version");
+  const reason = FORWARD_REASONS[fields.text("reason") ?? ""];
+  switch (type) {
+    case "BUYER_QUESTION":
+      return `Buyer asked ${which}${version === undefined ? "" : ` (version ${String(version)})`}`;
+    case "AI_ANSWER_SHOWN":
+      return `Automatic answer shown for ${which}`;
+    case "QUESTION_FORWARDED":
+      return `Question ${String(n)} sent to the seller${reason === undefined ? "" : `: ${reason}`}`;
+    case "QUESTION_ANSWERED":
+      return `Seller answered ${which}`;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Plain-words labels for a deal's evidence log, in order. Deliveries are numbered per stage, in
  * log order (the log cannot be reordered), so every entry about a delivery
@@ -129,8 +160,17 @@ function deliveryLabel(
 export function logLabels(entries: readonly LedgerEntryView[]): string[] {
   const numbers = new Map<string, DeliveryNumber>();
   const perStage = new Map<string, number>();
+  const questions = new Map<string, number>();
   return entries.map((entry) => {
     const fields = new Fields(entry.payload);
+    const questionId = fields.text("questionId");
+    if (entry.type === "BUYER_QUESTION" && questionId !== undefined) {
+      questions.set(questionId, questions.size + 1);
+    }
+    const question = questionId === undefined ? undefined : questions.get(questionId);
+    const aboutQuestion =
+      question === undefined ? undefined : questionLabel(entry.type, fields, question);
+    if (aboutQuestion !== undefined) return aboutQuestion;
     const deliveryId = fields.text("deliveryId");
     const version = fields.number("version");
     const stage = fields.number("stage");

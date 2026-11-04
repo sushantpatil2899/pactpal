@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { MODEL_REGISTRY } from "@pactpal/ai";
-import { connectPostgres, failRunningDrafts, recordWebhookEvent } from "@pactpal/db";
+import {
+  connectPostgres,
+  failRunningDrafts,
+  forwardInterruptedQuestions,
+  recordWebhookEvent,
+} from "@pactpal/db";
 import {
   AccessTokenProvider,
   McpFallback,
@@ -76,11 +81,15 @@ if (database) {
     const interrupted = await failRunningDrafts(database, "interrupted by a restart", new Date());
     if (interrupted > 0)
       app.log.warn(`${String(interrupted)} running draft(s) marked as interrupted`);
+    // Likewise a buyer's question still being answered goes to the seller.
+    const forwarded = await forwardInterruptedQuestions(database, new Date());
+    if (forwarded > 0)
+      app.log.warn(`${String(forwarded)} interrupted question(s) sent to the seller`);
   } catch (error) {
     // Like /health, the server stays up while the database is unreachable.
     app.log.warn(
       { err: error instanceof Error ? error.name : "unknown" },
-      "Could not sweep interrupted drafts",
+      "Could not sweep interrupted drafts and questions",
     );
   }
 }

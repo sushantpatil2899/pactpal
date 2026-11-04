@@ -5,6 +5,9 @@ import {
   MIGRATIONS,
   acceptChangeOrder,
   acceptTerms,
+  answerQuestion,
+  askQuestion,
+  forwardQuestion,
   answerDelivery,
   addArtifact,
   appendLedgerEvent,
@@ -35,6 +38,7 @@ import {
 } from "./index.js";
 import {
   TEST_NOW,
+  createAwaitingTestDeal,
   createSignedTestDeal,
   createTestDeal,
   createTestParties,
@@ -585,6 +589,48 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
         { version: 1 },
         { version: 2 },
       ]);
+      expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
+    });
+  });
+
+  it("keeps one question being answered, and one seller answer, when requests arrive at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { buyer, seller, dealId } = await createAwaitingTestDeal(db);
+      const asked = await Promise.allSettled(
+        [0, 1, 2].map((n) =>
+          askQuestion(
+            db,
+            {
+              id: testId(700 + n),
+              dealId,
+              buyerId: buyer.id,
+              version: 1,
+              documentSha256: "d".repeat(64),
+              question: "Can I put this on t-shirts?",
+            },
+            TEST_NOW,
+          ),
+        ),
+      );
+      const made = asked.flatMap((r) => (r.status === "fulfilled" ? [r.value.question] : []));
+      expect(made).toHaveLength(1);
+      const [question] = made;
+      if (!question) throw new Error("no question");
+      await forwardQuestion(
+        db,
+        { dealId, questionId: question.id, reason: "not-in-agreement" },
+        TEST_NOW,
+      );
+      const answers = await Promise.allSettled(
+        ["Yes", "No"].map((answer) =>
+          answerQuestion(
+            db,
+            { dealId, questionId: question.id, sellerId: seller.id, answer },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(answers.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
     });
   });

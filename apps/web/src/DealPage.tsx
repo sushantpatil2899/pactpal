@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AcceptancePanel } from "./AcceptancePanel";
 import { DeliveriesPanel } from "./DeliveriesPanel";
 import { PaymentsPanel } from "./PaymentsPanel";
+import { QuestionsPanel } from "./QuestionsPanel";
 import { BuyerPanel } from "./BuyerPanel";
 import { ChangeOrderPanel } from "./ChangeOrderPanel";
 import { CompletenessPanel } from "./CompletenessPanel";
@@ -102,6 +103,7 @@ export function DealPage({ dealId }: { dealId: string }) {
       {deal.role === "buyer" && (
         <>
           <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+          <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
           <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
         </>
       )}
@@ -145,6 +147,7 @@ export function DealPage({ dealId }: { dealId: string }) {
       {deal.role === "seller" && (
         <>
           <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+          <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
           <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
         </>
       )}

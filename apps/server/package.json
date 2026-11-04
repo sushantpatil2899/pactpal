@@ -32,6 +32,7 @@
     "@pactpal/net": "workspace:*",
     "@pactpal/paypal": "workspace:*",
     "@pactpal/pdf": "workspace:*",
+    "@pactpal/qa": "workspace:*",
     "@pactpal/scope-draft": "workspace:*",
     "@pactpal/score": "workspace:*",
     "@pactpal/words": "workspace:*",

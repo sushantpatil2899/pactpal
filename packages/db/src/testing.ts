@@ -7,6 +7,8 @@ import { createUser, type User } from "./users.js";
 import { createDeal, type NewDeal } from "./deals.js";
 import { acceptTerms, documentFingerprint, requestAcceptance } from "./acceptance.js";
 import { saveScopeVersion, type ScopeContentInput } from "./scope.js";
+import { addArtifact } from "./artifacts.js";
+import { postgresContentStore } from "./content-store.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
 interface Engine {
@@ -121,12 +123,31 @@ export async function createTestDeal(
   return { seller, buyer, dealId: deal.id };
 }
 
+/** The test deal with a short chat (test file 500) saved by its seller at `at`, to draft from. */
+export async function createTestDealWithChat(db: Database, at: Date) {
+  const deal = await createTestDeal(db);
+  const file = await addArtifact(
+    db,
+    postgresContentStore(db, () => TEST_NOW),
+    {
+      id: testId(500),
+      dealId: deal.dealId,
+      kind: "source",
+      filename: "chat.txt",
+      bytes: new TextEncoder().encode("Maya: a logo for $250"),
+      addedBy: { actor: "seller", actorId: deal.seller.id },
+    },
+    at,
+  );
+  return { ...deal, file };
+}
+
 /**
- * The test deal (id 100) signed by its buyer: version 1 of the agreed work with two payment
- * stages (120.00 and 130.00 USD) and, when given, a number of revisions included; sent for
- * acceptance and accepted at `TEST_NOW`.
+ * The test deal (id 100) sent to its buyer for signing: version 1 of the agreed work with two
+ * payment stages (120.00 and 130.00 USD) and, when given, a number of revisions or line marks;
+ * the acceptance requested at `TEST_NOW` for the stand-in document `{ format: 1, version: 1 }`.
  */
-export async function createSignedTestDeal(
+export async function createAwaitingTestDeal(
   db: Database,
   terms: Pick<ScopeContentInput, "revisionsIncluded" | "deliverableKinds"> = {},
 ) {
@@ -162,6 +183,15 @@ export async function createSignedTestDeal(
     },
     TEST_NOW,
   );
+  return { seller, buyer, dealId, scope, document };
+}
+
+/** The test deal of `createAwaitingTestDeal`, signed by its buyer at `TEST_NOW`. */
+export async function createSignedTestDeal(
+  db: Database,
+  terms: Pick<ScopeContentInput, "revisionsIncluded" | "deliverableKinds"> = {},
+) {
+  const { seller, buyer, dealId, scope, document } = await createAwaitingTestDeal(db, terms);
   const { acceptance } = await acceptTerms(
     db,
     {

@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4j)
+## Built (sub-phases 2b to 4k)
 
 ### `users`: everyone
 
@@ -297,6 +297,32 @@ The log entries:
 The emails about a change (to the buyer when it is proposed, with a fresh private link; to the seller when it is answered, 4j-2) are notices and are not logged.
 
 **A stage is the same stage in every version**, because a change order only adds. So a deal has at most one invoice per stage (`milestones_one_per_stage`), an invoice, payment, delivery or approval counts for its stage whatever version it happened under, and the deal is completed when every stage of the current signed version is approved. A completed deal that gains stages is active again. Once signed, the deal page shows the signed version as the agreement; a waiting or declined change is shown on its own.
+
+### `buyer_questions`: questions about the agreement before signing
+
+Built in 4k (migration 0015). While the buyer is asked to sign, they can ask about the page they see. A model answers only from the agreement's numbered lines, and the answer is shown only when code finds every quote on its line; otherwise the question goes to the seller, who answers it. At most 20 per deal, and one being answered at a time.
+
+| Column                                        | Meaning                                                                                                                                                       |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `deal_id`                               | The question and its deal                                                                                                                                     |
+| `version`, `document_sha256`                  | The version asked about and the fingerprint of the page the buyer saw                                                                                         |
+| `question`                                    | The buyer's words (1 to 500 characters)                                                                                                                       |
+| `status`                                      | `asked` (being answered), then `answered` or `forwarded`; `answered` can become `forwarded` ("Ask the seller instead"); `forwarded` becomes `seller-answered` |
+| `ai_answer`                                   | The checked automatic answer, kept as a draft: text, citations (line and quote), model and prompt version; empty when none was shown                          |
+| `forward_reason`                              | Why it went to the seller: `not-in-agreement`, `quote-not-found`, `no-model` or `buyer-asked`                                                                 |
+| `seller_answer`                               | The seller's answer (1 to 2,000 characters)                                                                                                                   |
+| `asked_by`, `asked_seq`, `created_at`         | The buyer, the `BUYER_QUESTION` entry and when                                                                                                                |
+| `answered_seq`, `forwarded_seq`, `seller_seq` | The `AI_ANSWER_SHOWN`, `QUESTION_FORWARDED` and `QUESTION_ANSWERED` entries, once they happen                                                                 |
+| `updated_at`                                  | The last step                                                                                                                                                 |
+
+The database refuses any other move, any change to what a step recorded, and any removal.
+
+The log entries:
+
+- `BUYER_QUESTION` (buyer, with IP address and browser): the question, the version and the page's fingerprint.
+- `AI_ANSWER_SHOWN` (system): the question, the answer's fingerprint, the model, the prompt version and the cited line numbers. The answer's text stays in `buyer_questions`.
+- `QUESTION_FORWARDED` (system, or the buyer with IP address and browser for "Ask the seller instead"): the question and the reason.
+- `QUESTION_ANSWERED` (seller): the question and the seller's answer.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

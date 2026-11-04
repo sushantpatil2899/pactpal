@@ -420,4 +420,78 @@ CREATE TRIGGER change_orders_no_truncate BEFORE TRUNCATE ON change_orders
 
 CREATE UNIQUE INDEX milestones_one_per_stage ON milestones (deal_id, stage)`,
   },
+  {
+    id: "0015_buyer_questions",
+    // A buyer's question about the page they are asked to sign (4k): asked while a model answers,
+    // then answered from the agreement (the AI's answer kept here, apart from the log) or sent to
+    // the seller, who answers it. The status only moves forward and rows are never removed; at
+    // most one question is being answered per deal.
+    sql: `CREATE TABLE buyer_questions (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL,
+  document_sha256 text NOT NULL CHECK (document_sha256 ~ '^[0-9a-f]{64}$'),
+  question text NOT NULL CHECK (char_length(question) BETWEEN 1 AND 500),
+  status text NOT NULL CHECK (status IN ('asked', 'answered', 'forwarded', 'seller-answered')),
+  ai_answer jsonb,
+  forward_reason text
+    CHECK (forward_reason IN ('not-in-agreement', 'quote-not-found', 'no-model', 'buyer-asked')),
+  seller_answer text CHECK (char_length(seller_answer) BETWEEN 1 AND 2000),
+  asked_by uuid NOT NULL REFERENCES users (id),
+  asked_seq integer NOT NULL,
+  answered_seq integer,
+  forwarded_seq integer,
+  seller_seq integer,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL,
+  CONSTRAINT buyer_questions_version FOREIGN KEY (deal_id, version)
+    REFERENCES scope_versions (deal_id, version),
+  CONSTRAINT buyer_questions_asked_in_ledger FOREIGN KEY (deal_id, asked_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT buyer_questions_answered_in_ledger FOREIGN KEY (deal_id, answered_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT buyer_questions_forwarded_in_ledger FOREIGN KEY (deal_id, forwarded_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT buyer_questions_seller_in_ledger FOREIGN KEY (deal_id, seller_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT buyer_questions_ai_answer_shown CHECK ((ai_answer IS NULL) = (answered_seq IS NULL)),
+  CONSTRAINT buyer_questions_forwarded
+    CHECK ((forward_reason IS NULL) = (forwarded_seq IS NULL)),
+  CONSTRAINT buyer_questions_seller_answer
+    CHECK ((seller_answer IS NULL) = (seller_seq IS NULL)),
+  CONSTRAINT buyer_questions_state CHECK (
+    (status = 'asked' AND answered_seq IS NULL AND forwarded_seq IS NULL AND seller_seq IS NULL)
+    OR (status = 'answered' AND answered_seq IS NOT NULL AND forwarded_seq IS NULL
+      AND seller_seq IS NULL)
+    OR (status = 'forwarded' AND forwarded_seq IS NOT NULL AND seller_seq IS NULL)
+    OR (status = 'seller-answered' AND forwarded_seq IS NOT NULL AND seller_seq IS NOT NULL)
+  )
+);
+
+CREATE UNIQUE INDEX buyer_questions_one_asking ON buyer_questions (deal_id) WHERE status = 'asked';
+
+CREATE FUNCTION pactpal_buyer_question_moves_on() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP <> 'UPDATE'
+     OR NEW.id <> OLD.id OR NEW.deal_id <> OLD.deal_id OR NEW.version <> OLD.version
+     OR NEW.document_sha256 <> OLD.document_sha256 OR NEW.question <> OLD.question
+     OR NEW.asked_by <> OLD.asked_by OR NEW.asked_seq <> OLD.asked_seq
+     OR NEW.created_at <> OLD.created_at
+     OR (OLD.ai_answer IS NOT NULL AND NEW.ai_answer IS DISTINCT FROM OLD.ai_answer)
+     OR (OLD.forward_reason IS NOT NULL AND NEW.forward_reason IS DISTINCT FROM OLD.forward_reason)
+     OR (OLD.seller_answer IS NOT NULL AND NEW.seller_answer IS DISTINCT FROM OLD.seller_answer)
+     OR NOT ((OLD.status = 'asked' AND NEW.status IN ('answered', 'forwarded'))
+       OR (OLD.status = 'answered' AND NEW.status = 'forwarded')
+       OR (OLD.status = 'forwarded' AND NEW.status = 'seller-answered')) THEN
+    RAISE EXCEPTION 'buyer_questions: a question only moves forward and keeps what it recorded (append-only)'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER buyer_questions_moves_on BEFORE UPDATE OR DELETE ON buyer_questions
+  FOR EACH ROW EXECUTE FUNCTION pactpal_buyer_question_moves_on();
+CREATE TRIGGER buyer_questions_no_truncate BEFORE TRUNCATE ON buyer_questions
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];
