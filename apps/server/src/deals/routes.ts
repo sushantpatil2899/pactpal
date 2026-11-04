@@ -144,6 +144,8 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     newId,
     recordIp,
     drafting,
+    email,
+    publicBaseUrl,
   });
   void app.register(changeOrderRoutes, {
     visibleDeal,

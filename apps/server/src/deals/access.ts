@@ -93,3 +93,37 @@ export function dealAccess(database: Database | undefined, clock: () => Date) {
 
   return { visibleDeal, sellersDeal: partyDeal("seller"), buyersDeal: partyDeal("buyer") };
 }
+
+/** How a refused step answers: its status and body. */
+export interface Refusal {
+  status: number;
+  body: object;
+}
+
+/**
+ * How a deal feature answers: `answer` sends its view (from `view`), joined with any extra
+ * fields; `step` runs one step, turning a refusal it throws into its answer (`refusal` gives a
+ * status and body, or undefined for any other error, which is thrown on) and otherwise
+ * answering with the view joined with what the step returned when that is an object (for
+ * example whether an email was sent).
+ */
+export function featureAnswers(
+  view: (found: FoundDeal) => Promise<object>,
+  refusal: (error: unknown) => Refusal | undefined,
+) {
+  const answer = async (reply: FastifyReply, found: FoundDeal, extra?: object) =>
+    reply.send({ ...(await view(found)), ...extra });
+  async function step(reply: FastifyReply, found: FoundDeal, work: () => Promise<unknown>) {
+    let extra: object | undefined;
+    try {
+      const result = await work();
+      extra = typeof result === "object" && result !== null ? result : undefined;
+    } catch (error) {
+      const refused = refusal(error);
+      if (!refused) throw error;
+      return reply.code(refused.status).send(refused.body);
+    }
+    return answer(reply, found, extra);
+  }
+  return { answer, step };
+}

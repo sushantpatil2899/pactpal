@@ -23,12 +23,15 @@ import {
   type CheckedAnswer,
   type ModelRecord,
 } from "@pactpal/qa";
+import type { EmailSender } from "@pactpal/email";
 import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
 import { currentDocument } from "../acceptance/document.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
+import { emailBuyerWithLink, emailSellerQuietly } from "../email/deal-mail.js";
+import { questionForSellerEmail, sellerAnswerEmail } from "../email/question-email.js";
 import { requestOrigin } from "../request-origin.js";
-import { readBody, type DealLookup, type FoundDeal } from "./access.js";
+import { featureAnswers, readBody, type DealLookup, type FoundDeal } from "./access.js";
 import { roleIn } from "./visibility.js";
 
 export interface QuestionRouteOptions {
@@ -40,6 +43,10 @@ export interface QuestionRouteOptions {
   recordIp: boolean;
   /** The models with keys and the random markers; without it every question goes to the seller. */
   drafting: DraftingRuntime | undefined;
+  /** Tells the seller of a question sent to them, and the buyer of the seller's answer. */
+  email: EmailSender;
+  /** Where buyer links in emails point; without it the buyer is not emailed. */
+  publicBaseUrl: string | undefined;
 }
 
 /** At most this many models are asked for one question (the first may fail or be refused). */
@@ -93,6 +100,7 @@ type Attempt =
  */
 export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, options) => {
   const { visibleDeal, sellersDeal, buyersDeal, clock, newId, recordIp, drafting } = options;
+  const { email, publicBaseUrl } = options;
   const memory: ModelRecord[] = [];
   const remember = (record: ModelRecord) => {
     memory.unshift(record);
@@ -112,19 +120,35 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
     };
   }
 
-  const answer = async (reply: FastifyReply, { db, deal, viewer }: FoundDeal) =>
-    reply.send(await view(db, deal, roleIn(viewer, deal) === "buyer"));
-
-  /** Runs a step, turning a refusal into its answer. */
-  async function step(reply: FastifyReply, found: FoundDeal, work: () => Promise<unknown>) {
-    try {
-      await work();
-    } catch (error) {
-      if (!(error instanceof QuestionNotAllowedError)) throw error;
+  /** Answers with the view; a step's refusal becomes its answer, what it returns joins the view. */
+  const { answer, step } = featureAnswers(
+    ({ db, deal, viewer }) => view(db, deal, roleIn(viewer, deal) === "buyer"),
+    (error) => {
+      if (!(error instanceof QuestionNotAllowedError)) return undefined;
       const { status, error: message } = REFUSALS[error.reason];
-      return reply.code(status).send({ error: message });
-    }
-    return answer(reply, found);
+      return { status, body: { error: message } };
+    },
+  );
+
+  /** Sends a question on to the seller and emails them; the email never undoes the step. */
+  async function forward(
+    db: Database,
+    deal: Deal,
+    move: Parameters<typeof forwardQuestion>[1],
+    log: FastifyBaseLogger,
+  ) {
+    const { question } = await forwardQuestion(db, move, clock());
+    await emailSellerQuietly({ db, deal, email, clock, log, what: "Question email" }, (to) =>
+      questionForSellerEmail({
+        to,
+        dealTitle: deal.title,
+        version: question.version,
+        question: question.question,
+        askedAt: question.createdAt,
+        reason: move.reason,
+        idempotencyKey: `question-asked:${question.id}`,
+      }),
+    );
   }
 
   /** Asks one model and checks its reply; the outcome is remembered to choose the next model. */
@@ -213,7 +237,7 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
       );
       reason = "no-model";
     }
-    await forwardQuestion(db, { ...step, reason }, clock());
+    await forward(db, deal, { ...step, reason }, log);
     log.info({ dealId: deal.id, reason }, "Question sent to the seller");
   }
 
@@ -270,8 +294,9 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
     const question = await namedQuestion(found, request.params, reply);
     if (!question) return reply;
     return step(reply, found, () =>
-      forwardQuestion(
+      forward(
         found.db,
+        found.deal,
         {
           dealId: found.deal.id,
           questionId: question.id,
@@ -279,7 +304,7 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
           buyerId: found.viewer.user.id,
           ...requestOrigin(request, recordIp),
         },
-        clock(),
+        request.log,
       ),
     );
   });
@@ -292,7 +317,7 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
     const question = await namedQuestion(found, request.params, reply);
     if (!question) return reply;
     return step(reply, found, async () => {
-      await answerQuestion(
+      const answered = await answerQuestion(
         found.db,
         {
           dealId: found.deal.id,
@@ -303,6 +328,22 @@ export const questionRoutes: FastifyPluginAsync<QuestionRouteOptions> = (app, op
         clock(),
       );
       request.log.info({ dealId: found.deal.id }, "Seller answered a question");
+      const { db, deal } = found;
+      const mail = { db, deal, email, clock, log: request.log, what: "Answer email" };
+      const buyerEmail = await emailBuyerWithLink(mail, publicBaseUrl, (link) =>
+        sellerAnswerEmail({
+          to: link.to,
+          sellerName: link.sellerName,
+          dealTitle: deal.title,
+          question: answered.question.question,
+          answer: answered.question.sellerAnswer ?? body.answer,
+          answeredAt: answered.question.updatedAt,
+          link: link.link,
+          linkExpiresAt: link.linkExpiresAt,
+          idempotencyKey: `question-answered:${question.id}:${link.linkKey}`,
+        }),
+      );
+      return { buyerEmail };
     });
   });
 

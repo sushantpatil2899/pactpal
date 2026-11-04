@@ -84,6 +84,8 @@ export function QuestionsPanel({
   // The fingerprint of the page the buyer is asked to sign, so a question is about what they see.
   const [documentSha256, setDocumentSha256] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | undefined>();
+  // After the seller answers: whether the email to the buyer failed (the answer is saved anyway).
+  const [emailFailed, setEmailFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const buyer = deal.role === "buyer";
@@ -103,10 +105,12 @@ export function QuestionsPanel({
   const run = (work: Promise<QuestionsView>, after?: () => void) => {
     setBusy(true);
     setProblem(undefined);
+    setEmailFailed(false);
     work.then(
       (updated) => {
         setBusy(false);
         setView(updated);
+        setEmailFailed(updated.buyerEmail === "failed");
         after?.();
         onChange();
       },
@@ -137,6 +141,12 @@ export function QuestionsPanel({
       {problem && (
         <p role="alert" style={ALERT}>
           {problem}
+        </p>
+      )}
+      {emailFailed && (
+        <p role="alert">
+          Your answer is saved, but the email to the buyer was not sent. Send them a link from the
+          Buyer section.
         </p>
       )}
       <ol style={WRAP}>

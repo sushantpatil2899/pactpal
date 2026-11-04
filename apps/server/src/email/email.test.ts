@@ -3,6 +3,7 @@ import { dealLinkEmail, dealLinkUrl } from "./deal-link-email.js";
 import { answerEmail } from "./answer-email.js";
 import { changeAnswerEmail, changeProposedEmail } from "./change-email.js";
 import { deliveryEmail } from "./delivery-email.js";
+import { questionForSellerEmail, sellerAnswerEmail } from "./question-email.js";
 import { receiptEmail } from "./receipt-email.js";
 
 const email = dealLinkEmail({
@@ -277,5 +278,77 @@ describe("change order emails", () => {
       "PactPal (sandbox demo: no real money moves). Not legal advice.",
     ]);
     expect(answered({ kind: "declined", reason: undefined }).text).not.toContain("reason");
+  });
+});
+
+describe("question emails", () => {
+  const asked = (reason: Parameters<typeof questionForSellerEmail>[0]["reason"]) =>
+    questionForSellerEmail({
+      to: "maya@example.com",
+      dealTitle: "Bakery website",
+      version: 1,
+      question: "Can you also make a banner?",
+      askedAt: new Date("2026-11-04T20:54:00.000Z"),
+      reason,
+      idempotencyKey: "question-asked:q1",
+    });
+
+  it("tell the seller the buyer's question and why it came to them", () => {
+    const email = asked("not-in-agreement");
+    expect(email).toMatchObject({
+      kind: "question-asked",
+      to: "maya@example.com",
+      subject: 'Question from the buyer: "Bakery website"',
+      idempotencyKey: "question-asked:q1",
+    });
+    expect(email.text.split("\n")).toEqual([
+      'The buyer asked a question about "Bakery website" (version 1) on 4 Nov 2026, 20:54 UTC:',
+      "",
+      '"Can you also make a banner?"',
+      "",
+      "The agreement does not answer it, so it was sent to you.",
+      "",
+      'Open the deal in PactPal to answer it under "Questions from the buyer". The buyer sees your answer there, and it is recorded in this deal\'s evidence log.',
+      "",
+      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+    ]);
+    expect(asked("quote-not-found").text).toContain(
+      "The automatic answer could not be checked against the agreement, so it was sent to you.",
+    );
+    expect(asked("no-model").text).toContain(
+      "No automatic answer was available, so it was sent to you.",
+    );
+    expect(asked("buyer-asked").text).toContain(
+      "An automatic answer from the agreement's text was shown, and the buyer asked for your answer.",
+    );
+  });
+
+  it("give the buyer the seller's answer with a private link", () => {
+    const email = sellerAnswerEmail({
+      to: "chris@example.com",
+      sellerName: "Maya",
+      dealTitle: "Bakery website",
+      question: "Can you also make a banner?",
+      answer: "A banner would be 60 USD extra.",
+      answeredAt: new Date("2026-11-04T21:10:00.000Z"),
+      link: "https://pactpal.test/link#t=SECRET",
+      linkExpiresAt: new Date("2026-11-18T21:10:00.000Z"),
+      idempotencyKey: "question-answered:q1:abc",
+    });
+    expect(email).toMatchObject({
+      kind: "question-answered",
+      subject: 'Answer from Maya: "Bakery website"',
+    });
+    expect(email.text.split("\n")).toEqual([
+      'Maya answered your question about "Bakery website" on 4 Nov 2026, 21:10 UTC.',
+      "",
+      'Your question: "Can you also make a banner?"',
+      'Their answer: "A banner would be 60 USD extra."',
+      "",
+      "The agreement itself is what you sign; this answer does not change it. Read it on the deal page (private link, works until 18 Nov 2026, 21:10 UTC, this deal only; please do not forward it):",
+      "https://pactpal.test/link#t=SECRET",
+      "",
+      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+    ]);
   });
 });

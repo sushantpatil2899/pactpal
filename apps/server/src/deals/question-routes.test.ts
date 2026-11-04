@@ -5,6 +5,7 @@ import {
   askQuestion,
   forwardQuestion,
   readLedger,
+  redeemDealLink,
   verifyStoredLedger,
 } from "@pactpal/db";
 import {
@@ -31,6 +32,7 @@ interface QuestionView {
 interface View {
   canAsk: boolean;
   questions: QuestionView[];
+  buyerEmail?: string;
 }
 
 /** The number of the agreement line starting with `start`, as the model was shown it. */
@@ -59,7 +61,7 @@ const model = (name: string, answer: (request: ChatRequest) => string | ChatOutc
   new FakeChatClient(testSpec({ name }), answer);
 
 /** A deal waiting for the buyer's signature, the app with these models, and both sides. */
-async function awaitingDeal(clients: FakeChatClient[] | undefined) {
+async function awaitingDeal(clients: FakeChatClient[] | undefined, emailOff = false) {
   const deal = await createAwaitingTestDeal(db);
   const drafting = clients
     ? createDraftingRuntime({
@@ -67,7 +69,7 @@ async function awaitingDeal(clients: FakeChatClient[] | undefined) {
         council: { rng: () => 0.5, newMarker: () => "abcdef123456", now: () => 0 },
       })
     : undefined;
-  const env = dealTestApp(db, drafting, { trustProxyHops: 1 });
+  const env = dealTestApp(db, drafting, { trustProxyHops: 1, emailOff });
   const seller = await signedInAs(db, deal.seller.id);
   const [, buyer = ""] = await buyerVisitors(db, deal.dealId, deal.buyer.id);
   const base = `/api/deals/${deal.dealId}/questions`;
@@ -231,5 +233,69 @@ describe("buyer questions", () => {
     const res = await env.ask("One more?");
     expect(res.statusCode).toBe(429);
     expect(res.json()).toEqual({ error: "this deal already has 20 questions" });
+  });
+});
+
+describe("question emails", () => {
+  /** A model that answers questions about the PNG from the agreement, and no others. */
+  const pngOnly = () =>
+    model("qwen-groq", (request) =>
+      request.messages[1]?.content.includes("PNG?") === true ? quoting(request) : NOT_ANSWERABLE,
+    );
+
+  it("tell the seller of each question sent to them, and the buyer of the answer", async () => {
+    const env = await awaitingDeal([pngOnly()]);
+    const kinds = () => env.sent.map((m) => `${m.kind} ${m.to}`);
+    const [shown] = (await env.ask("Is it a PNG?")).json<View>().questions;
+    expect(shown?.status).toBe("answered");
+    expect(env.sent).toEqual([]);
+
+    await env.call("POST", `${env.base}/${shown?.id ?? ""}/forward`, env.buyer);
+    const [banner] = (await env.ask("Can you also make a banner?")).json<View>().questions;
+    expect(kinds()).toEqual(["question-asked maya@example.com", "question-asked maya@example.com"]);
+    expect(env.sent[0]).toMatchObject({ idempotencyKey: `question-asked:${shown?.id ?? ""}` });
+    expect(env.sent[0]?.text).toContain('"Is it a PNG?"');
+    expect(env.sent[0]?.text).toContain("and the buyer asked for your answer.");
+    expect(env.sent[0]?.text).not.toContain("transparent PNG is delivered");
+    expect(env.sent[1]?.text).toContain("The agreement does not answer it, so it was sent to you.");
+
+    const url = `${env.base}/${banner?.id ?? ""}/answer`;
+    const answered = await env.call("POST", url, env.seller, { answer: "Yes, 60 USD more." });
+    expect(answered.json<View>().buyerEmail).toBe("sent");
+    const mail = env.sent[2];
+    expect(mail).toMatchObject({
+      kind: "question-answered",
+      to: "chris@example.com",
+      subject: 'Answer from Maya Seller: "Logo design"',
+    });
+    expect(mail?.text).toContain('Their answer: "Yes, 60 USD more."');
+    expect(mail?.idempotencyKey).toMatch(
+      new RegExp(`^question-answered:${banner?.id ?? ""}:[0-9a-f]{16}$`),
+    );
+    // The emailed link opens this deal for the buyer.
+    const token = /\/link#t=([\w-]{43})/.exec(mail?.text ?? "")?.[1] ?? "";
+    const redeemed = await redeemDealLink(db, token, TEST_NOW);
+    expect(redeemed).toMatchObject({ ok: true, dealId: env.dealId, userId: env.buyerId });
+    expect(env.sent).toHaveLength(3);
+    expect(env.logs.join("\n")).not.toMatch(/banner|60 USD|chris@example/);
+  });
+
+  it("keep the answer when the buyer's email fails, and say so", async () => {
+    const env = await awaitingDeal([pngOnly()]);
+    env.failEmailTo.add("chris@example.com");
+    const [question] = (await env.ask("Can you also make a banner?")).json<View>().questions;
+    const url = `${env.base}/${question?.id ?? ""}/answer`;
+    const answered = (await env.call("POST", url, env.seller, { answer: "No." })).json<View>();
+    expect(answered.buyerEmail).toBe("failed");
+    expect(answered.questions[0]?.status).toBe("seller-answered");
+  });
+
+  it("are not sent while email is off", async () => {
+    const env = await awaitingDeal([pngOnly()], true);
+    const [question] = (await env.ask("Can you also make a banner?")).json<View>().questions;
+    expect(question?.status).toBe("forwarded");
+    const url = `${env.base}/${question?.id ?? ""}/answer`;
+    const answered = (await env.call("POST", url, env.seller, { answer: "No." })).json<View>();
+    expect(answered.buyerEmail).toBe("off");
   });
 });

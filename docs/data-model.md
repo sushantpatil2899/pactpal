@@ -324,6 +324,8 @@ The log entries:
 - `QUESTION_FORWARDED` (system, or the buyer with IP address and browser for "Ask the seller instead"): the question and the reason.
 - `QUESTION_ANSWERED` (seller): the question and the seller's answer.
 
+The emails about a question (to the seller when it is sent to them; to the buyer, with a fresh private link, when the seller answers, 4k-2) are notices and are not logged.
+
 ### `scope_drafts`: AI drafts of the agreed work
 
 A draft is a proposal made by the council from a chat saved as a text source file. It is not evidence and not an agreement, so it lives in its own table and is not append-only: a row starts as `running` and moves once to `ready` or `failed`. Only a `ready` draft is recorded in the ledger (`SCOPE_DRAFTED`, by fingerprint, never with text). Nothing becomes agreed work until the seller confirms it (3e).

@@ -1080,6 +1080,8 @@ export interface QuestionsView {
   /** The buyer may ask now (asked to sign, none being answered, under the limit). */
   canAsk: boolean;
   questions: QuestionView[];
+  /** After the seller answers: whether the buyer was emailed (`off`: email is not set up). */
+  buyerEmail?: "sent" | "failed" | "off";
 }
 
 const QUESTION_STATUSES = new Set(["asked", "answered", "forwarded", "seller-answered"]);
