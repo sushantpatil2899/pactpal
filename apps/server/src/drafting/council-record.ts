@@ -60,8 +60,12 @@ export const councilRecordSchema = z.strictObject({
 });
 export type CouncilRecord = z.output<typeof councilRecordSchema>;
 
-/** The record of a finished council run. */
-export function toCouncilRecord(run: CouncilRun<ScopeDraft>): CouncilRecord {
+/** The record of a finished council run; `candidates` hold each valid answer (a draft or a review). */
+export function toCouncilRecord<T = ScopeDraft>(
+  run: CouncilRun<T>,
+): Omit<CouncilRecord, "candidates"> & {
+  candidates: { label: string; modelName: string; draft: T }[];
+} {
   const { result } = run;
   return {
     answers: run.answers,

@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, beforeEach } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect } from "vitest";
 import type { Database, Queryable, Row } from "./database.js";
 import { migrate } from "./migrate.js";
 import { MIGRATIONS } from "./migrations.js";
@@ -7,7 +7,7 @@ import { createUser, type User } from "./users.js";
 import { createDeal, type NewDeal } from "./deals.js";
 import { acceptTerms, documentFingerprint, requestAcceptance } from "./acceptance.js";
 import { saveScopeVersion, type ScopeContentInput } from "./scope.js";
-import { addArtifact } from "./artifacts.js";
+import { addArtifact, type ArtifactKind } from "./artifacts.js";
 import { postgresContentStore } from "./content-store.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
@@ -123,24 +123,48 @@ export async function createTestDeal(
   return { seller, buyer, dealId: deal.id };
 }
 
+/** A file added to a test deal by its seller (`deal` as the test deal makers return it). */
+export function addTestFile(
+  db: Database,
+  deal: { dealId: string; seller: { id: string } },
+  file: { id: string; kind: ArtifactKind; filename: string; bytes: Uint8Array },
+  at: Date,
+) {
+  return addArtifact(
+    db,
+    postgresContentStore(db, () => TEST_NOW),
+    { ...file, dealId: deal.dealId, addedBy: { actor: "seller", actorId: deal.seller.id } },
+    at,
+  );
+}
+
 /** The test deal with a short chat (test file 500) saved by its seller at `at`, to draft from. */
 export async function createTestDealWithChat(db: Database, at: Date) {
   const deal = await createTestDeal(db);
-  const file = await addArtifact(
+  const file = await addTestFile(
     db,
-    postgresContentStore(db, () => TEST_NOW),
+    deal,
     {
       id: testId(500),
-      dealId: deal.dealId,
       kind: "source",
       filename: "chat.txt",
       bytes: new TextEncoder().encode("Maya: a logo for $250"),
-      addedBy: { actor: "seller", actorId: deal.seller.id },
     },
     at,
   );
   return { ...deal, file };
 }
+
+/** `TEST_NOW` plus some minutes. */
+export const minutesAfterTestNow = (minutes: number) =>
+  new Date(TEST_NOW.getTime() + minutes * 60_000);
+
+/** Matches a refusal error of the named class with this reason, for `rejects.toEqual`. */
+export const refusalMatching = (name: string, reason: string) =>
+  expect.objectContaining({ name, reason }) as unknown;
+
+/** Makes either kind of test deal waiting on, or past, the buyer's signature. */
+export type TestDealMaker = typeof createAwaitingTestDeal | typeof createSignedTestDeal;
 
 /**
  * The test deal (id 100) sent to its buyer for signing: version 1 of the agreed work with two

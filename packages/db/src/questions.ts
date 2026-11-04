@@ -352,15 +352,19 @@ const councilAnswers = z.object({
 });
 
 /**
- * How each model did in the newest finished council runs, across all deals: one record per
- * answer (a valid draft counts as a success), newest first. Used to choose a model for questions.
+ * How each model did in the newest finished council runs (drafts and message reviews), across all
+ * deals: one record per answer (a valid answer counts as a success), newest first. Used to choose
+ * a model for questions and image checks.
  */
 export async function recentModelRecords(
   q: Queryable,
   runs = 20,
 ): Promise<{ model: string; ok: boolean; latencyMs?: number; at: Date }[]> {
   const rows = await q.query(
-    `SELECT finished_at AS finished, council -> 'answers' AS answers FROM scope_drafts
+    `SELECT finished_at AS finished, council -> 'answers' AS answers FROM (
+       SELECT finished_at, council FROM scope_drafts
+       UNION ALL SELECT finished_at, council FROM message_reviews
+     ) AS runs
       WHERE council IS NOT NULL AND finished_at IS NOT NULL
       ORDER BY finished_at DESC LIMIT $1`,
     [runs],

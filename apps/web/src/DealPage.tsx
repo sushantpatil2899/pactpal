@@ -5,6 +5,7 @@ import { PaymentsPanel } from "./PaymentsPanel";
 import { QuestionsPanel } from "./QuestionsPanel";
 import { BuyerPanel } from "./BuyerPanel";
 import { ChangeOrderPanel } from "./ChangeOrderPanel";
+import { MessagesPanel } from "./MessagesPanel";
 import { CompletenessPanel } from "./CompletenessPanel";
 import { DraftPanel } from "./DraftPanel";
 import type { DraftFill } from "./draft-fill";
@@ -34,6 +35,8 @@ export function DealPage({ dealId }: { dealId: string }) {
   const [problem, setProblem] = useState<string | undefined>();
   const [linkOnly, setLinkOnly] = useState(false);
   const [fill, setFill] = useState<DraftFill | undefined>();
+  // Lines drafted by the message watcher, opening the change order form.
+  const [changeFill, setChangeFill] = useState<{ key: number; lines: string[] } | undefined>();
   // Changes each time the agreed work is saved, so the acceptance preview is read again.
   const [revision, setRevision] = useState(0);
 
@@ -148,7 +151,16 @@ export function DealPage({ dealId }: { dealId: string }) {
         <>
           <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
           <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
-          <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
+          {!linkOnly && (
+            <MessagesPanel
+              dealId={deal.id}
+              onLogChange={refreshLog}
+              onUseChange={(lines) => {
+                setChangeFill((current) => ({ key: (current?.key ?? 0) + 1, lines }));
+              }}
+            />
+          )}
+          <ChangeOrderPanel deal={deal} onChange={refreshAgreement} fill={changeFill} />
         </>
       )}
       <PaymentsPanel key={`payments-${String(revision)}`} deal={deal} onChange={refreshLog} />

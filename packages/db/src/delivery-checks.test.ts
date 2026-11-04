@@ -1,43 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_CHECKS_PER_DEAL,
-  addArtifact,
   listDeliveryChecks,
-  postgresContentStore,
   readLedger,
   recordDeliveryCheck,
 } from "./index.js";
 import {
-  TEST_NOW,
+  addTestFile,
   createAwaitingTestDeal,
   createSignedTestDeal,
+  minutesAfterTestNow,
+  refusalMatching,
   testId,
   useMigratedTestDatabase,
+  type TestDealMaker,
 } from "./testing.js";
 
 const db = useMigratedTestDatabase();
-const at = (minutes: number) => new Date(TEST_NOW.getTime() + minutes * 60_000);
+const at = minutesAfterTestNow;
 const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 
-const refusal = (reason: string) =>
-  expect.objectContaining({ name: "DeliveryCheckNotAllowedError", reason }) as unknown;
+const refusal = (reason: string) => refusalMatching("DeliveryCheckNotAllowedError", reason);
 
 /** A signed deal with one delivered file (test id 600), and a way to keep a check of it. */
-async function signedWithFile(
-  make: typeof createAwaitingTestDeal | typeof createSignedTestDeal = createSignedTestDeal,
-) {
+async function signedWithFile(make: TestDealMaker = createSignedTestDeal) {
   const deal = await make(db);
-  const file = await addArtifact(
+  const file = await addTestFile(
     db,
-    postgresContentStore(db, () => TEST_NOW),
-    {
-      id: testId(600),
-      dealId: deal.dealId,
-      kind: "deliverable",
-      filename: "courier.png",
-      bytes: PNG,
-      addedBy: { actor: "seller", actorId: deal.seller.id },
-    },
+    deal,
+    { id: testId(600), kind: "deliverable", filename: "courier.png", bytes: PNG },
     at(1),
   );
   const files = [{ fileId: file.id, filename: file.filename, sha256: file.sha256 }];

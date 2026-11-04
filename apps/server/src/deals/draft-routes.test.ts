@@ -20,8 +20,7 @@ import { MAYA_CHAT, MAYA_DRAFT } from "@pactpal/scope-draft/testing";
 import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
 import { PROMPT_VERSIONS } from "../drafting/draft-job.js";
-import { createDraftingRuntime } from "../drafting/runtime.js";
-import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
+import { buyerVisitors, dealTestApp, signedInAs, queuedDrafting } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
 const store = postgresContentStore(db, () => TEST_NOW);
@@ -42,28 +41,6 @@ function member(name: string, draft: object | string | ChatOutcome = MAYA_DRAFT)
     if ("ok" in draft) return draft;
     return JSON.stringify(draft);
   });
-}
-
-/** A runtime that keeps jobs until `settle` runs them, so tests choose when a council finishes. */
-function runtimeFor(
-  clients: FakeChatClient[],
-  maxConcurrent = 2,
-  newMarker: () => string = () => "abcdef123456",
-) {
-  const queue: (() => Promise<void>)[] = [];
-  let tick = 0;
-  const runtime = createDraftingRuntime({
-    clients,
-    maxConcurrent,
-    council: { rng: () => 0.5, newMarker, now: () => (tick += 10) },
-    run: (job) => {
-      queue.push(job);
-    },
-  });
-  const settle = async () => {
-    for (let job = queue.shift(); job; job = queue.shift()) await job();
-  };
-  return { runtime, settle, queued: () => queue.length };
 }
 
 /** A draft as the pages read it back, as far as these tests look at it. */
@@ -97,7 +74,7 @@ const councilOf = (...names: string[]) => names.map((name) => member(name));
 
 /** The test deal with a saved chat (test file 500) and the app, seller signed in with PayPal. */
 async function sellerDeal(
-  options: { runtime?: ReturnType<typeof runtimeFor>; chat?: string; media?: boolean } = {},
+  options: { runtime?: ReturnType<typeof queuedDrafting>; chat?: string; media?: boolean } = {},
 ) {
   const { seller, buyer, dealId } = await createTestDeal(db);
   const file = await addArtifact(
@@ -113,7 +90,7 @@ async function sellerDeal(
     },
     TEST_NOW,
   );
-  const runtime = options.runtime ?? runtimeFor(councilOf("alpha", "beta", "gamma"));
+  const runtime = options.runtime ?? queuedDrafting(councilOf("alpha", "beta", "gamma"));
   const env = dealTestApp(db, runtime.runtime);
   const url = `/api/deals/${dealId}/drafts`;
   return {
@@ -219,7 +196,7 @@ describe("making a draft", () => {
         citations: id === "unclear" ? [] : MAYA_DRAFT.category.citations,
       },
     };
-    const runtime = runtimeFor([member("alpha", changed), member("beta", changed)]);
+    const runtime = queuedDrafting([member("alpha", changed), member("beta", changed)]);
     const { call, start, token, url, app } = await sellerDeal({ runtime });
     const id0 = idOf(await start(token));
     await runtime.settle();
@@ -231,7 +208,7 @@ describe("making a draft", () => {
   });
 
   it("is ready but flagged for review when only one model produced a valid draft", async () => {
-    const runtime = runtimeFor([
+    const runtime = queuedDrafting([
       member("alpha"),
       member("beta", "not json"),
       member("gamma", "{}"),
@@ -253,7 +230,7 @@ describe("making a draft", () => {
       message: "beta: timed out",
       status: undefined,
     };
-    const runtime = runtimeFor([member("alpha", "not json"), member("beta", lost)]);
+    const runtime = queuedDrafting([member("alpha", "not json"), member("beta", lost)]);
     const env = await sellerDeal({ runtime });
     const draft = await draftedAs(env);
     expect(draft).toMatchObject({
@@ -270,7 +247,7 @@ describe("making a draft", () => {
     const broken = new FakeChatClient(testSpec({ name: "alpha" }), () => {
       throw new Error("boom: Chris private words");
     });
-    const env = await sellerDeal({ runtime: runtimeFor([broken], 1) });
+    const env = await sellerDeal({ runtime: queuedDrafting([broken], 1) });
     const draft = await draftedAs(env);
     expect(draft).toMatchObject({
       status: "failed",
@@ -285,7 +262,7 @@ describe("making a draft", () => {
 
   it("fails the draft, not the server, when the request cannot be built", async () => {
     // A marker that is not usable stops the drafting request itself.
-    const env = await sellerDeal({ runtime: runtimeFor(councilOf("alpha"), 2, () => "BAD") });
+    const env = await sellerDeal({ runtime: queuedDrafting(councilOf("alpha"), 2, () => "BAD") });
     const draft = await draftedAs(env);
     expect(draft.status).toBe("failed");
     expect(draft.failureReason).toBe("the request could not be built (bad-marker)");
@@ -313,7 +290,7 @@ describe("who can make drafts", () => {
   });
 
   it("answers 503 when no AI model is configured, or the app has none", async () => {
-    const none = await sellerDeal({ runtime: runtimeFor([]) });
+    const none = await sellerDeal({ runtime: queuedDrafting([]) });
     expect((await none.start(none.token)).json()).toEqual({ error: "no AI model is configured" });
     expect((await none.start(none.token)).statusCode).toBe(503);
     await none.app.close();
@@ -454,7 +431,7 @@ describe("limits", () => {
   });
 
   it("answers 429 when every council place is taken, and works again once one finishes", async () => {
-    const runtime = runtimeFor(councilOf("alpha", "beta"), 1);
+    const runtime = queuedDrafting(councilOf("alpha", "beta"), 1);
     const first = await sellerDeal({ runtime });
     expect((await first.start(first.token)).statusCode).toBe(202);
 
@@ -488,7 +465,7 @@ describe("limits", () => {
   });
 
   it("gives the place back when the draft cannot start", async () => {
-    const runtime = runtimeFor(councilOf("alpha"), 1);
+    const runtime = queuedDrafting(councilOf("alpha"), 1);
     const { start, token, dealId, app } = await sellerDeal({ runtime });
     await db.query("UPDATE deals SET status = 'awaiting_acceptance' WHERE id = $1", [dealId]);
     expect((await start(token)).statusCode).toBe(409);
@@ -531,7 +508,7 @@ describe("listing and reading drafts", () => {
     const members = councilOf("alpha", "beta", "gamma");
     const env = await sellerDeal({
       chat: `${MAYA_CHAT.trimEnd()}\n${order}\n`,
-      runtime: runtimeFor(members),
+      runtime: queuedDrafting(members),
     });
     const id = idOf(await env.start(env.token));
     const running = (await env.call("GET", `${env.url}/${id}`, env.token)).json<{
@@ -564,14 +541,14 @@ describe("listing and reading drafts", () => {
 
   it("with two valid drafts and a third model whose draft failed, the third model's ranking still counts", async () => {
     const env = await sellerDeal({
-      runtime: runtimeFor([member("alpha"), member("beta"), member("gamma", "not json")]),
+      runtime: queuedDrafting([member("alpha"), member("beta"), member("gamma", "not json")]),
     });
     expect(await draftedAs(env)).toMatchObject({ unranked: false, candidates: [] });
     await env.app.close();
   });
 
   it("with only two valid drafts there is nothing to rank, so both are offered to choose from", async () => {
-    const env = await sellerDeal({ runtime: runtimeFor([member("alpha"), member("beta")]) });
+    const env = await sellerDeal({ runtime: queuedDrafting([member("alpha"), member("beta")]) });
     const view = await draftedAs(env);
     expect(view.unranked).toBe(true);
     expect(view.candidates.map((c) => [c.label, c.modelName])).toEqual([

@@ -29,6 +29,7 @@ import { questionRoutes } from "./question-routes.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
 import { deliveryCheckRoutes } from "./delivery-check-routes.js";
 import { deliveryRoutes } from "./delivery-routes.js";
+import { messageRoutes } from "./message-routes.js";
 import { milestoneRoutes } from "./milestone-routes.js";
 import { categoryLabelOf, categoryLabels, nameOf, partiesOf } from "./parties.js";
 import { modelMemory } from "../drafting/model-memory.js";
@@ -153,6 +154,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     models,
   });
   void app.register(deliveryCheckRoutes, { sellersDeal, clock, newId, drafting, models });
+  void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
   void app.register(changeOrderRoutes, {
     visibleDeal,
     sellersDeal,

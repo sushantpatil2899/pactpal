@@ -110,10 +110,13 @@ function ProposeForm({
   signed,
   currency,
   busy,
+  initialLines,
   onSend,
   onCancel,
 }: {
   signed: ScopeView;
+  /** Lines to start with, for example drafted from a buyer's message (unmarked). */
+  initialLines: readonly string[];
   currency: string;
   busy: boolean;
   onSend: (
@@ -122,7 +125,9 @@ function ProposeForm({
   ) => void;
   onCancel: () => void;
 }) {
-  const [lines, setLines] = useState<LineRow[]>([]);
+  const [lines, setLines] = useState<LineRow[]>(() =>
+    initialLines.map((text) => ({ ...EMPTY_LINE, text })),
+  );
   const [provides, setProvides] = useState<ProvideRow[]>([]);
   const [stages, setStages] = useState<StageRow[]>([]);
   const firstNew = signed.milestones.length + 1;
@@ -237,7 +242,16 @@ function ProposeForm({
  * or declines. Both see every change and how it ended. `onChange` tells the page the agreement
  * (and the log) may have changed.
  */
-export function ChangeOrderPanel({ deal, onChange }: { deal: DealSummary; onChange: () => void }) {
+export function ChangeOrderPanel({
+  deal,
+  onChange,
+  fill,
+}: {
+  deal: DealSummary;
+  onChange: () => void;
+  /** Lines drafted elsewhere (the message watcher); a new `key` opens the form with them. */
+  fill?: { key: number; lines: readonly string[] };
+}) {
   const [view, setView] = useState<ChangeOrdersView | undefined>();
   const [signed, setSigned] = useState<ScopeView | null>(null);
   const [problem, setProblem] = useState<string | undefined>();
@@ -257,6 +271,9 @@ export function ChangeOrderPanel({ deal, onChange }: { deal: DealSummary; onChan
     );
   };
   useEffect(load, [deal.id, deal.status]);
+  useEffect(() => {
+    if (fill) setProposing(true);
+  }, [fill]);
 
   if (!view || (!view.signed && view.orders.length === 0)) return null;
   const seller = deal.role === "seller";
@@ -411,7 +428,9 @@ export function ChangeOrderPanel({ deal, onChange }: { deal: DealSummary; onChan
       )}
       {seller && view.canPropose && signed && proposing && (
         <ProposeForm
+          key={fill?.key ?? 0}
           signed={signed}
+          initialLines={fill?.lines ?? []}
           currency={deal.currency}
           busy={busy}
           onSend={onSend}

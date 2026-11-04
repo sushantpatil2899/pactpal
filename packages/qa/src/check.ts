@@ -33,7 +33,20 @@ export type AnswerRefusal =
   | "quote-not-found";
 
 /** Models sometimes copy the "6: " line prefix into the quote. */
-const withoutLinePrefix = (quote: string) => quote.replace(/^\d+:\s*/, "");
+export const withoutLinePrefix = (quote: string) => quote.replace(/^\d+:\s*/, "");
+
+/**
+ * True when a citation names a real line and its quote is on that line (spacing, case and
+ * typography forgiven, nothing else). Pure; shared by every check that quotes the agreement.
+ */
+export function quoteOnLine(
+  lines: readonly AgreementLine[],
+  citation: { line: number; quote: string },
+): boolean {
+  const line = lines.find(({ n }) => n === citation.line);
+  const quote = normalizeForMatch(withoutLinePrefix(citation.quote));
+  return line !== undefined && quote.length > 0 && normalizeForMatch(line.text).includes(quote);
+}
 
 /**
  * Checks a model's reply against the agreement's lines: the answer is shown only if every
@@ -47,16 +60,12 @@ export function checkAnswer(
   const reply = replySchema.safeParse(value);
   if (!reply.success) return { ok: false, reason: "bad-shape" };
   if (!reply.data.answerable) return { ok: false, reason: "not-in-agreement" };
-  const byNumber = new Map(lines.map(({ n, text }) => [n, normalizeForMatch(text)]));
   const citations = reply.data.citations.map((c) => ({
     line: c.line,
     quote: withoutLinePrefix(c.quote),
   }));
-  const found = citations.every((c) => {
-    const line = byNumber.get(c.line);
-    const quote = normalizeForMatch(c.quote);
-    return line !== undefined && quote.length > 0 && line.includes(quote);
-  });
-  if (!found) return { ok: false, reason: "quote-not-found" };
+  if (!citations.every((c) => quoteOnLine(lines, c))) {
+    return { ok: false, reason: "quote-not-found" };
+  }
   return { ok: true, answer: { text: reply.data.answer, citations } };
 }

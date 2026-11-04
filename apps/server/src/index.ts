@@ -5,6 +5,7 @@ import { MODEL_REGISTRY } from "@pactpal/ai";
 import {
   connectPostgres,
   failRunningDrafts,
+  failRunningMessageReviews,
   forwardInterruptedQuestions,
   recordWebhookEvent,
 } from "@pactpal/db";
@@ -81,6 +82,13 @@ if (database) {
     const interrupted = await failRunningDrafts(database, "interrupted by a restart", new Date());
     if (interrupted > 0)
       app.log.warn(`${String(interrupted)} running draft(s) marked as interrupted`);
+    const reviews = await failRunningMessageReviews(
+      database,
+      "interrupted by a restart",
+      new Date(),
+    );
+    if (reviews > 0)
+      app.log.warn(`${String(reviews)} running message review(s) marked as interrupted`);
     // Likewise a buyer's question still being answered goes to the seller.
     const forwarded = await forwardInterruptedQuestions(database, new Date());
     if (forwarded > 0)

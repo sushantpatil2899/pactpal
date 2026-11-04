@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4l)
+## Built (sub-phases 2b to 4m)
 
 ### `users`: everyone
 
@@ -339,6 +339,22 @@ Built in 4l (migration 0016). Advice for the seller only, kept apart from the ev
 | `report`        | The lines checked, what code read from each file (type, size, pixel size, transparency), the code results per line, and the model's look per image as a draft (model, prompt version, verdicts, notes) |
 | `checked_by`    | The seller                                                                                                                                                                                             |
 | `created_at`    | When                                                                                                                                                                                                   |
+
+### `message_reviews`: council reviews of the buyer's messages
+
+Built in 4m (migration 0017). The seller pastes a new message from the buyer on a signed deal. The message is saved as a source file (`artifacts`, logged `SOURCE_ADDED`) and a council reviews it. The review is advice for the seller only, kept apart from the evidence log, and the buyer never sees it. A review moves once, from `running` to `ready` or `failed`, and is never removed. At most one runs per deal, and a deal has at most 30.
+
+| Column                                      | Meaning                                                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `id`, `deal_id`                             | The review and its deal                                                                                      |
+| `version`                                   | The signed version the message was read against                                                              |
+| `source_artifact_id`, `source_sha256`       | The saved message and its fingerprint                                                                        |
+| `status`                                    | `running`, then `ready` or `failed`                                                                          |
+| `prompt_version`, `rank_prompt_version`     | The review prompt and the ranking prompt used                                                                |
+| `review`                                    | The winning review, a draft: each request (quote, label, citations, why), the drafted reply and change lines |
+| `council`                                   | What each model did, the votes, the scores and the agreement (safe error texts only, never the message)      |
+| `failure_reason`                            | Why it failed (never repeats the message)                                                                    |
+| `requested_by`, `created_at`, `finished_at` | The seller and the times                                                                                     |
 
 ### `scope_drafts`: AI drafts of the agreed work
 

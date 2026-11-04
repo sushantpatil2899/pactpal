@@ -35,7 +35,7 @@ Phase 4 is split into small pieces, built one at a time in this order. Each need
 | 4k        | Buyer questions on the acceptance page (AI; model and prompt approved by the owner)                    | ✅ built and checked locally; not tested live yet |
 | 4k-2      | Question emails: "the buyer asked a question" to the seller, "the seller answered" to the buyer        | ✅ built and checked locally; not tested live yet |
 | 4l        | Pre-delivery check: code checks plus a vision model, advisory to the seller only                       | ✅ built and checked locally; not tested live yet |
-| 4m        | Message watcher: new buyer messages labelled, with a drafted reply or change order                     |                                                   |
+| 4m        | Message watcher: new buyer messages labelled, with a drafted reply or change order                     | ✅ built and checked locally; not tested live yet |
 | 4n        | Drafting prompt version 3 ("buyer provides"), second eval run, Nemotron keep-or-drop                   |                                                   |
 | 4o        | Chat screenshots read to text by a vision model and checked by the seller                              |                                                   |
 | 4p        | Email forwarding and a secured "create deal from text" address (Zapier connection itself in Phase 7)   |                                                   |

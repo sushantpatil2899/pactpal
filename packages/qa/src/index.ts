@@ -9,4 +9,10 @@ export {
   renderAgreement,
   type QuestionPrompt,
 } from "./prompt.js";
-export { checkAnswer, type AnswerRefusal, type CheckedAnswer } from "./check.js";
+export {
+  checkAnswer,
+  quoteOnLine,
+  withoutLinePrefix,
+  type AnswerRefusal,
+  type CheckedAnswer,
+} from "./check.js";

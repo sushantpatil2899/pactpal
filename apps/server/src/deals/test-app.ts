@@ -80,3 +80,28 @@ export const testDrafting = (clients: readonly ChatClient[] | undefined) =>
         council: { rng: () => 0.5, newMarker: () => "abcdef123456", now: () => 0 },
       })
     : undefined;
+
+/**
+ * Stand-in models as a drafting runtime that keeps jobs until `settle` runs them, so tests choose
+ * when a council finishes; `queued` counts the jobs waiting.
+ */
+export function queuedDrafting(
+  clients: readonly ChatClient[],
+  maxConcurrent = 2,
+  newMarker: () => string = () => "abcdef123456",
+) {
+  const queue: (() => Promise<void>)[] = [];
+  let tick = 0;
+  const runtime = createDraftingRuntime({
+    clients,
+    maxConcurrent,
+    council: { rng: () => 0.5, newMarker, now: () => (tick += 10) },
+    run: (job) => {
+      queue.push(job);
+    },
+  });
+  const settle = async () => {
+    for (let job = queue.shift(); job; job = queue.shift()) await job();
+  };
+  return { runtime, settle, queued: () => queue.length };
+}

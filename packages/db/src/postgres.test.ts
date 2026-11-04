@@ -35,6 +35,7 @@ import {
   verifyStoredLedger,
   type PgClient,
   type PgPool,
+  startMessageReview,
 } from "./index.js";
 import {
   TEST_NOW,
@@ -632,6 +633,44 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
       );
       expect(answers.filter((r) => r.status === "fulfilled")).toHaveLength(1);
       expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
+    });
+  });
+
+  it("keeps one message review running when the seller starts two at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller, dealId } = await createSignedTestDeal(db);
+      const file = await addArtifact(
+        db,
+        postgresContentStore(db, () => TEST_NOW),
+        {
+          id: testId(650),
+          dealId,
+          kind: "source",
+          filename: "buyer-message.txt",
+          bytes: new TextEncoder().encode("Could we add a blog?"),
+          addedBy: { actor: "seller", actorId: seller.id },
+        },
+        TEST_NOW,
+      );
+      const started = await Promise.allSettled(
+        [0, 1, 2].map((n) =>
+          startMessageReview(
+            db,
+            {
+              id: testId(660 + n),
+              dealId,
+              sellerId: seller.id,
+              version: 1,
+              sourceArtifactId: file.id,
+              sourceSha256: file.sha256,
+              promptVersion: 1,
+              rankPromptVersion: 1,
+            },
+            TEST_NOW,
+          ),
+        ),
+      );
+      expect(started.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     });
   });
 });

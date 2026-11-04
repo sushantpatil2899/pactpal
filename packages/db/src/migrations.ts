@@ -517,4 +517,60 @@ CREATE TRIGGER delivery_checks_append_only BEFORE UPDATE OR DELETE ON delivery_c
 CREATE TRIGGER delivery_checks_no_truncate BEFORE TRUNCATE ON delivery_checks
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0017_message_reviews",
+    // A council's review of a buyer's new message (4m): labels, a drafted reply and change lines,
+    // advice for the seller only and kept apart from the evidence log. The message itself is a
+    // source file. A review moves once, from running to ready or failed, and is never removed.
+    sql: `CREATE TABLE message_reviews (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL,
+  source_artifact_id uuid NOT NULL,
+  source_sha256 text NOT NULL CHECK (source_sha256 ~ '^[0-9a-f]{64}$'),
+  status text NOT NULL CHECK (status IN ('running', 'ready', 'failed')),
+  prompt_version integer NOT NULL CHECK (prompt_version >= 1),
+  rank_prompt_version integer NOT NULL CHECK (rank_prompt_version >= 1),
+  review jsonb,
+  council jsonb,
+  failure_reason text CHECK (failure_reason <> ''),
+  requested_by uuid NOT NULL REFERENCES users (id),
+  created_at timestamptz NOT NULL,
+  finished_at timestamptz,
+  CONSTRAINT message_reviews_version FOREIGN KEY (deal_id, version)
+    REFERENCES scope_versions (deal_id, version),
+  CONSTRAINT message_reviews_source_in_deal FOREIGN KEY (deal_id, source_artifact_id)
+    REFERENCES artifacts (deal_id, id),
+  CONSTRAINT message_reviews_state CHECK (
+    (status = 'running' AND finished_at IS NULL AND review IS NULL AND council IS NULL
+       AND failure_reason IS NULL)
+    OR (status = 'ready' AND finished_at IS NOT NULL AND review IS NOT NULL
+       AND council IS NOT NULL AND failure_reason IS NULL)
+    OR (status = 'failed' AND finished_at IS NOT NULL AND review IS NULL
+       AND failure_reason IS NOT NULL)
+  )
+);
+CREATE INDEX message_reviews_by_deal ON message_reviews (deal_id, created_at DESC);
+-- At most one review runs per deal at a time.
+CREATE UNIQUE INDEX message_reviews_one_running ON message_reviews (deal_id) WHERE status = 'running';
+
+CREATE FUNCTION pactpal_message_review_moves_once() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' OR OLD.status <> 'running' OR NEW.status = 'running'
+     OR NEW.id <> OLD.id OR NEW.deal_id <> OLD.deal_id OR NEW.version <> OLD.version
+     OR NEW.source_artifact_id <> OLD.source_artifact_id OR NEW.source_sha256 <> OLD.source_sha256
+     OR NEW.prompt_version <> OLD.prompt_version
+     OR NEW.rank_prompt_version <> OLD.rank_prompt_version
+     OR NEW.requested_by <> OLD.requested_by OR NEW.created_at <> OLD.created_at THEN
+    RAISE EXCEPTION 'message_reviews: a review moves once and keeps what it recorded (append-only)'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER message_reviews_moves_once BEFORE UPDATE OR DELETE ON message_reviews
+  FOR EACH ROW EXECUTE FUNCTION pactpal_message_review_moves_once();
+CREATE TRIGGER message_reviews_no_truncate BEFORE TRUNCATE ON message_reviews
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

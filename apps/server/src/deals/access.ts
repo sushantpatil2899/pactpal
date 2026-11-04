@@ -127,3 +127,7 @@ export function featureAnswers(
   }
   return { answer, step };
 }
+
+/** Answers a refused step with its status and plain message. */
+export const sendRefusal = (reply: FastifyReply, refusal: { status: number; error: string }) =>
+  reply.code(refusal.status).send({ error: refusal.error });

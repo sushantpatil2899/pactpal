@@ -18,7 +18,7 @@ import { z } from "zod";
 import { PROMPT_VERSIONS, runDraftJob } from "../drafting/draft-job.js";
 import { draftView } from "../drafting/draft-view.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
-import { readBody, type DealLookup } from "./access.js";
+import { readBody, type DealLookup, sendRefusal } from "./access.js";
 
 export interface DraftRouteOptions {
   database: Database | undefined;
@@ -185,8 +185,7 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
       release();
       if (error instanceof DealNotFoundError) return reply.code(404).send({ error: "not found" });
       if (!(error instanceof DraftNotAllowedError)) throw error;
-      const { status, error: message } = REFUSALS[error.reason];
-      return reply.code(status).send({ error: message });
+      return sendRefusal(reply, REFUSALS[error.reason]);
     }
   });
 

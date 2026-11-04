@@ -1,3 +1,4 @@
+import type { MessageReview } from "@pactpal/watcher";
 import type { ImageFacts, LineCodeResult, Look } from "@pactpal/delivery-check";
 import type { LineMark } from "@pactpal/words";
 /** The one place the web app talks to the server. Answers are checked before use. */
@@ -1175,3 +1176,48 @@ export const runDeliveryCheck = (
     copies: { fileId: string; mediaType: "image/jpeg"; base64: string }[];
   },
 ) => postStep(checksUrl(dealId), input, "check the files", isChecks);
+
+/** One council review of a buyer's message (4m), for the seller only. */
+export interface MessageReviewView {
+  id: string;
+  status: "running" | "ready" | "failed";
+  version: number;
+  createdAt: string;
+  finishedAt: string | null;
+  file: { id: string; filename: string };
+  message: string;
+  review: MessageReview | null;
+  /** The models did not agree, or only one answer was valid. */
+  needsReview: boolean;
+  failureReason: string | null;
+}
+
+export interface MessagesView {
+  canCheck: boolean;
+  /** Change requests so far against the revisions included, once signed. */
+  revisions: { used: number; included: number | null } | null;
+  reviews: MessageReviewView[];
+}
+
+const isMessages = (value: unknown): value is MessagesView =>
+  isObject(value) &&
+  typeof value.canCheck === "boolean" &&
+  Array.isArray(value.reviews) &&
+  value.reviews.every(
+    (r) =>
+      isObject(r) &&
+      typeof r.id === "string" &&
+      typeof r.status === "string" &&
+      typeof r.message === "string" &&
+      (r.review === null || (isObject(r.review) && Array.isArray(r.review.requests))),
+  );
+
+const messagesUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/messages`;
+
+export async function getMessages(dealId: string): Promise<MessagesView> {
+  return readChecked(await fetch(messagesUrl(dealId)), isMessages, "load the messages");
+}
+
+/** Saves a buyer's message as a deal file and starts the council's review of it. */
+export const checkMessage = (dealId: string, text: string) =>
+  postStep(messagesUrl(dealId), { text }, "check the message", isMessages);

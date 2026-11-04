@@ -36,6 +36,7 @@
     "@pactpal/qa": "workspace:*",
     "@pactpal/scope-draft": "workspace:*",
     "@pactpal/score": "workspace:*",
+    "@pactpal/watcher": "workspace:*",
     "@pactpal/words": "workspace:*",
     "fastify": "^5.12.7",
     "pg": "^8.23.1",
