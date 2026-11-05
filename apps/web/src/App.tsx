@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SIGN_IN_PATH, getMe, signOut, type Me } from "./api";
+import { DisputePage } from "./DisputePage";
 import { DealPage } from "./DealPage";
 import { DealsHome } from "./DealsHome";
 import { LinkPage } from "./LinkPage";
@@ -36,6 +37,7 @@ const initialProblem = takeSignInProblem();
 export function App() {
   const path = window.location.pathname;
   const dealId = /^\/deals\/([0-9a-f-]{36})$/.exec(path)?.[1];
+  const disputeMatch = /^\/deals\/([0-9a-f-]{36})\/disputes\/([A-Za-z0-9-]{1,100})$/.exec(path);
   return (
     <main
       style={{
@@ -49,6 +51,8 @@ export function App() {
       <p>AI that seals the deal.</p>
       {path === "/link" ? (
         <LinkPage />
+      ) : disputeMatch?.[1] !== undefined && disputeMatch[2] !== undefined ? (
+        <DisputePage dealId={disputeMatch[1]} disputeId={disputeMatch[2]} />
       ) : dealId !== undefined ? (
         <DealPage dealId={dealId} />
       ) : (

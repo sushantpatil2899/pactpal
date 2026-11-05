@@ -1,14 +1,19 @@
 import {
+  getDispute,
   latestDisputeCheck,
+  listArtifacts,
   listDealDisputes,
+  readLedger,
   type DisputeCheck,
-  type StoredDispute,
 } from "@pactpal/db";
+import { z } from "zod";
 import type { FastifyPluginAsync } from "fastify";
 import type { DealLookup } from "../deals/access.js";
 import { CHECK_INTERVAL_MS } from "../deals/milestone-routes.js";
-import { money } from "../deals/scope-view.js";
 import type { DisputeChecker } from "./checker.js";
+import { disputePageView, disputeSummaryView } from "./dispute-view.js";
+
+const disputeParams = z.object({ disputeId: z.string().min(1).max(100) });
 
 export interface DisputeRouteOptions {
   sellersDeal: DealLookup;
@@ -16,22 +21,6 @@ export interface DisputeRouteOptions {
   /** Starts a dispute check; absent until the database and the seller app's PayPal keys are set. */
   disputes: DisputeChecker | undefined;
 }
-
-/** One dispute as the seller's page sees it: PayPal's words, the amount and the respond-by date. */
-const disputeView = (dispute: StoredDispute) => ({
-  disputeId: dispute.disputeId,
-  stage: dispute.stage,
-  reason: dispute.reason,
-  status: dispute.status,
-  paypalStage: dispute.stageName,
-  amount:
-    dispute.amountMinor === null || dispute.currency === null
-      ? null
-      : { ...money(dispute.amountMinor, dispute.currency), currency: dispute.currency },
-  sellerDueAt: dispute.sellerDueAt?.toISOString() ?? null,
-  outcome: dispute.outcome,
-  firstSeenAt: dispute.firstSeenAt.toISOString(),
-});
 
 /** The newest check, without its id: when, what started it, and how it went. */
 const checkView = (check: DisputeCheck | undefined) =>
@@ -61,7 +50,26 @@ export const disputeRoutes: FastifyPluginAsync<DisputeRouteOptions> = (app, opti
       latestDisputeCheck(found.db),
     ]);
     return reply.send({
-      disputes: rows.map(disputeView),
+      disputes: rows.map(disputeSummaryView),
+      lastCheck: checkView(check),
+      canCheck: disputes !== undefined,
+    });
+  });
+
+  // One dispute's page (5c): only a dispute tied to this deal; anything else is not found.
+  app.get("/api/deals/:id/disputes/:disputeId", async (request, reply) => {
+    const found = await sellersDeal(request, reply);
+    if (!found) return reply;
+    const params = disputeParams.safeParse(request.params);
+    const dispute = params.success ? await getDispute(found.db, params.data.disputeId) : undefined;
+    if (dispute?.dealId !== found.deal.id) return reply.code(404).send({ error: "not found" });
+    const [ledger, files, check] = await Promise.all([
+      readLedger(found.db, found.deal.id),
+      listArtifacts(found.db, found.deal.id, "source"),
+      latestDisputeCheck(found.db),
+    ]);
+    return reply.send({
+      ...disputePageView(dispute, found.deal, ledger, files),
       lastCheck: checkView(check),
       canCheck: disputes !== undefined,
     });

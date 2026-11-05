@@ -535,6 +535,46 @@ export async function getDisputes(dealId: string): Promise<DisputesView> {
   return readChecked(await fetch(disputesUrl(dealId)), isDisputes, "load the disputes");
 }
 
+/** One dispute in full, for its page (5c). */
+export interface DisputePageView extends DisputeView {
+  invoiceId: string | null;
+  buyerDueAt: string | null;
+  /** When the buyer opened it at PayPal (else when PactPal first saw it). */
+  openedAt: string;
+  /** When PactPal last read it from PayPal. */
+  checkedAt: string;
+  allowedActions: string[];
+  offerTypes: string[];
+  /** The messages as PayPal shows them; `from` is "BUYER" or "SELLER". */
+  messages: { from: string; postedAt: string | null; text: string }[];
+  messagesReadable: boolean;
+  /** This dispute's evidence-log entries. */
+  events: { seq: number; type: string; at: string; payload: unknown }[];
+  /** The deal's files added since the buyer opened it. */
+  filesSince: { id: string; filename: string; addedBy: DealFile["addedBy"]; addedAt: string }[];
+  lastCheck: DisputesView["lastCheck"];
+  canCheck: boolean;
+}
+
+const isDisputePage = (value: unknown): value is DisputePageView =>
+  isObject(value) &&
+  typeof value.disputeId === "string" &&
+  typeof value.openedAt === "string" &&
+  typeof value.checkedAt === "string" &&
+  Array.isArray(value.allowedActions) &&
+  Array.isArray(value.messages) &&
+  Array.isArray(value.events) &&
+  Array.isArray(value.filesSince) &&
+  typeof value.canCheck === "boolean";
+
+export async function getDisputePage(dealId: string, disputeId: string): Promise<DisputePageView> {
+  return readChecked(
+    await fetch(`${disputesUrl(dealId)}/${encodeURIComponent(disputeId)}`),
+    isDisputePage,
+    "load the dispute",
+  );
+}
+
 /** Starts a check of the seller's PayPal disputes; the result shows up in `getDisputes`. */
 export async function checkDisputes(dealId: string): Promise<void> {
   const response = await fetch(`${disputesUrl(dealId)}/check`, {

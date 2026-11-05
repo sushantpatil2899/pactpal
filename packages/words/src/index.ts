@@ -2,3 +2,10 @@
 export { markWords, markedLine, type LineMark } from "./marks.js";
 export { changeLines, dayWords, type ChangeFacts } from "./changes.js";
 export { sizeWords } from "./sizes.js";
+export {
+  deadlineIsNear,
+  deadlineWords,
+  disputeActionWords,
+  disputeReasonWords,
+  plainCode,
+} from "./disputes.js";

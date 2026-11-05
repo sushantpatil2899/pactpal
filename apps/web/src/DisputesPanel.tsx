@@ -1,35 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { checkDisputes, getDisputes, type DealSummary, type DisputesView } from "./api";
+import { plainCode } from "@pactpal/words";
+import { useEffect, useState } from "react";
+import { getDisputes, type DealSummary, type DisputesView } from "./api";
+import { CheckNow } from "./DisputeCheck";
+import { disputePageUrl } from "./DisputePage";
 import { when } from "./format";
 import { SCROLL_X } from "./styles";
 
-/** PayPal's codes in plain words: "NOT_AS_DESCRIBED" becomes "not as described". */
-const words = (code: string | null): string =>
-  code === null ? "—" : code.replaceAll("_", " ").toLowerCase();
-
-/** How often the page reads the disputes again after "Check now", and for how long. */
-const POLL_MS = 3_000;
-const POLL_FOR_MS = 60_000;
-
-/** When PactPal last checked, and how it went. */
-function lastChecked(check: DisputesView["lastCheck"]): string {
-  if (check === null) return "Not checked yet.";
-  if (check.ok === null) return `Checking since ${when(check.startedAt)}…`;
-  const at = when(check.finishedAt ?? check.startedAt);
-  return check.ok
-    ? `Last checked ${at}.`
-    : `The check at ${at} did not finish; PactPal tries again.`;
-}
+const words = (code: string | null): string => (code === null ? "—" : plainCode(code));
 
 /**
  * The seller's disputes on this deal, found by checking their PayPal disputes every few minutes,
- * and "Check now". Seller only: the buyer deals with a dispute in PayPal.
+ * and "Check now"; each opens its own page. Seller only: the buyer deals with a dispute in PayPal.
  */
 export function DisputesPanel({ deal, onChange }: { deal: DealSummary; onChange: () => void }) {
   const [view, setView] = useState<DisputesView | undefined>();
   const [problem, setProblem] = useState<string | undefined>();
-  const [checking, setChecking] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
 
   const load = () =>
     getDisputes(deal.id).then(
@@ -44,39 +29,8 @@ export function DisputesPanel({ deal, onChange }: { deal: DealSummary; onChange:
     );
   useEffect(() => {
     void load();
-    return () => {
-      window.clearTimeout(timer.current);
-    };
     // Loaded once per deal; "Check now" reads again.
   }, [deal.id]);
-
-  /** Reads again every 3 seconds until a check newer than `since` has finished, for up to a minute. */
-  const follow = (since: number, until: number) => {
-    timer.current = window.setTimeout(() => {
-      void load().then((next) => {
-        const done =
-          next?.lastCheck?.finishedAt != null && Date.parse(next.lastCheck.startedAt) >= since;
-        if (done) onChange();
-        if (done || Date.now() > until) setChecking(false);
-        else follow(since, until);
-      });
-    }, POLL_MS);
-  };
-
-  const onCheck = () => {
-    const since = Date.now() - POLL_MS;
-    setChecking(true);
-    setProblem(undefined);
-    checkDisputes(deal.id).then(
-      () => {
-        follow(since, Date.now() + POLL_FOR_MS);
-      },
-      (error: unknown) => {
-        setChecking(false);
-        setProblem(error instanceof Error ? error.message : "Could not start the check.");
-      },
-    );
-  };
 
   if (deal.role !== "seller" || view === undefined) return null;
   return (
@@ -104,7 +58,7 @@ export function DisputesPanel({ deal, onChange }: { deal: DealSummary; onChange:
               {view.disputes.map((dispute) => (
                 <tr key={dispute.disputeId}>
                   <td>
-                    {dispute.disputeId}
+                    <a href={disputePageUrl(deal.id, dispute.disputeId)}>{dispute.disputeId}</a>
                     {dispute.stage === null ? "" : ` (stage ${String(dispute.stage)})`}
                     {dispute.amount === null
                       ? ""
@@ -123,14 +77,13 @@ export function DisputesPanel({ deal, onChange }: { deal: DealSummary; onChange:
           </table>
         </div>
       )}
-      <p>
-        {lastChecked(view.lastCheck)} PactPal checks your PayPal disputes every 5 minutes.{" "}
-        {view.canCheck && (
-          <button type="button" disabled={checking} onClick={onCheck}>
-            {checking ? "Checking…" : "Check now"}
-          </button>
-        )}
-      </p>
+      <CheckNow
+        dealId={deal.id}
+        lastCheck={view.lastCheck}
+        canCheck={view.canCheck}
+        reload={load}
+        onDone={onChange}
+      />
     </section>
   );
 }
