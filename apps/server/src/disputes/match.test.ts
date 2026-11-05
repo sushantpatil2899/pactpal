@@ -22,7 +22,12 @@ describe("matchDispute", () => {
     });
   });
 
-  it("falls back to PayPal's invoice number", () => {
+  it("falls back to the invoice the dispute names: its id, as PayPal sends it", () => {
+    const found = matchDispute(paid("TX-OTHER", "INV2-A"), [stage({ transactionId: null })]);
+    expect(found).toMatchObject({ ok: true, link: { matchedBy: "invoice-number" } });
+  });
+
+  it("also accepts the invoice's own number", () => {
     const found = matchDispute(paid("TX-OTHER", "0001"), [stage({ transactionId: null })]);
     expect(found).toMatchObject({ ok: true, link: { matchedBy: "invoice-number" } });
   });

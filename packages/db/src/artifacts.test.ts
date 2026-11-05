@@ -6,6 +6,7 @@ import {
   ArtifactRejectedError,
   DealNotFoundError,
   LedgerActorError,
+  ARTIFACT_LIMITS,
   addArtifact,
   getArtifact,
   listArtifacts,
@@ -174,7 +175,11 @@ describe("addArtifact", () => {
 
   it.each([
     ["an id that is not a uuid", { id: "file-1" }],
-    ["a buyer as the one adding", { addedBy: { actor: "buyer", actorId: testId(2) } }],
+    // Since 5b a buyer adds reference files, but never delivered work.
+    [
+      "a buyer adding delivered work",
+      { kind: "deliverable", addedBy: { actor: "buyer", actorId: testId(2) } },
+    ],
   ])("rejects %s before touching the database", async (_name, overrides) => {
     const { seller } = await createTestDeal(db);
     await expect(
@@ -190,6 +195,74 @@ describe("addArtifact", () => {
     ).rejects.toThrow(DealNotFoundError);
     await expect(addArtifact(db, store, file(buyer.id), at(1))).rejects.toThrow(LedgerActorError);
     expect(await counts()).toEqual({ artifacts: 0, contents: 0, ledger: 1 });
+  });
+});
+
+describe("files added by the buyer", () => {
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const byBuyer = (buyerId: string, n: number, overrides: Partial<NewArtifact> = {}) =>
+    file(buyerId, {
+      id: testId(600 + n),
+      filename: `reference-${String(n)}.png`,
+      bytes: png,
+      addedBy: { actor: "buyer", actorId: buyerId },
+      ...overrides,
+    });
+
+  it("records a buyer's reference file as a source added by the buyer, with IP and browser", async () => {
+    const { buyer } = await createTestDeal(db);
+    const added = await addArtifact(
+      db,
+      store,
+      byBuyer(buyer.id, 1, { ip: "198.51.100.4", userAgent: "Phone" }),
+      at(1),
+    );
+    expect(added).toMatchObject({ kind: "source", mediaType: "image/png", addedBy: buyer.id });
+    expect((await readLedger(db, testId(100))).at(-1)).toMatchObject({
+      type: "SOURCE_ADDED",
+      actor: "buyer",
+      actorId: buyer.id,
+      ip: "198.51.100.4",
+      userAgent: "Phone",
+      payload: { filename: "reference-1.png", mediaType: "image/png" },
+    });
+  });
+
+  it("refuses a buyer's delivered work, other types, someone else, and more than the buyer's share", async () => {
+    const { seller, buyer } = await createTestDeal(db);
+    await expect(
+      addArtifact(db, store, byBuyer(buyer.id, 1, { kind: "deliverable" }), at(1)),
+    ).rejects.toThrow(/source/);
+    await expect(
+      addArtifact(
+        db,
+        store,
+        byBuyer(buyer.id, 2, { bytes: new Uint8Array([0, 1, 2, 255]) }),
+        at(1),
+      ),
+    ).rejects.toMatchObject({ reason: "buyer-type" });
+    // The seller cannot add a file as if the buyer had.
+    await expect(addArtifact(db, store, byBuyer(seller.id, 3), at(1))).rejects.toBeInstanceOf(
+      LedgerActorError,
+    );
+    const two: ArtifactLimits = { ...ARTIFACT_LIMITS, maxBuyerFiles: 2, maxBuyerBytes: 30 };
+    await addArtifact(db, store, byBuyer(buyer.id, 4), at(2), two);
+    await addArtifact(db, store, byBuyer(buyer.id, 5), at(3), two);
+    await expect(addArtifact(db, store, byBuyer(buyer.id, 6), at(4), two)).rejects.toMatchObject({
+      reason: "buyer-files-full",
+    });
+    await expect(
+      addArtifact(
+        db,
+        store,
+        byBuyer(buyer.id, 7, { bytes: new Uint8Array([...png, ...new Uint8Array(10)]) }),
+        at(4),
+        { ...two, maxBuyerFiles: 5 },
+      ),
+    ).rejects.toMatchObject({ reason: "buyer-files-full" });
+    // The seller's own files do not count against the buyer's share.
+    await addArtifact(db, store, file(seller.id, { id: testId(699) }), at(5), two);
+    expect(await listArtifacts(db, testId(100))).toHaveLength(3);
   });
 });
 

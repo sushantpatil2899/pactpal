@@ -262,7 +262,11 @@ const paidStageRow = z.object({
 /** A paid payment stage a dispute may be about. */
 export type PaidStage = z.output<typeof paidStageRow>;
 
-/** Paid stages whose PayPal transaction id or invoice number is one of those given. */
+/**
+ * Paid stages whose PayPal transaction id is one of `transactionIds`, or whose invoice is named
+ * in `invoiceNumbers`. A dispute's `invoice_number` holds the invoice's id (INV2-…), not its
+ * number (checked in the sandbox on 5 Nov 2026), so both are compared.
+ */
 export async function findPaidStages(
   q: Queryable,
   keys: { transactionIds: readonly string[]; invoiceNumbers: readonly string[] },
@@ -273,7 +277,8 @@ export async function findPaidStages(
             transaction_id AS "transactionId", invoice_number AS "invoiceNumber"
        FROM milestones
       WHERE status = 'paid'
-        AND (transaction_id = ANY($1::text[]) OR invoice_number = ANY($2::text[]))
+        AND (transaction_id = ANY($1::text[]) OR invoice_number = ANY($2::text[])
+             OR invoice_id = ANY($2::text[]))
       ORDER BY deal_id, stage`,
     [[...keys.transactionIds], [...keys.invoiceNumbers]],
   );

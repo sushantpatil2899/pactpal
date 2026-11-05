@@ -44,6 +44,7 @@ export type { ContentStore } from "./content-store.js";
 export {
   ARTIFACT_KINDS,
   ARTIFACT_LIMITS,
+  BUYER_MEDIA_TYPES,
   ArtifactIntegrityError,
   ArtifactNotFoundError,
   ArtifactRejectedError,

@@ -27,13 +27,38 @@ const EVENT_FOR_KIND = {
 export interface ArtifactLimits {
   maxFileBytes: number;
   maxDealBytes: number;
+  /** What the buyer may add to one deal (5b), so they cannot fill it and block the seller. */
+  maxBuyerFiles?: number;
+  maxBuyerBytes?: number;
 }
 export const ARTIFACT_LIMITS: ArtifactLimits = {
   maxFileBytes: 10 * 1024 * 1024,
   maxDealBytes: 50 * 1024 * 1024,
+  maxBuyerFiles: 20,
+  maxBuyerBytes: 20 * 1024 * 1024,
 };
 
-export type ArtifactRejection = "bad-name" | "empty" | "file-too-large" | "deal-full";
+/**
+ * The types a buyer may add (5b): those PayPal takes as evidence (PDF, PNG, JPEG, GIF) and plain
+ * text. Anything else could not be checked, shown or sent on.
+ */
+export const BUYER_MEDIA_TYPES: readonly string[] = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "text/plain",
+];
+
+export type ArtifactRejection =
+  | "bad-name"
+  | "empty"
+  | "file-too-large"
+  | "deal-full"
+  /** A buyer's file of a type they may not add. */
+  | "buyer-type"
+  /** The buyer already added as many files, or as many bytes, as one deal allows. */
+  | "buyer-files-full";
 
 /** The file broke a rule; `reason` says which. Nothing was recorded. */
 export class ArtifactRejectedError extends Error {
@@ -55,21 +80,27 @@ export class ArtifactIntegrityError extends Error {
   override readonly name = "ArtifactIntegrityError";
 }
 
-export const newArtifactSchema = z.object({
-  id: z.uuid(),
-  dealId: z.uuid(),
-  kind: z.enum(ARTIFACT_KINDS),
-  filename: z.string(),
-  // Any byte array (a Node Buffer included); `z.instanceof` would insist on a plain ArrayBuffer.
-  bytes: z.custom<Uint8Array>((value) => value instanceof Uint8Array),
-  /** Only the seller (a person) or the system (an import) adds files in this version. */
-  addedBy: z.discriminatedUnion("actor", [
-    z.object({ actor: z.literal("seller"), actorId: z.uuid() }),
-    z.object({ actor: z.literal("system") }),
-  ]),
-  ip: z.string().optional(),
-  userAgent: z.string().optional(),
-});
+export const newArtifactSchema = z
+  .object({
+    id: z.uuid(),
+    dealId: z.uuid(),
+    kind: z.enum(ARTIFACT_KINDS),
+    filename: z.string(),
+    // Any byte array (a Node Buffer included); `z.instanceof` would insist on a plain ArrayBuffer.
+    bytes: z.custom<Uint8Array>((value) => value instanceof Uint8Array),
+    /** The seller, the buyer (reference files since 5b) or the system (an import) adds files. */
+    addedBy: z.discriminatedUnion("actor", [
+      z.object({ actor: z.literal("seller"), actorId: z.uuid() }),
+      z.object({ actor: z.literal("buyer"), actorId: z.uuid() }),
+      z.object({ actor: z.literal("system") }),
+    ]),
+    ip: z.string().optional(),
+    userAgent: z.string().optional(),
+  })
+  .refine((file) => file.addedBy.actor !== "buyer" || file.kind === "source", {
+    message: "a buyer adds only source files",
+    path: ["kind"],
+  });
 export type NewArtifact = z.infer<typeof newArtifactSchema>;
 
 const artifactRow = z
@@ -116,6 +147,32 @@ async function assertRoom(q: Queryable, dealId: string, size: number, limits: Ar
   }
 }
 
+const buyerTotals = z.object({ files: z.coerce.number().int(), total: z.coerce.number().int() });
+
+/** A buyer's file must be of an allowed type and fit in what the buyer may add to the deal. */
+async function assertBuyerRoom(
+  q: Queryable,
+  file: { dealId: string; buyerId: string; mediaType: string; size: number },
+  limits: ArtifactLimits,
+) {
+  if (!BUYER_MEDIA_TYPES.includes(file.mediaType)) {
+    throw new ArtifactRejectedError("buyer-type", "a buyer may add PDF, PNG, JPEG, GIF or text");
+  }
+  const rows = await q.query(
+    `SELECT COUNT(*) AS files, COALESCE(SUM(size_bytes), 0) AS total FROM artifacts
+      WHERE deal_id = $1 AND added_by = $2`,
+    [file.dealId, file.buyerId],
+  );
+  const { files, total } = buyerTotals.parse(rows[0]);
+  const { maxBuyerFiles = Infinity, maxBuyerBytes = Infinity } = limits;
+  if (files + 1 > maxBuyerFiles || total + file.size > maxBuyerBytes) {
+    throw new ArtifactRejectedError(
+      "buyer-files-full",
+      "the buyer's files would be over the limit",
+    );
+  }
+}
+
 function assertFileAllowed(file: NewArtifact, limits: ArtifactLimits): void {
   if (!isPlainFileName(file.filename)) {
     throw new ArtifactRejectedError(
@@ -154,7 +211,13 @@ export async function addArtifact(
     actorId: "actorId" in file.addedBy ? file.addedBy.actorId : undefined,
   };
 
+  const buyer =
+    file.addedBy.actor === "buyer"
+      ? { dealId: file.dealId, buyerId: file.addedBy.actorId, mediaType, size }
+      : undefined;
+
   await assertMayAct(db, { dealId: file.dealId, type, ...actor });
+  if (buyer) await assertBuyerRoom(db, buyer, limits);
   await assertRoom(db, file.dealId, size, limits);
   await store.put(sha256, file.bytes);
 
@@ -177,6 +240,8 @@ export async function addArtifact(
       },
       now,
     );
+    // Under the deal lock taken by the entry, so uploads at once cannot pass the limits together.
+    if (buyer) await assertBuyerRoom(tx, buyer, limits);
     await assertRoom(tx, file.dealId, size, limits);
     const rows = await tx.query(
       `INSERT INTO artifacts (id, deal_id, kind, filename, media_type, size_bytes, sha256, added_by,

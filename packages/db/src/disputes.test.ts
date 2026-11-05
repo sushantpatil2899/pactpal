@@ -184,6 +184,10 @@ describe("disputes", () => {
       [],
     );
     expect(await findPaidStages(db, { transactionIds: [], invoiceNumbers: [] })).toEqual([]);
+    // A dispute's invoice_number holds the invoice id (seen in the sandbox on 5 Nov 2026).
+    expect(
+      await findPaidStages(db, { transactionIds: [], invoiceNumbers: ["INV2-TEST-PAID"] }),
+    ).toHaveLength(1);
   });
 
   it("records each check and how it ended", async () => {

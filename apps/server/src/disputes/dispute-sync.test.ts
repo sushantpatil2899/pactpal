@@ -79,18 +79,15 @@ describe("dispute checks", () => {
     ]);
   });
 
-  it("matches by PayPal's invoice number when the transaction id is not known", async () => {
-    const { dealId } = await createPaidTestDeal(db, {
-      transactionId: "TX-OTHER",
-      invoiceNumber: "0042",
-    });
+  it("matches by the invoice the dispute names, which PayPal gives as the invoice id", async () => {
+    const { dealId } = await createPaidTestDeal(db, { transactionId: "TX-OTHER" });
     const paypal = fakeDisputes([
       testDispute({
         transactions: [
           {
             sellerTransactionId: "TX-UNKNOWN",
             buyerTransactionId: undefined,
-            invoiceNumber: "0042",
+            invoiceNumber: "INV2-TEST-PAID",
           },
         ],
       }),

@@ -24,7 +24,7 @@ export function paymentKeys(transactions: DisputedPayments): {
 
 /**
  * Ties a dispute to the one paid stage it is about, from the stages found by its payment keys.
- * Pure. The seller's transaction id is the first proof, PayPal's invoice number the second. A
+ * Pure. The seller's transaction id is the first proof, the invoice the dispute names the second. A
  * dispute that points at more than one stage is never guessed: it stays unmatched.
  */
 export function matchDispute(
@@ -41,8 +41,12 @@ export function matchDispute(
     },
     {
       by: "invoice-number" as const,
-      found: stages.filter(
-        (s) => s.invoiceNumber !== null && keys.invoiceNumbers.includes(s.invoiceNumber),
+      // PayPal's dispute names the invoice by its id in a field called invoice_number (sandbox,
+      // 5 Nov 2026); the invoice's own number is accepted too.
+      found: stages.filter((s) =>
+        [s.invoiceId, s.invoiceNumber].some(
+          (key) => key !== null && keys.invoiceNumbers.includes(key),
+        ),
       ),
     },
   ];

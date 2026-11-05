@@ -682,6 +682,8 @@ export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export interface DealFile {
   id: string;
   kind: string;
+  /** Who added it: the seller, the buyer (reference files, 5b) or PactPal itself. */
+  addedBy: "seller" | "buyer" | "system";
   filename: string;
   mediaType: string;
   sizeBytes: number;
@@ -696,7 +698,8 @@ const isFile = (value: unknown): value is DealFile =>
   typeof value.mediaType === "string" &&
   typeof value.sizeBytes === "number" &&
   typeof value.sha256 === "string" &&
-  typeof value.addedAt === "string";
+  typeof value.addedAt === "string" &&
+  (value.addedBy === "seller" || value.addedBy === "buyer" || value.addedBy === "system");
 
 export async function listFiles(dealId: string): Promise<DealFile[]> {
   const body = await readChecked(

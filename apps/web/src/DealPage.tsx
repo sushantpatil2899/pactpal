@@ -169,7 +169,7 @@ export function DealPage({ dealId }: { dealId: string }) {
       <DisputesPanel deal={deal} onChange={refreshLog} />
       <FilesPanel
         dealId={deal.id}
-        canAdd={deal.role === "seller" && !linkOnly}
+        addAs={deal.role === "buyer" ? "buyer" : linkOnly ? undefined : "seller"}
         onAdded={refreshLog}
       />
       <section aria-labelledby="evidence-log">

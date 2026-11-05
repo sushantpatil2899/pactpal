@@ -146,7 +146,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     email,
     recordIp,
   });
-  void app.register(fileRoutes, { database, visibleDeal, sellersDeal, clock, newId, recordIp });
+  void app.register(fileRoutes, { database, visibleDeal, clock, newId, recordIp, email });
   void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
   void app.register(completenessRoutes, { sellersDeal });
   // One record of recent model outcomes for every feature that chooses a model.

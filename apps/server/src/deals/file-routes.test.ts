@@ -40,6 +40,7 @@ describe("files on a deal", () => {
     const added = {
       id: testId(200),
       kind: "source",
+      addedBy: "seller",
       filename: "chat.pdf",
       mediaType: "application/pdf",
       sizeBytes: pdf.byteLength,
@@ -90,16 +91,57 @@ describe("files on a deal", () => {
     await app.close();
   });
 
-  it("lets the buyer and a buyer-link visitor list and download, but not add", async () => {
-    const { app, call, url, buyer, dealId, upload } = await sellerDeal();
+  it("lets the buyer, signed in or by link, list, download and add reference files", async () => {
+    const { app, call, url, buyer, dealId, upload, sent } = await sellerDeal();
     await upload(pdf);
-    for (const visitor of await buyerVisitors(db, dealId, buyer.id)) {
-      expect((await call("GET", url, visitor)).json()).toMatchObject({
-        files: [{ id: testId(200) }],
-      });
+    const visitors = await buyerVisitors(db, dealId, buyer.id);
+    for (const [n, visitor] of visitors.entries()) {
+      const listed = (await call("GET", url, visitor)).json<{ files: object[] }>().files;
+      expect(listed[0]).toMatchObject({ id: testId(200), addedBy: "seller" });
       expect((await call("GET", `${url}/${testId(200)}`, visitor)).statusCode).toBe(200);
-      expect((await upload(pdf, "mine.pdf", visitor)).statusCode).toBe(403);
+      const added = await upload(pdf, `brief-${String(n)}.pdf`, visitor);
+      expect(added.statusCode).toBe(201);
+      expect(added.json()).toMatchObject({ kind: "source", addedBy: "buyer" });
+      expect((await readLedger(db, dealId)).at(-1)).toMatchObject({
+        type: "SOURCE_ADDED",
+        actor: "buyer",
+        actorId: buyer.id,
+        userAgent: "TestBrowser/1.0",
+      });
     }
+    // The seller is emailed once for each of the buyer's files, never for their own.
+    expect(sent.map((m) => [m.kind, m.to, m.idempotencyKey])).toEqual([
+      ["buyer-file", "maya@example.com", `buyer-file:${testId(201)}`],
+      ["buyer-file", "maya@example.com", `buyer-file:${testId(202)}`],
+    ]);
+    expect(sent[0]?.text).toContain('The buyer added a file to "Logo design"');
+    expect(sent[0]?.text).toContain("brief-0.pdf");
+    await app.close();
+  });
+
+  it("keeps the buyer's file when the seller's email fails", async () => {
+    const { app, buyer, dealId, upload, failEmailTo, logs } = await sellerDeal();
+    failEmailTo.add("maya@example.com");
+    const [paypalBuyer] = await buyerVisitors(db, dealId, buyer.id);
+    expect((await upload(pdf, "brief.pdf", paypalBuyer)).statusCode).toBe(201);
+    expect(logs.join("")).toContain("Buyer file email not sent");
+    expect(logs.join("")).not.toContain("maya@example.com");
+    await app.close();
+  });
+
+  it("refuses the buyer's delivered work and file types they may not add", async () => {
+    const { app, call, url, buyer, dealId } = await sellerDeal();
+    const [link = ""] = (await buyerVisitors(db, dealId, buyer.id)).slice(1);
+    const send = (bytes: Buffer, query = "") =>
+      call("POST", `${url}${query}`, link, bytes, {
+        "content-type": "application/octet-stream",
+        "x-file-name": "x.bin",
+      });
+    expect((await send(pdf, "?kind=deliverable")).statusCode).toBe(403);
+    const other = await send(Buffer.from([0, 1, 2, 255]));
+    expect(other.statusCode).toBe(415);
+    expect(other.json()).toEqual({ error: "you can add PDF, PNG, JPEG, GIF or text files" });
+    expect(await readLedger(db, dealId)).toHaveLength(1);
     await app.close();
   });
 

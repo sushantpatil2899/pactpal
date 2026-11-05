@@ -41,7 +41,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 5a)
+## Built (sub-phases 2b to 5b)
 
 ### `users`: everyone
 
@@ -111,6 +111,8 @@ A file is stored once, by the SHA-256 of its bytes, in `file_contents`; `artifac
 
 On the website (2f-4) the seller adds `source` files; both sides list and download them, and every download is checked against the fingerprint first. Delivered work (`deliverable`) is added through delivery links in Phase 4.
 
+Since 5b the buyer also adds `source` files (reference material such as a brief or pictures), signed in or by their private link: `added_by` is then the buyer, and the `SOURCE_ADDED` entry has actor `buyer` with IP address and browser. A buyer adds only PDF, PNG, JPEG, GIF or plain text, at most 20 files and 20 MB per deal. The files list says who added each file (seller, buyer or PactPal).
+
 | Column (`artifacts`)   | Meaning                                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `id`, `deal_id`        | The file and its deal                                                                                       |
@@ -118,7 +120,7 @@ On the website (2f-4) the seller adds `source` files; both sides list and downlo
 | `filename`             | A plain name: 1 to 255 characters, no slashes, no control characters                                        |
 | `media_type`           | Found from the bytes, never from the name: PDF, PNG, JPEG, GIF, `text/plain`, or `application/octet-stream` |
 | `size_bytes`, `sha256` | The file's size and fingerprint; reading the file checks the bytes against both                             |
-| `added_by`             | The user who added it; empty when the system did                                                            |
+| `added_by`             | The user who added it (the seller, or since 5b the buyer); empty when the system did                        |
 | `ledger_seq`           | The ledger entry (with `deal_id`) that recorded it                                                          |
 
 | Column (`file_contents`) | Meaning                                                                     |
@@ -404,21 +406,21 @@ Drafts made with drafting prompt version 3 (4n) are "format 3": each delivered l
 
 Built in 5a (migration 0020). A Render Cron Job starts the Workflow task `check-disputes` every 5 minutes (also "Check now" and any PayPal dispute notification). It reads the seller's dispute list, reads in full each dispute that is new or changed, ties it to a paid stage and saves it here. A working copy of PayPal's latest answer, not evidence: it moves with PayPal, but once tied to a deal it stays tied, keeps the log entries that recorded its opening and decision, and is never removed.
 
-| Column                                   | Meaning                                                                                                               |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `dispute_id`                             | PayPal's id (the key), e.g. `PP-R-EMM-10195224`                                                                       |
-| `deal_id`, `stage`, `invoice_id`         | The deal and paid stage it is about, and that stage's invoice; all empty while it matches no deal                     |
-| `matched_by`                             | `transaction` (the seller transaction id equals the stage's) or `invoice-number`                                      |
-| `reason`, `status`, `dispute_state`      | PayPal's own words, e.g. `MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED`, `WAITING_FOR_SELLER_RESPONSE`, `REQUIRED_ACTION`  |
-| `stage_name`                             | PayPal's stage, e.g. `INQUIRY`, `CHARGEBACK`, `PRE_ARBITRATION` (not a payment stage)                                 |
-| `amount_minor`, `currency`               | The disputed amount                                                                                                   |
-| `seller_due_at`, `buyer_due_at`          | When each side must respond, as PayPal says                                                                           |
-| `allowed_actions`, `offer_types`         | What the seller may do right now, and the refund offers PayPal accepts (read again before any answer)                 |
-| `outcome`                                | PayPal's decision, once there is one                                                                                  |
-| `details`                                | PayPal's whole answer as read, including the buyer's messages: personal data, so the retention rule (Phase 8) applies |
-| `paypal_created_at`, `paypal_updated_at` | PayPal's own times                                                                                                    |
-| `first_seen_at`, `checked_at`            | When PactPal first saw it and last read it                                                                            |
-| `opened_seq`, `resolved_seq`             | The `DISPUTE_OPENED` and `DISPUTE_RESOLVED` entries; set once                                                         |
+| Column                                   | Meaning                                                                                                                                                  |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dispute_id`                             | PayPal's id (the key), e.g. `PP-R-EMM-10195224`                                                                                                          |
+| `deal_id`, `stage`, `invoice_id`         | The deal and paid stage it is about, and that stage's invoice; all empty while it matches no deal                                                        |
+| `matched_by`                             | `transaction` (the seller transaction id equals the stage's) or `invoice-number` (the invoice the dispute names, which PayPal gives as the invoice's id) |
+| `reason`, `status`, `dispute_state`      | PayPal's own words, e.g. `MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED`, `WAITING_FOR_SELLER_RESPONSE`, `REQUIRED_ACTION`                                     |
+| `stage_name`                             | PayPal's stage, e.g. `INQUIRY`, `CHARGEBACK`, `PRE_ARBITRATION` (not a payment stage)                                                                    |
+| `amount_minor`, `currency`               | The disputed amount                                                                                                                                      |
+| `seller_due_at`, `buyer_due_at`          | When each side must respond, as PayPal says                                                                                                              |
+| `allowed_actions`, `offer_types`         | What the seller may do right now, and the refund offers PayPal accepts (read again before any answer)                                                    |
+| `outcome`                                | PayPal's decision, once there is one                                                                                                                     |
+| `details`                                | PayPal's whole answer as read, including the buyer's messages: personal data, so the retention rule (Phase 8) applies                                    |
+| `paypal_created_at`, `paypal_updated_at` | PayPal's own times                                                                                                                                       |
+| `first_seen_at`, `checked_at`            | When PactPal first saw it and last read it                                                                                                               |
+| `opened_seq`, `resolved_seq`             | The `DISPUTE_OPENED` and `DISPUTE_RESOLVED` entries; set once                                                                                            |
 
 The log entries (all by the system; ids and PayPal's words, never the buyer's messages):
 

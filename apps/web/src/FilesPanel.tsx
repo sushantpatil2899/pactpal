@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { MAX_FILE_BYTES, addFile, fileUrl, listFiles, type DealFile } from "./api";
+import { sizeWords } from "@pactpal/words";
 
 const TYPE_LABELS: Record<string, string> = {
   "application/pdf": "PDF",
@@ -9,26 +10,36 @@ const TYPE_LABELS: Record<string, string> = {
   "text/plain": "text",
 };
 
-function sizeOf(bytes: number): string {
-  if (bytes < 1024) return `${String(bytes)} bytes`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 const dateOf = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" });
 
+const ADDED_BY: Record<DealFile["addedBy"], string> = {
+  seller: "added by the seller",
+  buyer: "added by the buyer",
+  system: "added by PactPal",
+};
+
+/** What the add box asks for: the seller's sources, or the buyer's reference files. */
+const ADD_LABELS = {
+  seller:
+    "Add a file the deal is based on (a saved chat, an email, a brief or pictures; up to 10 MB)",
+  buyer:
+    "Add a file for the seller (a brief, examples or reference pictures; PDF, PNG, JPEG, GIF or text; up to 10 MB)",
+} as const;
+
 /**
- * The files a deal is based on (a saved chat, a brief, reference pictures). Both sides list and
- * download them; the seller adds them. Each download is checked against its fingerprint first.
+ * The files a deal is based on (a saved chat, a brief, reference pictures). Both sides list,
+ * download and add them; each file says who added it. Each download is checked against its
+ * fingerprint first.
  */
 export function FilesPanel({
   dealId,
-  canAdd,
+  addAs,
   onAdded,
 }: {
   dealId: string;
-  canAdd: boolean;
+  /** Who may add files here, or undefined when this visitor cannot. */
+  addAs: "seller" | "buyer" | undefined;
   onAdded: () => void;
 }) {
   const [files, setFiles] = useState<DealFile[] | undefined>();
@@ -82,19 +93,18 @@ export function FilesPanel({
               <a href={fileUrl(dealId, file.id)} download={file.filename}>
                 {file.filename}
               </a>{" "}
-              · {TYPE_LABELS[file.mediaType] ?? "other file"} · {sizeOf(file.sizeBytes)} · added{" "}
-              {dateOf(file.addedAt)}{" "}
+              · {TYPE_LABELS[file.mediaType] ?? "other file"} · {sizeWords(file.sizeBytes)} ·{" "}
+              {ADDED_BY[file.addedBy]} on {dateOf(file.addedAt)}{" "}
               <code title="This file's fingerprint (SHA-256)">{file.sha256.slice(0, 12)}…</code>
             </li>
           ))}
         </ul>
       )}
-      {canAdd && (
+      {addAs && (
         <form onSubmit={onAdd}>
           <p>
             <label>
-              Add a file the deal is based on (a saved chat, an email, a brief or pictures; up to 10
-              MB) <input ref={picker} type="file" name="file" required />
+              {ADD_LABELS[addAs]} <input ref={picker} type="file" name="file" required />
             </label>{" "}
             <button type="submit" disabled={busy}>
               Add the file
