@@ -61,6 +61,56 @@ services:
         sync: false
       - key: INBOUND_DOMAIN
         value: in.pact-pal.app
+      # Dispute checks (5a): "Check now" starts a run of the Workflow task below. A Render API key
+      # (it can act on the whole Render account, so it is a secret) and the task's name.
+      - key: RENDER_API_KEY
+        sync: false
+      - key: DISPUTE_TASK_SLUG
+        value: pactpal-workflows/check-disputes
+
+  # Render Workflows: PactPal's background tasks, run on Render outside the website. First task:
+  # check-disputes, which reads the seller's PayPal disputes and logs them on their deals. Workflows
+  # set their compute per task in code, so there is no plan here, and no pre-deploy step: the task
+  # waits for the website's deploy to run the migrations.
+  - type: workflow
+    name: pactpal-workflows
+    runtime: node
+    region: virginia
+    branch: dev
+    autoDeployTrigger: commit
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/server build
+    startCommand: node apps/server/dist/workflow.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pactpal-db
+          property: connectionString
+      - key: PAYPAL_SELLER_CLIENT_ID
+        sync: false
+      - key: PAYPAL_SELLER_CLIENT_SECRET
+        sync: false
+
+  # Render Workflows has no schedule of its own, so this Cron Job starts check-disputes every
+  # 5 minutes and exits (a few seconds a run). PayPal sends no dispute notifications to the app.
+  - type: cron
+    name: pactpal-dispute-check
+    runtime: node
+    region: virginia
+    plan: starter
+    schedule: "*/5 * * * *"
+    branch: dev
+    autoDeployTrigger: commit
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/server build
+    startCommand: node apps/server/dist/dispute-cron.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: RENDER_API_KEY
+        sync: false
+      - key: DISPUTE_TASK_SLUG
+        value: pactpal-workflows/check-disputes
 
 databases:
   - name: pactpal-db

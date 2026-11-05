@@ -10,7 +10,11 @@ const ciWorkflow = readFileSync(
   new URL("../../../.github/workflows/ci.yml", import.meta.url),
   "utf8",
 );
-const [serviceSection = "", databaseSection = ""] = blueprint.split(/^databases:$/m);
+const [servicesSection = "", databaseSection = ""] = blueprint.split(/^databases:$/m);
+// The website comes first; the Workflow service and its Cron Job (5a) follow it.
+const [serviceSection = "", workflowSection = "", cronSection = ""] = servicesSection
+  .split(/^ {2}- type: /m)
+  .slice(1);
 const serverPackage = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { name: string; scripts: { start: string } };
@@ -40,7 +44,7 @@ describe("render.yaml", () => {
   });
 
   it("asks in the dashboard for every setting the Webhooks feature needs, and stores no values", () => {
-    const keys = [...blueprint.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
+    const keys = [...serviceSection.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
     // The database address is the exception: Render fills it in from the database itself.
     const aiKeys = MODEL_REGISTRY.map((spec) => spec.apiKeyEnv).filter(
       (name, index, all) => all.indexOf(name) === index,
@@ -53,6 +57,10 @@ describe("render.yaml", () => {
       // The receiving domain is not secret either.
       ...settingsFor("Email forwarding (Resend inbound)").filter(
         (name) => name !== "INBOUND_DOMAIN" && name !== "DATABASE_URL",
+      ),
+      // The task's name is not secret either.
+      ...settingsFor("Dispute checks (Render Workflows)").filter(
+        (name) => name !== "DISPUTE_TASK_SLUG",
       ),
     ]);
     // Sign-in needs nothing secret beyond those.
@@ -118,5 +126,38 @@ describe("render.yaml", () => {
 
   it("knows no settings for an unknown feature", () => {
     expect(settingsFor("Nope")).toEqual([]);
+  });
+
+  it("runs the dispute check as a Workflow task, started every 5 minutes by a Cron Job", () => {
+    expect(serviceSection.startsWith("web\n")).toBe(true);
+    expect(workflowSection.startsWith("workflow\n")).toBe(true);
+    expect(cronSection.startsWith("cron\n")).toBe(true);
+    for (const section of [workflowSection, cronSection]) {
+      expect(field("region", section)).toBe("virginia");
+      expect(field("branch", section)).toBe("dev");
+      expect(field("buildCommand", section)).toContain(`pnpm --filter ${serverPackage.name} build`);
+    }
+    // Workflows set compute per task and have no pre-deploy step.
+    expect(field("plan", workflowSection)).toBeUndefined();
+    expect(field("preDeployCommand", workflowSection)).toBeUndefined();
+    expect(field("startCommand", workflowSection)).toBe("node apps/server/dist/workflow.js");
+    expect(field("startCommand", cronSection)).toBe("node apps/server/dist/dispute-cron.js");
+    expect(field("schedule", cronSection)).toBe('"*/5 * * * *"');
+    const build = readFileSync(new URL("../build.js", import.meta.url), "utf8");
+    expect(build).toContain("src/workflow.ts");
+    expect(build).toContain("src/dispute-cron.ts");
+    // The task reads the database and PayPal; the cron only needs Render's key and the task name.
+    expect(workflowSection).toMatch(/- key: DATABASE_URL\n\s+fromDatabase:\n\s+name: pactpal-db/);
+    const secrets = (section: string) =>
+      [...section.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
+    expect(secrets(workflowSection)).toEqual(settingsFor("Invoices and disputes (seller app)"));
+    expect(secrets(cronSection)).toEqual(["RENDER_API_KEY"]);
+    // Both the website and the cron start the same task, by a name the settings accept.
+    const slug = (section: string) =>
+      /- key: DISPUTE_TASK_SLUG\n\s+value: (\S+)\n/.exec(section)?.[1];
+    expect(slug(cronSection)).toBe(`${field("name", workflowSection) ?? "missing"}/check-disputes`);
+    expect(slug(serviceSection)).toBe(slug(cronSection));
+    const loaded = loadConfig({ RENDER_API_KEY: "rnd_test", DISPUTE_TASK_SLUG: slug(cronSection) });
+    expect(loaded.ok && loaded.config.render?.taskSlug).toBe("pactpal-workflows/check-disputes");
   });
 });

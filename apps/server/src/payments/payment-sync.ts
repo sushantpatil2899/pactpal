@@ -59,6 +59,7 @@ export async function checkInvoicePaid(
       version: row.version,
       stage: row.stage,
       invoiceId,
+      ...(invoice.invoiceNumber === undefined ? {} : { invoiceNumber: invoice.invoiceNumber }),
       paidAmount: invoice.payments.paidAmount ??
         invoice.amount ?? { minor: row.amountMinor, currency: row.currency },
       transactions: invoice.payments.transactions.map((t) => ({

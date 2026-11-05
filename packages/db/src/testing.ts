@@ -9,6 +9,7 @@ import { acceptTerms, documentFingerprint, requestAcceptance } from "./acceptanc
 import { saveScopeVersion, type ScopeContentInput } from "./scope.js";
 import { addArtifact, type ArtifactKind } from "./artifacts.js";
 import { postgresContentStore } from "./content-store.js";
+import { markInvoicePaid, markInvoiceSent, startInvoice } from "./milestones.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
 interface Engine {
@@ -231,4 +232,54 @@ export async function createSignedTestDeal(
     TEST_NOW,
   );
   return { seller, buyer, dealId, scope, acceptance };
+}
+
+/**
+ * The signed test deal with stage 1 invoiced and paid at `TEST_NOW`: PayPal invoice
+ * `INV2-TEST-PAID`, transaction `transactionId` and, when given, invoice number `invoiceNumber`.
+ */
+export async function createPaidTestDeal(
+  db: Database,
+  payment: { transactionId?: string; invoiceNumber?: string } = {},
+) {
+  const deal = await createSignedTestDeal(db);
+  const stage = { dealId: deal.dealId, version: 1, stage: 1 };
+  const invoiceId = "INV2-TEST-PAID";
+  await startInvoice(
+    db,
+    {
+      ...stage,
+      sellerId: deal.seller.id,
+      amountMinor: 12_000,
+      currency: "USD",
+      requestId: `pp-${deal.dealId}-v1-s1`,
+      invoiceSha256: "a".repeat(64),
+    },
+    TEST_NOW,
+  );
+  await markInvoiceSent(
+    db,
+    {
+      ...stage,
+      sellerId: deal.seller.id,
+      invoiceId,
+      transport: "rest",
+      recipientEmail: deal.buyer.email,
+      contentSha256: deal.scope.contentSha256,
+    },
+    TEST_NOW,
+  );
+  await markInvoicePaid(
+    db,
+    {
+      ...stage,
+      invoiceId,
+      ...(payment.invoiceNumber === undefined ? {} : { invoiceNumber: payment.invoiceNumber }),
+      paidAmount: { minor: 12_000, currency: "USD" },
+      transactions: [{ paymentId: payment.transactionId ?? "4VS53548AF878232T" }],
+      source: "status-check",
+    },
+    TEST_NOW,
+  );
+  return { ...deal, invoiceId };
 }

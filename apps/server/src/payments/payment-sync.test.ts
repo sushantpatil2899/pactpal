@@ -89,6 +89,8 @@ describe("checkInvoicePaid", () => {
     expect((await listMilestones(db, dealId))[0]).toMatchObject({
       status: "paid",
       transactionId: "TX-INV2-1",
+      // PayPal's own invoice number, kept so a dispute can be matched by it (5a).
+      invoiceNumber: "N-INV2-1",
     });
     expect(box.sent.map((m) => [m.kind, m.to, m.idempotencyKey])).toEqual([
       ["payment", "chris@example.com", `payment:${dealId}:v1:s1:buyer`],

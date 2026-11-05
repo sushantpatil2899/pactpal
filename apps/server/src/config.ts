@@ -22,7 +22,15 @@ const PAYPAL_APPS = {
 
 export type PayPalApp = keyof typeof PAYPAL_APPS;
 /** `ai:<VARIABLE>` is one AI host key, taken from the model registry. */
-type Part = PayPalApp | "webhook" | "database" | "publicUrl" | "email" | "inbound" | `ai:${string}`;
+type Part =
+  | PayPalApp
+  | "webhook"
+  | "database"
+  | "publicUrl"
+  | "email"
+  | "inbound"
+  | "render"
+  | `ai:${string}`;
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
 const DATABASE_URL = "DATABASE_URL";
@@ -34,6 +42,9 @@ const EMAIL_FROM = "EMAIL_FROM";
 const RESEND_INBOUND_API_KEY = "RESEND_INBOUND_API_KEY";
 const RESEND_WEBHOOK_SECRET = "RESEND_WEBHOOK_SECRET";
 const INBOUND_DOMAIN = "INBOUND_DOMAIN";
+/** Dispute checks (5a): a Render API key, and the Workflow task to start ("workflow/task"). */
+const RENDER_API_KEY = "RENDER_API_KEY";
+const DISPUTE_TASK_SLUG = "DISPUTE_TASK_SLUG";
 const DEFAULT_PORT = 3000;
 
 function appVars(app: PayPalApp): { id: string; secret: string } {
@@ -53,6 +64,7 @@ function partVars(part: Part): string[] {
   if (part === "publicUrl") return [PUBLIC_BASE_URL];
   if (part === "email") return [RESEND_API_KEY, EMAIL_FROM];
   if (part === "inbound") return [RESEND_INBOUND_API_KEY, RESEND_WEBHOOK_SECRET, INBOUND_DOMAIN];
+  if (part === "render") return [RENDER_API_KEY, DISPUTE_TASK_SLUG];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
@@ -68,6 +80,7 @@ export const SETTING_NAMES: readonly string[] = [
   "publicUrl" as const,
   "email" as const,
   "inbound" as const,
+  "render" as const,
   ...AI_KEYS.map((name): Part => `ai:${name}`),
 ].flatMap(partVars);
 
@@ -84,6 +97,8 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Email (Resend)", needs: ["email"], runtime: true },
   // Without it forwarding to the private address is off; the intake key still works.
   { name: "Email forwarding (Resend inbound)", needs: ["inbound", "database"], runtime: true },
+  // Without it "Check now" runs the check inside the server and nothing checks on a schedule.
+  { name: "Dispute checks (Render Workflows)", needs: ["render"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
   // Not runtime yet: the server starts using AI models in sub-phase 3d.
@@ -113,6 +128,9 @@ function parseUrl(value: string): URL | undefined {
   }
 }
 
+/** A Render Workflow task, named as "workflow/task". */
+const TASK_SLUG = /^[a-z0-9][a-z0-9-]{0,62}\/[a-z0-9][a-z0-9-]{0,62}$/i;
+
 const isLocalhost = (url: URL) => ["localhost", "127.0.0.1"].includes(url.hostname);
 
 /** Rules for settings that are addresses; the messages never repeat the value. */
@@ -138,6 +156,7 @@ const ADDRESS_RULES: Record<string, { valid: (url: URL) => boolean; message: str
 function addressAllowed(name: string, value: string): boolean {
   if (name === EMAIL_FROM) return z.email().safeParse(value).success;
   if (name === INBOUND_DOMAIN) return /^(?=.{1,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/.test(value);
+  if (name === DISPUTE_TASK_SLUG) return TASK_SLUG.test(value);
   const rule = ADDRESS_RULES[name];
   const url = parseUrl(value);
   return rule === undefined || (url !== undefined && rule.valid(url));
@@ -173,6 +192,8 @@ export interface Config {
   email?: { apiKey: Secret; from: string };
   /** Email forwarding through Resend inbound (4p-2); absent until all three settings are set. */
   inbound?: { apiKey: Secret; webhookSecret: Secret; domain: string };
+  /** Starting dispute checks as Render Workflow task runs (5a); absent until both are set. */
+  render?: { apiKey: Secret; taskSlug: string };
   /**
    * How many proxies stand in front of the server, from `TRUST_PROXY_HOPS`. Absent until measured:
    * visitors' IP addresses are then not recorded, because the address seen would be the proxy's.
@@ -218,7 +239,9 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
       const message =
         name === INBOUND_DOMAIN
           ? "must be a domain name such as in.example.com"
-          : (ADDRESS_RULES[name]?.message ?? "must be an email address");
+          : name === DISPUTE_TASK_SLUG
+            ? "must be a workflow and task name such as pactpal-workflows/check-disputes"
+            : (ADDRESS_RULES[name]?.message ?? "must be an email address");
       errors.push(`${name} ${message}`);
     } else {
       values.set(name, parsed.data);
@@ -285,6 +308,11 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
       webhookSecret: new Secret(webhookSecret),
       domain: inboundDomain,
     };
+  }
+  const renderKey = values.get(RENDER_API_KEY);
+  const taskSlug = values.get(DISPUTE_TASK_SLUG);
+  if (renderKey !== undefined && taskSlug !== undefined) {
+    config.render = { apiKey: new Secret(renderKey), taskSlug };
   }
   return { ok: true, config, report };
 }

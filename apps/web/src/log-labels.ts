@@ -30,6 +30,9 @@ const EVENT_LABELS: Record<string, string> = {
   AI_ANSWER_SHOWN: "Automatic answer shown",
   QUESTION_FORWARDED: "Question sent to the seller",
   QUESTION_ANSWERED: "Seller answered a question",
+  DISPUTE_OPENED: "PayPal dispute found",
+  DISPUTE_UPDATED: "PayPal dispute changed",
+  DISPUTE_RESOLVED: "PayPal dispute decided",
   NOTE_ADDED: "Note added",
 };
 

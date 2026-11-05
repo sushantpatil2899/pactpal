@@ -37,6 +37,7 @@ describe("formatInvoiceReport", () => {
       sent,
       {
         invoiceId: "INV2-AAAA",
+        invoiceNumber: undefined,
         status: "SENT",
         amount: { minor: 100, currency: "USD" },
         recipientEmail: "buyer@example.com",
@@ -60,6 +61,7 @@ describe("formatInvoiceReport", () => {
       sent,
       {
         invoiceId: "INV2-AAAA",
+        invoiceNumber: undefined,
         status: "DRAFT",
         amount: undefined,
         recipientEmail: undefined,

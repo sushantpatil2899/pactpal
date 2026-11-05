@@ -492,6 +492,58 @@ export async function getMilestones(dealId: string): Promise<MilestonesView> {
   return readChecked(await fetch(milestonesUrl(dealId)), isMilestones, "load the payment stages");
 }
 
+/** One PayPal dispute on the deal, in PayPal's own words, as the seller's page shows it. */
+export interface DisputeView {
+  disputeId: string;
+  /** The payment stage it is about. */
+  stage: number | null;
+  reason: string | null;
+  status: string;
+  /** PayPal's stage, e.g. "INQUIRY" or "CHARGEBACK". */
+  paypalStage: string | null;
+  amount: (Money & { currency: string }) | null;
+  sellerDueAt: string | null;
+  outcome: string | null;
+  firstSeenAt: string;
+}
+
+export interface DisputesView {
+  disputes: DisputeView[];
+  /** The newest check of the seller's PayPal disputes; `ok` is null while it runs. */
+  lastCheck: {
+    source: string;
+    startedAt: string;
+    finishedAt: string | null;
+    ok: boolean | null;
+  } | null;
+  /** Whether "Check now" is available on this server. */
+  canCheck: boolean;
+}
+
+const isDisputes = (value: unknown): value is DisputesView =>
+  isObject(value) &&
+  Array.isArray(value.disputes) &&
+  value.disputes.every(
+    (d) => isObject(d) && typeof d.disputeId === "string" && typeof d.status === "string",
+  ) &&
+  (value.lastCheck === null || isObject(value.lastCheck)) &&
+  typeof value.canCheck === "boolean";
+
+const disputesUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/disputes`;
+
+export async function getDisputes(dealId: string): Promise<DisputesView> {
+  return readChecked(await fetch(disputesUrl(dealId)), isDisputes, "load the disputes");
+}
+
+/** Starts a check of the seller's PayPal disputes; the result shows up in `getDisputes`. */
+export async function checkDisputes(dealId: string): Promise<void> {
+  const response = await fetch(`${disputesUrl(dealId)}/check`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not start the check"));
+}
+
 /** The seller sends one stage's invoice, naming the invoice text they confirmed. */
 export async function sendInvoice(
   dealId: string,

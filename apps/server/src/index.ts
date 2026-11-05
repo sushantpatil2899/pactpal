@@ -12,15 +12,20 @@ import {
 import {
   AccessTokenProvider,
   McpFallback,
+  PayPalDisputes,
   PayPalInvoices,
   PayPalLogin,
   PayPalRestClient,
   PayPalWebhooks,
 } from "@pactpal/paypal";
 import { ResendEmailSender, ResendReceivedEmails } from "@pactpal/email";
+import { Render } from "@renderinc/sdk";
 import { buildApp, closeOnSignals } from "./app.js";
 import { councilClients, createDraftingRuntime } from "./drafting/runtime.js";
 import { formatErrors, loadConfig } from "./config.js";
+import { inProcessChecker, renderWorkflowChecker } from "./disputes/checker.js";
+import { syncDisputes } from "./disputes/dispute-sync.js";
+import { jsonLines } from "./disputes/task.js";
 
 const result = loadConfig(process.env);
 if (!result.ok) {
@@ -44,7 +49,33 @@ const database =
 const webDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
 // Every model whose key is set takes part in the council; with none, drafting answers "unavailable".
 const members = councilClients(config.ai.keys);
+const clock = () => new Date();
+// Dispute checks run as Render Workflow task runs when Render is set up; otherwise "Check now"
+// runs the check inside this server (a local copy). Reads go over REST, like invoices.
+const disputeLog = jsonLines((line) => process.stdout.write(line));
+const disputes = config.render
+  ? renderWorkflowChecker(
+      new Render({ token: config.render.apiKey.reveal() }).workflows,
+      config.render.taskSlug,
+      clock,
+      disputeLog,
+    )
+  : database && sellerRest
+    ? inProcessChecker((source) =>
+        syncDisputes(
+          {
+            db: database,
+            disputes: new PayPalDisputes(sellerRest, undefined, new McpFallback()),
+            clock,
+            newId: randomUUID,
+            log: disputeLog,
+          },
+          source,
+        ),
+      )
+    : undefined;
 const app = buildApp(report, {
+  ...(disputes ? { disputes } : {}),
   database,
   drafting:
     database && members.length > 0 ? createDraftingRuntime({ clients: members }) : undefined,

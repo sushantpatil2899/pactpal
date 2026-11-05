@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AcceptancePanel } from "./AcceptancePanel";
 import { DeliveriesPanel } from "./DeliveriesPanel";
 import { PaymentsPanel } from "./PaymentsPanel";
+import { DisputesPanel } from "./DisputesPanel";
 import { QuestionsPanel } from "./QuestionsPanel";
 import { BuyerPanel } from "./BuyerPanel";
 import { ChangeOrderPanel } from "./ChangeOrderPanel";
@@ -165,6 +166,7 @@ export function DealPage({ dealId }: { dealId: string }) {
       )}
       <PaymentsPanel key={`payments-${String(revision)}`} deal={deal} onChange={refreshLog} />
       <DeliveriesPanel key={`deliveries-${String(revision)}`} deal={deal} onChange={refreshLog} />
+      <DisputesPanel deal={deal} onChange={refreshLog} />
       <FilesPanel
         dealId={deal.id}
         canAdd={deal.role === "seller" && !linkOnly}

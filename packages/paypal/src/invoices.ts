@@ -32,6 +32,8 @@ export interface SentInvoice {
 
 export interface InvoiceDetails {
   invoiceId: string;
+  /** PayPal's own number for the invoice, e.g. "0042"; disputes name the invoice by it. */
+  invoiceNumber: string | undefined;
   /** PayPal's status, e.g. "DRAFT", "SENT", "PAID". */
   status: string;
   amount: MinorAmount | undefined;
@@ -86,6 +88,7 @@ const invoiceDetails = z
     status: z.string(),
     detail: z
       .looseObject({
+        invoice_number: z.string().optional(),
         note: z.string().optional(),
         metadata: z.looseObject({ recipient_view_url: z.string().optional() }).optional(),
       })
@@ -115,6 +118,7 @@ const invoiceDetails = z
   })
   .transform((invoice): InvoiceDetails => ({
     invoiceId: invoice.id,
+    invoiceNumber: invoice.detail?.invoice_number,
     status: invoice.status,
     amount: invoice.amount,
     recipientEmail: invoice.primary_recipients?.[0]?.billing_info?.email_address,

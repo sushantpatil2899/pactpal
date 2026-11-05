@@ -18,6 +18,8 @@ import {
   finishDraft,
   markInvoicePaid,
   markInvoiceSent,
+  readLedger,
+  recordDispute,
   getArtifact,
   listArtifacts,
   migrate,
@@ -43,6 +45,7 @@ import {
 import {
   TEST_NOW,
   createAwaitingTestDeal,
+  createPaidTestDeal,
   createSignedTestDeal,
   createTestDeal,
   createTestParties,
@@ -694,6 +697,33 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
         Array.from({ length: MAX_INTAKE_DEALS_PER_DAY + 5 }, () => useIntakeKey(db, key, TEST_NOW)),
       );
       expect(uses.filter((u) => u.ok)).toHaveLength(MAX_INTAKE_DEALS_PER_DAY);
+    });
+  });
+
+  it("logs a dispute's opening and decision once when several checks read it at once", async () => {
+    await withRealDatabase(async (db) => {
+      const { dealId } = await createPaidTestDeal(db);
+      const read = {
+        disputeId: "PP-R-RACE-1",
+        status: "RESOLVED",
+        stageName: "CHARGEBACK",
+        allowedActions: [],
+        offerTypes: [],
+        outcome: "RESOLVED_SELLER_FAVOUR",
+        details: {},
+      };
+      const link = {
+        dealId,
+        stage: 1,
+        invoiceId: "INV2-TEST-PAID",
+        matchedBy: "transaction",
+      } as const;
+      await Promise.all(Array.from({ length: 5 }, () => recordDispute(db, read, link, TEST_NOW)));
+      const disputeEntries = (await readLedger(db, dealId)).filter((e) =>
+        e.type.startsWith("DISPUTE_"),
+      );
+      expect(disputeEntries.map((e) => e.type)).toEqual(["DISPUTE_OPENED", "DISPUTE_RESOLVED"]);
+      expect(await verifyStoredLedger(db, dealId)).toMatchObject({ valid: true });
     });
   });
 });

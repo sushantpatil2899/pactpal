@@ -26,6 +26,8 @@ erDiagram
   ledger_entries |o--o| scope_drafts : "recorded by (when ready)"
   ledger_entries |o--o| artifacts : "recorded by"
   webhook_events }o--o{ deals : "matched later (Phase 4 and 5)"
+  deals |o--o{ disputes : "disputed (when matched)"
+  ledger_entries |o--o| disputes : "opened and decided by"
   users ||--o{ sessions : "signed in"
   users ||--o{ link_tokens : "buyer links"
   deals ||--o{ link_tokens : "for one deal"
@@ -39,7 +41,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4p)
+## Built (sub-phases 2b to 5a)
 
 ### `users`: everyone
 
@@ -230,6 +232,8 @@ Built in 4d (migration 0010). One row per payment stage of the **signed** versio
 
 `PAYMENT_RECEIVED` (by the system, 4e) holds the version, stage, PayPal invoice id, the amount PayPal says was paid, PayPal's transactions (id, date, method) and how PactPal learned of it (`notification` with PayPal's event id, or `status-check`). It is written once, only after PactPal re-read the invoice from PayPal and found it `PAID`.
 
+Since 5a (migration 0020) a paid stage also keeps `invoice_number`, PayPal's own number for the invoice (not its id), read from PayPal's answer when the payment is recorded, so a dispute can be matched by it.
+
 `INVOICE_SENT` (by the seller) holds the version, stage, PayPal invoice id, amount and currency, the fingerprints of the agreed work and of the invoice text, a SHA-256 of the buyer's lower-cased address (never the address) and the route PayPal answered by (`rest`).
 
 ### `deliveries` and `delivery_files`: delivered work
@@ -396,6 +400,36 @@ Lines of the chat that look like orders to an AI are not stored anywhere; they a
 
 Drafts made with drafting prompt version 3 (4n) are "format 3": each delivered line also has a suggested mark (`objective`, `process`, `subjective` or `unsure`) and the draft lists what the buyer provides (text, a date or none, citations). Older drafts stay "format 2" and are read as they are. When agreed work is saved from a draft, `SCOPE_CONFIRMED` also says for `buyerProvides` and `deliverableMarks` whether the seller kept the draft's suggestion.
 
+### `disputes`: PayPal disputes found by checking
+
+Built in 5a (migration 0020). A Render Cron Job starts the Workflow task `check-disputes` every 5 minutes (also "Check now" and any PayPal dispute notification). It reads the seller's dispute list, reads in full each dispute that is new or changed, ties it to a paid stage and saves it here. A working copy of PayPal's latest answer, not evidence: it moves with PayPal, but once tied to a deal it stays tied, keeps the log entries that recorded its opening and decision, and is never removed.
+
+| Column                                   | Meaning                                                                                                               |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `dispute_id`                             | PayPal's id (the key), e.g. `PP-R-EMM-10195224`                                                                       |
+| `deal_id`, `stage`, `invoice_id`         | The deal and paid stage it is about, and that stage's invoice; all empty while it matches no deal                     |
+| `matched_by`                             | `transaction` (the seller transaction id equals the stage's) or `invoice-number`                                      |
+| `reason`, `status`, `dispute_state`      | PayPal's own words, e.g. `MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED`, `WAITING_FOR_SELLER_RESPONSE`, `REQUIRED_ACTION`  |
+| `stage_name`                             | PayPal's stage, e.g. `INQUIRY`, `CHARGEBACK`, `PRE_ARBITRATION` (not a payment stage)                                 |
+| `amount_minor`, `currency`               | The disputed amount                                                                                                   |
+| `seller_due_at`, `buyer_due_at`          | When each side must respond, as PayPal says                                                                           |
+| `allowed_actions`, `offer_types`         | What the seller may do right now, and the refund offers PayPal accepts (read again before any answer)                 |
+| `outcome`                                | PayPal's decision, once there is one                                                                                  |
+| `details`                                | PayPal's whole answer as read, including the buyer's messages: personal data, so the retention rule (Phase 8) applies |
+| `paypal_created_at`, `paypal_updated_at` | PayPal's own times                                                                                                    |
+| `first_seen_at`, `checked_at`            | When PactPal first saw it and last read it                                                                            |
+| `opened_seq`, `resolved_seq`             | The `DISPUTE_OPENED` and `DISPUTE_RESOLVED` entries; set once                                                         |
+
+The log entries (all by the system; ids and PayPal's words, never the buyer's messages):
+
+- `DISPUTE_OPENED`: once, when the dispute is first tied to a deal: dispute id, reason, status, PayPal stage, amount, seller due date, payment stage, invoice id and how it was matched.
+- `DISPUTE_UPDATED`: when the status, PayPal stage or seller due date changes, with before and after. A change only to what the seller may do is saved on the row, not logged.
+- `DISPUTE_RESOLVED`: once, with PayPal's outcome and the final status.
+
+### `dispute_checks`: each check of the seller's disputes
+
+Built in 5a (migration 0020). One row per check: `source` (`schedule`, `button` or `notification`), `started_at`, `finished_at`, the counts (`listed`, `read_in_full`, `matched`, `unmatched`, `new_entries`) or `failure` (PayPal's status only, never its text). The deal page shows the newest one as "last checked". Old rows can be removed later; nothing refers to them.
+
 ## Planned
 
 | Table                               | Sub-phase | What it will hold                                                                                                            |
@@ -404,4 +438,4 @@ Drafts made with drafting prompt version 3 (4n) are "format 3": each delivered l
 | `webhook_events`                    | 2d        | PayPal notifications as received, one row per event id, so repeats are skipped even after a restart                          |
 | `link_tokens`                       | 2e-2      | Single-purpose expiring links tied to one deal and one person, for buyers who do not sign in; only hashes are stored         |
 | `scope_versions`                    | 2f-3      | The agreed work, each version kept and never edited, with its payment stages                                                 |
-| disputes and evidence packets       | Phase 5   | Created when Phase 5 is designed                                                                                             |
+| evidence packets                    | 5e        | Each built packet with its fingerprint; designed in 5e                                                                       |

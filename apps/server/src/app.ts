@@ -11,6 +11,8 @@ import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "@pactpal/email";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { paymentNotifications } from "./payments/payment-sync.js";
+import type { DisputeChecker } from "./disputes/checker.js";
+import { disputeNotifications } from "./disputes/notifications.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
 import { resendInboundRoutes, type ResendInboundOptions } from "./webhooks/resend-inbound.js";
@@ -40,6 +42,8 @@ export interface AppOptions {
   invoices?: InvoiceSender;
   /** Email forwarding through Resend inbound (4p-2); off until its settings are set. */
   inbound?: ResendInboundOptions["inbound"];
+  /** Starts dispute checks (5a); off ("not set up") until the database and seller app are set. */
+  disputes?: DisputeChecker;
 }
 
 /**
@@ -125,6 +129,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     recordIp: trustProxyHops !== undefined,
     invoices: opts.invoices,
     inboundDomain: opts.inbound?.domain,
+    disputes: opts.disputes,
   });
   void app.register(resendInboundRoutes, {
     database: signIn.database,
@@ -142,9 +147,9 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     webhookId: undefined,
     events: undefined,
   };
-  const process =
-    webhooks.process ??
-    (database && opts.invoices
+  // A dispute notification (PayPal has sent none so far) starts a dispute check.
+  const handlers = [
+    database && opts.invoices
       ? paymentNotifications({
           db: database,
           invoices: opts.invoices,
@@ -152,7 +157,16 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
           clock: signIn.clock,
           log: app.log,
         })
-      : undefined);
+      : undefined,
+    opts.disputes && disputeNotifications(opts.disputes),
+  ].filter((handler) => handler !== undefined);
+  const process =
+    webhooks.process ??
+    (handlers.length === 0
+      ? undefined
+      : async (event: Parameters<NonNullable<PayPalWebhookOptions["process"]>>[0]) => {
+          for (const handle of handlers) await handle(event);
+        });
   void app.register(paypalWebhookRoutes, process ? { ...webhooks, process } : webhooks);
 
   return app;

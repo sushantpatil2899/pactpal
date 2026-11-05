@@ -17,6 +17,7 @@ const invoiceBody = {
   status: "SENT",
   detail: {
     currency_code: "USD",
+    invoice_number: "0042",
     note: "Agreed scope: scope v1 sha256:ab12",
     metadata: { recipient_view_url: "https://www.sandbox.paypal.com/invoice/p/#INV2-AAAA" },
   },
@@ -161,6 +162,7 @@ describe("PayPalInvoices.get", () => {
       transport: "rest",
       data: {
         invoiceId: "INV2-AAAA",
+        invoiceNumber: "0042",
         status: "SENT",
         amount: { minor: 1050, currency: "USD" },
         recipientEmail: "buyer@example.com",
@@ -178,6 +180,7 @@ describe("PayPalInvoices.get", () => {
       transport: "mcp",
       data: {
         invoiceId: "INV2-D",
+        invoiceNumber: undefined,
         status: "DRAFT",
         amount: undefined,
         recipientEmail: undefined,

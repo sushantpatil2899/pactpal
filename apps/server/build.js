@@ -19,7 +19,13 @@ function packageOf(specifier) {
 }
 
 const result = await build({
-  entryPoints: ["src/index.ts", "src/check-env.ts", "src/migrate.ts"],
+  entryPoints: [
+    "src/index.ts",
+    "src/check-env.ts",
+    "src/migrate.ts",
+    "src/workflow.ts",
+    "src/dispute-cron.ts",
+  ],
   outdir: "dist",
   bundle: true,
   platform: "node",

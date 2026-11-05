@@ -18,6 +18,7 @@ const fullEnv: Record<string, string> = {
   PUBLIC_BASE_URL: "https://pactpal.example.com",
   EMAIL_FROM: "receipts@send.pactpal.example.com",
   INBOUND_DOMAIN: "in.pactpal.example.com",
+  DISPUTE_TASK_SLUG: "pactpal-workflows/check-disputes",
 };
 
 const unsetSettings = (report: ConfigReport) =>
@@ -89,6 +90,7 @@ describe("loadConfig", () => {
         "INBOUND_DOMAIN",
         "DATABASE_URL",
       ],
+      "Dispute checks (Render Workflows)": ["RENDER_API_KEY", "DISPUTE_TASK_SLUG"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
       "AI model: gemini": ["GEMINI_API_KEY"],
@@ -202,6 +204,21 @@ describe("loadConfig", () => {
     expect(JSON.stringify(expectLoaded(inbound).config)).not.toMatch(/re_in|whsec_abc/);
   });
 
+  it("starts dispute checks on Render only when the key and the task are set, and checks the task", () => {
+    const render = {
+      RENDER_API_KEY: "rnd_key",
+      DISPUTE_TASK_SLUG: "pactpal-workflows/check-disputes",
+    };
+    expect(expectLoaded(render).config.render).toMatchObject({
+      taskSlug: "pactpal-workflows/check-disputes",
+    });
+    expect(expectLoaded({ RENDER_API_KEY: "rnd_key" }).config.render).toBeUndefined();
+    expect(expectErrors({ DISPUTE_TASK_SLUG: "check-disputes" })).toEqual([
+      "DISPUTE_TASK_SLUG must be a workflow and task name such as pactpal-workflows/check-disputes",
+    ]);
+    expect(JSON.stringify(expectLoaded(render).config)).not.toContain("rnd_key");
+  });
+
   it("reads how many proxies stand in front of the server, and leaves it unset by default", () => {
     expect(expectLoaded({}).config.trustProxyHops).toBeUndefined();
     expect(expectLoaded({ TRUST_PROXY_HOPS: "0" }).config.trustProxyHops).toBe(0);
@@ -237,6 +254,8 @@ describe("missingRuntimeSettings", () => {
       "RESEND_INBOUND_API_KEY",
       "RESEND_WEBHOOK_SECRET",
       "INBOUND_DOMAIN",
+      "RENDER_API_KEY",
+      "DISPUTE_TASK_SLUG",
     ]);
   });
 
@@ -252,6 +271,8 @@ describe("missingRuntimeSettings", () => {
       RESEND_INBOUND_API_KEY: "re_in",
       RESEND_WEBHOOK_SECRET: "whsec_abc",
       INBOUND_DOMAIN: "in.pactpal.example.com",
+      RENDER_API_KEY: "rnd_key",
+      DISPUTE_TASK_SLUG: "pactpal-workflows/check-disputes",
     });
     expect(missingRuntimeSettings(report)).toEqual([]);
   });

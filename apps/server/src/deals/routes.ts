@@ -37,6 +37,8 @@ import { intakeRoutes } from "./intake-routes.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { screenshotRoutes } from "./screenshot-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
+import type { DisputeChecker } from "../disputes/checker.js";
+import { disputeRoutes } from "../disputes/dispute-routes.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -56,6 +58,8 @@ export interface DealOptions {
   invoices?: InvoiceSender | undefined;
   /** The forwarding domain (4p-2), e.g. in.pact-pal.app; undefined while forwarding is off. */
   inboundDomain?: string | undefined;
+  /** Starts dispute checks; undefined until the database and the seller app's keys are set. */
+  disputes?: DisputeChecker | undefined;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -110,6 +114,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     drafting,
     recordIp = false,
     invoices,
+    disputes,
   } = options;
   app.get("/api/deal-options", (_request, reply) =>
     reply.send({
@@ -129,6 +134,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     email,
   });
   void app.register(milestoneRoutes, { visibleDeal, sellersDeal, clock, invoices, email });
+  void app.register(disputeRoutes, { sellersDeal, clock, disputes });
   void app.register(deliveryRoutes, {
     database,
     visibleDeal,

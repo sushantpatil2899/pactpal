@@ -636,4 +636,84 @@ BEGIN
   RETURN NEW;
 END $$`,
   },
+  {
+    id: "0020_disputes",
+    // PayPal disputes found by checking the seller's dispute list (5a), and each check. A dispute
+    // row is a working copy of PayPal's answer, not evidence (the ledger entries are): it moves
+    // with PayPal, but once linked to a deal and stage it stays linked, and the entries that
+    // recorded its opening and decision stay set. Rows are never removed. The PayPal invoice number
+    // of each paid stage is kept so a dispute can also be matched by it.
+    sql: `ALTER TABLE milestones ADD COLUMN invoice_number text CHECK (invoice_number <> '');
+
+CREATE TABLE disputes (
+  dispute_id text PRIMARY KEY CHECK (dispute_id <> '' AND char_length(dispute_id) <= 100),
+  deal_id uuid REFERENCES deals (id),
+  stage integer CHECK (stage >= 1),
+  invoice_id text,
+  matched_by text CHECK (matched_by IN ('transaction', 'invoice-number')),
+  reason text,
+  status text NOT NULL,
+  dispute_state text,
+  stage_name text,
+  amount_minor integer CHECK (amount_minor >= 0),
+  currency text CHECK (currency ~ '^[A-Z]{3}$'),
+  seller_due_at timestamptz,
+  buyer_due_at timestamptz,
+  allowed_actions jsonb NOT NULL DEFAULT '[]',
+  offer_types jsonb NOT NULL DEFAULT '[]',
+  outcome text,
+  details jsonb,
+  paypal_created_at timestamptz,
+  paypal_updated_at timestamptz,
+  first_seen_at timestamptz NOT NULL,
+  checked_at timestamptz NOT NULL,
+  opened_seq integer,
+  resolved_seq integer,
+  CONSTRAINT disputes_opened_in_ledger FOREIGN KEY (deal_id, opened_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT disputes_resolved_in_ledger FOREIGN KEY (deal_id, resolved_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT disputes_linked CHECK (
+    (deal_id IS NULL AND stage IS NULL AND matched_by IS NULL AND opened_seq IS NULL
+      AND resolved_seq IS NULL)
+    OR (deal_id IS NOT NULL AND stage IS NOT NULL AND matched_by IS NOT NULL
+      AND opened_seq IS NOT NULL)
+  )
+);
+CREATE INDEX disputes_by_deal ON disputes (deal_id) WHERE deal_id IS NOT NULL;
+
+CREATE FUNCTION pactpal_dispute_keeps() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE'
+     OR NEW.dispute_id <> OLD.dispute_id OR NEW.first_seen_at <> OLD.first_seen_at
+     OR (OLD.deal_id IS NOT NULL AND (NEW.deal_id IS DISTINCT FROM OLD.deal_id
+       OR NEW.stage IS DISTINCT FROM OLD.stage OR NEW.invoice_id IS DISTINCT FROM OLD.invoice_id
+       OR NEW.matched_by IS DISTINCT FROM OLD.matched_by
+       OR NEW.opened_seq IS DISTINCT FROM OLD.opened_seq))
+     OR (OLD.resolved_seq IS NOT NULL AND NEW.resolved_seq IS DISTINCT FROM OLD.resolved_seq) THEN
+    RAISE EXCEPTION 'disputes: a dispute stays linked to its deal and keeps its log entries'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER disputes_keeps BEFORE UPDATE OR DELETE ON disputes
+  FOR EACH ROW EXECUTE FUNCTION pactpal_dispute_keeps();
+CREATE TRIGGER disputes_no_truncate BEFORE TRUNCATE ON disputes
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change();
+
+CREATE TABLE dispute_checks (
+  id uuid PRIMARY KEY,
+  source text NOT NULL CHECK (source IN ('schedule', 'button', 'notification')),
+  started_at timestamptz NOT NULL,
+  finished_at timestamptz,
+  listed integer CHECK (listed >= 0),
+  read_in_full integer CHECK (read_in_full >= 0),
+  matched integer CHECK (matched >= 0),
+  unmatched integer CHECK (unmatched >= 0),
+  new_entries integer CHECK (new_entries >= 0),
+  failure text CHECK (failure <> '' AND char_length(failure) <= 200)
+);
+CREATE INDEX dispute_checks_newest ON dispute_checks (started_at DESC)`,
+  },
 ];

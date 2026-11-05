@@ -66,6 +66,7 @@ export function fakePayPal() {
         transport: "rest",
         data: {
           invoiceId,
+          invoiceNumber: isPaid ? `N-${invoiceId}` : undefined,
           status: isPaid ? "PAID" : "SENT",
           amount: { minor: 12_000, currency: "USD" },
           recipientEmail: undefined,

@@ -32,7 +32,8 @@ const refuse = (reason: MilestoneRefusal) => new MilestoneNotAllowedError(reason
 const COLUMNS = `deal_id AS "dealId", version, stage, amount_minor AS "amountMinor", currency, status,
   request_id AS "requestId", invoice_sha256 AS "invoiceSha256", invoice_id AS "invoiceId",
   pay_url AS "payUrl", ledger_seq AS "ledgerSeq", created_at AS "createdAt", sent_at AS "sentAt",
-  paid_at AS "paidAt", payment_ledger_seq AS "paymentLedgerSeq", transaction_id AS "transactionId"`;
+  paid_at AS "paidAt", payment_ledger_seq AS "paymentLedgerSeq", transaction_id AS "transactionId",
+  invoice_number AS "invoiceNumber"`;
 
 const milestoneRow = z.object({
   dealId: z.string(),
@@ -51,6 +52,8 @@ const milestoneRow = z.object({
   paidAt: z.date().nullable(),
   paymentLedgerSeq: z.number().int().nullable(),
   transactionId: z.string().nullable(),
+  /** PayPal's own number for the invoice (not its id), kept from 5a so disputes can be matched by it. */
+  invoiceNumber: z.string().nullable(),
 });
 export type Milestone = z.output<typeof milestoneRow>;
 
@@ -223,6 +226,8 @@ export async function listMilestones(q: Queryable, dealId: string): Promise<Mile
 export const invoicePaidSchema = z.object({
   ...stageKey,
   invoiceId: z.string().min(1).max(100),
+  /** PayPal's number for the invoice, when its answer carries one. */
+  invoiceNumber: z.string().min(1).max(100).optional(),
   /** What PayPal says was paid, read from PayPal itself. */
   paidAmount: z.object({
     minor: z.number().int().min(0),
@@ -289,7 +294,7 @@ export async function markInvoicePaid(
     );
     const rows = await tx.query(
       `UPDATE milestones SET status = 'paid', paid_at = $3, payment_ledger_seq = $4,
-                             transaction_id = $5
+                             transaction_id = $5, invoice_number = $6
         WHERE deal_id = $1 AND stage = $2
         RETURNING ${COLUMNS}`,
       [
@@ -298,6 +303,7 @@ export async function markInvoicePaid(
         now,
         entry.seq,
         paid.transactions.find((t) => t.paymentId !== undefined)?.paymentId ?? null,
+        paid.invoiceNumber ?? null,
       ],
     );
     return { milestone: milestoneRow.parse(rows[0]), entry };

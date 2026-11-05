@@ -23,6 +23,7 @@ export function dealTestApp(
     emailOff?: boolean;
     invoices?: InvoiceSender;
     inbound?: AppOptions["inbound"];
+    disputes?: AppOptions["disputes"];
   } = {},
 ) {
   let ids = 200;

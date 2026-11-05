@@ -43,9 +43,28 @@ Phase 4 is split into small pieces, built one at a time in this order. Each need
 | 4p-2      | Email forwarding to a private address on `in.pact-pal.app` through Resend Inbound                      | ✅ built and checked locally; not tested live yet                      |
 | 4q        | The Maya story end to end in the sandbox                                                               | On hold (owner, 5 Nov): runs with Phase 5's live test                  |
 
+## Phase 5 sub-phases
+
+Agreed with the owner on 5 November 2026. AI drafts and suggests at every stage; which deal a dispute is on, deadlines, fingerprints, what was sent and the sending itself stay in code. Dispute councils run as Render Workflow tasks. Each sub-phase needs the owner's approval of its plan first.
+
+| Sub-phase | What                                                                                                                                 | Status                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| 5a        | Disputes in: a Render Cron Job starts a Render Workflow task every 5 minutes that finds the seller's disputes and logs them on deals | Built and checked locally; live check after the owner's Render settings |
+| 5b        | Buyer files: the buyer adds reference files during the deal, logged as the buyer's                                                   |                                                                         |
+| 5c        | Dispute page: reason, buyer's message, amount, countdown, what PayPal allows now                                                     |                                                                         |
+| 5d        | Claim-vs-record (council): each part of the claim matched to the agreement and the log, with a suggested action and evidence type    |                                                                         |
+| 5e        | Evidence packet PDF from the log, buyer files included, with a size meter                                                            |                                                                         |
+| 5f        | Neutral summary, exhibit picks and PayPal's note (council)                                                                           |                                                                         |
+| 5g        | Confirm and upload: escalate, choose the evidence type, upload after the seller confirms                                             |                                                                         |
+| 5h        | Message, offer or accept: AI drafts the message and explains the options; sent after confirmation                                    |                                                                         |
+| 5i        | Appeal check: code finds evidence not sent before; the council judges whether it answers why the case was lost                       |                                                                         |
+| 5i-2      | Appeal statement (council) and sending after confirmation                                                                            |                                                                         |
+| 5j        | Emails and reminders to the seller: dispute opened, deadlines, decision (on Render Workflows)                                        |                                                                         |
+| 5k        | Live test: the Maya story end to end (4q), Jun's and Daniel's disputes; test deals are made only here                                |                                                                         |
+
 ## Where things stand (5 November 2026)
 
-Phase 4 is built except the items below; Phase 5 is next. Its sub-phases are proposed and agreed with the owner when it starts.
+Phase 4 is built except the items below; Phase 5 has started (sub-phases above).
 
 | Open item                                                                                                                                                                                                                                                                                 | Next step                                                                                   |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |

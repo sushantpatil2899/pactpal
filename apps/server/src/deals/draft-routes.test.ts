@@ -179,7 +179,8 @@ describe("making a draft", () => {
     await runtime.settle();
     const text = logs.join("");
     expect(text).toContain("Draft ready");
-    expect(text).not.toMatch(/Chris|courier|transparent background|240/);
+    // "240" (the price) only as a number of its own: timings such as 18.7101240 are not the chat.
+    expect(text).not.toMatch(/Chris|courier|transparent background|(?<![\d.])240(?!\.?\d)/);
     await app.close();
   });
 

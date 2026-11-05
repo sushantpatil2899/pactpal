@@ -248,3 +248,29 @@ export {
   type IntakeKind,
   type IntakeRefusal,
 } from "./intake.js";
+export {
+  DISPUTE_CHECK_SOURCES,
+  DISPUTE_MATCHES,
+  disputeChanges,
+  disputeLinkSchema,
+  disputeSnapshotSchema,
+  findPaidStages,
+  finishDisputeCheck,
+  getDispute,
+  latestDisputeCheck,
+  listDealDisputes,
+  recordDispute,
+  startDisputeCheck,
+} from "./disputes.js";
+export type {
+  DisputeChanges,
+  DisputeCheck,
+  DisputeCheckResult,
+  DisputeCheckSource,
+  DisputeEvent,
+  DisputeLink,
+  DisputeMatch,
+  DisputeSnapshot,
+  PaidStage,
+  StoredDispute,
+} from "./disputes.js";
