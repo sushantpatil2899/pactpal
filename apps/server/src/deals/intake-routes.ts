@@ -1,10 +1,7 @@
 import {
-  addArtifact,
-  createDeal,
   currentIntakeKey,
   makeIntakeKey,
   newDealSchema,
-  postgresContentStore,
   turnOffIntakeKey,
   useIntakeKey,
   type Database,
@@ -14,6 +11,7 @@ import { numberSourceLines } from "@pactpal/scope-draft";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { readBody, requireViewer } from "./access.js";
+import { createIntakeDeal, intakeFilename } from "./intake.js";
 
 export interface IntakeRouteOptions {
   database: Database | undefined;
@@ -21,6 +19,8 @@ export interface IntakeRouteOptions {
   newId: () => string;
   /** The site's own address, for the new deal's link in the answer. */
   publicBaseUrl: string | undefined;
+  /** The forwarding domain (4p-2); while undefined, forwarding addresses cannot be made. */
+  inboundDomain?: string | undefined;
 }
 
 /** The longest body a tool may post (the chat limit is 60,000 characters). */
@@ -35,19 +35,17 @@ const intakeBody = z.object({
   currency: currency.optional(),
 });
 
-/** The key status the settings show: never the key, only its ending and defaults. */
-const keyView = (key: IntakeKey | undefined) => ({
-  key:
-    key === undefined
-      ? null
-      : {
-          ending: key.keyEnding,
-          defaultCategory: key.defaultCategory,
-          defaultCurrency: key.defaultCurrency,
-          createdAt: key.createdAt.toISOString(),
-          lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
-        },
-});
+/** One secret as the settings show it: never the secret, only its ending and defaults. */
+const secretView = (key: IntakeKey | undefined) =>
+  key === undefined
+    ? null
+    : {
+        ending: key.keyEnding,
+        defaultCategory: key.defaultCategory,
+        defaultCurrency: key.defaultCurrency,
+        createdAt: key.createdAt.toISOString(),
+        lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
+      };
 
 /** "From another tool: " and the text's first words, up to 60 characters in all. */
 function titleFrom(text: string): string {
@@ -67,7 +65,21 @@ const bearerOf = (request: FastifyRequest) =>
  * else. Neither the key nor the text reaches the server's logs.
  */
 export const intakeRoutes: FastifyPluginAsync<IntakeRouteOptions> = (app, options) => {
-  const { database, clock, newId, publicBaseUrl } = options;
+  const { database, clock, newId, publicBaseUrl, inboundDomain } = options;
+
+  /** The seller's key and forwarding address, whether forwarding is on, and their own email. */
+  async function settingsView(db: Database, seller: { id: string; email: string }) {
+    const [key, address] = await Promise.all([
+      currentIntakeKey(db, seller.id),
+      currentIntakeKey(db, seller.id, "address"),
+    ]);
+    return {
+      key: secretView(key),
+      address: secretView(address),
+      forwarding: inboundDomain !== undefined,
+      sellerEmail: seller.email,
+    };
+  }
 
   /** The seller signed in with PayPal, or undefined after answering 401 or 403. */
   async function payPalSeller(request: FastifyRequest, reply: FastifyReply, db: Database) {
@@ -83,32 +95,39 @@ export const intakeRoutes: FastifyPluginAsync<IntakeRouteOptions> = (app, option
     if (!database) return reply.code(503).send({ error: "unavailable" });
     const viewer = await payPalSeller(request, reply, database);
     if (!viewer) return reply;
-    return reply.send(keyView(await currentIntakeKey(database, viewer.user.id)));
+    return reply.send(await settingsView(database, viewer.user));
   });
 
-  app.post("/api/intake/key", async (request, reply) => {
-    if (!database) return reply.code(503).send({ error: "unavailable" });
-    const viewer = await payPalSeller(request, reply, database);
-    if (!viewer) return reply;
-    const body = await readBody(keyBody, request, reply);
-    if (!body) return reply;
-    const { key, record } = await makeIntakeKey(
-      database,
-      { ...body, id: newId(), sellerId: viewer.user.id },
-      clock(),
-    );
-    request.log.info({ keyId: record.id }, "Intake key made");
-    // The only time the key itself is sent: the page shows it once.
-    return reply.code(201).send({ ...keyView(record), secret: key });
-  });
+  for (const kind of ["key", "address"] as const) {
+    app.post(`/api/intake/${kind}`, async (request, reply) => {
+      if (!database) return reply.code(503).send({ error: "unavailable" });
+      const viewer = await payPalSeller(request, reply, database);
+      if (!viewer) return reply;
+      if (kind === "address" && inboundDomain === undefined) {
+        return reply.code(503).send({ error: "email forwarding is not set up yet" });
+      }
+      const body = await readBody(keyBody, request, reply);
+      if (!body) return reply;
+      const { key, record } = await makeIntakeKey(
+        database,
+        { ...body, id: newId(), sellerId: viewer.user.id },
+        clock(),
+        kind,
+      );
+      request.log.info({ keyId: record.id, kind }, "Intake secret made");
+      // The only time the secret itself is sent: the page shows it once.
+      const secret = kind === "key" ? key : `deals+${key}@${inboundDomain ?? ""}`;
+      return reply.code(201).send({ ...(await settingsView(database, viewer.user)), secret });
+    });
 
-  app.post("/api/intake/key/off", async (request, reply) => {
-    if (!database) return reply.code(503).send({ error: "unavailable" });
-    const viewer = await payPalSeller(request, reply, database);
-    if (!viewer) return reply;
-    await turnOffIntakeKey(database, viewer.user.id, clock());
-    return reply.send(keyView(undefined));
-  });
+    app.post(`/api/intake/${kind}/off`, async (request, reply) => {
+      if (!database) return reply.code(503).send({ error: "unavailable" });
+      const viewer = await payPalSeller(request, reply, database);
+      if (!viewer) return reply;
+      await turnOffIntakeKey(database, viewer.user.id, clock(), kind);
+      return reply.send(await settingsView(database, viewer.user));
+    });
+  }
 
   app.post("/api/intake/deals", { bodyLimit: INTAKE_BODY_LIMIT }, async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });
@@ -123,35 +142,20 @@ export const intakeRoutes: FastifyPluginAsync<IntakeRouteOptions> = (app, option
         : reply.code(401).send({ error: "not a valid key" });
     }
     const { record } = used;
-    const { deal } = await createDeal(
-      database,
+    const dealId = await createIntakeDeal(
+      { db: database, clock, newId },
       {
-        id: newId(),
-        sellerId: record.sellerId,
+        record,
+        via: "intake",
         title: body.title ?? titleFrom(body.text),
-        category: body.category ?? record.defaultCategory,
-        currency: body.currency ?? record.defaultCurrency,
+        text: body.text,
+        filename: intakeFilename("intake", clock()),
+        ...(body.category === undefined ? {} : { category: body.category }),
+        ...(body.currency === undefined ? {} : { currency: body.currency }),
       },
-      clock(),
-      { via: "intake", keyEnding: record.keyEnding },
     );
-    await addArtifact(
-      database,
-      postgresContentStore(database, clock),
-      {
-        id: newId(),
-        dealId: deal.id,
-        kind: "source",
-        filename: `intake-${clock().toISOString().slice(0, 10)}.txt`,
-        bytes: new TextEncoder().encode(body.text),
-        addedBy: { actor: "seller", actorId: record.sellerId },
-      },
-      clock(),
-    );
-    request.log.info({ dealId: deal.id, keyId: record.id }, "Deal created from an intake key");
-    return reply
-      .code(201)
-      .send({ dealId: deal.id, url: `${publicBaseUrl ?? ""}/deals/${deal.id}` });
+    request.log.info({ dealId, keyId: record.id }, "Deal created from an intake key");
+    return reply.code(201).send({ dealId, url: `${publicBaseUrl ?? ""}/deals/${dealId}` });
   });
 
   return Promise.resolve();

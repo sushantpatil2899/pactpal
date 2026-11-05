@@ -17,7 +17,7 @@ import {
   PayPalRestClient,
   PayPalWebhooks,
 } from "@pactpal/paypal";
-import { ResendEmailSender } from "@pactpal/email";
+import { ResendEmailSender, ResendReceivedEmails } from "@pactpal/email";
 import { buildApp, closeOnSignals } from "./app.js";
 import { councilClients, createDraftingRuntime } from "./drafting/runtime.js";
 import { formatErrors, loadConfig } from "./config.js";
@@ -54,6 +54,16 @@ const app = buildApp(report, {
   ...(sellerRest ? { invoices: new PayPalInvoices(sellerRest, undefined, new McpFallback()) } : {}),
   // Without Resend's key and a sender the app uses its stand-in, which sends nothing.
   ...(config.email ? { email: new ResendEmailSender(config.email) } : {}),
+  // Forwarding to the private address needs Resend's inbound key, its webhook secret and the domain.
+  ...(config.inbound
+    ? {
+        inbound: {
+          inbox: new ResendReceivedEmails({ apiKey: config.inbound.apiKey }),
+          webhookSecret: config.inbound.webhookSecret,
+          domain: config.inbound.domain,
+        },
+      }
+    : {}),
   ...(config.trustProxyHops === undefined ? {} : { trustProxyHops: config.trustProxyHops }),
   signIn: {
     // The seller app stands in for PactPal's own PayPal app until Phase 6.

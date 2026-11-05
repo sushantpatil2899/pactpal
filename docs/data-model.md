@@ -131,14 +131,14 @@ On the website (2f-4) the seller adds `source` files; both sides list and downlo
 
 A webhook is a message PayPal posts to our server when something happens (an invoice created or paid). Each genuine one is saved here in full, exactly once, before the server answers "got it", so a repeat is recognised even after a restart and nothing PayPal tells us is lost. Handling the contents (a milestone paid, a dispute matched) comes in Phases 4 and 5; this table is not the evidence record, the ledger is.
 
-| Column               | Meaning                                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `source`, `event_id` | Who sent it (`paypal`) and its own id for the event. Together the key: the same pair again is a repeat |
-| `event_type`         | What happened, in PayPal's words (for example `INVOICING.INVOICE.PAID`)                                |
-| `resource_type`      | What it is about (for example `invoices`); may be empty                                                |
-| `event_created_at`   | When PayPal says it happened; empty if PayPal's value was not a date                                   |
-| `received_at`        | When our server received it (UTC)                                                                      |
-| `body`               | The whole event as received. Contains buyer details, so the retention rule (Phase 8) applies           |
+| Column               | Meaning                                                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source`, `event_id` | Who sent it (`paypal`, or `resend` for forwarded emails since 4p-2, keyed by the Svix message id) and its own id for the event. Together the key: the same pair again is a repeat |
+| `event_type`         | What happened, in PayPal's words (for example `INVOICING.INVOICE.PAID`)                                                                                                           |
+| `resource_type`      | What it is about (for example `invoices`); may be empty                                                                                                                           |
+| `event_created_at`   | When PayPal says it happened; empty if PayPal's value was not a date                                                                                                              |
+| `received_at`        | When our server received it (UTC)                                                                                                                                                 |
+| `body`               | The whole event as received. Contains buyer details, so the retention rule (Phase 8) applies                                                                                      |
 
 Unlike the ledger it can be changed and deleted: later phases will mark events as processed, and a retention purge may need to remove old ones.
 
@@ -362,15 +362,18 @@ Chat screenshots (4o) are source files like any upload (`SOURCE_ADDED`). The tex
 
 Built in 4p (migration 0018). A tool posts text with a seller's key, and a draft deal is created for that seller with the text saved as a source file. `DEAL_CREATED` then also records `via: "intake"` and the key's last 4 characters.
 
-| Column                                        | Meaning                                                                     |
-| --------------------------------------------- | --------------------------------------------------------------------------- |
-| `id`, `seller_id`                             | The key and its owner                                                       |
-| `token_hash`, `key_ending`                    | The key's SHA-256 and its last 4 characters; the key itself is never stored |
-| `default_category`, `default_currency`        | What deals created with it get unless the post names others                 |
-| `created_at`, `last_used_at`, `turned_off_at` | When it was made, last used and turned off (one key per seller is on)       |
-| `uses_day`, `uses_count`                      | Deals created with it on that UTC day, for the limit of 30                  |
+Since 4p-2 (migration 0019) a row is one of two kinds: a `key` for other tools, or an `address` for forwarding emails to `deals+<code>@in.pact-pal.app`. A forwarded email from the seller's own address that passes SPF or DKIM becomes a draft deal the same way, with `via: "email"` and the address's last 4 characters. The Resend event is saved once in `webhook_events` (source `resend`).
 
-A key keeps its owner, hash and defaults, is turned off once, and is never removed.
+| Column                                        | Meaning                                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------------------ |
+| `id`, `seller_id`                             | The key and its owner                                                          |
+| `kind`                                        | `key` or `address` (4p-2); it never changes                                    |
+| `token_hash`, `key_ending`                    | The key's SHA-256 and its last 4 characters; the key itself is never stored    |
+| `default_category`, `default_currency`        | What deals created with it get unless the post names others                    |
+| `created_at`, `last_used_at`, `turned_off_at` | When it was made, last used and turned off (one of each kind per seller is on) |
+| `uses_day`, `uses_count`                      | Deals created with it on that UTC day, for the limit of 30                     |
+
+A key keeps its owner, kind, hash and defaults, is turned off once, and is never removed.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

@@ -13,6 +13,7 @@ import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { paymentNotifications } from "./payments/payment-sync.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
+import { resendInboundRoutes, type ResendInboundOptions } from "./webhooks/resend-inbound.js";
 
 export interface AppOptions {
   /** Off, on (to standard output), or into a given stream (used by tests to read the logs). */
@@ -37,6 +38,8 @@ export interface AppOptions {
   trustProxyHops?: number;
   /** PayPal invoices from the seller app; absent until its keys are set. */
   invoices?: InvoiceSender;
+  /** Email forwarding through Resend inbound (4p-2); off until its settings are set. */
+  inbound?: ResendInboundOptions["inbound"];
 }
 
 /**
@@ -121,6 +124,15 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     drafting: opts.drafting,
     recordIp: trustProxyHops !== undefined,
     invoices: opts.invoices,
+    inboundDomain: opts.inbound?.domain,
+  });
+  void app.register(resendInboundRoutes, {
+    database: signIn.database,
+    clock: signIn.clock,
+    newId: signIn.newId,
+    publicBaseUrl: signIn.publicBaseUrl,
+    email,
+    inbound: opts.inbound,
   });
   if (opts.webDir !== undefined) registerWebPages(app, opts.webDir);
 

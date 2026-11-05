@@ -54,6 +54,8 @@ export interface DealOptions {
   recordIp?: boolean;
   /** PayPal invoices from the seller app; undefined until its keys are set. */
   invoices?: InvoiceSender | undefined;
+  /** The forwarding domain (4p-2), e.g. in.pact-pal.app; undefined while forwarding is off. */
+  inboundDomain?: string | undefined;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -156,7 +158,13 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     models,
   });
   void app.register(deliveryCheckRoutes, { sellersDeal, clock, newId, drafting, models });
-  void app.register(intakeRoutes, { database, clock, newId, publicBaseUrl });
+  void app.register(intakeRoutes, {
+    database,
+    clock,
+    newId,
+    publicBaseUrl,
+    inboundDomain: options.inboundDomain,
+  });
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
   void app.register(changeOrderRoutes, {

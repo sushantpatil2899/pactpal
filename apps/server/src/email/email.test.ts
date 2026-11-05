@@ -3,6 +3,7 @@ import { dealLinkEmail, dealLinkUrl } from "./deal-link-email.js";
 import { answerEmail } from "./answer-email.js";
 import { changeAnswerEmail, changeProposedEmail } from "./change-email.js";
 import { deliveryEmail } from "./delivery-email.js";
+import { intakeEmail } from "./intake-email.js";
 import { questionForSellerEmail, sellerAnswerEmail } from "./question-email.js";
 import { receiptEmail } from "./receipt-email.js";
 
@@ -347,6 +348,34 @@ describe("question emails", () => {
       "",
       "The agreement itself is what you sign; this answer does not change it. Read it on the deal page (private link, works until 18 Nov 2026, 21:10 UTC, this deal only; please do not forward it):",
       "https://pactpal.test/link#t=SECRET",
+      "",
+      "PactPal (sandbox demo: no real money moves). Not legal advice.",
+    ]);
+  });
+});
+
+describe("intakeEmail", () => {
+  it("tells the seller which forwarded email became a draft deal, with its link", () => {
+    const mail = intakeEmail({
+      to: "maya@example.com",
+      dealTitle: "Logo for Sunrise Bakes",
+      forwardedAt: new Date("2026-11-05T09:12:00.000Z"),
+      link: "https://pactpal.test/deals/d1",
+      idempotencyKey: "intake-email:d1",
+    });
+    expect(mail).toMatchObject({
+      kind: "intake-created",
+      to: "maya@example.com",
+      subject: 'Draft deal created: "Logo for Sunrise Bakes"',
+      idempotencyKey: "intake-email:d1",
+    });
+    expect(mail.text.split("\n")).toEqual([
+      "PactPal made a draft deal from the email you forwarded on 5 Nov 2026, 09:12 UTC, with its text saved as the deal's chat.",
+      "",
+      "Open it to check the text and draft the agreed work:",
+      "https://pactpal.test/deals/d1",
+      "",
+      'Only emails from this address are accepted at your forwarding address. If you did not forward this, make a new address on "Your deals".',
       "",
       "PactPal (sandbox demo: no real money moves). Not legal advice.",
     ]);

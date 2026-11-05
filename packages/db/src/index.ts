@@ -240,9 +240,11 @@ export {
 export {
   MAX_INTAKE_DEALS_PER_DAY,
   currentIntakeKey,
+  findIntakeKey,
   makeIntakeKey,
   turnOffIntakeKey,
   useIntakeKey,
   type IntakeKey,
+  type IntakeKind,
   type IntakeRefusal,
 } from "./intake.js";

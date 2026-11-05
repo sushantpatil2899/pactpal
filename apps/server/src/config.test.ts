@@ -17,6 +17,7 @@ const fullEnv: Record<string, string> = {
   DATABASE_URL,
   PUBLIC_BASE_URL: "https://pactpal.example.com",
   EMAIL_FROM: "receipts@send.pactpal.example.com",
+  INBOUND_DOMAIN: "in.pactpal.example.com",
 };
 
 const unsetSettings = (report: ConfigReport) =>
@@ -82,6 +83,12 @@ describe("loadConfig", () => {
       Database: ["DATABASE_URL"],
       "Sign in with PayPal": ["PUBLIC_BASE_URL", "DATABASE_URL"],
       "Email (Resend)": ["RESEND_API_KEY", "EMAIL_FROM"],
+      "Email forwarding (Resend inbound)": [
+        "RESEND_INBOUND_API_KEY",
+        "RESEND_WEBHOOK_SECRET",
+        "INBOUND_DOMAIN",
+        "DATABASE_URL",
+      ],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
       "AI model: gemini": ["GEMINI_API_KEY"],
@@ -178,6 +185,23 @@ describe("loadConfig", () => {
     expect(JSON.stringify(expectLoaded(fullEnv).config)).not.toContain(fullEnv.RESEND_API_KEY);
   });
 
+  it("turns email forwarding on only when all three settings are set, and checks the domain", () => {
+    const inbound = {
+      RESEND_INBOUND_API_KEY: "re_in",
+      RESEND_WEBHOOK_SECRET: "whsec_abc",
+      INBOUND_DOMAIN: "in.pact-pal.app",
+    };
+    expect(expectLoaded(inbound).config.inbound).toMatchObject({ domain: "in.pact-pal.app" });
+    expect(expectLoaded({ ...inbound, INBOUND_DOMAIN: undefined }).config.inbound).toBeUndefined();
+    expect(expectErrors({ INBOUND_DOMAIN: "not a domain" })).toEqual([
+      "INBOUND_DOMAIN contains spaces or line breaks",
+    ]);
+    expect(expectErrors({ INBOUND_DOMAIN: "https://in.x.app" })).toEqual([
+      "INBOUND_DOMAIN must be a domain name such as in.example.com",
+    ]);
+    expect(JSON.stringify(expectLoaded(inbound).config)).not.toMatch(/re_in|whsec_abc/);
+  });
+
   it("reads how many proxies stand in front of the server, and leaves it unset by default", () => {
     expect(expectLoaded({}).config.trustProxyHops).toBeUndefined();
     expect(expectLoaded({ TRUST_PROXY_HOPS: "0" }).config.trustProxyHops).toBe(0);
@@ -210,6 +234,9 @@ describe("missingRuntimeSettings", () => {
       "PUBLIC_BASE_URL",
       "RESEND_API_KEY",
       "EMAIL_FROM",
+      "RESEND_INBOUND_API_KEY",
+      "RESEND_WEBHOOK_SECRET",
+      "INBOUND_DOMAIN",
     ]);
   });
 
@@ -222,6 +249,9 @@ describe("missingRuntimeSettings", () => {
       PUBLIC_BASE_URL: "https://pactpal.example.com",
       RESEND_API_KEY: "re_key",
       EMAIL_FROM: "receipts@send.pactpal.example.com",
+      RESEND_INBOUND_API_KEY: "re_in",
+      RESEND_WEBHOOK_SECRET: "whsec_abc",
+      INBOUND_DOMAIN: "in.pactpal.example.com",
     });
     expect(missingRuntimeSettings(report)).toEqual([]);
   });

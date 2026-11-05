@@ -1,6 +1,6 @@
 import { createDealLink, createSession, redeemDealLink, type Database } from "@pactpal/db";
 import { TEST_NOW, testId } from "@pactpal/db/testing";
-import { buildApp } from "../app.js";
+import { buildApp, type AppOptions } from "../app.js";
 import type { ChatClient } from "@pactpal/ai";
 import { createDraftingRuntime, type DraftingRuntime } from "../drafting/runtime.js";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
@@ -18,7 +18,12 @@ import { capturingEmail } from "../email/email-test-support.js";
 export function dealTestApp(
   db: Database | undefined,
   drafting?: DraftingRuntime,
-  options: { trustProxyHops?: number; emailOff?: boolean; invoices?: InvoiceSender } = {},
+  options: {
+    trustProxyHops?: number;
+    emailOff?: boolean;
+    invoices?: InvoiceSender;
+    inbound?: AppOptions["inbound"];
+  } = {},
 ) {
   let ids = 200;
   const mail = capturingEmail();

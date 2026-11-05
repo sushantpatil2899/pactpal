@@ -53,6 +53,14 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: receipts@updates.pact-pal.app
+      # Email forwarding through Resend Inbound on in.pact-pal.app: the webhook's signing secret and
+      # a key that can read received emails. Without all three, forwarding stays off.
+      - key: RESEND_INBOUND_API_KEY
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      - key: INBOUND_DOMAIN
+        value: in.pact-pal.app
 
 databases:
   - name: pactpal-db

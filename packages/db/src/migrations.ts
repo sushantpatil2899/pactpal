@@ -612,4 +612,28 @@ CREATE TRIGGER intake_keys_keeps BEFORE UPDATE OR DELETE ON intake_keys
 CREATE TRIGGER intake_keys_no_truncate BEFORE TRUNCATE ON intake_keys
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0019_intake_addresses",
+    // A seller's private forwarding address (4p-2) is a second kind of intake secret: one key and
+    // one address can be on per seller. The kind never changes.
+    sql: `ALTER TABLE intake_keys ADD COLUMN kind text NOT NULL DEFAULT 'key'
+  CHECK (kind IN ('key', 'address'));
+DROP INDEX intake_keys_one_on;
+CREATE UNIQUE INDEX intake_keys_one_on_per_kind ON intake_keys (seller_id, kind)
+  WHERE turned_off_at IS NULL;
+
+CREATE OR REPLACE FUNCTION pactpal_intake_key_keeps() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE'
+     OR NEW.id <> OLD.id OR NEW.seller_id <> OLD.seller_id OR NEW.token_hash <> OLD.token_hash
+     OR NEW.key_ending <> OLD.key_ending OR NEW.default_category <> OLD.default_category
+     OR NEW.default_currency <> OLD.default_currency OR NEW.created_at <> OLD.created_at
+     OR NEW.kind <> OLD.kind
+     OR (OLD.turned_off_at IS NOT NULL AND NEW.turned_off_at IS DISTINCT FROM OLD.turned_off_at) THEN
+    RAISE EXCEPTION 'intake_keys: a key keeps its owner, hash and defaults and is turned off once (append-only)'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$`,
+  },
 ];

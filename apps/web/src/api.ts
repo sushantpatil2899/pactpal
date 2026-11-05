@@ -1258,31 +1258,51 @@ export const readScreenshots = (
     isReading,
   );
 
-/** The seller's intake key as the settings show it (4p): never the key, except once when made. */
+/** An intake key or forwarding address as the settings show it: never the secret itself. */
+export interface IntakeSecretView {
+  ending: string;
+  defaultCategory: string;
+  defaultCurrency: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+/** The seller's intake key (4p) and forwarding address (4p-2), except once when made. */
 export interface IntakeKeyView {
-  key: {
-    ending: string;
-    defaultCategory: string;
-    defaultCurrency: string;
-    createdAt: string;
-    lastUsedAt: string | null;
-  } | null;
-  /** Only in the answer that made the key: the key itself, shown once. */
+  key: IntakeSecretView | null;
+  address: IntakeSecretView | null;
+  /** Whether email forwarding is set up on the server. */
+  forwarding: boolean;
+  /** The only sender whose forwarded emails are accepted. */
+  sellerEmail: string;
+  /** Only in the answer that made a key or address: the secret itself, shown once. */
   secret?: string;
 }
 
+const isSecretView = (value: unknown) =>
+  value === null || (isObject(value) && typeof value.ending === "string");
+
 const isIntakeKey = (value: unknown): value is IntakeKeyView =>
   isObject(value) &&
-  (value.key === null || (isObject(value.key) && typeof value.key.ending === "string")) &&
+  isSecretView(value.key) &&
+  isSecretView(value.address) &&
+  typeof value.forwarding === "boolean" &&
+  typeof value.sellerEmail === "string" &&
   (value.secret === undefined || typeof value.secret === "string");
 
 export async function getIntakeKey(): Promise<IntakeKeyView> {
   return readChecked(await fetch("/api/intake/key"), isIntakeKey, "load the intake key");
 }
 
-/** Makes a new intake key (turning off the old one), with the defaults for deals it creates. */
-export const makeIntakeKey = (defaults: { defaultCategory: string; defaultCurrency: string }) =>
-  postStep("/api/intake/key", defaults, "make a key", isIntakeKey);
+export type IntakeKind = "key" | "address";
+interface IntakeDefaults {
+  defaultCategory: string;
+  defaultCurrency: string;
+}
 
-export const turnOffIntakeKey = () =>
-  postStep("/api/intake/key/off", undefined, "turn the key off", isIntakeKey);
+/** Makes a new intake key or forwarding address (turning off the old one), with its defaults. */
+export const makeIntakeSecret = (kind: IntakeKind, defaults: IntakeDefaults) =>
+  postStep(`/api/intake/${kind}`, defaults, `make a ${kind}`, isIntakeKey);
+
+export const turnOffIntakeSecret = (kind: IntakeKind) =>
+  postStep(`/api/intake/${kind}/off`, undefined, `turn the ${kind} off`, isIntakeKey);

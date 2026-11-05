@@ -22,7 +22,7 @@ const PAYPAL_APPS = {
 
 export type PayPalApp = keyof typeof PAYPAL_APPS;
 /** `ai:<VARIABLE>` is one AI host key, taken from the model registry. */
-type Part = PayPalApp | "webhook" | "database" | "publicUrl" | "email" | `ai:${string}`;
+type Part = PayPalApp | "webhook" | "database" | "publicUrl" | "email" | "inbound" | `ai:${string}`;
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
 const DATABASE_URL = "DATABASE_URL";
@@ -30,6 +30,10 @@ const PUBLIC_BASE_URL = "PUBLIC_BASE_URL";
 const RESEND_API_KEY = "RESEND_API_KEY";
 /** The sender's address on the domain verified in Resend; "PactPal" is added as its name. */
 const EMAIL_FROM = "EMAIL_FROM";
+/** Email forwarding (4p-2): Resend's key for reading received mail, its webhook secret, the domain. */
+const RESEND_INBOUND_API_KEY = "RESEND_INBOUND_API_KEY";
+const RESEND_WEBHOOK_SECRET = "RESEND_WEBHOOK_SECRET";
+const INBOUND_DOMAIN = "INBOUND_DOMAIN";
 const DEFAULT_PORT = 3000;
 
 function appVars(app: PayPalApp): { id: string; secret: string } {
@@ -48,6 +52,7 @@ function partVars(part: Part): string[] {
   if (part === "database") return [DATABASE_URL];
   if (part === "publicUrl") return [PUBLIC_BASE_URL];
   if (part === "email") return [RESEND_API_KEY, EMAIL_FROM];
+  if (part === "inbound") return [RESEND_INBOUND_API_KEY, RESEND_WEBHOOK_SECRET, INBOUND_DOMAIN];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
@@ -62,6 +67,7 @@ export const SETTING_NAMES: readonly string[] = [
   "database" as const,
   "publicUrl" as const,
   "email" as const,
+  "inbound" as const,
   ...AI_KEYS.map((name): Part => `ai:${name}`),
 ].flatMap(partVars);
 
@@ -76,6 +82,8 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Sign in with PayPal", needs: ["seller", "publicUrl", "database"], runtime: true },
   // Without it the server uses a stand-in that sends nothing; links can still be copied by hand.
   { name: "Email (Resend)", needs: ["email"], runtime: true },
+  // Without it forwarding to the private address is off; the intake key still works.
+  { name: "Email forwarding (Resend inbound)", needs: ["inbound", "database"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
   // Not runtime yet: the server starts using AI models in sub-phase 3d.
@@ -129,6 +137,7 @@ const ADDRESS_RULES: Record<string, { valid: (url: URL) => boolean; message: str
 /** True unless the setting is an address that breaks its rule. */
 function addressAllowed(name: string, value: string): boolean {
   if (name === EMAIL_FROM) return z.email().safeParse(value).success;
+  if (name === INBOUND_DOMAIN) return /^(?=.{1,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/.test(value);
   const rule = ADDRESS_RULES[name];
   const url = parseUrl(value);
   return rule === undefined || (url !== undefined && rule.valid(url));
@@ -162,6 +171,8 @@ export interface Config {
   publicBaseUrl?: string;
   /** Resend's key and the sender, e.g. `PactPal <receipts@send.example.com>`; absent until both are set. */
   email?: { apiKey: Secret; from: string };
+  /** Email forwarding through Resend inbound (4p-2); absent until all three settings are set. */
+  inbound?: { apiKey: Secret; webhookSecret: Secret; domain: string };
   /**
    * How many proxies stand in front of the server, from `TRUST_PROXY_HOPS`. Absent until measured:
    * visitors' IP addresses are then not recorded, because the address seen would be the proxy's.
@@ -204,7 +215,11 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
     if (!parsed.success) {
       errors.push(`${name} ${parsed.error.issues.map((issue) => issue.message).join(", ")}`);
     } else if (!addressAllowed(name, parsed.data)) {
-      errors.push(`${name} ${ADDRESS_RULES[name]?.message ?? "must be an email address"}`);
+      const message =
+        name === INBOUND_DOMAIN
+          ? "must be a domain name such as in.example.com"
+          : (ADDRESS_RULES[name]?.message ?? "must be an email address");
+      errors.push(`${name} ${message}`);
     } else {
       values.set(name, parsed.data);
     }
@@ -260,6 +275,16 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
   const emailFrom = values.get(EMAIL_FROM);
   if (resendKey !== undefined && emailFrom !== undefined) {
     config.email = { apiKey: new Secret(resendKey), from: `PactPal <${emailFrom}>` };
+  }
+  const inboundKey = values.get(RESEND_INBOUND_API_KEY);
+  const webhookSecret = values.get(RESEND_WEBHOOK_SECRET);
+  const inboundDomain = values.get(INBOUND_DOMAIN);
+  if (inboundKey !== undefined && webhookSecret !== undefined && inboundDomain !== undefined) {
+    config.inbound = {
+      apiKey: new Secret(inboundKey),
+      webhookSecret: new Secret(webhookSecret),
+      domain: inboundDomain,
+    };
   }
   return { ok: true, config, report };
 }

@@ -133,9 +133,12 @@ describe("evidence log labels", () => {
     ]);
   });
 
-  it("says when a deal came from another tool", () => {
+  it("says when a deal came from another tool or a forwarded email", () => {
     expect(logLabels([entry("DEAL_CREATED", { via: "intake", keyEnding: "x7Qa" })])).toEqual([
       "Deal created (from another tool)",
+    ]);
+    expect(logLabels([entry("DEAL_CREATED", { via: "email", keyEnding: "k7fq" })])).toEqual([
+      "Deal created (forwarded email)",
     ]);
   });
 

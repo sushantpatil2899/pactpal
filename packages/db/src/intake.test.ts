@@ -3,6 +3,7 @@ import {
   MAX_INTAKE_DEALS_PER_DAY,
   createDeal,
   currentIntakeKey,
+  findIntakeKey,
   makeIntakeKey,
   readLedger,
   turnOffIntakeKey,
@@ -89,6 +90,38 @@ describe("intake keys", () => {
     ).rejects.toThrow(/append-only/);
     await expect(db.query("DELETE FROM intake_keys")).rejects.toThrow(/append-only/);
     await expect(db.query("TRUNCATE intake_keys")).rejects.toThrow(/append-only/);
+  });
+
+  it("include a forwarding address, a second kind kept apart from the key", async () => {
+    const { seller, make } = await sellerWithKey();
+    const key = await make(1);
+    const input = {
+      id: testId(950),
+      sellerId: seller.id,
+      defaultCategory: "art-and-design" as const,
+      defaultCurrency: "USD" as const,
+    };
+    const address = await makeIntakeKey(db, input, at(2), "address");
+    expect(address.key).toMatch(/^[a-z2-9]{16}$/);
+    expect((await currentIntakeKey(db, seller.id))?.id).toBe(key.record.id);
+    expect((await currentIntakeKey(db, seller.id, "address"))?.id).toBe(address.record.id);
+    expect(await useIntakeKey(db, address.key, at(3))).toEqual({ ok: false, reason: "not-valid" });
+    expect(await useIntakeKey(db, key.key, at(3), "address")).toEqual({
+      ok: false,
+      reason: "not-valid",
+    });
+    expect(await useIntakeKey(db, address.key, at(3), "address")).toMatchObject({
+      ok: true,
+      record: { defaultCategory: "art-and-design" },
+    });
+    expect((await findIntakeKey(db, address.key, "address"))?.id).toBe(address.record.id);
+    expect(await findIntakeKey(db, address.key, "key")).toBeUndefined();
+    expect(await turnOffIntakeKey(db, seller.id, at(4), "address")).toBe(true);
+    expect(await findIntakeKey(db, address.key, "address")).toBeUndefined();
+    expect((await currentIntakeKey(db, seller.id))?.id).toBe(key.record.id);
+    await expect(
+      db.query("UPDATE intake_keys SET kind = 'key' WHERE kind = 'address'"),
+    ).rejects.toThrow(/append-only/);
   });
 
   it("mark a deal created through one in its log, by the key's ending only", async () => {

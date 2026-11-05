@@ -50,6 +50,10 @@ describe("render.yaml", () => {
       ...aiKeys,
       // The email sender is not secret: it is a plain value, added once the domain is verified.
       ...settingsFor("Email (Resend)").filter((name) => name !== "EMAIL_FROM"),
+      // The receiving domain is not secret either.
+      ...settingsFor("Email forwarding (Resend inbound)").filter(
+        (name) => name !== "INBOUND_DOMAIN" && name !== "DATABASE_URL",
+      ),
     ]);
     // Sign-in needs nothing secret beyond those.
     for (const name of settingsFor("Sign in with PayPal")) {
@@ -99,6 +103,17 @@ describe("render.yaml", () => {
     expect(from).toBe("receipts@updates.pact-pal.app");
     const loaded = loadConfig({ EMAIL_FROM: from, RESEND_API_KEY: "re_test" });
     expect(loaded.ok && loaded.config.email?.from).toBe("PactPal <receipts@updates.pact-pal.app>");
+  });
+
+  it("receives forwarded email on its own subdomain, as a plain value the server accepts", () => {
+    const domain = /- key: INBOUND_DOMAIN\n\s+value: (\S+)\n/.exec(serviceSection)?.[1];
+    expect(domain).toBe("in.pact-pal.app");
+    const loaded = loadConfig({
+      INBOUND_DOMAIN: domain,
+      RESEND_INBOUND_API_KEY: "re_test",
+      RESEND_WEBHOOK_SECRET: "whsec_dGVzdA==",
+    });
+    expect(loaded.ok && loaded.config.inbound?.domain).toBe("in.pact-pal.app");
   });
 
   it("knows no settings for an unknown feature", () => {

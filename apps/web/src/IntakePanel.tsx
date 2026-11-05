@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   getIntakeKey,
-  makeIntakeKey,
-  turnOffIntakeKey,
+  makeIntakeSecret,
+  turnOffIntakeSecret,
   type DealOptions,
   type IntakeKeyView,
+  type IntakeKind,
+  type IntakeSecretView,
 } from "./api";
 import { when } from "./format";
 import { FULL_WIDTH, WRAP } from "./styles";
@@ -16,82 +18,81 @@ export const intakeExample = (origin: string, key: string) =>
   -H "Content-Type: application/json" \\
   -d '{"title": "New commission", "text": "Paste the chat or email here"}'`;
 
-/**
- * "Create deals from other tools" (4p): the seller makes a private key with default category and
- * currency; a tool posts text with it and each text becomes a draft deal with the text saved as
- * its chat. The key is shown once. Hidden for someone not signed in with PayPal.
- */
-export function IntakePanel({ options }: { options: DealOptions }) {
-  const [view, setView] = useState<IntakeKeyView | undefined>();
-  const [secret, setSecret] = useState<string | undefined>();
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | undefined>();
+/** The words that differ between the key and the forwarding address. */
+const WORDS: Record<IntakeKind, { name: string; make: string; shown: string }> = {
+  key: { name: "key", make: "Make a key", shown: "Your new key (shown only now):" },
+  address: {
+    name: "address",
+    make: "Make my address",
+    shown: "Your new address (shown only now; save it as a contact):",
+  },
+};
+
+/** A button that copies `text`, saying so once it has. */
+function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(text).then(
+          () => {
+            setCopied(true);
+          },
+          () => undefined,
+        );
+      }}
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 
-  useEffect(() => {
-    getIntakeKey().then(setView, () => undefined);
-  }, []);
-  if (!view) return null;
-
-  const run = (work: Promise<IntakeKeyView>) => {
-    setBusy(true);
-    setProblem(undefined);
-    work.then(
-      (next) => {
-        setBusy(false);
-        setView(next);
-        setSecret(next.secret);
-        setCopied(false);
-      },
-      (error: unknown) => {
-        setBusy(false);
-        setProblem(error instanceof Error ? error.message : "Something went wrong.");
-      },
-    );
-  };
-  const onMake = (event: FormEvent<HTMLFormElement>) => {
+/** One secret: the current one's ending and defaults, the new one shown once, and the make form. */
+function SecretPart({
+  kind,
+  current,
+  secret,
+  busy,
+  options,
+  onMake,
+  onOff,
+  children,
+}: {
+  kind: IntakeKind;
+  current: IntakeSecretView | null;
+  secret: string | undefined;
+  busy: boolean;
+  options: DealOptions;
+  onMake: (defaults: { defaultCategory: string; defaultCurrency: string }) => void;
+  onOff: () => void;
+  /** Shown under a new secret. */
+  children?: ReactNode;
+}) {
+  const words = WORDS[kind];
+  const label = (id: string) => options.categories.find((c) => c.id === id)?.label ?? id;
+  const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const value = (name: string) => {
       const entry = form.get(name);
       return typeof entry === "string" ? entry : "";
     };
-    run(
-      makeIntakeKey({
-        defaultCategory: value("defaultCategory"),
-        defaultCurrency: value("defaultCurrency"),
-      }),
-    );
+    onMake({
+      defaultCategory: value("defaultCategory"),
+      defaultCurrency: value("defaultCurrency"),
+    });
   };
-  const label = (id: string) => options.categories.find((c) => c.id === id)?.label ?? id;
-
   return (
-    <section aria-labelledby="intake">
-      <h2 id="intake">Create deals from other tools</h2>
-      <p>
-        Make a private key, then send text to PactPal from another tool (a form, a script, an
-        automation). Each text becomes a draft deal with the text saved as its chat.{" "}
-        <strong>Keep the key secret: anyone with it can add draft deals to your account.</strong>
-      </p>
-      {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
-          {problem}
-        </p>
-      )}
-      {view.key && (
+    <>
+      {current && (
         <p>
-          Your key ends in <code>…{view.key.ending}</code>, made {when(view.key.createdAt)}
-          {view.key.lastUsedAt === null
+          Your {words.name} ends in <code>…{current.ending}</code>, made {when(current.createdAt)}
+          {current.lastUsedAt === null
             ? ", not used yet"
-            : `, last used ${when(view.key.lastUsedAt)}`}
-          . New deals: {label(view.key.defaultCategory)}, {view.key.defaultCurrency}.{" "}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              run(turnOffIntakeKey());
-            }}
-          >
+            : `, last used ${when(current.lastUsedAt)}`}
+          . New deals: {label(current.defaultCategory)}, {current.defaultCurrency}.{" "}
+          <button type="button" disabled={busy} onClick={onOff}>
             Turn off
           </button>
         </p>
@@ -99,32 +100,16 @@ export function IntakePanel({ options }: { options: DealOptions }) {
       {secret && (
         <div role="status" style={WRAP}>
           <p>
-            <strong>Your new key (shown only now):</strong> <code>{secret}</code>{" "}
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(secret).then(
-                  () => {
-                    setCopied(true);
-                  },
-                  () => undefined,
-                );
-              }}
-            >
-              {copied ? "Copied" : "Copy"}
-            </button>
+            <strong>{words.shown}</strong> <code>{secret}</code> <CopyButton text={secret} />
           </p>
-          <p>Example request:</p>
-          <pre style={{ ...FULL_WIDTH, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            {intakeExample(window.location.origin, secret)}
-          </pre>
+          {children}
         </div>
       )}
-      <form onSubmit={onMake}>
+      <form onSubmit={submit}>
         <p>
           <label>
             Default category{" "}
-            <select name="defaultCategory" defaultValue={view.key?.defaultCategory}>
+            <select name="defaultCategory" defaultValue={current?.defaultCategory}>
               {options.categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
@@ -134,7 +119,7 @@ export function IntakePanel({ options }: { options: DealOptions }) {
           </label>{" "}
           <label>
             Currency{" "}
-            <select name="defaultCurrency" defaultValue={view.key?.defaultCurrency}>
+            <select name="defaultCurrency" defaultValue={current?.defaultCurrency}>
               {options.currencies.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -144,9 +129,99 @@ export function IntakePanel({ options }: { options: DealOptions }) {
           </label>
         </p>
         <button type="submit" disabled={busy}>
-          {view.key ? "Make a new key (the old one stops working)" : "Make a key"}
+          {current ? `Make a new ${words.name} (the old one stops working)` : words.make}
         </button>
       </form>
+    </>
+  );
+}
+
+/**
+ * "Create deals from other tools" (4p, 4p-2): the seller makes a private key for other tools to
+ * post text with, and a private address to forward emails to, each with default category and
+ * currency. Each text or email becomes a draft deal with it saved as its chat. A new key or
+ * address is shown once. Hidden for someone not signed in with PayPal.
+ */
+export function IntakePanel({ options }: { options: DealOptions }) {
+  const [view, setView] = useState<IntakeKeyView | undefined>();
+  const [shown, setShown] = useState<{ kind: IntakeKind; secret: string } | undefined>();
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | undefined>();
+
+  useEffect(() => {
+    getIntakeKey().then(setView, () => undefined);
+  }, []);
+  if (!view) return null;
+
+  const run = (kind: IntakeKind, work: Promise<IntakeKeyView>) => {
+    setBusy(true);
+    setProblem(undefined);
+    work.then(
+      (next) => {
+        setBusy(false);
+        setView(next);
+        setShown(next.secret === undefined ? undefined : { kind, secret: next.secret });
+      },
+      (error: unknown) => {
+        setBusy(false);
+        setProblem(error instanceof Error ? error.message : "Something went wrong.");
+      },
+    );
+  };
+  const part = (kind: IntakeKind, children?: ReactNode) => (
+    <SecretPart
+      kind={kind}
+      current={view[kind]}
+      secret={shown?.kind === kind ? shown.secret : undefined}
+      busy={busy}
+      options={options}
+      onMake={(defaults) => {
+        run(kind, makeIntakeSecret(kind, defaults));
+      }}
+      onOff={() => {
+        run(kind, turnOffIntakeSecret(kind));
+      }}
+    >
+      {children}
+    </SecretPart>
+  );
+
+  return (
+    <section aria-labelledby="intake">
+      <h2 id="intake">Create deals from other tools</h2>
+      {problem && (
+        <p role="alert" style={{ color: "#8a1c1c" }}>
+          {problem}
+        </p>
+      )}
+      <p>
+        Make a private key, then send text to PactPal from another tool (a form, a script, an
+        automation). Each text becomes a draft deal with the text saved as its chat.{" "}
+        <strong>Keep the key secret: anyone with it can add draft deals to your account.</strong>
+      </p>
+      {part(
+        "key",
+        <>
+          <p>Example request:</p>
+          <pre style={{ ...FULL_WIDTH, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {intakeExample(window.location.origin, shown?.secret ?? "")}
+          </pre>
+        </>,
+      )}
+      <h3>Forward emails to PactPal</h3>
+      {view.forwarding ? (
+        <>
+          <p style={WRAP}>
+            Make a private address, then forward a chat or an email thread to it. Each email becomes
+            a draft deal titled with its subject, with its text saved as its chat (attachments are
+            not used). Only emails sent from <strong>{view.sellerEmail}</strong> (your PactPal
+            email) are accepted.
+          </p>
+          {part("address")}
+        </>
+      ) : (
+        <p>Email forwarding is not set up yet.</p>
+      )}
     </section>
   );
 }

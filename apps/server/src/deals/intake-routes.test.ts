@@ -1,9 +1,11 @@
-import { MAX_INTAKE_DEALS_PER_DAY, getDeal, readLedger } from "@pactpal/db";
+import { MAX_INTAKE_DEALS_PER_DAY, getDeal, getUser, readLedger } from "@pactpal/db";
 import { createTestDeal, useMigratedTestDatabase } from "@pactpal/db/testing";
+import { Secret } from "@pactpal/net";
 import { describe, expect, it } from "vitest";
 import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
+const getUserEmail = async (id: string) => (await getUser(db, id))?.email;
 const CHAT =
   "Rosa: Hi Daniel, I need a website for my bakery\nDaniel: Three pages for $900 in total";
 
@@ -14,6 +16,9 @@ interface KeyView {
     defaultCurrency: string;
     lastUsedAt: string | null;
   } | null;
+  address: KeyView["key"];
+  forwarding: boolean;
+  sellerEmail: string;
   secret?: string;
 }
 
@@ -44,7 +49,9 @@ describe("intake keys", () => {
     expect(env.made.statusCode).toBe(201);
     expect(env.secret).toMatch(/^ppk_/);
     const status = (await env.call("GET", "/api/intake/key", env.seller)).json<KeyView>();
-    expect(status).toEqual({
+    expect(status).toMatchObject({
+      forwarding: false,
+      address: null,
       key: expect.objectContaining({
         ending: env.secret.slice(-4),
         defaultCategory: "web-and-software",
@@ -112,7 +119,7 @@ describe("intake keys", () => {
     ).json<KeyView>();
     expect((await env.post({ text: CHAT })).json()).toEqual(refused);
     expect((await env.post({ text: CHAT }, again.secret)).statusCode).toBe(201);
-    expect((await env.call("POST", "/api/intake/key/off", env.seller)).json()).toEqual({
+    expect((await env.call("POST", "/api/intake/key/off", env.seller)).json()).toMatchObject({
       key: null,
     });
     expect((await env.post({ text: CHAT }, again.secret)).statusCode).toBe(401);
@@ -139,5 +146,47 @@ describe("intake keys", () => {
         })
       ).statusCode,
     ).toBe(400);
+  });
+});
+
+describe("forwarding addresses", () => {
+  const defaults = { defaultCategory: "art-and-design", defaultCurrency: "USD" };
+
+  it("are made only once forwarding is set up, shown once, and kept apart from the key", async () => {
+    const deal = await createTestDeal(db);
+    const off = dealTestApp(db);
+    const seller = await signedInAs(db, deal.seller.id);
+    const refused = await off.call("POST", "/api/intake/address", seller, defaults);
+    expect(refused.statusCode).toBe(503);
+    expect(refused.json()).toEqual({ error: "email forwarding is not set up yet" });
+
+    const env = dealTestApp(db, undefined, {
+      inbound: {
+        inbox: { live: false, get: () => Promise.reject(new Error("not read here")) },
+        webhookSecret: new Secret("whsec_dGVzdA=="),
+        domain: "in.pact-pal.app",
+      },
+    });
+    const key = (await env.call("POST", "/api/intake/key", seller, defaults)).json<KeyView>();
+    const made = await env.call("POST", "/api/intake/address", seller, defaults);
+    expect(made.statusCode).toBe(201);
+    const view = made.json<KeyView>();
+    expect(view.secret).toMatch(/^deals\+[a-z0-9]{16}@in\.pact-pal\.app$/);
+    expect(view).toMatchObject({
+      forwarding: true,
+      sellerEmail: (await getUserEmail(deal.seller.id)) ?? "",
+      address: { ending: view.secret?.split("@")[0]?.slice(-4), defaultCategory: "art-and-design" },
+      key: { ending: key.secret?.slice(-4) },
+    });
+    const status = (await env.call("GET", "/api/intake/key", seller)).json<KeyView>();
+    expect(JSON.stringify(status)).not.toContain(view.secret?.slice(6, 22));
+
+    // Turning the address off leaves the key on, and the other way round.
+    const turned = await env.call("POST", "/api/intake/address/off", seller);
+    expect(turned.json<KeyView>()).toMatchObject({
+      address: null,
+      key: { ending: expect.any(String) as unknown },
+    });
+    expect(env.logs.join("\n")).not.toContain(view.secret?.slice(6, 22));
   });
 });

@@ -152,6 +152,12 @@ function questionLabel(type: string, fields: Fields, n: number): string | undefi
   }
 }
 
+/** How a deal came in when not made on the site (4p, 4p-2). */
+const VIA_LABELS: Record<string, string> = {
+  intake: "Deal created (from another tool)",
+  email: "Deal created (forwarded email)",
+};
+
 /**
  * Plain-words labels for a deal's evidence log, in order. Deliveries are numbered per stage, in
  * log order (the log cannot be reordered), so every entry about a delivery
@@ -187,10 +193,8 @@ export function logLabels(entries: readonly LedgerEntryView[]): string[] {
       perStage.set(key, n);
       numbers.set(deliveryId, { stage, n });
     }
-    const label =
-      entry.type === "DEAL_CREATED" && fields.text("via") === "intake"
-        ? "Deal created (from another tool)"
-        : (EVENT_LABELS[entry.type] ?? entry.type);
+    const via = entry.type === "DEAL_CREATED" ? VIA_LABELS[fields.text("via") ?? ""] : undefined;
+    const label = via ?? EVENT_LABELS[entry.type] ?? entry.type;
     const delivery = deliveryId === undefined ? undefined : numbers.get(deliveryId);
     const aboutDelivery =
       delivery === undefined ? undefined : deliveryLabel(entry.type, fields, delivery);
