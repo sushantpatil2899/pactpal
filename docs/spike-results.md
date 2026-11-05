@@ -107,3 +107,33 @@ Lines that look like orders to an AI are now hidden from the models, cannot be q
 - **A weakness found in the vote with two valid drafts.** When exactly two models produce valid drafts, each voter's own draft is left out of its ranking, so every ballot has one label and the vote counts nothing. The pick is then decided by the tie-breaks alone, which are arbitrary. Two re-runs of `spanish` and `foreign-currency` with Gemini rate limited (two valid drafts) picked the worse draft both times (0.57 over 0.93, and mistral's wrong price over qwen's right one). Proposed: when only two drafts are valid, say so on the page and in the council's own record (no ranking was possible), or let models that wrote no valid draft vote. Needs the owner's approval and its own plan.
 - **Limits of the check:** 11 chats written by us, one run each, and models answer slightly differently each time, so this shows a tendency only. A second run on a day when the limits have reset would show how much the numbers move and would include gpt-oss and Nemotron.
 - **Outcome (3h, 1 November 2026):** the owner decided to keep the council, because no single model is reliable enough today. When the vote cannot rank (two valid drafts), the page now shows every valid draft and the seller chooses; the weakness above is handled in the page, not in the council's tie-breaks.
+
+## Second drafting eval (sub-phase 4n-2, 5 November 2026)
+
+The same 11 chats, one run each, all five models, with drafting prompt version 3 (buyer duties with dates and suggested line marks). It ran at 08:30 UTC, half an hour after Gemini's daily limit reset, and took 795 seconds. Run 1 (above) in brackets where it can be compared.
+
+| Model               | Asked | Failed (no reply) | Dropped by the checker | Scored | Average score | Wrong values | Tokens per draft | Seconds per draft |
+| ------------------- | ----- | ----------------- | ---------------------- | ------ | ------------- | ------------ | ---------------- | ----------------- |
+| gemini              | 11    | 9 (2)             | 0                      | 2      | 1.00 (0.98)   | 0            | 2,089            | 17.1              |
+| qwen-groq           | 11    | 0                 | 0                      | 11     | 0.81 (0.80)   | 0            | 1,907            | 1.2               |
+| gpt-oss-groq        | 11    | 0 (10)            | 0                      | 11     | 0.94          | 0            | 4,431            | 4.1               |
+| mistral             | 11    | 0                 | 2                      | 9      | 0.88 (0.90)   | 4 (4)        | 2,259            | 20.1              |
+| nemotron-openrouter | 11    | 0 (11)            | 1                      | 10     | 0.99          | 0            | 5,421            | 42.4              |
+
+- **Every model answered this time except Gemini:** 7 of its calls were refused for its daily limit and 2 failed on its server. Gemini also ranks in the council, so 20 requests a day do not cover a full eval run (not confirmed).
+- **Mistral made the same 4 wrong values as in run 1:** a due date and a revision count from "by Friday" and "a few changes", the euro price as dollars, and a revision count in `small-talk`.
+- **The council** chose a draft for all 11 chats. Its pick averaged 0.98 with no wrong values (0.92 and 1 in run 1) and was the best draft on offer in all 11 (9 in run 1). A single model's draft averaged 0.91. It picked Nemotron's draft 7 times, gpt-oss's 3 times and Mistral's once. It used 10 calls, 29,384 tokens and 72 seconds per chat (10,967 tokens and 28 seconds in run 1), about 8.5 times the tokens of one draft; Nemotron's 42 seconds per draft is most of the extra time.
+- **The review flag** marked 4 of 11 picks (1 in run 1), and flagged and unflagged picks both averaged 0.98, so it flagged more without catching worse drafts. 1 tie between the top drafts.
+- **Prompt version 3's parts** (not in the score):
+
+| Drafts of           | Scored | Buyer duties found | Dates right | Marks right |
+| ------------------- | ------ | ------------------ | ----------- | ----------- |
+| gemini              | 2      | 1.00               | 1.00        | 4 of 4      |
+| qwen-groq           | 11     | 0.95               | 1.00        | 15 of 15    |
+| gpt-oss-groq        | 11     | 1.00               | 1.00        | 12 of 15    |
+| mistral             | 9      | 1.00               | 1.00        | 10 of 11    |
+| nemotron-openrouter | 10     | 1.00               | 1.00        | 14 of 14    |
+| council pick        | 11     | 1.00               | 1.00        | 15 of 15    |
+
+- **Limits of the check:** 11 chats written by us, one run each; read the numbers as a tendency.
+- **Open:** keeping or dropping Nemotron is decided after the prompt-injection check on 6 November 2026.
