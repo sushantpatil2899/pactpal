@@ -715,10 +715,17 @@ export interface ChatLine {
 type Stated<T> = ({ status: "found"; citations: Citation[] } & T) | { status: "missing" };
 
 /** The drafted agreed work: every statement carries quotes, or is marked missing. */
+/** A draft's suggested mark for a delivered line (format 3 drafts only). */
+export type DraftMark = "objective" | "process" | "subjective" | "unsure";
+
 export interface DraftContent {
+  /** 2: older drafts, without marks or buyer duties; 3: drafting prompt version 3. */
+  format: 2 | 3;
   summary: Stated<{ value: string }>;
-  deliverables: { text: string; citations: Citation[] }[];
+  deliverables: { text: string; citations: Citation[]; mark?: DraftMark }[];
   exclusions: { text: string; citations: Citation[] }[];
+  /** What the buyer must provide, by the chat; absent in format 2 drafts. */
+  buyerProvides?: { text: string; dueDate: string | null; citations: Citation[] }[];
   price: Stated<{ amount: string; currency: string; minor: number | null }>;
   paymentTerms: Stated<{ value: string }>;
   dueDate: Stated<{ value: string }>;
@@ -814,7 +821,7 @@ const isStated = (value: unknown): boolean =>
 
 const isDraftContent = (value: unknown): value is DraftContent =>
   isObject(value) &&
-  value.format === 2 &&
+  (value.format === 2 || value.format === 3) &&
   isStated(value.summary) &&
   isStated(value.price) &&
   isStated(value.paymentTerms) &&

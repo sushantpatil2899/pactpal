@@ -1,6 +1,6 @@
 import type { JsonSchema } from "@pactpal/ai";
 import { z } from "zod";
-import { scopeDraftSchema } from "./schema.js";
+import { scopeDraftV3Schema } from "./schema.js";
 
 /** Keywords hosts commonly reject in a reply schema. The checker still enforces every one of them. */
 const HOST_REJECTED = new Set([
@@ -49,7 +49,7 @@ function simplify(node: unknown): unknown {
  * limits are left out here and enforced by `validateScopeDraft`.
  */
 export function scopeDraftWireSchema(): JsonSchema {
-  const simplified = simplify(z.toJSONSchema(scopeDraftSchema));
+  const simplified = simplify(z.toJSONSchema(scopeDraftV3Schema));
   return simplified as JsonSchema;
 }
 

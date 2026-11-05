@@ -1,5 +1,5 @@
 import type { EvalGold } from "./eval-cases.js";
-import type { ScopeDraft } from "./schema.js";
+import { buyerProvidesOf, deliverableMarksOf, type ScopeDraft } from "./schema.js";
 
 /**
  * How a draft's value compares with the right answer. `right`: the same value (or correctly left
@@ -22,6 +22,13 @@ export interface DraftScore {
   extras: Record<(typeof SCORED_LISTS)[number], number>;
   /** How many of the four fields are `wrong`. */
   wrongValues: number;
+  /**
+   * Prompt version 3's parts, reported apart so `score` stays comparable with the first run: the
+   * share of buyer duties found, the share of those found with the right date (null when none
+   * was found), and how many expected marks the draft got right.
+   */
+  buyerProvides: { recall: number; datesRight: number | null; extras: number };
+  marks: { right: number; judged: number };
 }
 
 /** Compares a stated value with the right one; `statedValue` is undefined when the draft says missing. */
@@ -90,6 +97,39 @@ function vagueScore(gold: EvalGold, draft: ScopeDraft) {
   };
 }
 
+const cites = (item: { citations: readonly { line: number }[] }, lines: readonly number[]) =>
+  item.citations.some(({ line }) => lines.includes(line));
+
+/** Buyer duties found (by lines), and whether the found ones carry the right date. */
+function buyerProvidesScore(gold: EvalGold, draft: ScopeDraft) {
+  const items = buyerProvidesOf(draft);
+  const { recall, extras } = listScore(
+    gold.buyerProvides.map(({ lines }) => lines),
+    items,
+  );
+  const found = gold.buyerProvides.flatMap((duty) => {
+    const item = items.find((candidate) => cites(candidate, duty.lines));
+    return item ? [item.dueDate === duty.dueDate] : [];
+  });
+  return {
+    recall,
+    datesRight: found.length === 0 ? null : found.filter(Boolean).length / found.length,
+    extras,
+  };
+}
+
+/** Expected marks the draft matches: a deliverable citing the group's lines with that mark. */
+function marksScore(gold: EvalGold, draft: ScopeDraft) {
+  const marks = deliverableMarksOf(draft);
+  const expected = gold.marks.flatMap((mark, i) =>
+    mark === null ? [] : [{ mark, lines: gold.deliverables[i] ?? [] }],
+  );
+  const right = expected.filter(({ mark, lines }) =>
+    draft.deliverables.some((item, i) => cites(item, lines) && marks[i] === mark),
+  ).length;
+  return { right, judged: expected.length };
+}
+
 /**
  * Scores a draft that passed the checker against the right answer. Plain code only (never an AI):
  * values are compared exactly, lists by the chat lines the draft cites, so it works in any language.
@@ -132,5 +172,7 @@ export function scoreDraft(gold: EvalGold, draft: ScopeDraft): DraftScore {
       vague: vague.extras,
     },
     wrongValues: verdicts.filter((v) => v === "wrong").length,
+    buyerProvides: buyerProvidesScore(gold, draft),
+    marks: marksScore(gold, draft),
   };
 }

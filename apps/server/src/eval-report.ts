@@ -1,4 +1,4 @@
-import { SCORED_FIELDS } from "@pactpal/scope-draft/testing";
+import { SCORED_FIELDS, type DraftScore } from "@pactpal/scope-draft/testing";
 import type { AloneRecord, CouncilEvalRecord, EvalRun } from "./eval-runner.js";
 import { table } from "./report-table.js";
 
@@ -151,6 +151,43 @@ function statement(alone: readonly AloneRecord[], council: readonly CouncilEvalR
   );
 }
 
+/** One row of the prompt version 3 parts, over scored drafts. */
+function newPartsRow(name: string, scores: readonly DraftScore[]): string[] {
+  const dates = scores.flatMap((s) =>
+    s.buyerProvides.datesRight === null ? [] : [s.buyerProvides.datesRight],
+  );
+  const right = scores.reduce((sum, s) => sum + s.marks.right, 0);
+  const judged = scores.reduce((sum, s) => sum + s.marks.judged, 0);
+  return [
+    name,
+    count(scores.length),
+    fixed(mean(scores.map((s) => s.buyerProvides.recall))),
+    fixed(mean(dates)),
+    judged === 0 ? "-" : `${count(right)} of ${count(judged)}`,
+  ];
+}
+
+/** Prompt version 3's parts, apart from the score so it stays comparable with earlier runs. */
+function newPartsSection(
+  alone: readonly AloneRecord[],
+  council: readonly CouncilEvalRecord[],
+): string {
+  const scoresOf = (records: readonly { score?: DraftScore }[]) =>
+    records.flatMap((r) => (r.score === undefined ? [] : [r.score]));
+  const rows = [
+    ...unique(alone.map((r) => r.model)).map((model) =>
+      newPartsRow(model, scoresOf(alone.filter((r) => r.model === model))),
+    ),
+    newPartsRow("council pick", scoresOf(council)),
+  ];
+  return (
+    "\nBuyer duties and line marks (prompt version 3; not in the score above)\n" +
+    table(["drafts of", "scored", "duties found", "dates right", "marks right"], rows) +
+    "  duties found = share of the buyer duties the chats state; dates right = share of the found\n" +
+    "  ones with the right date; marks right = expected marks the drafts got right\n"
+  );
+}
+
 /**
  * The plain-text report of an evals run: each model alone, the chats, the council, and a short
  * statement. It shows chat ids, model names, field names and numbers only, never chat text or replies.
@@ -162,6 +199,7 @@ export function formatEvalReport(run: EvalRun): string {
   let text = `Drafting evals (${count(chats)} chats, ${count(run.runs)} run${run.runs === 1 ? "" : "s"} of each)\n\n`;
   text += aloneSection(alone);
   text += councilSection(council);
+  text += newPartsSection(alone, council);
   text += chatSection(alone, council);
   text += statement(alone, council);
   text += `\n${(run.durationMs / 1000).toFixed(0)} s in all.\n`;

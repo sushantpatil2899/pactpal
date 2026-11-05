@@ -1,3 +1,5 @@
+import { dayWords, markWords } from "@pactpal/words";
+import { suggestedMark } from "./draft-fill";
 import type { Citation, DraftCategory, DraftContent, DraftView } from "./api";
 import { ChatPane } from "./ChatPane";
 import { CouncilPanel } from "./CouncilPanel";
@@ -142,6 +144,9 @@ function DraftBody({ draft }: { draft: DraftContent }) {
         {draft.deliverables.map((item, n) => (
           <li key={n}>
             {item.text}
+            {item.mark !== undefined && item.mark !== "unsure" && (
+              <> {markWords(suggestedMark(item.mark), [])} (suggested)</>
+            )}
             <Quotes citations={item.citations} />
           </li>
         ))}
@@ -157,6 +162,22 @@ function DraftBody({ draft }: { draft: DraftContent }) {
           </li>
         ))}
       </ul>
+
+      {draft.buyerProvides !== undefined && (
+        <>
+          <h4>The buyer provides</h4>
+          {draft.buyerProvides.length === 0 && <p>{NOT_STATED}</p>}
+          <ul>
+            {draft.buyerProvides.map((item, n) => (
+              <li key={n}>
+                {item.text}
+                {item.dueDate === null ? "" : `, by ${dayWords(item.dueDate)}`}
+                <Quotes citations={item.citations} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
 
       <h4>Price and payment</h4>
       {draft.price.status === "found" ? (

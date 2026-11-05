@@ -17,7 +17,18 @@ export {
   hideInstructionLines,
   looksLikeInstruction,
 } from "./instruction-lines.js";
-export { VAGUE_KINDS, scopeDraftSchema, type Citation, type ScopeDraft } from "./schema.js";
+export {
+  DELIVERABLE_MARKS,
+  VAGUE_KINDS,
+  buyerProvidesOf,
+  deliverableMarksOf,
+  scopeDraftSchema,
+  scopeDraftV3Schema,
+  type Citation,
+  type DeliverableMark,
+  type ScopeDraft,
+  type ScopeDraftV3,
+} from "./schema.js";
 export { SCOPE_DRAFT_SCHEMA_NAME, scopeDraftWireSchema } from "./wire-schema.js";
 export {
   SCOPE_DRAFT_PROMPT_VERSION,

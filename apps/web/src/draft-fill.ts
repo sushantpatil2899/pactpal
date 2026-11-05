@@ -1,4 +1,5 @@
-import type { ChatLine, Citation, DraftCandidate, DraftView } from "./api";
+import type { LineMark } from "@pactpal/words";
+import type { ChatLine, Citation, DraftCandidate, DraftMark, DraftView } from "./api";
 
 /** One wording suggestion from a draft: shown beside the form, never applied by itself. */
 export interface Suggestion {
@@ -19,6 +20,7 @@ export interface FillSources {
   summary: number[];
   deliverables: SourcedItem[];
   exclusions: SourcedItem[];
+  buyerProvides: SourcedItem[];
   revisionsIncluded: number[];
   dueDate: number[];
   price: number[];
@@ -46,7 +48,11 @@ export interface DraftFill {
   draftLabel?: string;
   summary?: string;
   deliverables: string[];
+  /** The draft's suggested mark for each delivered line, in order (null: none suggested). */
+  marks: LineMark[];
   exclusions: string[];
+  /** What the buyer provides, by the draft, with the date the chat gives (if any). */
+  buyerProvides: { text: string; dueDate?: string }[];
   revisionsIncluded?: number;
   dueDate?: string;
   /** One payment stage for the whole price, to be split by the seller. */
@@ -56,6 +62,23 @@ export interface DraftFill {
   sources: FillSources;
   /** Undefined when the chat could not be read back. */
   chat: FillChat | undefined;
+}
+
+/**
+ * A draft's suggested mark as the editor's mark. A matter of taste is tied to stage 1, the only
+ * stage a draft makes; "unsure" (or an older draft's missing mark) is no mark.
+ */
+export function suggestedMark(mark: DraftMark | undefined): LineMark {
+  switch (mark) {
+    case "objective":
+    case "process":
+      return { kind: mark };
+    case "subjective":
+      return { kind: "subjective", approvalStage: 1 };
+    case "unsure":
+    case undefined:
+      return null;
+  }
 }
 
 /**
@@ -70,7 +93,12 @@ export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill
     ...(candidate === undefined ? {} : { draftLabel: candidate.label }),
     ...(draft.summary.status === "found" ? { summary: draft.summary.value } : {}),
     deliverables: draft.deliverables.map((item) => item.text),
+    marks: draft.deliverables.map((item) => suggestedMark(item.mark)),
     exclusions: draft.exclusions.map((item) => item.text),
+    buyerProvides: (draft.buyerProvides ?? []).map((item) => ({
+      text: item.text,
+      ...(item.dueDate === null ? {} : { dueDate: item.dueDate }),
+    })),
     ...(draft.revisionsIncluded.status === "found"
       ? { revisionsIncluded: draft.revisionsIncluded.value }
       : {}),
@@ -91,6 +119,10 @@ export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill
         lines: linesOf(item.citations),
       })),
       exclusions: draft.exclusions.map((item) => ({
+        text: item.text,
+        lines: linesOf(item.citations),
+      })),
+      buyerProvides: (draft.buyerProvides ?? []).map((item) => ({
         text: item.text,
         lines: linesOf(item.citations),
       })),

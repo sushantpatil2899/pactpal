@@ -18,6 +18,7 @@ const RANK_CRITERIA = [
   "Citations: each citation points to the line where the fact is stated and quotes it.",
   "Vague wording: the draft flags phrases that two people could understand differently, and its suggested rewrites could be checked and are not presented as already agreed.",
   "Category: the draft names the right kind of product or service.",
+  "Buyer duties and marks: the draft lists what the buyer must provide (with dates) when the source states it, and each delivered item's mark fits it (checkable, a step in the work, or a matter of taste).",
 ];
 
 export type ScopeDraftTask =

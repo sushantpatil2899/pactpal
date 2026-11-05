@@ -14,6 +14,8 @@ const score = (value: number, wrong: "price" | null = null): DraftScore => ({
   recall: { deliverables: 1, exclusions: 1, vague: 1 },
   extras: { deliverables: 0, exclusions: 0, vague: 0 },
   wrongValues: wrong === null ? 0 : 1,
+  buyerProvides: { recall: 1, datesRight: value > 0.5 ? 1 : null, extras: 0 },
+  marks: { right: 1, judged: 2 },
 });
 
 const alone = (
@@ -99,6 +101,14 @@ describe("formatEvalReport", () => {
     expect(text).toMatch(/chat\s+a\s+b\s+c\s+council\s+picked/);
     expect(text).toMatch(/maya\s+1\.00\s+0\.80\s+fail\s+1\.00\s+a/);
     expect(text).toMatch(/sunrise\s+drop\s+0\.90\s+fail\s+0\.90\s+b/);
+  });
+
+  it("shows the buyer duties and line marks apart from the score", () => {
+    expect(text).toContain(
+      "Buyer duties and line marks (prompt version 3; not in the score above)",
+    );
+    expect(text).toMatch(/council pick\s+\|?\s*\d+/);
+    expect(text).toContain("of 2");
   });
 
   it("states the comparison and the cost multiple in plain words, and leaves the decision to the owner", () => {

@@ -1,6 +1,6 @@
 import type { ScopeContent } from "@pactpal/db";
 import { MAYA_DRAFT } from "@pactpal/scope-draft/testing";
-import type { ScopeDraft } from "@pactpal/scope-draft";
+import { scopeDraftSchema, type ScopeDraft } from "@pactpal/scope-draft";
 import { describe, expect, it } from "vitest";
 import { compareWithDraft } from "./confirmation.js";
 
@@ -28,8 +28,40 @@ describe("compareWithDraft", () => {
       summary: "unchanged",
       deliverables: "unchanged",
       exclusions: "unchanged",
+      deliverableMarks: "changed",
       totalPrice: "unchanged",
     });
+  });
+
+  it("compares what the buyer provides and the suggested marks, and skips marks for older drafts", () => {
+    const marked: ScopeContent = {
+      ...same,
+      deliverableKinds: [{ kind: "objective" }, { kind: "process" }],
+      buyerProvides: [{ text: "Reference board", dueDate: "2026-11-20" }],
+    };
+    const duty = withDraft((d) => {
+      if (d.format === 3)
+        d.buyerProvides = [{ text: "Reference board", dueDate: "2026-11-20", citations: [] }];
+    });
+    expect(compare(duty, marked)).toMatchObject({
+      buyerProvides: "unchanged",
+      deliverableMarks: "unchanged",
+    });
+    expect(
+      compare(duty, { ...marked, buyerProvides: [{ text: "Reference board" }] }).buyerProvides,
+    ).toBe("changed");
+    expect(compare(MAYA_DRAFT, marked).buyerProvides).toBe("added");
+    const unsure = withDraft((d) => {
+      if (d.format === 3) d.deliverables.forEach((item) => (item.mark = "unsure"));
+    });
+    expect(compare(unsure, same).deliverableMarks).toBe("unchanged");
+    // An older draft (format 2): no buyer duties and no marks.
+    const older = scopeDraftSchema.parse({
+      ...Object.fromEntries(Object.entries(MAYA_DRAFT).filter(([key]) => key !== "buyerProvides")),
+      format: 2,
+      deliverables: MAYA_DRAFT.deliverables.map(({ text, citations }) => ({ text, citations })),
+    });
+    expect(compare(older, marked).deliverableMarks).toBeUndefined();
   });
 
   it("ignores spacing and Unicode forms but not wording or case", () => {

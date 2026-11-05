@@ -1,3 +1,4 @@
+import { markWords } from "@pactpal/words";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { InvalidFieldsError, getScope, saveScope, type ScopeInput, type ScopeView } from "./api";
 import { ChatPane, FromTheChat, type LineRequest } from "./ChatPane";
@@ -217,12 +218,14 @@ export function ScopePanel({
         ? { title: fill.stage.title, amount: fill.stage.amount, dueDate: "" }
         : { ...EMPTY_STAGE },
     ]);
-    // A draft has no "buyer provides" list or line marks yet (4n), so the seller writes them.
-    setProvides([]);
+    // What the buyer provides and the line marks are the draft's suggestions (4n), labelled so.
+    setProvides(
+      fill.buyerProvides.map((item) => ({ text: item.text, dueDate: item.dueDate ?? "" })),
+    );
     setLines(
       fill.deliverables.length === 0
         ? [{ ...EMPTY_LINE }]
-        : fill.deliverables.map((text) => lineRow(text, null)),
+        : fill.deliverables.map((text, i) => lineRow(text, fill.marks[i] ?? null)),
     );
     setLineRequest(undefined);
     heading.current?.focus();
@@ -339,6 +342,7 @@ export function ScopePanel({
           {(row, n, change) => {
             const source = sources?.deliverables.find((item) => item.text === row.text);
             const hints = fill ? draftHints(row.text, fill.suggestions) : [];
+            const suggested = fill?.marks[fill.deliverables.indexOf(row.text)];
             return (
               <LineFields
                 number={n + 1}
@@ -346,6 +350,11 @@ export function ScopePanel({
                 change={change}
                 stages={stages.map((stage) => stage.title)}
               >
+                {suggested && (
+                  <span style={{ display: "block", color: "#555", fontSize: 14 }}>
+                    Mark suggested by the draft: {markWords(suggested, stages)}
+                  </span>
+                )}
                 {hints.map((hint) => (
                   <span key={hint} style={{ display: "block", color: "#555", fontSize: 14 }}>
                     {hint}
@@ -424,7 +433,19 @@ export function ScopePanel({
           addLabel="Add an item"
           removeLabel={(n) => `Remove item ${String(n)}`}
         >
-          {(row, n, change) => <ProvideFields number={n + 1} row={row} change={change} />}
+          {(row, n, change) => {
+            const source = sources?.buyerProvides.find((item) => item.text === row.text);
+            return (
+              <>
+                <ProvideFields number={n + 1} row={row} change={change} />
+                {source && (
+                  <span style={{ display: "block", color: "#555", fontSize: 14 }}>
+                    Suggested by the draft <FromTheChat lines={source.lines} onShow={show} />
+                  </span>
+                )}
+              </>
+            );
+          }}
         </EditableRows>
       </fieldset>
       <p>

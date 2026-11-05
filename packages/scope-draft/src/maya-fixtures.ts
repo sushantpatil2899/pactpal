@@ -1,4 +1,4 @@
-import type { ScopeDraft } from "./schema.js";
+import type { ScopeDraftV3 } from "./schema.js";
 
 /** A made-up Discord chat (the "Maya" story in docs/demo.md): price stated, no deadline, no revision limit. */
 export const MAYA_CHAT = `Chris: hey Maya! love your art, are you taking commissions right now?
@@ -34,8 +34,8 @@ export const TEST_CATEGORIES = [
 ] as const;
 
 /** A correct draft of `MAYA_CHAT`: cited where the chat says it, missing where it does not. */
-export const MAYA_DRAFT: ScopeDraft = {
-  format: 2,
+export const MAYA_DRAFT: ScopeDraftV3 = {
+  format: 3,
   summary: {
     status: "found",
     value:
@@ -52,16 +52,19 @@ export const MAYA_DRAFT: ScopeDraft = {
         { line: 10, quote: "PNG with a transparent background, at least 3000 px tall" },
         { line: 6, quote: "She's a space courier" },
       ],
+      mark: "objective",
     },
     {
       text: "A rough sketch for approving the pose before the final",
       citations: [{ line: 20, quote: "send a rough sketch first so you can approve the pose" }],
+      mark: "process",
     },
   ],
   exclusions: [
     { text: "No merchandise use", citations: [{ line: 13, quote: "No merchandise use" }] },
     { text: "No background art", citations: [{ line: 13, quote: "no background art" }] },
   ],
+  buyerProvides: [],
   price: {
     status: "found",
     amount: "240.00",
@@ -99,11 +102,12 @@ export const MAYA_DRAFT: ScopeDraft = {
 };
 
 /** A draft in which the chat stated nothing: every field missing, every list empty. */
-export const ALL_MISSING_DRAFT: ScopeDraft = {
-  format: 2,
+export const ALL_MISSING_DRAFT: ScopeDraftV3 = {
+  format: 3,
   summary: { status: "missing" },
   deliverables: [],
   exclusions: [],
+  buyerProvides: [],
   price: { status: "missing" },
   paymentTerms: { status: "missing" },
   dueDate: { status: "missing" },

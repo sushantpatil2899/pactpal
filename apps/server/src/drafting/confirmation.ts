@@ -1,6 +1,6 @@
 import type { ScopeContent } from "@pactpal/db";
 import { fromPayPalMoney } from "@pactpal/paypal";
-import type { ScopeDraft } from "@pactpal/scope-draft";
+import { buyerProvidesOf, type ScopeDraft } from "@pactpal/scope-draft";
 
 /** What the seller did with one field of an AI draft. */
 export type FieldChange = "unchanged" | "changed" | "added" | "removed";
@@ -24,6 +24,20 @@ function compare(
   return same ? "unchanged" : "changed";
 }
 
+/** A buyer-provides item as one comparable string: its text and date. */
+const provided = (item: { text: string; dueDate?: string | null }) =>
+  `${item.text} | ${item.dueDate ?? ""}`;
+
+/**
+ * The draft's suggested marks against the saved ones, line by line ("unsure" counts as no mark).
+ * A matter of taste is the same mark whatever stage settles it.
+ */
+function compareMarks(draft: Extract<ScopeDraft, { format: 3 }>, content: ScopeContent) {
+  const suggested = draft.deliverables.map(({ mark }) => (mark === "unsure" ? "none" : mark));
+  const saved = content.deliverables.map((_, i) => content.deliverableKinds?.[i]?.kind ?? "none");
+  return compare(suggested, saved);
+}
+
 /** The draft's price in minor units, or undefined when it is missing or not a valid amount. */
 function draftedPriceMinor(draft: ScopeDraft, currency: string): number | undefined {
   if (draft.price.status !== "found") return undefined;
@@ -36,8 +50,9 @@ function draftedPriceMinor(draft: ScopeDraft, currency: string): number | undefi
 
 /**
  * Compares the agreed work the seller saved with the AI draft it came from, field by field:
- * summary, what is delivered, what is not included, revisions, due date and total price. Plain
- * code, no AI. Only fields that either side has appear. The draft's payment-terms text is not
+ * summary, what is delivered, what is not included, what the buyer provides, the line marks,
+ * revisions, due date and total price. Plain code, no AI. Only fields that either side has
+ * appear (marks only for a draft that suggested them). The draft's payment-terms text is not
  * compared, because the seller builds the payment stages by hand.
  */
 export function compareWithDraft(
@@ -68,6 +83,11 @@ export function compareWithDraft(
         content.exclusions,
       ),
     ],
+    [
+      "buyerProvides",
+      compare(buyerProvidesOf(draft).map(provided), content.buyerProvides?.map(provided)),
+    ],
+    ["deliverableMarks", draft.format === 3 ? compareMarks(draft, content) : undefined],
     [
       "revisionsIncluded",
       compare(

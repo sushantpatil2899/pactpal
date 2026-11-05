@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { EVAL_CASES, type EvalCase } from "./eval-cases.js";
 import { scoreDraft } from "./eval-judge.js";
 import { ALL_MISSING_DRAFT, MAYA_DRAFT } from "./maya-fixtures.js";
-import type { ScopeDraft } from "./schema.js";
+import { scopeDraftSchema, type ScopeDraft } from "./schema.js";
 import { numberSourceLines } from "./source.js";
 
 const caseOf = (id: string): EvalCase => {
@@ -55,7 +55,39 @@ describe("scoreDraft", () => {
       recall: { deliverables: 1, exclusions: 1, vague: 1 },
       extras: { deliverables: 0, exclusions: 0, vague: 0 },
       wrongValues: 0,
+      buyerProvides: { recall: 1, datesRight: null, extras: 0 },
+      marks: { right: 2, judged: 2 },
     });
+  });
+
+  it("reports buyer duties and marks apart from the score", () => {
+    const sunrise = caseOf("sunrise").gold;
+    const withDuty = (dueDate: string | null): ScopeDraft => ({
+      ...ALL_MISSING_DRAFT,
+      deliverables: [
+        { text: "Three pages", citations: cite(3), mark: "objective" },
+        { text: "Hosting", citations: cite(7), mark: "unsure" },
+      ],
+      buyerProvides: [{ text: "Menu text and photos", dueDate, citations: cite(19) }],
+    });
+    expect(scoreDraft(sunrise, withDuty("2026-11-20"))).toMatchObject({
+      buyerProvides: { recall: 1, datesRight: 1, extras: 0 },
+      marks: { right: 1, judged: 2 },
+    });
+    expect(scoreDraft(sunrise, withDuty(null)).buyerProvides.datesRight).toBe(0);
+    // An older draft: no buyer duties and no marks.
+    const format2 = scopeDraftSchema.parse({
+      ...Object.fromEntries(
+        Object.entries(ALL_MISSING_DRAFT).filter(([key]) => key !== "buyerProvides"),
+      ),
+      format: 2,
+    });
+    expect(scoreDraft(sunrise, format2).buyerProvides).toEqual({
+      recall: 0,
+      datesRight: null,
+      extras: 0,
+    });
+    expect(scoreDraft(sunrise, format2).marks).toEqual({ right: 0, judged: 2 });
   });
 
   it("counts a wrong price as wrong, and a price left missing as missed, not as wrong", () => {
@@ -135,8 +167,8 @@ describe("scoreDraft", () => {
     const draft: ScopeDraft = {
       ...MAYA_DRAFT,
       deliverables: [
-        { text: "a", citations: cite(3) },
-        { text: "b", citations: cite(1) },
+        { text: "a", citations: cite(3), mark: "objective" },
+        { text: "b", citations: cite(1), mark: "unsure" },
       ],
       exclusions: [],
       vagueTerms: [

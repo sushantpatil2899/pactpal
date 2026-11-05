@@ -2,7 +2,7 @@ import { parseJsonReply, type ChatOutcome } from "@pactpal/ai";
 import type { Validation } from "@pactpal/council";
 import { allowedCategoryIds, UNCLEAR_CATEGORY } from "./category.js";
 import { findInstructionLines } from "./instruction-lines.js";
-import { scopeDraftSchema, type Citation, type ScopeDraft } from "./schema.js";
+import { buyerProvidesOf, scopeDraftV3Schema, type Citation, type ScopeDraft } from "./schema.js";
 import type { SourceLine } from "./source.js";
 
 export interface ValidationContext {
@@ -67,6 +67,7 @@ function collectCitations(draft: ScopeDraft): Located[] {
     ...ofField("summary", draft.summary),
     ...listCitations("deliverables", draft.deliverables),
     ...listCitations("exclusions", draft.exclusions),
+    ...listCitations("buyerProvides", buyerProvidesOf(draft)),
     ...ofField("price", draft.price),
     ...ofField("paymentTerms", draft.paymentTerms),
     ...ofField("dueDate", draft.dueDate),
@@ -147,7 +148,7 @@ const invalid = (errors: string[]): ScopeDraftCheck => ({
  * never the quoted words, because the chat holds personal details.
  */
 export function validateScopeDraft(value: unknown, context: ValidationContext): ScopeDraftCheck {
-  const parsed = scopeDraftSchema.safeParse(value);
+  const parsed = scopeDraftV3Schema.safeParse(value);
   if (!parsed.success) {
     return invalid(
       parsed.error.issues.map((issue) =>

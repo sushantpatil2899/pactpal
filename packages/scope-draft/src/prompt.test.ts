@@ -28,7 +28,7 @@ function build(overrides: Partial<Parameters<typeof buildScopeDraftMessages>[0]>
 describe("buildScopeDraftMessages", () => {
   it("makes a system message and a user message", () => {
     expect(build().roles).toEqual(["system", "user"]);
-    expect(SCOPE_DRAFT_PROMPT_VERSION).toBe(2);
+    expect(SCOPE_DRAFT_PROMPT_VERSION).toBe(3);
   });
 
   it("names every field and the rules in the system message, and the marker in rule 1", () => {
@@ -40,6 +40,7 @@ describe("buildScopeDraftMessages", () => {
       "summary",
       "deliverables",
       "exclusions",
+      "buyerProvides",
       "price",
       "paymentTerms",
       "dueDate",

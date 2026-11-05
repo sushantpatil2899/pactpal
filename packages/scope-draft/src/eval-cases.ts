@@ -1,5 +1,6 @@
 import { GIFT_CARD_CHAT } from "./injection-cases.js";
 import { MAYA_CHAT, SUNRISE_CHAT } from "./maya-fixtures.js";
+import type { DeliverableMark } from "./schema.js";
 
 /**
  * What a chat really says, written by hand. Line numbers count the non-blank lines of the chat,
@@ -21,6 +22,10 @@ export interface EvalGold {
   exclusions: readonly (readonly number[])[];
   /** Vague phrases, each with the wordings that count as finding it. */
   vague: readonly (readonly string[])[];
+  /** What the buyer must provide (prompt version 3): its lines and the date the chat gives, if any. */
+  buyerProvides: readonly { lines: readonly number[]; dueDate: string | null }[];
+  /** The mark each deliverable group should get, where the chat makes it clear (null: no answer). */
+  marks: readonly (DeliverableMark | null)[];
 }
 
 /** A made-up chat with its right answer. */
@@ -49,6 +54,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[3, 6, 10], [20]],
       exclusions: [[13]],
       vague: [["clean, modern look"], ["quick turnaround"]],
+      buyerProvides: [],
+      marks: ["objective", "process"],
     },
   },
   {
@@ -64,6 +71,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[3], [7]],
       exclusions: [[17], [18, 19]],
       vague: [["fresh and professional"], ["fast with feedback"]],
+      buyerProvides: [{ lines: [19, 20], dueDate: "2026-11-20" }],
+      marks: ["objective", "objective"],
     },
   },
   {
@@ -91,6 +100,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[1, 3], [10]],
       exclusions: [],
       vague: [],
+      buyerProvides: [{ lines: [6, 7], dueDate: null }],
+      marks: ["objective", "objective"],
     },
   },
   {
@@ -118,6 +129,11 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[4], [5]],
       exclusions: [[6]],
       vague: [],
+      buyerProvides: [
+        { lines: [1, 3], dueDate: null },
+        { lines: [7], dueDate: null },
+      ],
+      marks: ["objective", "objective"],
     },
   },
   {
@@ -143,6 +159,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[2], [7, 8]],
       exclusions: [],
       vague: [["a few changes", "a few small changes"], ["by friday"]],
+      buyerProvides: [],
+      marks: ["objective", "objective"],
     },
   },
   {
@@ -170,6 +188,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[1, 3, 4]],
       exclusions: [[10]],
       vague: [],
+      buyerProvides: [],
+      marks: ["objective"],
     },
   },
   {
@@ -194,6 +214,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[1, 2]],
       exclusions: [[7, 8]],
       vague: [["a few days"]],
+      buyerProvides: [],
+      marks: ["objective"],
     },
   },
   {
@@ -226,6 +248,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[5, 6, 11], [13]],
       exclusions: [],
       vague: [["friendly tone"]],
+      buyerProvides: [],
+      marks: [null, "objective"],
     },
   },
   {
@@ -255,6 +279,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       ],
       exclusions: [[9, 10]],
       vague: [],
+      buyerProvides: [],
+      marks: [null, "objective"],
     },
   },
   {
@@ -292,6 +318,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
         ["modern and clean", "look modern and clean"],
         ["soon"],
       ],
+      buyerProvides: [{ lines: [11, 12], dueDate: null }],
+      marks: ["objective"],
     },
   },
   {
@@ -307,6 +335,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
       deliverables: [[3]],
       exclusions: [],
       vague: [],
+      buyerProvides: [],
+      marks: [null],
     },
   },
 ];

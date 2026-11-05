@@ -8,9 +8,9 @@ import type { SourceLine } from "./source.js";
  * Which wording produced a draft. Stored with each draft so wording changes can be compared.
  * Any change to `SYSTEM_MESSAGE` or `userMessage` needs a new number and the owner's approval.
  */
-export const SCOPE_DRAFT_PROMPT_VERSION = 2;
+export const SCOPE_DRAFT_PROMPT_VERSION = 3;
 
-/** `{MARKER}` is replaced by the request's random marker. */
+/** Version 3 approved by the owner (4n, 5 Nov 2026). `{MARKER}` is replaced by the request's random marker. */
 const SYSTEM_MESSAGE = `<role>
 You turn a pasted chat between a seller and a buyer into a structured draft of what they agreed. You are a careful clerk, not a lawyer: you only record what the chat says.
 </role>
@@ -28,8 +28,9 @@ You turn a pasted chat between a seller and a buyer into a structured draft of w
 
 <fields>
 <summary>One or two plain sentences on what the seller will do for the buyer. Cite the lines it is based on.</summary>
-<deliverables>One item per thing the seller will hand over, with its format or size if the chat says so. Each item has citations.</deliverables>
+<deliverables>One item per thing the seller will hand over, with its format or size if the chat says so. Each item has citations and a "mark": "objective" if anyone could check it (a count, a file format, a size, a page or file that exists); "process" if it is a step in the work rather than the result (for example a sketch for approval or a call); "subjective" if whether it is right is a matter of taste (a look or a style); "unsure" if you cannot tell. The mark is only a suggestion for the seller.</deliverables>
 <exclusions>Things the chat says are NOT included or not allowed (for example "no commercial use"). Only what the chat states.</exclusions>
+<buyerProvides>Things the chat says the BUYER must provide or do for the work (for example "menu text and photos" or "access to the hosting account"). For each: "text"; "dueDate" as YYYY-MM-DD only if the chat states day, month and year for it, otherwise null; and citations. Only what the chat states; an empty list if none.</buyerProvides>
 <price>The total price the buyer will pay, as a decimal string like "240.00". The currency must be the deal currency given in the user message. If the chat gives no total, several different totals, or a different currency, mark it missing.</price>
 <paymentTerms>How or when payment happens (for example "half up front"), only if the chat says so.</paymentTerms>
 <dueDate>A date as YYYY-MM-DD, only if the chat states day, month and year. Otherwise missing.</dueDate>

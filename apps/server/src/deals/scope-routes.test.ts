@@ -304,7 +304,13 @@ describe("agreed work saved from an AI draft", () => {
         value: "Maya draws one space courier",
         citations: [{ line: 3, quote: "full-body character illustration" }],
       },
-      deliverables: [{ text: "One PNG file", citations: [{ line: 10, quote: "PNG" }] }],
+      deliverables: [
+        {
+          text: "One PNG file",
+          citations: [{ line: 10, quote: "PNG" }],
+          mark: "objective" as const,
+        },
+      ],
     };
     const drafts = [
       { modelName: "alpha", draft: MAYA_DRAFT },

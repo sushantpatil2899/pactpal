@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4m)
+## Built (sub-phases 2b to 4n)
 
 ### `users`: everyone
 
@@ -374,6 +374,8 @@ A draft is a proposal made by the council from a chat saved as a text source fil
 | `ledger_seq`                                  | The `SCOPE_DRAFTED` entry (with `deal_id`). Only on `ready`                                                                                                                                                |
 
 Lines of the chat that look like orders to an AI are not stored anywhere; they are found again from the chat file whenever a finished draft is read (`source.hiddenLines`, line numbers only). A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so the retention rule (Phase 8) applies.
+
+Drafts made with drafting prompt version 3 (4n) are "format 3": each delivered line also has a suggested mark (`objective`, `process`, `subjective` or `unsure`) and the draft lists what the buyer provides (text, a date or none, citations). Older drafts stay "format 2" and are read as they are. When agreed work is saved from a draft, `SCOPE_CONFIRMED` also says for `buyerProvides` and `deliverableMarks` whether the seller kept the draft's suggestion.
 
 ## Planned
 

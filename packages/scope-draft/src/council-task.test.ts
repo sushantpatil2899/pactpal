@@ -38,7 +38,7 @@ describe("scopeDraftCouncilTask", () => {
     const spec = testSpec();
     expect(task.check(okReply(spec, JSON.stringify(MAYA_DRAFT)))).toMatchObject({
       ok: true,
-      content: { format: 2 },
+      content: { format: 3 },
       validation: { valid: true, score: 1 },
     });
     const bad = {
@@ -65,7 +65,7 @@ describe("scopeDraftCouncilTask", () => {
     expect(rank.source.endsWith("L24| Chris: thanks Maya!")).toBe(true);
     expect(rank.render(MAYA_DRAFT)).toBe(JSON.stringify(MAYA_DRAFT));
     expect(rank.summary).toContain("what a seller and a buyer agreed");
-    expect(rank.criteria).toHaveLength(5);
+    expect(rank.criteria).toHaveLength(6);
   });
 
   it("refuses a bad marker or a chat that already contains it", () => {
