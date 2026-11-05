@@ -25,6 +25,7 @@
     "@fastify/helmet": "^13.2.0",
     "@fastify/static": "^10.1.8",
     "@pactpal/ai": "workspace:*",
+    "@pactpal/claims": "workspace:*",
     "@pactpal/council": "workspace:*",
     "@pactpal/db": "workspace:*",
     "@pactpal/delivery-check": "workspace:*",

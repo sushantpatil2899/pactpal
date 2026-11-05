@@ -25,6 +25,7 @@ export const testDispute = (overrides: Partial<DisputeDetails> = {}): DisputeDet
   messages: [{ postedBy: "BUYER", postedAt: undefined, content: "Not the style I wanted" }],
   allowedActions: ["escalate", "accept_claim", "send_message", "make_offer"],
   allowedOfferTypes: ["REFUND"],
+  requestedEvidence: [],
   outcome: undefined,
   ...overrides,
 });

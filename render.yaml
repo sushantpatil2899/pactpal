@@ -68,8 +68,9 @@ services:
       - key: DISPUTE_TASK_SLUG
         value: pactpal-workflows/check-disputes
 
-  # Render Workflows: PactPal's background tasks, run on Render outside the website. First task:
-  # check-disputes, which reads the seller's PayPal disputes and logs them on their deals. Workflows
+  # Render Workflows: PactPal's background tasks, run on Render outside the website: check-disputes,
+  # which reads the seller's PayPal disputes and logs them on their deals, and analyze-claim, which
+  # runs the council comparing a dispute claim with the record (5d). Workflows
   # set their compute per task in code, so there is no plan here, and no pre-deploy step: the task
   # waits for the website's deploy to run the migrations.
   - type: workflow
@@ -90,6 +91,16 @@ services:
       - key: PAYPAL_SELLER_CLIENT_ID
         sync: false
       - key: PAYPAL_SELLER_CLIENT_SECRET
+        sync: false
+      # AI model hosts for the claim comparison council (5d, analyze-claim). Each model takes part
+      # only when its key is set; same values as on pactpal-server.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
         sync: false
 
   # Render Workflows has no schedule of its own, so this Cron Job starts check-disputes every

@@ -68,6 +68,7 @@ describe("formatDisputeDetails", () => {
     messages: [{ postedBy: "BUYER", postedAt: undefined, content: "Wrong format." }],
     allowedActions: ["accept_claim", "make_offer"],
     allowedOfferTypes: ["REFUND"],
+    requestedEvidence: [],
     outcome: undefined,
   };
 

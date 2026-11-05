@@ -91,6 +91,7 @@ const dispute: DisputeDetails = {
   messages: [],
   allowedActions: ["make_offer", "accept_claim"],
   allowedOfferTypes: ["REFUND"],
+  requestedEvidence: [],
   outcome: undefined,
 };
 

@@ -1,6 +1,6 @@
 import type { ChatMessage } from "@pactpal/ai";
 import { markedPrompt } from "@pactpal/council";
-import type { AgreementLine } from "./lines.js";
+import { numberedText, type AgreementLine } from "./lines.js";
 
 /**
  * Which wording answered a question. Stored with each answer, so wording changes can be compared.
@@ -22,8 +22,7 @@ If the agreement does not clearly answer it, or answering needs anything that is
 Reply only with JSON in this shape: {"answerable": true, "answer": "...", "citations": [{"line": 1, "quote": "..."}]} or {"answerable": false}.`;
 
 /** The agreement as the model reads it: one `n: text` line per numbered line. */
-export const renderAgreement = (lines: readonly AgreementLine[]): string =>
-  lines.map(({ n, text }) => `${String(n)}: ${text}`).join("\n");
+export const renderAgreement = (lines: readonly AgreementLine[]): string => numberedText(lines);
 
 const userMessage = (lines: readonly AgreementLine[], question: string, marker: string) =>
   `<agreement-${marker}>

@@ -41,7 +41,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 5b)
+## Built (sub-phases 2b to 5d)
 
 ### `users`: everyone
 
@@ -431,6 +431,27 @@ The log entries (all by the system; ids and PayPal's words, never the buyer's me
 ### `dispute_checks`: each check of the seller's disputes
 
 Built in 5a (migration 0020). One row per check: `source` (`schedule`, `button` or `notification`), `started_at`, `finished_at`, the counts (`listed`, `read_in_full`, `matched`, `unmatched`, `new_entries`) or `failure` (PayPal's status only, never its text). The deal page shows the newest one as "last checked". Old rows can be removed later; nothing refers to them.
+
+### `claim_analyses`: council comparisons of a dispute claim with the record
+
+Built in 5d (migration 0021). A draft for the seller only, kept apart from the evidence log. It moves once, from `running` to `ready` or `failed`, keeps what it recorded and is never removed. One runs per dispute at a time, at most 10 per dispute, and one still running after 15 minutes is marked failed ("did not finish in time").
+
+| Column                                      | Meaning                                                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `id`, `deal_id`, `dispute_id`               | The comparison, its deal and its dispute                                                                     |
+| `pasted_artifact_id`                        | The seller's pasted copy of the claim (a source file of the deal), when PayPal showed no buyer message       |
+| `status`                                    | `running`, then `ready` or `failed`                                                                          |
+| `prompt_version`, `rank_prompt_version`     | The claim prompt and the ranking prompt used                                                                 |
+| `claim_sha256`, `record_sha256`             | Fingerprints of the claim lines and record lines the models were given (set when ready)                      |
+| `analysis`                                  | The winning comparison, a draft: each statement (quote, line, finding, citations, relation) and a suggestion |
+| `council`                                   | What each model did, the votes, the scores and the agreement (safe error texts only)                         |
+| `failure_reason`                            | Why it failed (never repeats the claim)                                                                      |
+| `ledger_seq`                                | The `CLAIM_ANALYZED` entry, when ready                                                                       |
+| `requested_by`, `created_at`, `finished_at` | The seller and the times                                                                                     |
+
+`CLAIM_ANALYZED` (by the system) holds ids, fingerprints, prompt versions, model names, the winner, the number of statements and whether it needs review; no AI text.
+
+Since 5d the dispute's stored `details` also hold `requestedEvidence`: the evidence types PayPal asks the seller for.
 
 ## Planned
 

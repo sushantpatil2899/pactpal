@@ -150,7 +150,12 @@ describe("render.yaml", () => {
     expect(workflowSection).toMatch(/- key: DATABASE_URL\n\s+fromDatabase:\n\s+name: pactpal-db/);
     const secrets = (section: string) =>
       [...section.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
-    expect(secrets(workflowSection)).toEqual(settingsFor("Invoices and disputes (seller app)"));
+    // ...and, for the claim comparison council (5d), every AI host's key.
+    const aiKeys = [...new Set(MODEL_REGISTRY.map((spec) => spec.apiKeyEnv))];
+    expect(secrets(workflowSection)).toEqual([
+      ...settingsFor("Invoices and disputes (seller app)"),
+      ...aiKeys,
+    ]);
     expect(secrets(cronSection)).toEqual(["RENDER_API_KEY"]);
     // Both the website and the cron start the same task, by a name the settings accept.
     const slug = (section: string) =>

@@ -7,6 +7,7 @@ import {
 } from "@pactpal/words";
 import { useEffect, useState } from "react";
 import { getDisputePage, type DisputePageView } from "./api";
+import { ClaimPanel } from "./ClaimPanel";
 import { CheckNow } from "./DisputeCheck";
 import { when } from "./format";
 import { WRAP } from "./styles";
@@ -152,6 +153,8 @@ export function DisputePage({ dealId, disputeId }: { dealId: string; disputeId: 
         </p>
         <Deadline dueAt={view.sellerDueAt} />
       </section>
+
+      <ClaimPanel dealId={dealId} disputeId={disputeId} />
 
       <section aria-labelledby="actions">
         <h3 id="actions">What you can do now</h3>

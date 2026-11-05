@@ -55,3 +55,7 @@ export function agreementLines(page: AgreementPage): AgreementLine[] {
   ];
   return texts.map((text, i) => ({ n: i + 1, text }));
 }
+
+/** Numbered lines as a model reads them, one per line: "4: Delivered: …". */
+export const numberedText = (lines: readonly { n: number; text: string }[]): string =>
+  lines.map(({ n, text }) => `${String(n)}: ${text}`).join("\n");

@@ -3,10 +3,16 @@ import {
   createPaidTestDeal,
   useMigratedTestDatabase,
 } from "@pactpal/db/testing";
-import { readLedger, type Database } from "@pactpal/db";
+import { getClaimAnalysis, readLedger, startClaimAnalysis, type Database } from "@pactpal/db";
 import { describe, expect, it } from "vitest";
 import type { TaskStarter } from "./checker.js";
-import { jsonLines, runDisputeTask, startScheduledCheck, type TaskWiring } from "./task.js";
+import {
+  jsonLines,
+  runClaimTask,
+  runDisputeTask,
+  startScheduledCheck,
+  type TaskWiring,
+} from "./task.js";
 import { fakeDisputes, keptLog, testDispute } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
@@ -59,6 +65,43 @@ describe("the dispute check task", () => {
       await empty.close();
     }
   }, 60_000);
+});
+
+describe("the claim comparison task", () => {
+  it("runs one comparison with the models that have keys, and refuses a bad id", async () => {
+    const deal = await createPaidTestDeal(db);
+    const { wired } = wiring();
+    await runDisputeTask(env, "schedule", wired);
+    const analysisId = "00000000-0000-4000-8000-000000000777";
+    await startClaimAnalysis(
+      db,
+      {
+        id: analysisId,
+        dealId: deal.dealId,
+        disputeId: "PP-R-TEST-1",
+        sellerId: deal.seller.id,
+        promptVersion: 1,
+        rankPromptVersion: 1,
+      },
+      new Date("2026-11-05T17:00:00.000Z"),
+    );
+    const keys: string[][] = [];
+    const claimWiring = {
+      ...wired,
+      clientsFor: (given: Readonly<Record<string, unknown>>) => {
+        keys.push(Object.keys(given));
+        return [];
+      },
+    };
+    await runClaimTask({ ...env, GROQ_API_KEY: "gsk_test" }, analysisId, claimWiring);
+    expect(keys).toEqual([["GROQ_API_KEY"]]);
+    expect(await getClaimAnalysis(db, analysisId)).toMatchObject({
+      status: "failed",
+      failureReason: "no AI model is configured",
+    });
+    await expect(runClaimTask(env, "not-an-id", claimWiring)).rejects.toThrow();
+    await expect(runClaimTask({}, analysisId, claimWiring)).rejects.toThrow(/DATABASE_URL/);
+  });
 });
 
 describe("the scheduled start", () => {

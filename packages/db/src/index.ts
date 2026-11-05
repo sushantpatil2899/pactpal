@@ -82,6 +82,7 @@ export {
   saveScopeVersion,
   scopeContentSchema,
   checkedScopeContentSchema,
+  deliverableKindSchema,
   type DeliverableKind,
   scopeFingerprint,
   scopeTotalMinor,
@@ -275,3 +276,20 @@ export type {
   PaidStage,
   StoredDispute,
 } from "./disputes.js";
+export {
+  ANALYSIS_TIMEOUT_MS,
+  AnalysisNotAllowedError,
+  MAX_ANALYSES_PER_DISPUTE,
+  failClaimAnalysis,
+  failStaleClaimAnalyses,
+  finishClaimAnalysis,
+  getClaimAnalysis,
+  listClaimAnalyses,
+  startClaimAnalysis,
+} from "./claim-analyses.js";
+export type {
+  AnalysisRefusal,
+  ClaimAnalysisRecord,
+  FinishClaimAnalysis,
+  StartClaimAnalysis,
+} from "./claim-analyses.js";

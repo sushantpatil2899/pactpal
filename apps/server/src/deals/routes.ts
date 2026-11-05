@@ -37,7 +37,8 @@ import { intakeRoutes } from "./intake-routes.js";
 import { scopeRoutes } from "./scope-routes.js";
 import { screenshotRoutes } from "./screenshot-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
-import type { DisputeChecker } from "../disputes/checker.js";
+import type { ClaimRunner, DisputeChecker } from "../disputes/checker.js";
+import { claimRoutes } from "../disputes/claim-routes.js";
 import { disputeRoutes } from "../disputes/dispute-routes.js";
 
 export interface DealOptions {
@@ -60,6 +61,8 @@ export interface DealOptions {
   inboundDomain?: string | undefined;
   /** Starts dispute checks; undefined until the database and the seller app's keys are set. */
   disputes?: DisputeChecker | undefined;
+  /** Starts claim comparisons (5d); undefined until AI models (or Render) are set up. */
+  claims?: ClaimRunner | undefined;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -115,6 +118,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     recordIp = false,
     invoices,
     disputes,
+    claims,
   } = options;
   app.get("/api/deal-options", (_request, reply) =>
     reply.send({
@@ -135,6 +139,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   });
   void app.register(milestoneRoutes, { visibleDeal, sellersDeal, clock, invoices, email });
   void app.register(disputeRoutes, { sellersDeal, clock, disputes });
+  void app.register(claimRoutes, { sellersDeal, clock, newId, claims });
   void app.register(deliveryRoutes, {
     database,
     visibleDeal,

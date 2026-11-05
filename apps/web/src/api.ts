@@ -575,6 +575,80 @@ export async function getDisputePage(dealId: string, disputeId: string): Promise
   );
 }
 
+/** One statement of the buyer's claim and what the record shows about it (an AI draft, 5d). */
+export interface ClaimStatement {
+  quote: string;
+  line: number;
+  finding: "covered" | "not-covered";
+  agreement: { line: number; quote: string }[];
+  record: { n: number; text: string }[];
+  relation: string;
+}
+
+/** One council comparison of the claim with the record. */
+export interface ClaimAnalysisView {
+  id: string;
+  status: "running" | "ready" | "failed";
+  createdAt: string;
+  finishedAt: string | null;
+  failureReason: string | null;
+  analysis: {
+    statements: ClaimStatement[];
+    suggestion: { action: string | null; evidenceType: string | null; why: string };
+  } | null;
+  council: CouncilView | null;
+}
+
+export interface ClaimAnalysesView {
+  /** Whether comparisons can run on this server (AI models or Render set up). */
+  canCompare: boolean;
+  /** Whether the seller may paste the claim: only when PayPal shows no buyer message. */
+  canPaste: boolean;
+  analyses: ClaimAnalysisView[];
+}
+
+const isClaimAnalyses = (value: unknown): value is ClaimAnalysesView =>
+  isObject(value) &&
+  typeof value.canCompare === "boolean" &&
+  typeof value.canPaste === "boolean" &&
+  Array.isArray(value.analyses) &&
+  value.analyses.every(
+    (a) =>
+      isObject(a) &&
+      typeof a.id === "string" &&
+      typeof a.status === "string" &&
+      (a.council === null || isCouncil(a.council)),
+  );
+
+const analysesUrl = (dealId: string, disputeId: string) =>
+  `${disputesUrl(dealId)}/${encodeURIComponent(disputeId)}/analyses`;
+
+export async function getClaimAnalyses(
+  dealId: string,
+  disputeId: string,
+): Promise<ClaimAnalysesView> {
+  return readChecked(
+    await fetch(analysesUrl(dealId, disputeId)),
+    isClaimAnalyses,
+    "load the comparisons",
+  );
+}
+
+/** Starts a council comparison; `pasted` is the buyer's claim when PayPal shows none. */
+export async function compareClaim(
+  dealId: string,
+  disputeId: string,
+  pasted: string | undefined,
+): Promise<ClaimAnalysesView> {
+  const response = await fetch(analysesUrl(dealId, disputeId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(pasted === undefined ? {} : { pasted }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not start the comparison"));
+  return readChecked(response, isClaimAnalyses, "start the comparison");
+}
+
 /** Starts a check of the seller's PayPal disputes; the result shows up in `getDisputes`. */
 export async function checkDisputes(dealId: string): Promise<void> {
   const response = await fetch(`${disputesUrl(dealId)}/check`, {

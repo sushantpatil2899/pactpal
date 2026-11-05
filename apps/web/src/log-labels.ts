@@ -33,6 +33,7 @@ const EVENT_LABELS: Record<string, string> = {
   DISPUTE_OPENED: "PayPal dispute found",
   DISPUTE_UPDATED: "PayPal dispute changed",
   DISPUTE_RESOLVED: "PayPal dispute decided",
+  CLAIM_ANALYZED: "Claim compared with the record (AI draft, fingerprint only)",
   NOTE_ADDED: "Note added",
 };
 

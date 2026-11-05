@@ -1,5 +1,5 @@
 import { markedPrompt } from "@pactpal/council";
-import type { AgreementLine } from "@pactpal/qa";
+import { numberedText as numbered, type AgreementLine } from "@pactpal/qa";
 import type { SourceLine } from "@pactpal/scope-draft";
 
 /**
@@ -43,9 +43,6 @@ export function recordLines({ version, delivered, revisions }: WorkRecord): stri
       : `Change requests so far: ${String(revisions.used)} of ${String(revisions.included)} included`,
   ];
 }
-
-const numbered = (lines: readonly { n: number; text: string }[]) =>
-  lines.map(({ n, text }) => `${String(n)}: ${text}`).join("\n");
 
 /** The user message: the agreement, the record and the buyer's message, each in its element. */
 export const reviewSource = (input: {

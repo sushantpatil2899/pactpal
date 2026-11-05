@@ -1,5 +1,6 @@
 import type { JsonValue } from "@pactpal/ledger";
 import { z } from "zod";
+import { councilJobColumns, councilJobFields } from "./council-jobs.js";
 import type { Database, Queryable } from "./database.js";
 import { lockDeal } from "./deal-lock.js";
 
@@ -23,15 +24,8 @@ const reviewRow = z
     version: z.number().int(),
     source_artifact_id: z.string(),
     source_sha256: z.string(),
-    status: z.enum(["running", "ready", "failed"]),
-    prompt_version: z.number().int(),
-    rank_prompt_version: z.number().int(),
     review: z.json().nullable(),
-    council: z.json().nullable(),
-    failure_reason: z.string().nullable(),
-    requested_by: z.string(),
-    created_at: z.date(),
-    finished_at: z.date().nullable(),
+    ...councilJobColumns,
   })
   .transform((row) => ({
     id: row.id,
@@ -39,15 +33,8 @@ const reviewRow = z
     version: row.version,
     sourceArtifactId: row.source_artifact_id,
     sourceSha256: row.source_sha256,
-    status: row.status,
-    promptVersion: row.prompt_version,
-    rankPromptVersion: row.rank_prompt_version,
     review: row.review ?? undefined,
-    council: row.council ?? undefined,
-    failureReason: row.failure_reason ?? undefined,
-    requestedBy: row.requested_by,
-    createdAt: row.created_at,
-    finishedAt: row.finished_at ?? undefined,
+    ...councilJobFields(row),
   }));
 
 /**

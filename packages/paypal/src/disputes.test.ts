@@ -57,6 +57,12 @@ const fullDispute = {
       content: "The logo files were not the agreed format.",
     },
   ],
+  evidences: [
+    { evidence_type: "PROOF_OF_REFUND", source: "REQUESTED_FROM_SELLER" },
+    { evidence_type: "OTHER", source: "REQUESTED_FROM_SELLER" },
+    { evidence_type: "OTHER", source: "REQUESTED_FROM_SELLER" },
+    { evidence_type: "RECEIPT", source: "SUBMITTED_BY_BUYER" },
+  ],
   allowed_response_options: {
     make_offer: { offer_types: ["REFUND", "REFUND_WITH_RETURN"] },
     accept_claim: { accept_claim_types: ["REFUND"] },
@@ -181,6 +187,7 @@ describe("PayPalDisputes.get", () => {
       ],
       allowedActions: ["accept_claim", "make_offer", "send_message"],
       allowedOfferTypes: ["REFUND", "REFUND_WITH_RETURN"],
+      requestedEvidence: ["PROOF_OF_REFUND", "OTHER"],
       outcome: undefined,
     });
   });
@@ -211,6 +218,7 @@ describe("PayPalDisputes.get", () => {
         messages: [{ postedBy: "SELLER", postedAt: undefined, content: "" }],
         allowedActions: [],
         allowedOfferTypes: [],
+        requestedEvidence: [],
         outcome: "RESOLVED_SELLER_FAVOUR",
       },
     });

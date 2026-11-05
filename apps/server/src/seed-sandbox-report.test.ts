@@ -104,6 +104,7 @@ describe("seed messages", () => {
     messages: [{ postedBy: "BUYER", postedAt: undefined, content: "Not what was agreed." }],
     allowedActions: ["make_offer", "accept_claim"],
     allowedOfferTypes: [],
+    requestedEvidence: [],
     outcome: undefined,
   };
   const base = {

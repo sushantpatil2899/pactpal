@@ -23,7 +23,14 @@ import { Render } from "@renderinc/sdk";
 import { buildApp, closeOnSignals } from "./app.js";
 import { councilClients, createDraftingRuntime } from "./drafting/runtime.js";
 import { formatErrors, loadConfig } from "./config.js";
-import { inProcessChecker, renderWorkflowChecker } from "./disputes/checker.js";
+import {
+  inProcessChecker,
+  inProcessClaimRunner,
+  renderClaimRunner,
+  renderWorkflowChecker,
+  sameWorkflowTask,
+} from "./disputes/checker.js";
+import { CLAIM_TASK_NAME, runClaimJob } from "./disputes/claim-job.js";
 import { syncDisputes } from "./disputes/dispute-sync.js";
 import { jsonLines } from "./disputes/task.js";
 
@@ -47,8 +54,6 @@ const database =
   });
 // The built web app sits two folders up from both src/ and dist/ (apps/web/dist).
 const webDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
-// Every model whose key is set takes part in the council; with none, drafting answers "unavailable".
-const members = councilClients(config.ai.keys);
 const clock = () => new Date();
 // Dispute checks run as Render Workflow task runs when Render is set up; otherwise "Check now"
 // runs the check inside this server (a local copy). Reads go over REST, like invoices.
@@ -74,11 +79,37 @@ const disputes = config.render
         ),
       )
     : undefined;
+// Every model whose key is set takes part in the council; with none, drafting answers "unavailable".
+const members = councilClients(config.ai.keys);
+const drafting =
+  database && members.length > 0 ? createDraftingRuntime({ clients: members }) : undefined;
+// Claim comparisons (5d) run as Render Workflow task runs when Render is set up (the workflow
+// service holds the AI keys); otherwise in this server's background, within its council limit.
+const claims = config.render
+  ? renderClaimRunner(
+      new Render({ token: config.render.apiKey.reveal() }).workflows,
+      sameWorkflowTask(config.render.taskSlug, CLAIM_TASK_NAME),
+      disputeLog,
+    )
+  : database && drafting
+    ? inProcessClaimRunner(drafting, (analysisId) =>
+        runClaimJob(
+          {
+            db: database,
+            clients: drafting.clients,
+            council: drafting.council,
+            clock,
+            log: disputeLog,
+          },
+          analysisId,
+        ),
+      )
+    : undefined;
 const app = buildApp(report, {
   ...(disputes ? { disputes } : {}),
+  ...(claims ? { claims } : {}),
   database,
-  drafting:
-    database && members.length > 0 ? createDraftingRuntime({ clients: members }) : undefined,
+  drafting,
   webDir: existsSync(webDir) ? webDir : undefined,
   // Invoices go over REST only: PayPal's MCP tool takes no request id, so a retry could create a
   // second invoice (docs/decisions.md, 4d). No MCP client means McpFallback goes straight to REST.

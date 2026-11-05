@@ -1,6 +1,6 @@
-import { FakeChatClient, testSpec } from "@pactpal/ai/testing";
-import type { ChatOutcome, ChatRequest } from "@pactpal/ai";
+import type { ChatOutcome } from "@pactpal/ai";
 import { runCouncil } from "@pactpal/council";
+import { FIXED_COUNCIL, councilOf } from "@pactpal/council/testing";
 import { describe, expect, it } from "vitest";
 import {
   buildReviewMessages,
@@ -194,15 +194,6 @@ describe("checkReview", () => {
   });
 });
 
-const answerOf = (review: object) => (request: ChatRequest) =>
-  request.messages[0]?.content.includes("careful reviewer") === true
-    ? JSON.stringify({
-        ranking: [...(request.messages[1]?.content ?? "").matchAll(/label="(\w+)"/g)].map(
-          (m) => m[1],
-        ),
-      })
-    : JSON.stringify(review);
-
 describe("messageReviewCouncilTask", () => {
   it("runs a council: invalid reviews are dropped and a valid one wins", async () => {
     const made = messageReviewCouncilTask({
@@ -213,16 +204,8 @@ describe("messageReviewCouncilTask", () => {
     });
     expect(made.ok).toBe(true);
     if (!made.ok) return;
-    const clients = [
-      new FakeChatClient(testSpec({ name: "alpha" }), answerOf(ROSA)),
-      new FakeChatClient(testSpec({ name: "beta" }), answerOf({ ...ROSA, reply: "That is $99." })),
-      new FakeChatClient(testSpec({ name: "gamma" }), answerOf(ROSA)),
-    ];
-    const run = await runCouncil(made.task, clients, {
-      rng: () => 0.5,
-      newMarker: () => "f0e1d2c3b4a5",
-      now: () => 0,
-    });
+    const clients = councilOf([ROSA, { ...ROSA, reply: "That is $99." }, ROSA]);
+    const run = await runCouncil(made.task, clients, FIXED_COUNCIL);
     expect(run.result.winner?.answer.content.changeLines).toEqual(ROSA.changeLines);
     expect(run.result.dropped).toEqual([
       { modelName: "beta", errors: ["the reply names a price"] },

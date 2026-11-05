@@ -1,4 +1,5 @@
 import type { DisputeCheckSource } from "@pactpal/db";
+import type { DraftingRuntime } from "../drafting/runtime.js";
 import type { LogSink } from "../payments/payment-sync.js";
 
 /** Why a dispute check is wanted. */
@@ -67,6 +68,60 @@ export function inProcessChecker(
   return {
     async start(request) {
       await run(request.kind);
+    },
+  };
+}
+
+/** Another task of the same workflow: "pactpal-workflows/check-disputes" → "pactpal-workflows/<task>". */
+export const sameWorkflowTask = (taskSlug: string, task: string): string =>
+  `${taskSlug.split("/")[0] ?? taskSlug}/${task}`;
+
+/** Starts one claim comparison (5d): a Render Workflow task run live, in process locally. */
+export interface ClaimRunner {
+  start(analysisId: string): Promise<void>;
+}
+
+/** Every council place in this server is taken; try again in a minute. */
+export class RunnerBusyError extends Error {
+  override readonly name = "RunnerBusyError";
+}
+
+/** Starts the comparison as a run of the Workflow task `taskSlug`, once per analysis. */
+export function renderClaimRunner(
+  starter: TaskStarter,
+  taskSlug: string,
+  log: LogSink,
+): ClaimRunner {
+  return {
+    async start(analysisId) {
+      const run = await starter.startTask(taskSlug, [analysisId], {
+        idempotencyKey: `claim:${analysisId}`,
+      });
+      log.info({ analysisId, taskRunId: run.taskRunId }, "Claim comparison started on Render");
+    },
+  };
+}
+
+/**
+ * Runs the comparison in this server's background, within its limit of councils at once (a local
+ * copy, where there is no Render). `run` must never throw.
+ */
+export function inProcessClaimRunner(
+  runtime: Pick<DraftingRuntime, "acquire" | "run">,
+  run: (analysisId: string) => Promise<void>,
+): ClaimRunner {
+  return {
+    start(analysisId) {
+      const release = runtime.acquire();
+      if (!release) return Promise.reject(new RunnerBusyError("every council place is taken"));
+      runtime.run(async () => {
+        try {
+          await run(analysisId);
+        } finally {
+          release();
+        }
+      });
+      return Promise.resolve();
     },
   };
 }

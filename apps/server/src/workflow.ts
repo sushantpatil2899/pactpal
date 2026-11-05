@@ -11,9 +11,18 @@ import {
   PayPalRestClient,
 } from "@pactpal/paypal";
 import { task } from "@renderinc/sdk/workflows";
-import { DISPUTE_TASK_NAME, jsonLines, runDisputeTask } from "./disputes/task.js";
+import { CLAIM_TASK_NAME } from "./disputes/claim-job.js";
+import { DISPUTE_TASK_NAME, jsonLines, runClaimTask, runDisputeTask } from "./disputes/task.js";
+import { councilClients } from "./drafting/runtime.js";
 
 const log = jsonLines((line) => process.stdout.write(line));
+const connect = (url: string) =>
+  connectPostgres({
+    url,
+    onError: (error) => {
+      log.error({ err: error.name }, "database connection error");
+    },
+  });
 
 task(
   // Two minutes is plenty for one check; a failed run (PayPal or the database down) is tried
@@ -25,13 +34,7 @@ task(
   },
   (_context, source: unknown) =>
     runDisputeTask(process.env, source, {
-      connect: (url) =>
-        connectPostgres({
-          url,
-          onError: (error) => {
-            log.error({ err: error.name }, "database connection error");
-          },
-        }),
+      connect,
       // Reads go over REST, like invoices: PayPal's hosted MCP still fails every call.
       disputesFor: (seller) =>
         new PayPalDisputes(
@@ -41,6 +44,23 @@ task(
         ),
       clock: () => new Date(),
       newId: randomUUID,
+      log,
+    }),
+);
+
+task(
+  // A council takes about a minute and a few minutes at worst (each model call has its own limits).
+  // The job never throws for a model failure, so a retry only follows a crash or a lost database.
+  {
+    name: CLAIM_TASK_NAME,
+    timeoutSeconds: 600,
+    retry: { maxRetries: 1, waitDurationMs: 10_000, backoffScaling: 2 },
+  },
+  (_context, analysisId: unknown) =>
+    runClaimTask(process.env, analysisId, {
+      connect,
+      clientsFor: councilClients,
+      clock: () => new Date(),
       log,
     }),
 );

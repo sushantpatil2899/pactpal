@@ -53,6 +53,9 @@ importers:
       '@pactpal/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@pactpal/claims':
+        specifier: workspace:*
+        version: link:../../packages/claims
       '@pactpal/council':
         specifier: workspace:*
         version: link:../../packages/council
@@ -151,6 +154,31 @@ importers:
       '@pactpal/net':
         specifier: workspace:*
         version: link:../net
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+
+  packages/claims:
+    dependencies:
+      '@pactpal/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@pactpal/council':
+        specifier: workspace:*
+        version: link:../council
+      '@pactpal/qa':
+        specifier: workspace:*
+        version: link:../qa
+      '@pactpal/scope-draft':
+        specifier: workspace:*
+        version: link:../scope-draft
+      '@pactpal/words':
+        specifier: workspace:*
+        version: link:../words
       zod:
         specifier: ^4.6.7
         version: 4.6.7

@@ -1,0 +1,21 @@
+{
+  "name": "@pactpal/claims",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@pactpal/ai": "workspace:*",
+    "@pactpal/council": "workspace:*",
+    "@pactpal/qa": "workspace:*",
+    "@pactpal/scope-draft": "workspace:*",
+    "@pactpal/words": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2"
+  }
+}

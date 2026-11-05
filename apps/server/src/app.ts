@@ -11,7 +11,7 @@ import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "@pactpal/email";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { paymentNotifications } from "./payments/payment-sync.js";
-import type { DisputeChecker } from "./disputes/checker.js";
+import type { ClaimRunner, DisputeChecker } from "./disputes/checker.js";
 import { disputeNotifications } from "./disputes/notifications.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
@@ -44,6 +44,8 @@ export interface AppOptions {
   inbound?: ResendInboundOptions["inbound"];
   /** Starts dispute checks (5a); off ("not set up") until the database and seller app are set. */
   disputes?: DisputeChecker;
+  /** Starts claim comparisons (5d); off until AI models (or Render) are set up. */
+  claims?: ClaimRunner;
 }
 
 /**
@@ -130,6 +132,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     invoices: opts.invoices,
     inboundDomain: opts.inbound?.domain,
     disputes: opts.disputes,
+    claims: opts.claims,
   });
   void app.register(resendInboundRoutes, {
     database: signIn.database,

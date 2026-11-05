@@ -5,7 +5,11 @@ import {
   type Database,
   type DisputeCheckResult,
 } from "@pactpal/db";
+import type { ChatClient } from "@pactpal/ai";
 import type { PayPalAppCredentials } from "@pactpal/paypal";
+import type { Secret } from "@pactpal/net";
+import { cryptoCouncilDeps } from "../drafting/runtime.js";
+import { runClaimJob } from "./claim-job.js";
 import { z } from "zod";
 import { formatErrors, loadConfig } from "../config.js";
 import type { LogSink } from "../payments/payment-sync.js";
@@ -35,19 +39,13 @@ export async function runDisputeTask(
   wiring: TaskWiring,
 ): Promise<DisputeCheckResult> {
   const source = z.enum(DISPUTE_CHECK_SOURCES).parse(input);
-  const loaded = loadConfig(env);
-  if (!loaded.ok) throw new Error(formatErrors(loaded.errors));
-  const { database, paypal } = loaded.config;
-  const seller = paypal.apps.seller;
-  if (database === undefined || seller === undefined) {
+  const config = settings(env);
+  const seller = config.paypal.apps.seller;
+  if (config.database === undefined || seller === undefined) {
     throw new Error("Dispute checks need DATABASE_URL and the PayPal seller app's keys");
   }
-  const db = wiring.connect(database.url.reveal());
-  try {
-    const status = await migrationStatus(db, MIGRATIONS);
-    if (!status.upToDate)
-      throw new Error("The database is waiting for migrations; try again later");
-    return await syncDisputes(
+  return withDatabase(config.database.url, wiring, (db) =>
+    syncDisputes(
       {
         db,
         disputes: wiring.disputesFor(seller),
@@ -56,10 +54,65 @@ export async function runDisputeTask(
         log: wiring.log,
       },
       source,
-    );
+    ),
+  );
+}
+
+/** The settings, or an error naming the wrong ones (never their values). */
+function settings(env: NodeJS.ProcessEnv) {
+  const loaded = loadConfig(env);
+  if (!loaded.ok) throw new Error(formatErrors(loaded.errors));
+  return loaded.config;
+}
+
+/**
+ * Connects, checks that the database has every migration (the workflow service deploys apart
+ * from the website, whose deploy runs them), does the work and disconnects.
+ */
+async function withDatabase<T>(
+  url: Secret,
+  wiring: Pick<TaskWiring, "connect">,
+  work: (db: Database) => Promise<T>,
+): Promise<T> {
+  const db = wiring.connect(url.reveal());
+  try {
+    const status = await migrationStatus(db, MIGRATIONS);
+    if (!status.upToDate) {
+      throw new Error("The database is waiting for migrations; try again later");
+    }
+    return await work(db);
   } finally {
     await db.close();
   }
+}
+
+/**
+ * One run of the Render Workflow task `analyze-claim` (5d): compares one dispute claim with the
+ * record, with every AI model whose key is set. The job itself never throws; settings or the
+ * database being out of reach do, so Render retries the run.
+ */
+export async function runClaimTask(
+  env: NodeJS.ProcessEnv,
+  input: unknown,
+  wiring: Pick<TaskWiring, "connect" | "clock" | "log"> & {
+    clientsFor: (keys: Readonly<Record<string, Secret>>) => ChatClient[];
+  },
+): Promise<void> {
+  const analysisId = z.uuid().parse(input);
+  const config = settings(env);
+  if (config.database === undefined) throw new Error("Claim comparisons need DATABASE_URL");
+  await withDatabase(config.database.url, wiring, (db) =>
+    runClaimJob(
+      {
+        db,
+        clients: wiring.clientsFor(config.ai.keys),
+        council: cryptoCouncilDeps(),
+        clock: wiring.clock,
+        log: wiring.log,
+      },
+      analysisId,
+    ),
+  );
 }
 
 /**

@@ -26,7 +26,8 @@ const buyerProvidesSchema = z.strictObject({
  * How a delivered line can be judged (4i-2): something anyone can check, a step in the work, or a
  * matter of taste settled when the buyer approves the named payment stage. `null`: not marked.
  */
-const deliverableKindSchema = z
+/** One delivered line's mark, as stored and as signed documents carry it. */
+export const deliverableKindSchema = z
   .discriminatedUnion("kind", [
     z.strictObject({ kind: z.enum(["objective", "process"]) }),
     z.strictObject({

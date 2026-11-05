@@ -58,6 +58,8 @@ export interface DisputeDetails extends DisputeSummary {
   allowedActions: string[];
   /** Offer types PayPal accepts now, e.g. "REFUND". */
   allowedOfferTypes: string[];
+  /** Evidence types PayPal asks the seller for (`source: REQUESTED_FROM_SELLER`), e.g. "OTHER". */
+  requestedEvidence: string[];
   outcome: string | undefined;
 }
 
@@ -126,6 +128,9 @@ const disputeDetails = z
       })
       .optional(),
     links: z.array(link).default([]),
+    evidences: z
+      .array(z.looseObject({ evidence_type: z.string().optional(), source: z.string().optional() }))
+      .default([]),
     dispute_outcome: z.looseObject({ outcome_code: z.string().optional() }).optional(),
   })
   .transform((raw): DisputeDetails => ({
@@ -145,6 +150,16 @@ const disputeDetails = z
     })),
     allowedActions: raw.links.map((l) => l.rel).filter((rel) => rel !== "self"),
     allowedOfferTypes: raw.allowed_response_options?.make_offer?.offer_types ?? [],
+    // Only a type the dispute requests is accepted (EVIDENCE_TYPE_IS_NOT_ALLOWED otherwise).
+    requestedEvidence: [
+      ...new Set(
+        raw.evidences.flatMap((e) =>
+          e.source === "REQUESTED_FROM_SELLER" && e.evidence_type !== undefined
+            ? [e.evidence_type]
+            : [],
+        ),
+      ),
+    ],
     outcome: raw.dispute_outcome?.outcome_code,
   }));
 

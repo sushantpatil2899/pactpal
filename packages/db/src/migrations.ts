@@ -716,4 +716,65 @@ CREATE TABLE dispute_checks (
 );
 CREATE INDEX dispute_checks_newest ON dispute_checks (started_at DESC)`,
   },
+  {
+    id: "0021_claim_analyses",
+    // A council's comparison of a buyer's dispute claim with the agreement and the deal's record
+    // (5d): a draft for the seller only, kept apart from the evidence log, which gets only its
+    // fingerprint (CLAIM_ANALYZED) when it is ready. An analysis moves once, from running to ready
+    // or failed, keeps what it recorded and is never removed.
+    sql: `CREATE TABLE claim_analyses (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  dispute_id text NOT NULL REFERENCES disputes (dispute_id),
+  pasted_artifact_id uuid,
+  status text NOT NULL CHECK (status IN ('running', 'ready', 'failed')),
+  prompt_version integer NOT NULL CHECK (prompt_version >= 1),
+  rank_prompt_version integer NOT NULL CHECK (rank_prompt_version >= 1),
+  claim_sha256 text CHECK (claim_sha256 ~ '^[0-9a-f]{64}$'),
+  record_sha256 text CHECK (record_sha256 ~ '^[0-9a-f]{64}$'),
+  analysis jsonb,
+  council jsonb,
+  failure_reason text CHECK (failure_reason <> ''),
+  ledger_seq integer,
+  requested_by uuid NOT NULL REFERENCES users (id),
+  created_at timestamptz NOT NULL,
+  finished_at timestamptz,
+  CONSTRAINT claim_analyses_pasted_in_deal FOREIGN KEY (deal_id, pasted_artifact_id)
+    REFERENCES artifacts (deal_id, id),
+  CONSTRAINT claim_analyses_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT claim_analyses_state CHECK (
+    (status = 'running' AND finished_at IS NULL AND analysis IS NULL AND council IS NULL
+       AND failure_reason IS NULL AND ledger_seq IS NULL)
+    OR (status = 'ready' AND finished_at IS NOT NULL AND analysis IS NOT NULL
+       AND council IS NOT NULL AND failure_reason IS NULL AND ledger_seq IS NOT NULL
+       AND claim_sha256 IS NOT NULL AND record_sha256 IS NOT NULL)
+    OR (status = 'failed' AND finished_at IS NOT NULL AND analysis IS NULL
+       AND failure_reason IS NOT NULL AND ledger_seq IS NULL)
+  )
+);
+CREATE INDEX claim_analyses_by_dispute ON claim_analyses (dispute_id, created_at DESC);
+-- At most one analysis runs per dispute at a time.
+CREATE UNIQUE INDEX claim_analyses_one_running ON claim_analyses (dispute_id)
+  WHERE status = 'running';
+
+CREATE FUNCTION pactpal_claim_analysis_moves_once() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' OR OLD.status <> 'running' OR NEW.status = 'running'
+     OR NEW.id <> OLD.id OR NEW.deal_id <> OLD.deal_id OR NEW.dispute_id <> OLD.dispute_id
+     OR NEW.pasted_artifact_id IS DISTINCT FROM OLD.pasted_artifact_id
+     OR NEW.prompt_version <> OLD.prompt_version
+     OR NEW.rank_prompt_version <> OLD.rank_prompt_version
+     OR NEW.requested_by <> OLD.requested_by OR NEW.created_at <> OLD.created_at THEN
+    RAISE EXCEPTION 'claim_analyses: an analysis moves once and keeps what it recorded (append-only)'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER claim_analyses_moves_once BEFORE UPDATE OR DELETE ON claim_analyses
+  FOR EACH ROW EXECUTE FUNCTION pactpal_claim_analysis_moves_once();
+CREATE TRIGGER claim_analyses_no_truncate BEFORE TRUNCATE ON claim_analyses
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];
