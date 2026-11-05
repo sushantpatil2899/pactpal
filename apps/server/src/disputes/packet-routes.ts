@@ -24,7 +24,11 @@ export interface PacketRouteOptions {
   newId: () => string;
 }
 
-const buildBody = z.object({ leaveOut: z.array(z.string().min(1).max(100)).max(100).default([]) });
+const buildBody = z.object({
+  leaveOut: z.array(z.string().min(1).max(100)).max(100).default([]),
+  /** The checked AI comparison and summary to put in the packet (5f). */
+  includeAi: z.object({ analysisId: z.uuid(), summaryId: z.uuid() }).optional(),
+});
 const packetParams = z.object({ packetId: z.uuid() });
 const exhibitParams = packetParams.extend({ n: z.coerce.number().int().min(1).max(100) });
 
@@ -33,6 +37,10 @@ const REFUSALS = {
   "not-this-deal": { status: 404, error: "not found" },
   "too-many": { status: 429, error: "this dispute already has the most packets allowed" },
   "chain-broken": { status: 409, error: "the deal's log failed its check, so no packet was built" },
+  "ai-not-ready": {
+    status: 409,
+    error: "the AI comparison and summary must both be ready before they go in the packet",
+  },
   "receipt-broken": {
     status: 409,
     error: "the signed copy failed its check, so no packet was built",
@@ -49,6 +57,8 @@ const packetView = (packet: EvidencePacket) => ({
   totalBytes: packet.totalBytes,
   chainHead: packet.chainHead,
   exhibits: packet.exhibits,
+  analysisId: packet.analysisId ?? null,
+  summaryId: packet.summaryId ?? null,
 });
 
 /**
@@ -86,7 +96,13 @@ export const packetRoutes: FastifyPluginAsync<PacketRouteOptions> = (app, option
     try {
       const { packet } = await buildPacket(
         { db, store: postgresContentStore(db, clock), clock, newId },
-        { deal, dispute: both.dispute, sellerId: viewer.user.id, leaveOut: new Set(body.leaveOut) },
+        {
+          deal,
+          dispute: both.dispute,
+          sellerId: viewer.user.id,
+          leaveOut: new Set(body.leaveOut),
+          ...(body.includeAi === undefined ? {} : { includeAi: body.includeAi }),
+        },
       );
       request.log.info({ dealId: deal.id, packetId: packet.id }, "Evidence packet built");
       return await reply.code(201).send(packetView(packet));

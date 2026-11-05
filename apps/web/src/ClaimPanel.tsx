@@ -1,5 +1,5 @@
 import { disputeActionWords, plainCode } from "@pactpal/words";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import {
   compareClaim,
   getClaimAnalyses,
@@ -7,11 +7,9 @@ import {
   type ClaimAnalysisView,
   type ClaimStatement,
 } from "./api";
-import { CouncilPanel } from "./CouncilPanel";
+import { CouncilPanel, ReviewFlag } from "./CouncilPanel";
 import { when } from "./format";
-
-/** How often the page reads a running comparison again (a council takes a minute or a few). */
-const POLL_MS = 3_000;
+import { useCouncilJobs } from "./useCouncilJobs";
 
 /** What the record shows about one statement: the agreement lines and log entries cited. */
 function Statement({ statement }: { statement: ClaimStatement }) {
@@ -47,11 +45,7 @@ function Analysis({ view }: { view: ClaimAnalysisView }) {
   const { statements, suggestion } = view.analysis;
   return (
     <>
-      {view.council?.needsReview === true && (
-        <p role="note">
-          <strong>Flagged for review:</strong> the models did not agree well. Read every line.
-        </p>
-      )}
+      <ReviewFlag council={view.council} />
       <ol>
         {statements.map((statement, i) => (
           <Statement key={i} statement={statement} />
@@ -78,31 +72,14 @@ function Analysis({ view }: { view: ClaimAnalysisView }) {
  * no record covers it. An AI draft for the seller, kept apart from the evidence.
  */
 export function ClaimPanel({ dealId, disputeId }: { dealId: string; disputeId: string }) {
-  const [view, setView] = useState<ClaimAnalysesView | undefined>();
-  const [problem, setProblem] = useState<string | undefined>();
+  const { view, show, problem, setProblem } = useCouncilJobs(
+    `${dealId}/${disputeId}`,
+    () => getClaimAnalyses(dealId, disputeId),
+    (next: ClaimAnalysesView) => next.analyses[0]?.status === "running",
+    "comparison",
+  );
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
-  const timer = useRef<number | undefined>(undefined);
-
-  const show = (next: ClaimAnalysesView) => {
-    setView(next);
-    window.clearTimeout(timer.current);
-    if (next.analyses[0]?.status === "running") {
-      timer.current = window.setTimeout(() => {
-        getClaimAnalyses(dealId, disputeId).then(show, () => {
-          setProblem("Could not read the comparison; reload the page to try again.");
-        });
-      }, POLL_MS);
-    }
-  };
-  useEffect(() => {
-    getClaimAnalyses(dealId, disputeId).then(show, (error: unknown) => {
-      setProblem(error instanceof Error ? error.message : "Could not load the comparisons.");
-    });
-    return () => {
-      window.clearTimeout(timer.current);
-    };
-  }, [dealId, disputeId]);
 
   const onCompare = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

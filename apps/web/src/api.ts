@@ -607,18 +607,19 @@ export interface ClaimAnalysesView {
   analyses: ClaimAnalysisView[];
 }
 
+/** A dispute council job as the server shows it: id, status and council record. */
+const isCouncilJob = (job: unknown) =>
+  isObject(job) &&
+  typeof job.id === "string" &&
+  typeof job.status === "string" &&
+  (job.council === null || isCouncil(job.council));
+
 const isClaimAnalyses = (value: unknown): value is ClaimAnalysesView =>
   isObject(value) &&
   typeof value.canCompare === "boolean" &&
   typeof value.canPaste === "boolean" &&
   Array.isArray(value.analyses) &&
-  value.analyses.every(
-    (a) =>
-      isObject(a) &&
-      typeof a.id === "string" &&
-      typeof a.status === "string" &&
-      (a.council === null || isCouncil(a.council)),
-  );
+  value.analyses.every(isCouncilJob);
 
 const analysesUrl = (dealId: string, disputeId: string) =>
   `${disputesUrl(dealId)}/${encodeURIComponent(disputeId)}/analyses`;
@@ -670,6 +671,9 @@ export interface BuiltPacket {
   totalBytes: number;
   chainHead: string;
   exhibits: { id: string; filename: string; send: string; number?: number; sentSha256?: string }[];
+  /** The AI comparison and summary it carries, if the seller included them. */
+  analysisId: string | null;
+  summaryId: string | null;
 }
 
 export interface PacketView {
@@ -698,16 +702,20 @@ export async function getPacketView(dealId: string, disputeId: string): Promise<
   return readChecked(await fetch(packetUrl(dealId, disputeId)), isPacketView, "load the packet");
 }
 
-/** Builds a packet without the documents in `leaveOut`; nothing is sent to PayPal. */
+/**
+ * Builds a packet without the documents in `leaveOut`, with the checked AI comparison and summary
+ * when `includeAi` names them; nothing is sent to PayPal.
+ */
 export async function buildPacket(
   dealId: string,
   disputeId: string,
   leaveOut: string[],
+  includeAi?: { analysisId: string; summaryId: string },
 ): Promise<BuiltPacket> {
   const response = await fetch(packetUrl(dealId, disputeId), {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ leaveOut }),
+    body: JSON.stringify({ leaveOut, ...(includeAi === undefined ? {} : { includeAi }) }),
   });
   if (!response.ok) throw new Error(await errorMessage(response, "Could not build the packet"));
   return readChecked(response, isBuiltPacket, "build the packet");
@@ -721,6 +729,52 @@ export const packetFileUrl = (
   exhibit?: number,
 ) =>
   `${packetUrl(dealId, disputeId)}/${encodeURIComponent(packetId)}/${exhibit === undefined ? "file" : `exhibits/${String(exhibit)}`}`;
+
+/** One council packet summary (5f): sentences citing log entries, document picks and a note. */
+export interface PacketSummaryView {
+  id: string;
+  status: "running" | "ready" | "failed";
+  createdAt: string;
+  failureReason: string | null;
+  /** The comparison it was drafted from. */
+  basedOn: string | null;
+  summary: {
+    summary: { text: string; record: { n: number; text: string }[] }[];
+    exhibits: { id: string; use: boolean; why: string }[];
+    note: string;
+  } | null;
+  council: CouncilView | null;
+}
+
+export interface PacketSummariesView {
+  /** Whether a summary can be drafted: models set up and a ready comparison. */
+  canDraft: boolean;
+  summaries: PacketSummaryView[];
+}
+
+const isSummaries = (value: unknown): value is PacketSummariesView =>
+  isObject(value) &&
+  typeof value.canDraft === "boolean" &&
+  Array.isArray(value.summaries) &&
+  value.summaries.every(isCouncilJob);
+
+const summariesUrl = (dealId: string, disputeId: string) =>
+  `${disputesUrl(dealId)}/${encodeURIComponent(disputeId)}/summaries`;
+
+export async function getSummaries(
+  dealId: string,
+  disputeId: string,
+): Promise<PacketSummariesView> {
+  return readChecked(
+    await fetch(summariesUrl(dealId, disputeId)),
+    isSummaries,
+    "load the summaries",
+  );
+}
+
+/** Starts a council summary from the newest ready comparison. */
+export const draftSummary = (dealId: string, disputeId: string) =>
+  postStep(summariesUrl(dealId, disputeId), {}, "start the summary", isSummaries);
 
 /** Starts a check of the seller's PayPal disputes; the result shows up in `getDisputes`. */
 export async function checkDisputes(dealId: string): Promise<void> {

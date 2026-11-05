@@ -30,7 +30,7 @@ import {
   renderWorkflowChecker,
   sameWorkflowTask,
 } from "./disputes/checker.js";
-import { CLAIM_TASK_NAME, runClaimJob } from "./disputes/claim-job.js";
+import { CLAIM_TASK_NAME, SUMMARY_TASK_NAME, runDisputeJob } from "./disputes/claim-job.js";
 import { syncDisputes } from "./disputes/dispute-sync.js";
 import { jsonLines } from "./disputes/task.js";
 
@@ -83,17 +83,20 @@ const disputes = config.render
 const members = councilClients(config.ai.keys);
 const drafting =
   database && members.length > 0 ? createDraftingRuntime({ clients: members }) : undefined;
-// Claim comparisons (5d) run as Render Workflow task runs when Render is set up (the workflow
+// Claim comparisons (5d) and packet summaries (5f) run as Render Workflow task runs when Render is set up (the workflow
 // service holds the AI keys); otherwise in this server's background, within its council limit.
 const claims = config.render
   ? renderClaimRunner(
       new Render({ token: config.render.apiKey.reveal() }).workflows,
-      sameWorkflowTask(config.render.taskSlug, CLAIM_TASK_NAME),
+      {
+        claim: sameWorkflowTask(config.render.taskSlug, CLAIM_TASK_NAME),
+        summary: sameWorkflowTask(config.render.taskSlug, SUMMARY_TASK_NAME),
+      },
       disputeLog,
     )
   : database && drafting
     ? inProcessClaimRunner(drafting, (analysisId) =>
-        runClaimJob(
+        runDisputeJob(
           {
             db: database,
             clients: drafting.clients,

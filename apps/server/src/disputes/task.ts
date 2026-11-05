@@ -9,7 +9,7 @@ import type { ChatClient } from "@pactpal/ai";
 import type { PayPalAppCredentials } from "@pactpal/paypal";
 import type { Secret } from "@pactpal/net";
 import { cryptoCouncilDeps } from "../drafting/runtime.js";
-import { runClaimJob } from "./claim-job.js";
+import { runDisputeJob } from "./claim-job.js";
 import { z } from "zod";
 import { formatErrors, loadConfig } from "../config.js";
 import type { LogSink } from "../payments/payment-sync.js";
@@ -102,7 +102,7 @@ export async function runClaimTask(
   const config = settings(env);
   if (config.database === undefined) throw new Error("Claim comparisons need DATABASE_URL");
   await withDatabase(config.database.url, wiring, (db) =>
-    runClaimJob(
+    runDisputeJob(
       {
         db,
         clients: wiring.clientsFor(config.ai.keys),

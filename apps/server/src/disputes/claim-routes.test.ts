@@ -11,7 +11,7 @@ import {
   sameWorkflowTask,
   type ClaimRunner,
 } from "./checker.js";
-import { runClaimJob } from "./claim-job.js";
+import { runDisputeJob } from "./claim-job.js";
 import { syncDisputes } from "./dispute-sync.js";
 import { expectSellerOnly, fakeDisputes, keptLog, testDispute } from "./test-support.js";
 
@@ -67,7 +67,7 @@ async function disputedDeal(
   const runner =
     options.runner ??
     inProcessClaimRunner(runtime, (analysisId) =>
-      runClaimJob(
+      runDisputeJob(
         { db, clients, council: runtime.council, clock: () => TEST_NOW, log: keptLog().log },
         analysisId,
       ),
@@ -193,18 +193,20 @@ describe("claim runners", () => {
           return Promise.resolve({ taskRunId: "trn-1" });
         },
       },
-      "pactpal-workflows/analyze-claim",
+      { claim: "pactpal-workflows/analyze-claim", summary: "pactpal-workflows/draft-summary" },
       keptLog().log,
     );
-    await runner.start(testId(5));
+    await runner.start(testId(5), "claim");
+    await runner.start(testId(6), "summary");
     expect(started).toEqual([
       ["pactpal-workflows/analyze-claim", [testId(5)], `claim:${testId(5)}`],
+      ["pactpal-workflows/draft-summary", [testId(6)], `summary:${testId(6)}`],
     ]);
   });
 
   it("leaves an analysis that is no longer running alone", async () => {
     const { dealId } = await disputedDeal();
-    await runClaimJob(
+    await runDisputeJob(
       {
         db,
         clients: [],

@@ -804,4 +804,38 @@ CREATE TRIGGER evidence_packets_append_only BEFORE UPDATE OR DELETE ON evidence_
 CREATE TRIGGER evidence_packets_no_truncate BEFORE TRUNCATE ON evidence_packets
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0023_dispute_council_kinds",
+    // The packet summary (5f) is a second kind of dispute council job in claim_analyses, based on a
+    // ready comparison: one running per dispute and kind. A packet may carry a checked comparison
+    // and summary, named by id.
+    sql: `ALTER TABLE claim_analyses ADD COLUMN kind text NOT NULL DEFAULT 'claim'
+  CHECK (kind IN ('claim', 'summary'));
+ALTER TABLE claim_analyses ADD COLUMN based_on uuid REFERENCES claim_analyses (id);
+ALTER TABLE claim_analyses ADD CONSTRAINT claim_analyses_based_on
+  CHECK ((kind = 'summary') = (based_on IS NOT NULL));
+DROP INDEX claim_analyses_one_running;
+CREATE UNIQUE INDEX claim_analyses_one_running_per_kind ON claim_analyses (dispute_id, kind)
+  WHERE status = 'running';
+
+CREATE OR REPLACE FUNCTION pactpal_claim_analysis_moves_once() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' OR OLD.status <> 'running' OR NEW.status = 'running'
+     OR NEW.id <> OLD.id OR NEW.deal_id <> OLD.deal_id OR NEW.dispute_id <> OLD.dispute_id
+     OR NEW.pasted_artifact_id IS DISTINCT FROM OLD.pasted_artifact_id
+     OR NEW.kind <> OLD.kind OR NEW.based_on IS DISTINCT FROM OLD.based_on
+     OR NEW.prompt_version <> OLD.prompt_version
+     OR NEW.rank_prompt_version <> OLD.rank_prompt_version
+     OR NEW.requested_by <> OLD.requested_by OR NEW.created_at <> OLD.created_at THEN
+    RAISE EXCEPTION 'claim_analyses: an analysis moves once and keeps what it recorded (append-only)'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+ALTER TABLE evidence_packets ADD COLUMN analysis_id uuid REFERENCES claim_analyses (id);
+ALTER TABLE evidence_packets ADD COLUMN summary_id uuid REFERENCES claim_analyses (id);
+ALTER TABLE evidence_packets ADD CONSTRAINT evidence_packets_ai_together
+  CHECK ((analysis_id IS NULL) = (summary_id IS NULL))`,
+  },
 ];

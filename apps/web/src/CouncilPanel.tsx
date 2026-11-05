@@ -20,6 +20,16 @@ const VOTE_WORDS: Record<CouncilView["votes"][number]["status"], string> = {
  * won and how closely they agreed. It shows how the models voted, not that the result is correct.
  * Which model wrote which draft is shown here, after the voting.
  */
+/** A note above a council's draft when the models did not agree well. */
+export function ReviewFlag({ council }: { council: CouncilView | null }) {
+  if (council?.needsReview !== true) return null;
+  return (
+    <p role="note">
+      <strong>Flagged for review:</strong> the models did not agree well. Read every line.
+    </p>
+  );
+}
+
 export function CouncilPanel({ council }: { council: CouncilView }) {
   const winner = council.scores[0];
   const tokens = council.usage.promptTokens + council.usage.completionTokens;

@@ -1,6 +1,12 @@
-import { recordLines } from "@pactpal/claims";
+import {
+  claimAnalysisSchema,
+  comparisonRows,
+  packetSummarySchema,
+  recordLines,
+} from "@pactpal/claims";
 import {
   getArtifact,
+  getClaimAnalysis,
   getLatestAcceptance,
   getUser,
   listArtifacts,
@@ -13,7 +19,7 @@ import {
   type PacketExhibit,
   type StoredDispute,
 } from "@pactpal/db";
-import { sha256Hex, verifyChain, type LedgerEntry } from "@pactpal/ledger";
+import { canonicalJson, sha256Hex, verifyChain, type LedgerEntry } from "@pactpal/ledger";
 import { ReceiptIntegrityError, buildReceipt } from "../acceptance/receipt.js";
 import { addedByRole } from "../deals/file-routes.js";
 import { nameOf } from "../deals/parties.js";
@@ -32,7 +38,7 @@ import {
 /** The packet cannot be built: the log failed its check, or the files are over PayPal's total. */
 export class PacketBuildError extends Error {
   override readonly name = "PacketBuildError";
-  constructor(readonly reason: "chain-broken" | "receipt-broken" | "over-limit") {
+  constructor(readonly reason: "chain-broken" | "receipt-broken" | "over-limit" | "ai-not-ready") {
     super(`The packet was not built: ${reason}`);
   }
 }
@@ -181,13 +187,54 @@ export async function packetExhibitFile(
 }
 
 /**
+ * The checked AI comparison and summary as packet sections, with their fingerprints: read again
+ * from the stored drafts through their schemas. Refused unless the summary is ready and based on
+ * the ready comparison named (the database checks the pair again when recording).
+ */
+async function aiSections(
+  db: Database,
+  ids: { analysisId: string; summaryId: string },
+  record: ReturnType<typeof recordLines>,
+) {
+  const [comparison, summary] = await Promise.all([
+    getClaimAnalysis(db, ids.analysisId),
+    getClaimAnalysis(db, ids.summaryId),
+  ]);
+  const analysis = claimAnalysisSchema.safeParse(comparison?.analysis);
+  const drafted = packetSummarySchema.safeParse(summary?.analysis);
+  if (!analysis.success || !drafted.success || summary?.basedOn !== ids.analysisId) {
+    throw new PacketBuildError("ai-not-ready");
+  }
+  const recordText = new Map(record.lines.map(({ n, text }) => [n, text]));
+  const entries = (numbers: readonly number[]) => numbers.map((n) => `#${String(n)}`).join(", ");
+  return {
+    sections: {
+      comparison: comparisonRows(analysis.data, recordText),
+      summary: drafted.data.summary.map((s) => `${s.text} (log entries ${entries(s.record)})`),
+    },
+    ai: {
+      ...ids,
+      analysisSha256: sha256Hex(canonicalJson(analysis.data)),
+      summarySha256: sha256Hex(canonicalJson(drafted.data)),
+    },
+  };
+}
+
+/**
  * Builds and records a packet for one dispute: checks the whole log first (a broken chain stops
  * it), plans the exhibits without the ones the seller unticked, makes each file PayPal would get,
  * writes the packet PDF, checks PayPal's total and records it with `PACKET_BUILT`.
  */
 export async function buildPacket(
   deps: { db: Database; store: ContentStore; clock: () => Date; newId: () => string },
-  input: { deal: Deal; dispute: StoredDispute; sellerId: string; leaveOut: ReadonlySet<string> },
+  input: {
+    deal: Deal;
+    dispute: StoredDispute;
+    sellerId: string;
+    leaveOut: ReadonlySet<string>;
+    /** The checked AI comparison and summary to put in the packet (5f), if the seller chose to. */
+    includeAi?: { analysisId: string; summaryId: string };
+  },
 ) {
   const { db, store, clock } = deps;
   const { deal, dispute } = input;
@@ -202,6 +249,9 @@ export async function buildPacket(
     deal.buyerId === undefined ? undefined : getUser(db, deal.buyerId),
   ]);
   const builtAt = clock();
+  const record = recordLines(docs.ledger);
+  const ai =
+    input.includeAi === undefined ? undefined : await aiSections(db, input.includeAi, record);
   const packet = await renderPacket(
     {
       disputeId: dispute.disputeId,
@@ -217,8 +267,9 @@ export async function buildPacket(
       signedAt: docs.signedAt,
       openedAt: dispute.paypalCreatedAt ?? dispute.firstSeenAt,
       builtAt,
-      record: recordLines(docs.ledger),
+      record,
       chain: { entries: docs.ledger.length, head: head.entryHash },
+      ...(ai === undefined ? {} : { ai: ai.sections }),
     },
     sent,
   );
@@ -257,6 +308,7 @@ export async function buildPacket(
       totalBytes: meter.totalBytes,
       chainEntries: docs.ledger.length,
       chainHead: head.entryHash,
+      ...(ai === undefined ? {} : { ai: ai.ai }),
     },
     builtAt,
   );

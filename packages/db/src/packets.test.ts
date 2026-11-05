@@ -6,8 +6,10 @@ import {
   getPacket,
   listPackets,
   postgresContentStore,
+  finishClaimAnalysis,
   readLedger,
   recordPacket,
+  startClaimAnalysis,
   verifyStoredLedger,
   type NewPacket,
 } from "./index.js";
@@ -114,5 +116,55 @@ describe("evidence packets", () => {
     expect((await listPackets(db, "PP-R-TEST-1"))[0]?.id).toBe(testId(720));
     const built = (await readLedger(db, dealId)).filter((e) => e.type === "PACKET_BUILT");
     expect(built).toHaveLength(MAX_PACKETS_PER_DISPUTE);
+  });
+
+  it("carries the AI comparison and summary only when they are this dispute's ready pair", async () => {
+    const { packet, seller } = await disputed();
+    const begin = (id: number, extra = {}) =>
+      startClaimAnalysis(
+        db,
+        {
+          id: testId(id),
+          dealId: packet(1).dealId,
+          disputeId: "PP-R-TEST-1",
+          sellerId: seller.id,
+          promptVersion: 1,
+          rankPromptVersion: 1,
+          ...extra,
+        },
+        at(2),
+      );
+    const done = (id: string) =>
+      finishClaimAnalysis(
+        db,
+        {
+          analysisId: id,
+          analysis: {},
+          council: {},
+          claimSha256: "c".repeat(64),
+          recordSha256: "d".repeat(64),
+          models: ["alpha"],
+          winner: "alpha",
+          statements: 1,
+          needsReview: false,
+        },
+        at(3),
+      );
+    const comparison = await begin(801);
+    await done(comparison.id);
+    const summary = await begin(802, { kind: "summary", basedOn: comparison.id });
+    const ai = {
+      analysisId: comparison.id,
+      summaryId: summary.id,
+      analysisSha256: "a".repeat(64),
+      summarySha256: "b".repeat(64),
+    };
+    await expect(recordPacket(db, store, { ...packet(1), ai }, at(4))).rejects.toEqual(
+      refusal("ai-not-ready"),
+    );
+    await done(summary.id);
+    const { packet: saved, entry } = await recordPacket(db, store, { ...packet(1), ai }, at(5));
+    expect(saved).toMatchObject({ analysisId: comparison.id, summaryId: summary.id });
+    expect(entry.payload).toMatchObject({ ai });
   });
 });

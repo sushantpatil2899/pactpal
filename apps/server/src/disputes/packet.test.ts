@@ -137,6 +137,24 @@ describe("the packet", () => {
     expect(text).not.toMatch(/legally binding|you will win|guarantee/i);
   });
 
+  it("puts the checked AI comparison and summary before the timeline, marked as AI-assisted", () => {
+    const ai = {
+      comparison: [
+        { number: 1, said: '"Not the style I wanted"', shows: "No record covers this." },
+      ],
+      summary: ["The buyer approved stage 1 on 8 Nov 2026. (log entries #18)"],
+    };
+    const plain = JSON.stringify(packetBlocks(FACTS, [sent("receipt", 1)]));
+    const text = JSON.stringify(packetBlocks({ ...FACTS, ai }, [sent("receipt", 1)]));
+    expect(plain).not.toContain("Claim against the record");
+    const order = ["Claim against the record", "No record covers this.", "Summary", "#18"].map(
+      (words) => text.indexOf(words),
+    );
+    expect(order.every((at, i) => at > (order[i - 1] ?? 0))).toBe(true);
+    expect(text.indexOf("#18")).toBeLessThan(text.indexOf("Timeline from the evidence log"));
+    expect(text.split("checked by the seller before sending")).toHaveLength(3);
+  });
+
   it("gives the same bytes for the same record, and turns text into a PDF the same way", async () => {
     const exhibits = [sent("receipt", 1)];
     const one = await renderPacket(FACTS, exhibits);

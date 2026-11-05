@@ -146,4 +146,43 @@ describe("claim analyses", () => {
     await expect(startClaimAnalysis(db, start(99), at(30))).rejects.toEqual(refusal("too-many"));
     expect((await readLedger(db, dealId)).some((e) => e.type === "CLAIM_ANALYZED")).toBe(false);
   });
+
+  it("runs a summary only on a ready comparison, one per kind at a time, and logs SUMMARY_DRAFTED", async () => {
+    const { start } = await disputed();
+    const summary = (n: number, basedOn: string) => ({
+      ...start(n),
+      kind: "summary" as const,
+      basedOn,
+    });
+    const comparison = await startClaimAnalysis(db, start(1), at(2));
+    // Not ready yet: no summary.
+    await expect(startClaimAnalysis(db, summary(2, comparison.id), at(3))).rejects.toEqual(
+      refusal("no-comparison"),
+    );
+    await finishClaimAnalysis(db, finished(comparison.id), at(4));
+    const drafting = await startClaimAnalysis(db, summary(2, comparison.id), at(5));
+    expect(drafting).toMatchObject({ kind: "summary", basedOn: comparison.id });
+    // A comparison and a summary may run side by side; two summaries may not.
+    await startClaimAnalysis(db, start(3), at(5));
+    await expect(startClaimAnalysis(db, summary(4, comparison.id), at(5))).rejects.toEqual(
+      refusal("already-running"),
+    );
+    const done = await finishClaimAnalysis(
+      db,
+      { ...finished(drafting.id), exhibitsSha256: "e".repeat(64), statements: 3 },
+      at(6),
+    );
+    expect(done?.entry).toMatchObject({
+      type: "SUMMARY_DRAFTED",
+      payload: {
+        basedOn: comparison.id,
+        comparisonSha256: "c".repeat(64),
+        exhibitsSha256: "e".repeat(64),
+        sentences: 3,
+      },
+    });
+    expect((await listClaimAnalyses(db, "PP-R-TEST-1", "summary")).map((a) => a.id)).toEqual([
+      drafting.id,
+    ]);
+  });
 });

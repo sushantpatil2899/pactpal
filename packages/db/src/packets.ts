@@ -9,7 +9,12 @@ import { appendLedgerEvent } from "./ledger-store.js";
 export const MAX_PACKETS_PER_DISPUTE = 20;
 
 /** Why a packet was not recorded. */
-export type PacketRefusal = "not-your-deal" | "not-this-deal" | "too-many";
+export type PacketRefusal =
+  | "not-your-deal"
+  | "not-this-deal"
+  | "too-many"
+  /** The AI comparison and summary named are not this dispute's ready pair. */
+  | "ai-not-ready";
 
 export class PacketNotAllowedError extends Error {
   override readonly name = "PacketNotAllowedError";
@@ -50,6 +55,8 @@ const packetRow = z
     built_by: z.string(),
     ledger_seq: z.number().int(),
     created_at: z.date(),
+    analysis_id: z.string().nullable(),
+    summary_id: z.string().nullable(),
   })
   .transform((row) => ({
     id: row.id,
@@ -64,6 +71,8 @@ const packetRow = z
     builtBy: row.built_by,
     ledgerSeq: row.ledger_seq,
     createdAt: row.created_at,
+    analysisId: row.analysis_id ?? undefined,
+    summaryId: row.summary_id ?? undefined,
   }));
 /** A built evidence packet as recorded. */
 export type EvidencePacket = z.output<typeof packetRow>;
@@ -79,6 +88,15 @@ const newPacketSchema = z.object({
   totalBytes: z.number().int().min(1),
   chainEntries: z.number().int().min(1),
   chainHead: sha256,
+  /** The AI comparison and summary the seller checked and put in the packet (5f), if any. */
+  ai: z
+    .object({
+      analysisId: z.uuid(),
+      summaryId: z.uuid(),
+      analysisSha256: sha256,
+      summarySha256: sha256,
+    })
+    .optional(),
 });
 export type NewPacket = z.input<typeof newPacketSchema>;
 
@@ -114,6 +132,16 @@ export async function recordPacket(
         )[0]?.n,
       );
     if (count >= MAX_PACKETS_PER_DISPUTE) throw new PacketNotAllowedError("too-many");
+    if (built.ai) {
+      // The summary must be ready and based on the ready comparison named, both of this dispute.
+      const pair = await tx.query(
+        `SELECT 1 FROM claim_analyses s JOIN claim_analyses c ON c.id = s.based_on
+          WHERE s.id = $1 AND s.kind = 'summary' AND s.status = 'ready'
+            AND c.id = $2 AND c.kind = 'claim' AND c.status = 'ready' AND c.dispute_id = $3`,
+        [built.ai.summaryId, built.ai.analysisId, built.disputeId],
+      );
+      if (pair.length === 0) throw new PacketNotAllowedError("ai-not-ready");
+    }
     const included = built.exhibits.filter((e) => e.send !== "left-out");
     const entry = await appendLedgerEvent(
       tx,
@@ -136,6 +164,7 @@ export async function recordPacket(
           totalBytes: built.totalBytes,
           chainEntries: built.chainEntries,
           chainHead: built.chainHead,
+          ...(built.ai ? { ai: built.ai } : {}),
         },
       },
       now,
@@ -143,8 +172,8 @@ export async function recordPacket(
     const rows = await tx.query(
       `INSERT INTO evidence_packets (id, deal_id, dispute_id, packet_sha256, packet_bytes, exhibits,
                                      total_bytes, chain_entries, chain_head, built_by, ledger_seq,
-                                     created_at)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12)
+                                     created_at, analysis_id, summary_id)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         built.id,
@@ -159,6 +188,8 @@ export async function recordPacket(
         built.sellerId,
         entry.seq,
         now,
+        built.ai?.analysisId ?? null,
+        built.ai?.summaryId ?? null,
       ],
     );
     return { packet: packetRow.parse(rows[0]), entry };

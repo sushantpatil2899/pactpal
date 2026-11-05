@@ -47,6 +47,7 @@ const ENTRIES = [
   entry(17, "DISPUTE_OPENED", "system", { disputeId: "PP-1", status: "OPEN", stage: 2 }),
   entry(18, "DISPUTE_RESOLVED", "system", { disputeId: "PP-1", outcome: "RESOLVED_BUYER_FAVOUR" }),
   entry(19, "SOMETHING_NEW", "witness", "not an object"),
+  entry(20, "SUMMARY_DRAFTED", "system", { sentences: 3 }),
 ];
 const RECORD = recordLines(ENTRIES);
 const CLAIM = claimLines({

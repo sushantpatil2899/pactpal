@@ -1,4 +1,4 @@
-import type { DisputeCheckSource } from "@pactpal/db";
+import type { AnalysisKind, DisputeCheckSource } from "@pactpal/db";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import type { LogSink } from "../payments/payment-sync.js";
 
@@ -76,9 +76,9 @@ export function inProcessChecker(
 export const sameWorkflowTask = (taskSlug: string, task: string): string =>
   `${taskSlug.split("/")[0] ?? taskSlug}/${task}`;
 
-/** Starts one claim comparison (5d): a Render Workflow task run live, in process locally. */
+/** Starts one dispute council job (a 5d comparison or a 5f summary): a Render run, or in process. */
 export interface ClaimRunner {
-  start(analysisId: string): Promise<void>;
+  start(analysisId: string, kind: AnalysisKind): Promise<void>;
 }
 
 /** Every council place in this server is taken; try again in a minute. */
@@ -86,18 +86,21 @@ export class RunnerBusyError extends Error {
   override readonly name = "RunnerBusyError";
 }
 
-/** Starts the comparison as a run of the Workflow task `taskSlug`, once per analysis. */
+/** Starts each job as a run of its kind's Workflow task (`taskSlugs`), once per job. */
 export function renderClaimRunner(
   starter: TaskStarter,
-  taskSlug: string,
+  taskSlugs: Readonly<Record<AnalysisKind, string>>,
   log: LogSink,
 ): ClaimRunner {
   return {
-    async start(analysisId) {
-      const run = await starter.startTask(taskSlug, [analysisId], {
-        idempotencyKey: `claim:${analysisId}`,
+    async start(analysisId, kind) {
+      const run = await starter.startTask(taskSlugs[kind], [analysisId], {
+        idempotencyKey: `${kind}:${analysisId}`,
       });
-      log.info({ analysisId, taskRunId: run.taskRunId }, "Claim comparison started on Render");
+      log.info(
+        { analysisId, kind, taskRunId: run.taskRunId },
+        "Dispute council job started on Render",
+      );
     },
   };
 }

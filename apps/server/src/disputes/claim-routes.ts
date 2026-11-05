@@ -1,4 +1,10 @@
-import { CLAIM_PROMPT_VERSION, claimAnalysisSchema, recordLines } from "@pactpal/claims";
+import {
+  CLAIM_PROMPT_VERSION,
+  SUMMARY_PROMPT_VERSION,
+  claimAnalysisSchema,
+  packetSummarySchema,
+  recordLines,
+} from "@pactpal/claims";
 import { COUNCIL_RANK_PROMPT_VERSION } from "@pactpal/council";
 import {
   AnalysisNotAllowedError,
@@ -9,10 +15,11 @@ import {
   postgresContentStore,
   readLedger,
   startClaimAnalysis,
+  type AnalysisKind,
   type ClaimAnalysisRecord,
   type StoredDispute,
 } from "@pactpal/db";
-import type { FastifyPluginAsync, FastifyReply } from "fastify";
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { readBody, sendRefusal, type DealLookup, type FoundDeal } from "../deals/access.js";
 import { councilRecordSchema } from "../drafting/council-record.js";
@@ -35,7 +42,8 @@ const REFUSALS: Record<AnalysisNotAllowedError["reason"], { status: number; erro
   "not-your-deal": { status: 403, error: "only the seller can do this" },
   "not-this-deal": { status: 404, error: "not found" },
   "already-running": { status: 409, error: "a comparison is already running" },
-  "too-many": { status: 429, error: "this dispute already has the most comparisons allowed" },
+  "too-many": { status: 429, error: "this dispute already has the most of these allowed" },
+  "no-comparison": { status: 409, error: "compare the claim with the record first" },
 };
 
 /** What the council did, for the council panel; the candidates stay stored, not shown. */
@@ -44,115 +52,142 @@ const councilView = councilRecordSchema
   // Undefined fields are left out of the answer, so the drafts are not sent to the page.
   .transform((record) => ({ ...record, candidates: undefined }));
 
+/** The fields every dispute council job shows on the page, and its council record. */
+const jobView = (job: ClaimAnalysisRecord) => {
+  const council = councilView.safeParse(job.council);
+  return {
+    id: job.id,
+    status: job.status,
+    createdAt: job.createdAt.toISOString(),
+    finishedAt: job.finishedAt?.toISOString() ?? null,
+    failureReason: job.failureReason ?? null,
+    council: council.success ? council.data : null,
+  };
+};
+
+/** A record entry's own line, for showing a citation. */
+const entryOf = (recordText: ReadonlyMap<number, string>) => (n: number) => ({
+  n,
+  text: recordText.get(n) ?? `#${String(n)}`,
+});
+
 /** One comparison for the page: the analysis with each cited record entry's words, and the council. */
 function analysisView(analysis: ClaimAnalysisRecord, recordText: ReadonlyMap<number, string>) {
   const parsed = claimAnalysisSchema.safeParse(analysis.analysis);
-  const council = councilView.safeParse(analysis.council);
   return {
-    id: analysis.id,
-    status: analysis.status,
-    createdAt: analysis.createdAt.toISOString(),
-    finishedAt: analysis.finishedAt?.toISOString() ?? null,
-    failureReason: analysis.failureReason ?? null,
+    ...jobView(analysis),
     analysis: parsed.success
       ? {
           ...parsed.data,
           statements: parsed.data.statements.map((statement) => ({
             ...statement,
-            record: statement.record.map((n) => ({
-              n,
-              text: recordText.get(n) ?? `#${String(n)}`,
-            })),
+            record: statement.record.map(entryOf(recordText)),
           })),
         }
       : null,
-    council: council.success ? council.data : null,
   };
 }
 
+/** One packet summary for the page: sentences with their entries' words, picks, note, council. */
+function summaryView(job: ClaimAnalysisRecord, recordText: ReadonlyMap<number, string>) {
+  const parsed = packetSummarySchema.safeParse(job.analysis);
+  return {
+    ...jobView(job),
+    basedOn: job.basedOn ?? null,
+    summary: parsed.success
+      ? {
+          ...parsed.data,
+          summary: parsed.data.summary.map((sentence) => ({
+            text: sentence.text,
+            record: sentence.record.map(entryOf(recordText)),
+          })),
+        }
+      : null,
+  };
+}
+
+/** What a started job is, for its prompt versions, log lines and refusals. */
+const JOBS = {
+  claim: { promptVersion: CLAIM_PROMPT_VERSION, words: "Claim comparison", noun: "comparison" },
+  summary: { promptVersion: SUMMARY_PROMPT_VERSION, words: "Packet summary", noun: "summary" },
+} as const;
+
 /**
- * Comparing a dispute claim with the record (5d), for the seller only. A comparison is a draft by
- * a council of AI models, kept apart from the evidence; the log gets its fingerprint only.
+ * Comparing a dispute claim with the record (5d) and drafting the packet summary from it (5f), for
+ * the seller only. Both are drafts by a council of AI models, kept apart from the evidence; the
+ * log gets their fingerprints only.
  */
 export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options) => {
   const { sellersDeal, clock, newId, claims } = options;
-  const base = "/api/deals/:id/disputes/:disputeId/analyses";
+  const dispute = "/api/deals/:id/disputes/:disputeId";
 
-  async function answer(reply: FastifyReply, found: FoundDeal, dispute: StoredDispute) {
+  /** The dispute's comparisons or summaries, with what the page may offer. */
+  async function answer(
+    reply: FastifyReply,
+    found: FoundDeal,
+    stored: StoredDispute,
+    kind: AnalysisKind,
+  ) {
     await failStaleClaimAnalyses(found.db, clock());
-    const [analyses, ledger] = await Promise.all([
-      listClaimAnalyses(found.db, dispute.disputeId),
+    const [jobs, ledger, comparisons] = await Promise.all([
+      listClaimAnalyses(found.db, stored.disputeId, kind),
       readLedger(found.db, found.deal.id),
+      listClaimAnalyses(found.db, stored.disputeId, "claim"),
     ]);
     const recordText = new Map(recordLines(ledger).lines.map(({ n, text }) => [n, text]));
-    const buyerSpoke = (messagesOf(dispute.details) ?? []).some((m) => m.from === "BUYER");
+    if (kind === "summary") {
+      return reply.send({
+        canDraft: claims !== undefined && comparisons.some((c) => c.status === "ready"),
+        summaries: jobs.map((job) => summaryView(job, recordText)),
+      });
+    }
+    const buyerSpoke = (messagesOf(stored.details) ?? []).some((m) => m.from === "BUYER");
     return reply.send({
       canCompare: claims !== undefined,
       canPaste: !buyerSpoke,
-      analyses: analyses.map((analysis) => analysisView(analysis, recordText)),
+      analyses: jobs.map((job) => analysisView(job, recordText)),
     });
   }
 
-  app.get(base, async (request, reply) => {
-    const both = await sellersDispute(sellersDeal, request, reply);
-    return both ? answer(reply, both.found, both.dispute) : reply;
-  });
-
-  app.post(base, async (request, reply) => {
-    const both = await sellersDispute(sellersDeal, request, reply);
-    if (!both) return reply;
-    const { found, dispute } = both;
-    const body = await readBody(startBody, request, reply);
-    if (!body) return reply;
-    if (!claims) return reply.code(503).send({ error: "no AI model is configured" });
+  /**
+   * Records a running job and starts it (a Render Workflow run, or in this server); a job that
+   * cannot be started is marked failed with the reason, never left running.
+   */
+  async function startJob(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    both: { found: FoundDeal; dispute: StoredDispute },
+    job: { kind: AnalysisKind; basedOn?: string; pastedArtifactId?: string },
+  ) {
+    const { found } = both;
     const { db, deal, viewer } = found;
-    if (
-      body.pasted !== undefined &&
-      (messagesOf(dispute.details) ?? []).some((m) => m.from === "BUYER")
-    ) {
-      return reply
-        .code(409)
-        .send({ error: "PayPal shows the buyer's messages, so there is nothing to paste" });
-    }
+    if (!claims) return reply.code(503).send({ error: "no AI model is configured" });
+    const what = JOBS[job.kind];
     let analysisId: string | undefined;
     try {
-      // The pasted claim is the buyer's words as the seller received them: a source file.
-      const pasted =
-        body.pasted === undefined
-          ? undefined
-          : await addArtifact(
-              db,
-              postgresContentStore(db, clock),
-              {
-                id: newId(),
-                dealId: deal.id,
-                kind: "source",
-                filename: `buyer-claim-${clock().toISOString().slice(0, 10)}.txt`,
-                bytes: new TextEncoder().encode(body.pasted),
-                addedBy: { actor: "seller", actorId: viewer.user.id },
-              },
-              clock(),
-            );
       const started = await startClaimAnalysis(
         db,
         {
           id: newId(),
           dealId: deal.id,
-          disputeId: dispute.disputeId,
+          disputeId: both.dispute.disputeId,
           sellerId: viewer.user.id,
-          ...(pasted === undefined ? {} : { pastedArtifactId: pasted.id }),
-          promptVersion: CLAIM_PROMPT_VERSION,
+          kind: job.kind,
+          ...(job.basedOn === undefined ? {} : { basedOn: job.basedOn }),
+          ...(job.pastedArtifactId === undefined ? {} : { pastedArtifactId: job.pastedArtifactId }),
+          promptVersion: what.promptVersion,
           rankPromptVersion: COUNCIL_RANK_PROMPT_VERSION,
         },
         clock(),
       );
       analysisId = started.id;
-      await claims.start(started.id);
-      request.log.info({ dealId: deal.id, analysisId }, "Claim comparison started");
-      return await answer(reply.code(202), found, dispute);
+      await claims.start(started.id, job.kind);
+      request.log.info({ dealId: deal.id, analysisId }, `${what.words} started`);
+      return await answer(reply.code(202), found, both.dispute, job.kind);
     } catch (error) {
-      if (error instanceof AnalysisNotAllowedError)
+      if (error instanceof AnalysisNotAllowedError) {
         return sendRefusal(reply, REFUSALS[error.reason]);
+      }
       if (analysisId === undefined) throw error;
       const busy = error instanceof RunnerBusyError;
       await failClaimAnalysis(
@@ -162,12 +197,70 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
       );
       request.log.warn(
         { dealId: deal.id, analysisId, err: error instanceof Error ? error.name : "unknown" },
-        "Claim comparison not started",
+        `${what.words} not started`,
       );
       return busy
         ? reply.code(429).send({ error: "busy, try again in a minute" })
-        : reply.code(502).send({ error: "the comparison could not be started; try again" });
+        : reply.code(502).send({ error: `the ${what.noun} could not be started; try again` });
     }
+  }
+
+  app.get(`${dispute}/analyses`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    return both ? answer(reply, both.found, both.dispute, "claim") : reply;
+  });
+
+  app.post(`${dispute}/analyses`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    if (!both) return reply;
+    const body = await readBody(startBody, request, reply);
+    if (!body) return reply;
+    if (!claims) return reply.code(503).send({ error: "no AI model is configured" });
+    const { db, deal, viewer } = both.found;
+    if (
+      body.pasted !== undefined &&
+      (messagesOf(both.dispute.details) ?? []).some((m) => m.from === "BUYER")
+    ) {
+      return reply
+        .code(409)
+        .send({ error: "PayPal shows the buyer's messages, so there is nothing to paste" });
+    }
+    // The pasted claim is the buyer's words as the seller received them: a source file.
+    const pasted =
+      body.pasted === undefined
+        ? undefined
+        : await addArtifact(
+            db,
+            postgresContentStore(db, clock),
+            {
+              id: newId(),
+              dealId: deal.id,
+              kind: "source",
+              filename: `buyer-claim-${clock().toISOString().slice(0, 10)}.txt`,
+              bytes: new TextEncoder().encode(body.pasted),
+              addedBy: { actor: "seller", actorId: viewer.user.id },
+            },
+            clock(),
+          );
+    return startJob(request, reply, both, {
+      kind: "claim",
+      ...(pasted === undefined ? {} : { pastedArtifactId: pasted.id }),
+    });
+  });
+
+  app.get(`${dispute}/summaries`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    return both ? answer(reply, both.found, both.dispute, "summary") : reply;
+  });
+
+  // The summary is drafted from the newest ready comparison of the dispute.
+  app.post(`${dispute}/summaries`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    if (!both) return reply;
+    const comparisons = await listClaimAnalyses(both.found.db, both.dispute.disputeId, "claim");
+    const ready = comparisons.find((c) => c.status === "ready");
+    if (!ready) return sendRefusal(reply, REFUSALS["no-comparison"]);
+    return startJob(request, reply, both, { kind: "summary", basedOn: ready.id });
   });
 
   return Promise.resolve();

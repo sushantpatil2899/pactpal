@@ -277,6 +277,7 @@ export type {
   StoredDispute,
 } from "./disputes.js";
 export {
+  ANALYSIS_KINDS,
   ANALYSIS_TIMEOUT_MS,
   AnalysisNotAllowedError,
   MAX_ANALYSES_PER_DISPUTE,
@@ -288,6 +289,7 @@ export {
   startClaimAnalysis,
 } from "./claim-analyses.js";
 export type {
+  AnalysisKind,
   AnalysisRefusal,
   ClaimAnalysisRecord,
   FinishClaimAnalysis,

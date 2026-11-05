@@ -2,12 +2,17 @@ import { sizeWords } from "@pactpal/words";
 import { useEffect, useState } from "react";
 import {
   buildPacket,
+  draftSummary,
   getPacketView,
+  getSummaries,
   packetFileUrl,
   type PacketChoice,
+  type PacketSummariesView,
   type PacketView,
 } from "./api";
 import { when } from "./format";
+import { PacketSummary } from "./PacketSummary";
+import { useCouncilJobs } from "./useCouncilJobs";
 
 const ADDED_BY = {
   seller: "added by you",
@@ -27,16 +32,38 @@ function howSent(choice: PacketChoice): string {
   return choice.send === "text-as-pdf" ? `text, sent as a PDF${size}` : `sent as it is${size}`;
 }
 
+/** The AI's suggestion for one document, beside its tick box; the seller decides. */
+function AiPick({ pick }: { pick: { use: boolean; why: string } | undefined }) {
+  if (pick === undefined) return null;
+  return (
+    <small style={{ display: "block", marginLeft: "1.6em" }}>
+      AI: {pick.use ? "send" : "leave out"}
+      {pick.why === "" ? "" : ` (${pick.why})`}
+    </small>
+  );
+}
+
 /**
  * The evidence packet (5e): every document PactPal can send PayPal for this dispute, ticked by
  * default, with PayPal's size limits; "Build the packet" writes the packet PDF from the record and
- * keeps it with its fingerprint. Nothing is sent to PayPal from here.
+ * keeps it with its fingerprint. The AI summary (5f) suggests picks the seller can take, and its
+ * checked comparison and summary go in only when the seller ticks that they checked them.
+ * Nothing is sent to PayPal from here.
  */
 export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: string }) {
   const [view, setView] = useState<PacketView | undefined>();
   const [unticked, setUnticked] = useState<ReadonlySet<string>>(new Set());
   const [problem, setProblem] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  /** The summary the seller ticked as checked; a newer summary needs a new tick. */
+  const [checkedId, setCheckedId] = useState<string | undefined>();
+  const summaries = useCouncilJobs(
+    `${dealId}/${disputeId}`,
+    () => getSummaries(dealId, disputeId),
+    (next: PacketSummariesView) => next.summaries[0]?.status === "running",
+    "summary",
+  );
 
   const load = () => {
     getPacketView(dealId, disputeId).then(setView, (error: unknown) => {
@@ -51,6 +78,13 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
   const total = chosen.reduce((sum, e) => sum + (e.sentBytes ?? 0), 0);
   const largest = Math.max(0, ...chosen.map((e) => e.sentBytes ?? 0));
   const over = total > view.meter.maxTotalBytes;
+  const latest = summaries.view?.summaries[0];
+  const ready = latest?.status === "ready" && latest.summary !== null ? latest : undefined;
+  const picks = new Map(ready?.summary?.exhibits.map((pick) => [pick.id, pick]));
+  const includeAi =
+    ready !== undefined && ready.basedOn !== null && checkedId === ready.id
+      ? { analysisId: ready.basedOn, summaryId: ready.id }
+      : undefined;
 
   const toggle = (id: string) => {
     const next = new Set(unticked);
@@ -61,7 +95,7 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
   const onBuild = () => {
     setBusy(true);
     setProblem(undefined);
-    buildPacket(dealId, disputeId, [...unticked]).then(
+    buildPacket(dealId, disputeId, [...unticked], includeAi).then(
       () => {
         setBusy(false);
         load();
@@ -73,6 +107,26 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
     );
   };
 
+  const onDraft = () => {
+    setDrafting(true);
+    summaries.setProblem(undefined);
+    draftSummary(dealId, disputeId).then(
+      (next) => {
+        setDrafting(false);
+        summaries.show(next);
+      },
+      (error: unknown) => {
+        setDrafting(false);
+        summaries.setProblem(
+          error instanceof Error ? error.message : "Could not start the summary.",
+        );
+      },
+    );
+  };
+  const useAiPicks = () => {
+    setUnticked(new Set([...picks.values()].filter((pick) => !pick.use).map((pick) => pick.id)));
+  };
+
   return (
     <section aria-labelledby="packet">
       <h3 id="packet">Evidence packet</h3>
@@ -81,10 +135,22 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
         fingerprint and the log&apos;s seal) and adds these documents. Untick any you do not want to
         send. <strong>Nothing goes to PayPal from here.</strong>
       </p>
-      {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
-          {problem}
-        </p>
+      {summaries.view !== undefined && (
+        <PacketSummary view={summaries.view} busy={drafting} onDraft={onDraft} />
+      )}
+      {[problem, summaries.problem].map(
+        (text) =>
+          text !== undefined && (
+            <p key={text} role="alert" style={{ color: "#8a1c1c" }}>
+              {text}
+            </p>
+          ),
+      )}
+      <h4>Documents</h4>
+      {picks.size > 0 && (
+        <button type="button" onClick={useAiPicks}>
+          Use the AI&apos;s picks
+        </button>
       )}
       <ul style={{ listStyle: "none", paddingLeft: 0 }}>
         {view.exhibits.map((choice) => (
@@ -100,6 +166,7 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
               />{" "}
               {choice.filename} ({ADDED_BY[choice.addedBy]}; {howSent(choice)})
             </label>
+            <AiPick pick={picks.get(choice.id)} />
           </li>
         ))}
       </ul>
@@ -108,6 +175,20 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
         {sizeWords(largest)} of {sizeWords(view.meter.maxFileBytes)}. The packet PDF itself is added
         on top (usually well under 1 MB).
       </p>
+      {ready !== undefined && (
+        <p>
+          <label>
+            <input
+              type="checkbox"
+              checked={includeAi !== undefined}
+              onChange={() => {
+                setCheckedId(includeAi === undefined ? ready.id : undefined);
+              }}
+            />{" "}
+            Put the AI comparison and summary in the packet (I have checked them)
+          </label>
+        </p>
+      )}
       <button type="button" disabled={busy || over} onClick={onBuild}>
         {busy ? "Building…" : "Build the packet"}
       </button>
@@ -119,7 +200,8 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
               <li key={packet.id}>
                 {when(packet.createdAt)}:{" "}
                 <a href={packetFileUrl(dealId, disputeId, packet.id)}>packet PDF</a> (
-                {sizeWords(packet.packetBytes)}; {sizeWords(packet.totalBytes)} with its exhibits){" "}
+                {sizeWords(packet.packetBytes)}; {sizeWords(packet.totalBytes)} with its exhibits
+                {packet.summaryId === null ? "" : "; with the AI comparison and summary"}){" "}
                 <code title="The packet's fingerprint (SHA-256)">
                   {packet.packetSha256.slice(0, 12)}…
                 </code>

@@ -1,5 +1,8 @@
+import { addArtifact, postgresContentStore, type Database } from "@pactpal/db";
+import { TEST_NOW, createTestDeal, linkTestDispute, testId } from "@pactpal/db/testing";
 import { PayPalNetworkError, type DisputeDetails } from "@pactpal/paypal";
 import { expect } from "vitest";
+import { buyerVisitors, dealTestApp, signThroughRoutes, signedInAs } from "../deals/test-app.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import type { DisputeReader } from "./dispute-sync.js";
 
@@ -93,4 +96,42 @@ export async function expectSellerOnly(
   expect((await call("GET", url.replace("PP-R-TEST-1", "PP-R-NONE"), sellerToken)).statusCode).toBe(
     404,
   );
+}
+
+/** Test code only: a file for `signedDispute`, as [name, kind, bytes, who added it]. */
+export type TestFile = [string, "source" | "deliverable", Uint8Array, "seller" | "buyer"];
+
+/**
+ * Test code only: a deal signed through the routes (so its signed copy and receipt are real),
+ * with dispute PP-R-TEST-1 tied to it and `files` added as ids testId(600), testId(601) and on.
+ */
+export async function signedDispute(
+  db: Database,
+  files: readonly TestFile[],
+  options: Parameters<typeof dealTestApp>[2] = {},
+) {
+  const deal = await createTestDeal(db);
+  const env = dealTestApp(db, undefined, options);
+  const token = await signedInAs(db, deal.seller.id);
+  const [, buyerLink = ""] = await buyerVisitors(db, deal.dealId, deal.buyer.id);
+  await signThroughRoutes(env.call, deal.dealId, token, buyerLink);
+  await linkTestDispute(db, deal.dealId, TEST_NOW);
+  const store = postgresContentStore(db, () => TEST_NOW);
+  for (const [i, [filename, kind, bytes, by]] of files.entries()) {
+    await addArtifact(
+      db,
+      store,
+      {
+        id: testId(600 + i),
+        dealId: deal.dealId,
+        kind,
+        filename,
+        bytes,
+        addedBy: { actor: by, actorId: by === "seller" ? deal.seller.id : deal.buyer.id },
+      },
+      TEST_NOW,
+    );
+  }
+  const url = `/api/deals/${deal.dealId}/disputes/PP-R-TEST-1`;
+  return { ...deal, ...env, token, url };
 }

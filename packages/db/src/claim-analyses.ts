@@ -11,8 +11,18 @@ export const MAX_ANALYSES_PER_DISPUTE = 10;
 /** An analysis still running after this long is taken as failed ("did not finish"). */
 export const ANALYSIS_TIMEOUT_MS = 15 * 60_000;
 
-/** Why a comparison was not started. */
-export type AnalysisRefusal = "not-your-deal" | "not-this-deal" | "already-running" | "too-many";
+/** The two dispute council jobs: the claim comparison (5d) and the packet summary (5f). */
+export const ANALYSIS_KINDS = ["claim", "summary"] as const;
+export type AnalysisKind = (typeof ANALYSIS_KINDS)[number];
+
+/** Why a comparison or summary was not started. */
+export type AnalysisRefusal =
+  | "not-your-deal"
+  | "not-this-deal"
+  | "already-running"
+  | "too-many"
+  /** A summary needs a ready comparison of the same dispute. */
+  | "no-comparison";
 
 export class AnalysisNotAllowedError extends Error {
   override readonly name = "AnalysisNotAllowedError";
@@ -27,6 +37,8 @@ const analysisRow = z
     deal_id: z.string(),
     dispute_id: z.string(),
     pasted_artifact_id: z.string().nullable(),
+    kind: z.enum(ANALYSIS_KINDS),
+    based_on: z.string().nullable(),
     claim_sha256: z.string().nullable(),
     record_sha256: z.string().nullable(),
     analysis: z.json().nullable(),
@@ -38,6 +50,8 @@ const analysisRow = z
     dealId: row.deal_id,
     disputeId: row.dispute_id,
     pastedArtifactId: row.pasted_artifact_id ?? undefined,
+    kind: row.kind,
+    basedOn: row.based_on ?? undefined,
     claimSha256: row.claim_sha256 ?? undefined,
     recordSha256: row.record_sha256 ?? undefined,
     analysis: row.analysis ?? undefined,
@@ -58,6 +72,9 @@ const startSchema = z.object({
   disputeId: z.string().min(1).max(100),
   sellerId: z.uuid(),
   pastedArtifactId: z.uuid().optional(),
+  /** "summary" jobs name the ready comparison they are based on. */
+  kind: z.enum(ANALYSIS_KINDS).default("claim"),
+  basedOn: z.uuid().optional(),
   promptVersion: z.number().int().min(1),
   rankPromptVersion: z.number().int().min(1),
 });
@@ -99,14 +116,22 @@ export async function startClaimAnalysis(
     ]);
     if (owner[0]?.deal_id !== start.dealId) throw new AnalysisNotAllowedError("not-this-deal");
     await failStaleClaimAnalyses(tx, now);
+    if (start.kind === "summary") {
+      const base = await tx.query(
+        `SELECT 1 FROM claim_analyses
+          WHERE id = $1 AND dispute_id = $2 AND kind = 'claim' AND status = 'ready'`,
+        [start.basedOn ?? null, start.disputeId],
+      );
+      if (base.length === 0) throw new AnalysisNotAllowedError("no-comparison");
+    }
     const counts = z
       .object({ total: z.coerce.number().int(), running: z.coerce.number().int() })
       .parse(
         (
           await tx.query(
             `SELECT count(*) AS total, count(*) FILTER (WHERE status = 'running') AS running
-               FROM claim_analyses WHERE dispute_id = $1`,
-            [start.disputeId],
+               FROM claim_analyses WHERE dispute_id = $1 AND kind = $2`,
+            [start.disputeId, start.kind],
           )
         )[0],
       );
@@ -114,8 +139,9 @@ export async function startClaimAnalysis(
     if (counts.total >= MAX_ANALYSES_PER_DISPUTE) throw new AnalysisNotAllowedError("too-many");
     const rows = await tx.query(
       `INSERT INTO claim_analyses (id, deal_id, dispute_id, pasted_artifact_id, status,
-                                   prompt_version, rank_prompt_version, requested_by, created_at)
-       VALUES ($1, $2, $3, $4, 'running', $5, $6, $7, $8)
+                                   prompt_version, rank_prompt_version, requested_by, created_at,
+                                   kind, based_on)
+       VALUES ($1, $2, $3, $4, 'running', $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         start.id,
@@ -126,6 +152,8 @@ export async function startClaimAnalysis(
         start.rankPromptVersion,
         start.sellerId,
         now,
+        start.kind,
+        start.basedOn ?? null,
       ],
     );
     return analysisRow.parse(rows[0]);
@@ -137,9 +165,12 @@ const finishSchema = z.object({
   analysisId: z.uuid(),
   analysis: z.json(),
   council: z.json(),
+  /** Fingerprints of what the models read: the claim (or, for a summary, the comparison) and the record. */
   claimSha256: sha256,
   recordSha256: sha256,
-  /** What the log says about the run: model names, the winner and how many statements. */
+  /** For a summary: the fingerprint of the document list the models picked from. */
+  exhibitsSha256: sha256.optional(),
+  /** What the log says about the run: model names, the winner and how many statements or sentences. */
   models: z.array(z.string().min(1).max(100)).max(10),
   winner: z.string().min(1).max(100),
   statements: z.number().int().min(0),
@@ -148,9 +179,10 @@ const finishSchema = z.object({
 export type FinishClaimAnalysis = z.input<typeof finishSchema>;
 
 /**
- * Marks a running analysis ready and logs `CLAIM_ANALYZED` (by the system) in one transaction:
- * ids, fingerprints of the analysis and of the claim and record it was given, prompt versions,
- * models, the winner, the number of statements and whether it needs review. No AI text goes in
+ * Marks a running job ready and logs it (by the system) in one transaction: `CLAIM_ANALYZED` for a
+ * comparison, `SUMMARY_DRAFTED` for a summary (with the comparison it was based on and the
+ * document list's fingerprint): ids, fingerprints of the result and of what the models read,
+ * prompt versions, models, the winner, the count and whether it needs review. No AI text goes in
  * the log. Undefined (and nothing logged) if it was not running.
  */
 export async function finishClaimAnalysis(
@@ -170,19 +202,25 @@ export async function finishClaimAnalysis(
       tx,
       {
         dealId: row.dealId,
-        type: "CLAIM_ANALYZED",
+        type: row.kind === "summary" ? "SUMMARY_DRAFTED" : "CLAIM_ANALYZED",
         actor: "system",
         payload: {
           analysisId: row.id,
           disputeId: row.disputeId,
           analysisSha256: sha256Hex(canonicalJson(done.analysis)),
-          claimSha256: done.claimSha256,
+          ...(row.kind === "summary"
+            ? {
+                basedOn: row.basedOn ?? null,
+                comparisonSha256: done.claimSha256,
+                exhibitsSha256: done.exhibitsSha256 ?? null,
+                sentences: done.statements,
+              }
+            : { claimSha256: done.claimSha256, statements: done.statements }),
           recordSha256: done.recordSha256,
           promptVersion: row.promptVersion,
           rankPromptVersion: row.rankPromptVersion,
           models: done.models,
           winner: done.winner,
-          statements: done.statements,
           needsReview: done.needsReview,
         },
       },
@@ -240,14 +278,16 @@ export async function getClaimAnalysis(
   return rows[0] === undefined ? undefined : analysisRow.parse(rows[0]);
 }
 
-/** A dispute's analyses, newest first. Show them to the deal's seller only. */
+/** A dispute's comparisons (or, with `kind`, its summaries), newest first. Seller only. */
 export async function listClaimAnalyses(
   q: Queryable,
   disputeId: string,
+  kind: AnalysisKind = "claim",
 ): Promise<ClaimAnalysisRecord[]> {
   const rows = await q.query(
-    "SELECT * FROM claim_analyses WHERE dispute_id = $1 ORDER BY created_at DESC, id DESC",
-    [disputeId],
+    `SELECT * FROM claim_analyses WHERE dispute_id = $1 AND kind = $2
+      ORDER BY created_at DESC, id DESC`,
+    [disputeId, kind],
   );
   return rows.map((row) => analysisRow.parse(row));
 }

@@ -11,7 +11,7 @@ import {
   PayPalRestClient,
 } from "@pactpal/paypal";
 import { task } from "@renderinc/sdk/workflows";
-import { CLAIM_TASK_NAME } from "./disputes/claim-job.js";
+import { CLAIM_TASK_NAME, SUMMARY_TASK_NAME } from "./disputes/claim-job.js";
 import { DISPUTE_TASK_NAME, jsonLines, runClaimTask, runDisputeTask } from "./disputes/task.js";
 import { councilClients } from "./drafting/runtime.js";
 
@@ -48,19 +48,23 @@ task(
     }),
 );
 
-task(
-  // A council takes about a minute and a few minutes at worst (each model call has its own limits).
-  // The job never throws for a model failure, so a retry only follows a crash or a lost database.
-  {
-    name: CLAIM_TASK_NAME,
-    timeoutSeconds: 600,
-    retry: { maxRetries: 1, waitDurationMs: 10_000, backoffScaling: 2 },
-  },
-  (_context, analysisId: unknown) =>
-    runClaimTask(process.env, analysisId, {
-      connect,
-      clientsFor: councilClients,
-      clock: () => new Date(),
-      log,
-    }),
-);
+// The claim comparison (5d) and the packet summary (5f) are both dispute council jobs: the same
+// handler reads the job's kind. A council takes about a minute and a few minutes at worst (each
+// model call has its own limits). The job never throws for a model failure, so a retry only
+// follows a crash or a lost database.
+for (const name of [CLAIM_TASK_NAME, SUMMARY_TASK_NAME]) {
+  task(
+    {
+      name,
+      timeoutSeconds: 600,
+      retry: { maxRetries: 1, waitDurationMs: 10_000, backoffScaling: 2 },
+    },
+    (_context, analysisId: unknown) =>
+      runClaimTask(process.env, analysisId, {
+        connect,
+        clientsFor: councilClients,
+        clock: () => new Date(),
+        log,
+      }),
+  );
+}

@@ -1,4 +1,4 @@
-import type { RecordLine } from "@pactpal/claims";
+import type { ComparisonRow, RecordLine } from "@pactpal/claims";
 import { sha256Hex } from "@pactpal/ledger";
 import { MAX_EVIDENCE_FILE_BYTES } from "@pactpal/paypal";
 import { renderPdf, type Block } from "@pactpal/pdf";
@@ -165,12 +165,33 @@ export interface PacketFacts {
   builtAt: Date;
   record: { lines: readonly RecordLine[]; cut: boolean };
   chain: { entries: number; head: string };
+  /** The AI comparison and summary, only when the seller checked them and chose to include them (5f). */
+  ai?: { comparison: readonly ComparisonRow[]; summary: readonly string[] };
+}
+
+/** The label on both AI sections (5f). */
+const AI_LABEL = "Drafted with AI help from the record and checked by the seller before sending.";
+
+/** The claim comparison and summary, when included: plain sections marked as AI-assisted. */
+function aiBlocks(ai: NonNullable<PacketFacts["ai"]>): Block[] {
+  return [
+    { kind: "heading", text: "Claim against the record" },
+    { kind: "paragraph", text: AI_LABEL, style: "small" },
+    {
+      kind: "table",
+      columns: ["No.", "The buyer said", "What the record shows"],
+      rows: ai.comparison.map((row) => [String(row.number), row.said, row.shows]),
+    },
+    { kind: "heading", text: "Summary" },
+    { kind: "paragraph", text: AI_LABEL, style: "small" },
+    { kind: "list", items: [...ai.summary] },
+  ];
 }
 
 /**
  * The packet's content (format 1): cover, timeline from the evidence log, every included exhibit
  * with its fingerprints, the log's seal, how PactPal keeps records, the statement template and
- * how to check. Pure; no AI text (the summary and claim table come in 5f).
+ * how to check. Pure; AI text only when the seller included the checked comparison and summary.
  */
 export function packetBlocks(facts: PacketFacts, exhibits: readonly SentExhibit[]): Block[] {
   const exhibitRows = exhibits.map((e) => [
@@ -215,6 +236,7 @@ export function packetBlocks(facts: PacketFacts, exhibits: readonly SentExhibit[
         { label: "Packet built", value: dateTime(facts.builtAt) },
       ],
     },
+    ...(facts.ai === undefined ? [] : aiBlocks(facts.ai)),
     { kind: "heading", text: "Timeline from the evidence log" },
     { kind: "list", items: facts.record.lines.map(({ text }) => text) },
     ...(facts.record.cut

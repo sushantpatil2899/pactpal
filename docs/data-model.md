@@ -451,6 +451,8 @@ Built in 5d (migration 0021). A draft for the seller only, kept apart from the e
 
 `CLAIM_ANALYZED` (by the system) holds ids, fingerprints, prompt versions, model names, the winner, the number of statements and whether it needs review; no AI text.
 
+Since 5f (migration 0023) the table also holds packet summaries: `kind` is `claim` (a comparison) or `summary`, and `based_on` names the comparison a summary was drafted from (set for summaries only). One runs per dispute per kind at a time, at most 10 per dispute per kind. For a summary, `analysis` holds the sentences with their log entries, the document picks and the draft note; `claim_sha256` is the fingerprint of the comparison rows it read. A ready summary logs `SUMMARY_DRAFTED` (by the system): ids, `basedOn`, the fingerprints of the draft, of the comparison rows, record lines and document list it read, models, the winner and the number of sentences; no AI text.
+
 Since 5d the dispute's stored `details` also hold `requestedEvidence`: the evidence types PayPal asks the seller for.
 
 ### `evidence_packets`: built evidence packets
@@ -464,9 +466,10 @@ Built in 5e (migration 0022); append-only, at most 20 per dispute. One row per p
 | `exhibits`                             | Each document considered: id, name, who added it, fingerprint, size, how it is sent (as it is, text as PDF, left out with the reason), and for an included one its number and the fingerprint and size of the file PayPal gets |
 | `total_bytes`                          | The packet PDF plus every included exhibit                                                                                                                                                                                     |
 | `chain_entries`, `chain_head`          | The log's seal the packet carries: how many entries and the latest entry's fingerprint                                                                                                                                         |
+| `analysis_id`, `summary_id`            | Since 5f: the AI comparison and summary the packet carries (both or neither; a ready pair of this dispute)                                                                                                                     |
 | `built_by`, `ledger_seq`, `created_at` | The seller, the `PACKET_BUILT` entry and when                                                                                                                                                                                  |
 
-`PACKET_BUILT` (by the seller) holds the packet id, dispute id, the packet's fingerprint and size, each included exhibit's id and fingerprints, how many were left out, the total size and the seal.
+`PACKET_BUILT` (by the seller) holds the packet id, dispute id, the packet's fingerprint and size, each included exhibit's id and fingerprints, how many were left out, the total size and the seal, and since 5f the AI comparison and summary ids with the fingerprints of the two drafts when the packet carries them.
 
 ## Planned
 

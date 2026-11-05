@@ -1,15 +1,9 @@
 import { createHash } from "node:crypto";
-import { addArtifact, postgresContentStore, readLedger } from "@pactpal/db";
-import {
-  TEST_NOW,
-  createTestDeal,
-  linkTestDispute,
-  testId,
-  useMigratedTestDatabase,
-} from "@pactpal/db/testing";
+import { readLedger } from "@pactpal/db";
+import { testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
-import { buyerVisitors, dealTestApp, signThroughRoutes, signedInAs } from "../deals/test-app.js";
-import { expectSellerOnly } from "./test-support.js";
+import { buyerVisitors } from "../deals/test-app.js";
+import { expectSellerOnly, signedDispute, type TestFile } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -34,17 +28,9 @@ interface ChoicesView {
   }[];
 }
 
-/** A paid deal with a dispute and nine files of several kinds and owners (ten exhibits with the receipt). */
+/** A signed deal with a dispute and ten files of several kinds and owners (eleven with the receipt). */
 async function disputedDeal() {
-  // Signed through the routes, so the signed copy and its receipt are real.
-  const deal = await createTestDeal(db);
-  const env = dealTestApp(db);
-  const token = await signedInAs(db, deal.seller.id);
-  const [, buyerLink = ""] = await buyerVisitors(db, deal.dealId, deal.buyer.id);
-  await signThroughRoutes(env.call, deal.dealId, token, buyerLink);
-  await linkTestDispute(db, deal.dealId, TEST_NOW);
-  const store = postgresContentStore(db, () => TEST_NOW);
-  const files: [string, "source" | "deliverable", Uint8Array, "seller" | "buyer"][] = [
+  const files: TestFile[] = [
     ["chat.txt", "source", text("Maya: I can do it for $240\nChris: deal"), "seller"],
     ["brief.pdf", "source", text("%PDF-1.4 brief"), "seller"],
     ["reference.png", "source", png(40), "buyer"],
@@ -56,23 +42,8 @@ async function disputedDeal() {
     ["archive.zip", "source", new Uint8Array([0x50, 0x4b, 3, 4, 0, 255]), "seller"],
     ["moodboard.png", "source", png(80), "buyer"],
   ];
-  for (const [i, [filename, kind, bytes, by]] of files.entries()) {
-    await addArtifact(
-      db,
-      store,
-      {
-        id: testId(600 + i),
-        dealId: deal.dealId,
-        kind,
-        filename,
-        bytes,
-        addedBy: { actor: by, actorId: by === "seller" ? deal.seller.id : deal.buyer.id },
-      },
-      TEST_NOW,
-    );
-  }
-  const url = `/api/deals/${deal.dealId}/disputes/PP-R-TEST-1/packet`;
-  return { ...deal, ...env, token, url };
+  const deal = await signedDispute(db, files);
+  return { ...deal, url: `${deal.url}/packet` };
 }
 
 describe("evidence packets", () => {
