@@ -187,7 +187,10 @@ export function logLabels(entries: readonly LedgerEntryView[]): string[] {
       perStage.set(key, n);
       numbers.set(deliveryId, { stage, n });
     }
-    const label = EVENT_LABELS[entry.type] ?? entry.type;
+    const label =
+      entry.type === "DEAL_CREATED" && fields.text("via") === "intake"
+        ? "Deal created (from another tool)"
+        : (EVENT_LABELS[entry.type] ?? entry.type);
     const delivery = deliveryId === undefined ? undefined : numbers.get(deliveryId);
     const aboutDelivery =
       delivery === undefined ? undefined : deliveryLabel(entry.type, fields, delivery);

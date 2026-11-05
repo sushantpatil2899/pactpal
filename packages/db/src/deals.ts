@@ -34,7 +34,7 @@ export const DEAL_CATEGORIES = {
   "handmade-goods": { label: "Handmade or custom-made item", kind: "physical" },
 } as const satisfies Record<string, { label: string; kind: (typeof DEAL_KINDS)[number] }>;
 export type DealCategory = keyof typeof DEAL_CATEGORIES;
-const CATEGORY_IDS = Object.keys(DEAL_CATEGORIES) as [DealCategory, ...DealCategory[]];
+export const CATEGORY_IDS = Object.keys(DEAL_CATEGORIES) as [DealCategory, ...DealCategory[]];
 
 /** Currencies a deal can use (ISO 4217). PayPal supports more; the list can grow. */
 export const DEAL_CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"] as const;
@@ -87,6 +87,8 @@ export async function createDeal(
   db: Database,
   input: NewDeal,
   now: Date,
+  /** How the deal came in when not from the deal page: an intake key (4p), named by its last 4 characters. */
+  via?: { via: "intake"; keyEnding: string },
 ): Promise<{ deal: Deal; entry: LedgerEntry }> {
   const deal = newDealSchema.parse(input);
   const { kind } = DEAL_CATEGORIES[deal.category];
@@ -120,6 +122,7 @@ export async function createDeal(
           category: deal.category,
           currency: deal.currency,
           buyerId: deal.buyerId ?? null,
+          ...via,
         },
       },
       now,

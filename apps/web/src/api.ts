@@ -1257,3 +1257,32 @@ export const readScreenshots = (
     "read the screenshots",
     isReading,
   );
+
+/** The seller's intake key as the settings show it (4p): never the key, except once when made. */
+export interface IntakeKeyView {
+  key: {
+    ending: string;
+    defaultCategory: string;
+    defaultCurrency: string;
+    createdAt: string;
+    lastUsedAt: string | null;
+  } | null;
+  /** Only in the answer that made the key: the key itself, shown once. */
+  secret?: string;
+}
+
+const isIntakeKey = (value: unknown): value is IntakeKeyView =>
+  isObject(value) &&
+  (value.key === null || (isObject(value.key) && typeof value.key.ending === "string")) &&
+  (value.secret === undefined || typeof value.secret === "string");
+
+export async function getIntakeKey(): Promise<IntakeKeyView> {
+  return readChecked(await fetch("/api/intake/key"), isIntakeKey, "load the intake key");
+}
+
+/** Makes a new intake key (turning off the old one), with the defaults for deals it creates. */
+export const makeIntakeKey = (defaults: { defaultCategory: string; defaultCurrency: string }) =>
+  postStep("/api/intake/key", defaults, "make a key", isIntakeKey);
+
+export const turnOffIntakeKey = () =>
+  postStep("/api/intake/key/off", undefined, "turn the key off", isIntakeKey);

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createDeal, getDealOptions, listDeals, type DealOptions, type DealSummary } from "./api";
+import { IntakePanel } from "./IntakePanel";
 
 /** The signed-in seller's deals and a form to create one. Simple on purpose; Phase 4 designs it. */
 export function DealsHome() {
@@ -102,6 +103,7 @@ export function DealsHome() {
           </form>
         </section>
       )}
+      {options && <IntakePanel options={options} />}
     </>
   );
 }

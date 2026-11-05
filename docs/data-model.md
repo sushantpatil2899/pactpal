@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4o)
+## Built (sub-phases 2b to 4p)
 
 ### `users`: everyone
 
@@ -357,6 +357,20 @@ Built in 4m (migration 0017). The seller pastes a new message from the buyer on 
 | `requested_by`, `created_at`, `finished_at` | The seller and the times                                                                                     |
 
 Chat screenshots (4o) are source files like any upload (`SOURCE_ADDED`). The text a model reads from them is not stored: it only fills the chat box, and what the seller checks and drafts from is saved as the chat file.
+
+### `intake_keys`: sellers' private keys for creating deals from other tools
+
+Built in 4p (migration 0018). A tool posts text with a seller's key, and a draft deal is created for that seller with the text saved as a source file. `DEAL_CREATED` then also records `via: "intake"` and the key's last 4 characters.
+
+| Column                                        | Meaning                                                                     |
+| --------------------------------------------- | --------------------------------------------------------------------------- |
+| `id`, `seller_id`                             | The key and its owner                                                       |
+| `token_hash`, `key_ending`                    | The key's SHA-256 and its last 4 characters; the key itself is never stored |
+| `default_category`, `default_currency`        | What deals created with it get unless the post names others                 |
+| `created_at`, `last_used_at`, `turned_off_at` | When it was made, last used and turned off (one key per seller is on)       |
+| `uses_day`, `uses_count`                      | Deals created with it on that UTC day, for the limit of 30                  |
+
+A key keeps its owner, hash and defaults, is turned off once, and is never removed.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

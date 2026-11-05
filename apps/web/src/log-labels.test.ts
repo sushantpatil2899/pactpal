@@ -133,6 +133,12 @@ describe("evidence log labels", () => {
     ]);
   });
 
+  it("says when a deal came from another tool", () => {
+    expect(logLabels([entry("DEAL_CREATED", { via: "intake", keyEnding: "x7Qa" })])).toEqual([
+      "Deal created (from another tool)",
+    ]);
+  });
+
   it("falls back to plain words for unknown types, unknown deliveries and odd payloads", () => {
     expect(
       logLabels([

@@ -573,4 +573,43 @@ CREATE TRIGGER message_reviews_moves_once BEFORE UPDATE OR DELETE ON message_rev
 CREATE TRIGGER message_reviews_no_truncate BEFORE TRUNCATE ON message_reviews
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0018_intake_keys",
+    // A seller's private intake key (4p): a tool posts text with it and a draft deal is created.
+    // Only the key's SHA-256 and last 4 characters are kept. One key is on per seller; a key's
+    // owner, hash and defaults never change, it is turned off once, and it is never removed.
+    sql: `CREATE TABLE intake_keys (
+  id uuid PRIMARY KEY,
+  seller_id uuid NOT NULL REFERENCES users (id),
+  token_hash text NOT NULL UNIQUE CHECK (token_hash ~ '^[0-9a-f]{64}$'),
+  key_ending text NOT NULL CHECK (char_length(key_ending) = 4),
+  default_category text NOT NULL,
+  default_currency text NOT NULL CHECK (default_currency ~ '^[A-Z]{3}$'),
+  created_at timestamptz NOT NULL,
+  last_used_at timestamptz,
+  turned_off_at timestamptz,
+  -- Deals created today with this key, for the daily limit (the day is UTC).
+  uses_day date,
+  uses_count integer NOT NULL DEFAULT 0 CHECK (uses_count >= 0)
+);
+CREATE UNIQUE INDEX intake_keys_one_on ON intake_keys (seller_id) WHERE turned_off_at IS NULL;
+
+CREATE FUNCTION pactpal_intake_key_keeps() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE'
+     OR NEW.id <> OLD.id OR NEW.seller_id <> OLD.seller_id OR NEW.token_hash <> OLD.token_hash
+     OR NEW.key_ending <> OLD.key_ending OR NEW.default_category <> OLD.default_category
+     OR NEW.default_currency <> OLD.default_currency OR NEW.created_at <> OLD.created_at
+     OR (OLD.turned_off_at IS NOT NULL AND NEW.turned_off_at IS DISTINCT FROM OLD.turned_off_at) THEN
+    RAISE EXCEPTION 'intake_keys: a key keeps its owner, hash and defaults and is turned off once (append-only)'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER intake_keys_keeps BEFORE UPDATE OR DELETE ON intake_keys
+  FOR EACH ROW EXECUTE FUNCTION pactpal_intake_key_keeps();
+CREATE TRIGGER intake_keys_no_truncate BEFORE TRUNCATE ON intake_keys
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

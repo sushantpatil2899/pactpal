@@ -36,6 +36,9 @@ import {
   type PgClient,
   type PgPool,
   startMessageReview,
+  MAX_INTAKE_DEALS_PER_DAY,
+  makeIntakeKey,
+  useIntakeKey,
 } from "./index.js";
 import {
   TEST_NOW,
@@ -671,6 +674,26 @@ describe.skipIf(realUrl === undefined)("real Postgres", () => {
         ),
       );
       expect(started.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    });
+  });
+
+  it("counts one use per deal when a key is used many times at once at the daily limit", async () => {
+    await withRealDatabase(async (db) => {
+      const { seller } = await createTestParties(db);
+      const { key } = await makeIntakeKey(
+        db,
+        {
+          id: testId(670),
+          sellerId: seller.id,
+          defaultCategory: "web-and-software",
+          defaultCurrency: "USD",
+        },
+        TEST_NOW,
+      );
+      const uses = await Promise.all(
+        Array.from({ length: MAX_INTAKE_DEALS_PER_DAY + 5 }, () => useIntakeKey(db, key, TEST_NOW)),
+      );
+      expect(uses.filter((u) => u.ok)).toHaveLength(MAX_INTAKE_DEALS_PER_DAY);
     });
   });
 });
