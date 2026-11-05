@@ -1228,3 +1228,32 @@ export async function getMessages(dealId: string): Promise<MessagesView> {
 /** Saves a buyer's message as a deal file and starts the council's review of it. */
 export const checkMessage = (dealId: string, text: string) =>
   postStep(messagesUrl(dealId), { text }, "check the message", isMessages);
+
+/** What the image models read from chat screenshots (4o): the text for the chat box. */
+export interface ScreenshotReading {
+  text: string;
+  /** Words the models marked [unreadable]. */
+  unreadable: number;
+  screenshots: { fileId: string; filename: string; read: boolean; messages: number }[];
+}
+
+const isReading = (value: unknown): value is ScreenshotReading =>
+  isObject(value) &&
+  typeof value.text === "string" &&
+  typeof value.unreadable === "number" &&
+  Array.isArray(value.screenshots);
+
+/** Reads saved screenshots (in this order) into chat text; `copies` are the browser's smaller copies. */
+export const readScreenshots = (
+  dealId: string,
+  input: {
+    fileIds: string[];
+    copies: { fileId: string; mediaType: "image/jpeg"; base64: string }[];
+  },
+) =>
+  postStep(
+    `/api/deals/${encodeURIComponent(dealId)}/screenshots/read`,
+    input,
+    "read the screenshots",
+    isReading,
+  );

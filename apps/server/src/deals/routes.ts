@@ -34,6 +34,7 @@ import { milestoneRoutes } from "./milestone-routes.js";
 import { categoryLabelOf, categoryLabels, nameOf, partiesOf } from "./parties.js";
 import { modelMemory } from "../drafting/model-memory.js";
 import { scopeRoutes } from "./scope-routes.js";
+import { screenshotRoutes } from "./screenshot-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 
 export interface DealOptions {
@@ -154,6 +155,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     models,
   });
   void app.register(deliveryCheckRoutes, { sellersDeal, clock, newId, drafting, models });
+  void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
   void app.register(changeOrderRoutes, {
     visibleDeal,

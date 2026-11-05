@@ -1,4 +1,4 @@
-import { parseJsonReply, visionModels, type ChatClient, type ChatImage } from "@pactpal/ai";
+import { parseJsonReply } from "@pactpal/ai";
 import {
   DeliveryCheckNotAllowedError,
   ArtifactNotFoundError,
@@ -24,6 +24,7 @@ import {
 import type { FastifyBaseLogger, FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { ModelMemory } from "../drafting/model-memory.js";
+import { MAX_COPY_CHARS, askImageModels, imageCopySchema } from "../drafting/vision.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { signedRecord } from "../payments/signed-record.js";
 import { featureAnswers, readBody, type DealLookup } from "./access.js";
@@ -38,12 +39,8 @@ export interface DeliveryCheckRouteOptions {
   models: ModelMemory;
 }
 
-/** At most this many images are looked at per check, and models tried per image. */
+/** At most this many images are looked at per check. */
 export const MAX_LOOKS_PER_CHECK = 4;
-export const MODELS_PER_LOOK = 2;
-
-/** The browser's smaller copy of one image, for the look: under 3 MB as base64. */
-const MAX_COPY_CHARS = 3_000_000;
 const BODY_LIMIT = MAX_LOOKS_PER_CHECK * MAX_COPY_CHARS + 64 * 1024;
 
 const checkBody = z.object({
@@ -53,20 +50,7 @@ const checkBody = z.object({
     .min(1)
     .max(10)
     .refine((ids) => new Set(ids).size === ids.length, "each file once"),
-  copies: z
-    .array(
-      z.object({
-        fileId: z.uuid(),
-        mediaType: z.enum(["image/png", "image/jpeg"]),
-        base64: z
-          .string()
-          .min(1)
-          .max(MAX_COPY_CHARS)
-          .regex(/^[A-Za-z0-9+/]+={0,2}$/),
-      }),
-    )
-    .max(MAX_LOOKS_PER_CHECK)
-    .default([]),
+  copies: z.array(imageCopySchema).max(MAX_LOOKS_PER_CHECK).default([]),
 });
 
 const REFUSALS: Record<DeliveryCheckNotAllowedError["reason"], { status: number; error: string }> =
@@ -121,33 +105,7 @@ export const deliveryCheckRoutes: FastifyPluginAsync<DeliveryCheckRouteOptions> 
     },
   );
 
-  /** Asks one model about one image; the outcome is remembered to choose the next model. */
-  async function lookOnce(client: ChatClient, lines: readonly CheckLine[], image: ChatImage) {
-    if (!drafting) return undefined;
-    const built = buildLookMessages({ lines, image, marker: drafting.council.newMarker() });
-    if (!built.ok) return undefined;
-    const outcome = await client.complete({
-      messages: built.messages,
-      maxTokens: 2000,
-      temperature: 0,
-      reply: "json",
-    });
-    const parsed = parseJsonReply(outcome);
-    const checked = parsed.ok
-      ? checkLook(
-          parsed.value,
-          lines.map((line) => line.n),
-        )
-      : undefined;
-    models.remember(
-      client.spec.name,
-      checked?.ok === true,
-      outcome.ok ? outcome.latencyMs : undefined,
-    );
-    return checked?.ok === true ? checked.look : undefined;
-  }
-
-  /** The look at each image copy: the models in the order their records suggest, at most two. */
+  /** The look at each image copy, by the image models in the order their records suggest. */
   async function looks(
     db: Database,
     deal: Deal,
@@ -157,27 +115,40 @@ export const deliveryCheckRoutes: FastifyPluginAsync<DeliveryCheckRouteOptions> 
   ): Promise<LookResult[]> {
     const results: LookResult[] = [];
     for (const { fileId, mediaType, base64 } of copies) {
-      let result: LookResult = { fileId, unavailable: true };
-      try {
-        const order = await models.order(
-          db,
-          visionModels(drafting?.clients ?? []),
-          MODELS_PER_LOOK,
-        );
-        for (const client of order) {
-          const look = await lookOnce(client, lines, { mediaType, base64 });
-          if (look) {
-            result = { fileId, model: client.spec.name, promptVersion: LOOK_PROMPT_VERSION, look };
-            break;
-          }
-        }
-      } catch (error) {
-        log.error(
-          { dealId: deal.id, err: error instanceof Error ? error.name : "unknown" },
-          "Looking at a delivered image failed",
-        );
-      }
-      results.push(result);
+      const answered = await askImageModels({
+        db,
+        drafting,
+        models,
+        log,
+        dealId: deal.id,
+        what: "Looking at a delivered image",
+        messages: () => {
+          if (!drafting) return undefined;
+          const image = { mediaType, base64 };
+          const built = buildLookMessages({ lines, image, marker: drafting.council.newMarker() });
+          return built.ok ? built.messages : undefined;
+        },
+        read: (outcome) => {
+          const parsed = parseJsonReply(outcome);
+          const checked = parsed.ok
+            ? checkLook(
+                parsed.value,
+                lines.map((line) => line.n),
+              )
+            : undefined;
+          return checked?.ok === true ? checked.look : undefined;
+        },
+      });
+      results.push(
+        answered
+          ? {
+              fileId,
+              model: answered.model,
+              promptVersion: LOOK_PROMPT_VERSION,
+              look: answered.value,
+            }
+          : { fileId, unavailable: true },
+      );
     }
     return results;
   }

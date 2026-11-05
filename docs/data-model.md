@@ -39,7 +39,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 4n)
+## Built (sub-phases 2b to 4o)
 
 ### `users`: everyone
 
@@ -355,6 +355,8 @@ Built in 4m (migration 0017). The seller pastes a new message from the buyer on 
 | `council`                                   | What each model did, the votes, the scores and the agreement (safe error texts only, never the message)      |
 | `failure_reason`                            | Why it failed (never repeats the message)                                                                    |
 | `requested_by`, `created_at`, `finished_at` | The seller and the times                                                                                     |
+
+Chat screenshots (4o) are source files like any upload (`SOURCE_ADDED`). The text a model reads from them is not stored: it only fills the chat box, and what the seller checks and drafts from is saved as the chat file.
 
 ### `scope_drafts`: AI drafts of the agreed work
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   addPastedChat,
   getDraftById,
@@ -12,6 +12,7 @@ import { CouncilPanel } from "./CouncilPanel";
 import { DraftReview } from "./DraftReview";
 import type { DraftFill } from "./draft-fill";
 import { when } from "./format";
+import { ScreenshotReader } from "./ScreenshotReader";
 import { FULL_WIDTH } from "./styles";
 
 /** How often a running draft is checked, and how many failed checks in a row stop the checking. */
@@ -54,6 +55,9 @@ export function DraftPanel({
   const [problem, setProblem] = useState<string | undefined>();
   const [lostContact, setLostContact] = useState(false);
   const [busy, setBusy] = useState(false);
+  // After screenshots were read: what the seller must check in the chat box.
+  const [readNotice, setReadNotice] = useState<string | undefined>();
+  const chatBox = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     Promise.all([listDrafts(dealId), listFiles(dealId)]).then(
@@ -166,11 +170,17 @@ export function DraftPanel({
               only text you may share, and use made-up chats for testing.
             </strong>
           </p>
+          {readNotice && (
+            <p role="status">
+              <strong>{readNotice}</strong>
+            </p>
+          )}
           <p>
             <label>
               Paste the chat
               <br />
               <textarea
+                ref={chatBox}
                 style={FULL_WIDTH}
                 name="chat"
                 rows={8}
@@ -179,6 +189,19 @@ export function DraftPanel({
               />
             </label>
           </p>
+          <ScreenshotReader
+            dealId={dealId}
+            disabled={busy || running}
+            onLogChange={onLogChange}
+            onRead={(text, notice) => {
+              const box = chatBox.current;
+              // Added after anything already typed, so nothing the seller wrote is lost.
+              if (box)
+                box.value = box.value.trim() === "" ? text : `${box.value.trimEnd()}\n${text}`;
+              setReadNotice(notice);
+              box?.focus();
+            }}
+          />
           {files.length > 0 && (
             <p>
               <label>

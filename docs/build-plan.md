@@ -38,7 +38,7 @@ Phase 4 is split into small pieces, built one at a time in this order. Each need
 | 4m        | Message watcher: new buyer messages labelled, with a drafted reply or change order                     | ✅ built and checked locally; not tested live yet |
 | 4n        | Drafting prompt version 3: "buyer provides" with dates and suggested line marks                        | ✅ built and checked locally; not tested live yet |
 | 4n-2      | Second eval run (prompt v3, every model, the council and the injection check); Nemotron keep-or-drop   |                                                   |
-| 4o        | Chat screenshots read to text by a vision model and checked by the seller                              |                                                   |
+| 4o        | Chat screenshots read to text by a vision model and checked by the seller                              | ✅ built and checked locally; not tested live yet |
 | 4p        | Email forwarding and a secured "create deal from text" address (Zapier connection itself in Phase 7)   |                                                   |
 | 4q        | The Maya story end to end in the sandbox                                                               |                                                   |
 

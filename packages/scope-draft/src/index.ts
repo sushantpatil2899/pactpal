@@ -52,3 +52,11 @@ export {
   type ValidationContext,
 } from "./validate.js";
 export { scopeDraftCouncilTask, type ScopeDraftTask } from "./council-task.js";
+export {
+  MAX_SCREENSHOTS,
+  SCREENSHOT_PROMPT_VERSION,
+  buildScreenshotMessages,
+  checkTranscript,
+  transcriptText,
+  type Transcript,
+} from "./screenshot.js";
