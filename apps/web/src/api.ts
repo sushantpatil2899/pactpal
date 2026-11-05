@@ -649,6 +649,79 @@ export async function compareClaim(
   return readChecked(response, isClaimAnalyses, "start the comparison");
 }
 
+/** One document that can go into the evidence packet (5e). */
+export interface PacketChoice {
+  id: string;
+  filename: string;
+  addedBy: "seller" | "buyer" | "system";
+  mediaType: string;
+  send: "as-is" | "text-as-pdf" | "left-out";
+  reason: "unticked" | "type" | "too-large" | null;
+  /** The size PayPal would get (a text file's PDF); null when it cannot go. */
+  sentBytes: number | null;
+}
+
+/** A built packet: its fingerprints and what went in. */
+export interface BuiltPacket {
+  id: string;
+  createdAt: string;
+  packetSha256: string;
+  packetBytes: number;
+  totalBytes: number;
+  chainHead: string;
+  exhibits: { id: string; filename: string; send: string; number?: number; sentSha256?: string }[];
+}
+
+export interface PacketView {
+  exhibits: PacketChoice[];
+  meter: { totalBytes: number; largestBytes: number; maxFileBytes: number; maxTotalBytes: number };
+  packets: BuiltPacket[];
+}
+
+const isPacketView = (value: unknown): value is PacketView =>
+  isObject(value) &&
+  Array.isArray(value.exhibits) &&
+  value.exhibits.every(
+    (e) => isObject(e) && typeof e.id === "string" && typeof e.send === "string",
+  ) &&
+  isObject(value.meter) &&
+  typeof value.meter.totalBytes === "number" &&
+  Array.isArray(value.packets);
+
+const isBuiltPacket = (value: unknown): value is BuiltPacket =>
+  isObject(value) && typeof value.id === "string" && typeof value.packetSha256 === "string";
+
+const packetUrl = (dealId: string, disputeId: string) =>
+  `${disputesUrl(dealId)}/${encodeURIComponent(disputeId)}/packet`;
+
+export async function getPacketView(dealId: string, disputeId: string): Promise<PacketView> {
+  return readChecked(await fetch(packetUrl(dealId, disputeId)), isPacketView, "load the packet");
+}
+
+/** Builds a packet without the documents in `leaveOut`; nothing is sent to PayPal. */
+export async function buildPacket(
+  dealId: string,
+  disputeId: string,
+  leaveOut: string[],
+): Promise<BuiltPacket> {
+  const response = await fetch(packetUrl(dealId, disputeId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ leaveOut }),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not build the packet"));
+  return readChecked(response, isBuiltPacket, "build the packet");
+}
+
+/** Where a built packet's PDF, or one of its exhibits as PayPal would get it, downloads from. */
+export const packetFileUrl = (
+  dealId: string,
+  disputeId: string,
+  packetId: string,
+  exhibit?: number,
+) =>
+  `${packetUrl(dealId, disputeId)}/${encodeURIComponent(packetId)}/${exhibit === undefined ? "file" : `exhibits/${String(exhibit)}`}`;
+
 /** Starts a check of the seller's PayPal disputes; the result shows up in `getDisputes`. */
 export async function checkDisputes(dealId: string): Promise<void> {
   const response = await fetch(`${disputesUrl(dealId)}/check`, {

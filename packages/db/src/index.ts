@@ -293,3 +293,12 @@ export type {
   FinishClaimAnalysis,
   StartClaimAnalysis,
 } from "./claim-analyses.js";
+export {
+  MAX_PACKETS_PER_DISPUTE,
+  PacketNotAllowedError,
+  getPacket,
+  listPackets,
+  packetExhibitSchema,
+  recordPacket,
+} from "./packets.js";
+export type { EvidencePacket, NewPacket, PacketExhibit, PacketRefusal } from "./packets.js";

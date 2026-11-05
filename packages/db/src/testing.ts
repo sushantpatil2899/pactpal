@@ -10,6 +10,7 @@ import { saveScopeVersion, type ScopeContentInput } from "./scope.js";
 import { addArtifact, type ArtifactKind } from "./artifacts.js";
 import { postgresContentStore } from "./content-store.js";
 import { markInvoicePaid, markInvoiceSent, startInvoice } from "./milestones.js";
+import { recordDispute } from "./disputes.js";
 
 /** The slice of PGlite (and of its transactions) that the adapter uses. */
 interface Engine {
@@ -283,3 +284,12 @@ export async function createPaidTestDeal(
   );
   return { ...deal, invoiceId };
 }
+
+/** Dispute PP-R-TEST-1 (open, nothing allowed), tied to stage 1 of a test deal at `at`. */
+export const linkTestDispute = (db: Database, dealId: string, at: Date) =>
+  recordDispute(
+    db,
+    { disputeId: "PP-R-TEST-1", status: "OPEN", allowedActions: [], offerTypes: [], details: {} },
+    { dealId, stage: 1, invoiceId: "INV2-TEST-PAID", matchedBy: "transaction" },
+    at,
+  );

@@ -112,3 +112,54 @@ export function queuedDrafting(
   };
   return { runtime, settle, queued: () => queue.length };
 }
+
+/** Test code only: agreed work as the seller's form sends it (two payment stages). */
+export const TEST_WORK = {
+  summary: "A character illustration",
+  deliverables: ["Full-body character, transparent PNG"],
+  exclusions: ["Merchandise use"],
+  revisionsIncluded: 2,
+  milestones: [
+    { title: "Sketch", amount: "120" },
+    { title: "Final", amount: "120", dueDate: "2026-11-20" },
+  ],
+};
+
+type Call = ReturnType<typeof dealTestApp>["call"];
+
+/** Test code only: the seller sends the newest version for acceptance; returns the page's fingerprint. */
+export async function sendForAcceptance(call: Call, dealId: string, sellerToken: string) {
+  const base = `/api/deals/${dealId}/acceptance`;
+  const preview = (await call("GET", base, sellerToken)).json<{
+    document: { terms: { version: number } } | null;
+    documentSha256: string | null;
+  }>();
+  const res = await call("POST", `${base}/request`, sellerToken, {
+    version: preview.document?.terms.version,
+    documentSha256: preview.documentSha256,
+  });
+  if (res.statusCode !== 200)
+    throw new Error(`send for acceptance answered ${String(res.statusCode)}`);
+  return preview.documentSha256 ?? "";
+}
+
+/**
+ * Test code only: saves `TEST_WORK`, sends it for acceptance and has the buyer sign it, all
+ * through the routes, so the signed copy and its receipt are real.
+ */
+export async function signThroughRoutes(
+  call: Call,
+  dealId: string,
+  sellerToken: string,
+  buyerToken: string,
+) {
+  const saved = await call("POST", `/api/deals/${dealId}/scope`, sellerToken, TEST_WORK);
+  if (saved.statusCode !== 201)
+    throw new Error(`saving the work answered ${String(saved.statusCode)}`);
+  const documentSha256 = await sendForAcceptance(call, dealId, sellerToken);
+  await call("POST", `/api/deals/${dealId}/acceptance/accept`, buyerToken, {
+    documentSha256,
+    typedName: "Chris Buyer",
+  });
+  return documentSha256;
+}

@@ -43,9 +43,9 @@ Status: Phase 1 done (2026-10-30). Steps 1–9 are complete; the Phase 1 decisio
 
 ## Packet
 
-| #   | Test                                                         | Pass looks like      | If it fails       | Result |
-| --- | ------------------------------------------------------------ | -------------------- | ----------------- | ------ |
-| 14  | Generate a packet PDF with 10 exhibits; check the size meter | Under 10 MB per file | Split or compress |        |
+| #   | Test                                                         | Pass looks like      | If it fails       | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --- | ------------------------------------------------------------ | -------------------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 14  | Generate a packet PDF with 10 exhibits; check the size meter | Under 10 MB per file | Split or compress | **Pass** (5 Nov 2026, local copy, sub-phase 5e). A made-up Maya deal signed through the routes, with a dispute and nine files (four delivered PNGs, two buyer PNGs, one seller PNG, two text files) plus the signed receipt: all 10 included, the two text files sent as PDFs. Packet PDF 12.8 KB (3 pages: cover, timeline of 16 entries, exhibit table and fingerprints, the seal, the approved texts); total with exhibits 241.6 KB; largest file 113.5 KB, far under 10 MB a file and the 50 MB total taken for one upload. The same record gives the same packet bytes. PayPal's real total limit is still to be confirmed by the first upload (5g). |
 
 ## Prompt-injection check (sub-phase 3f, 1 November 2026)
 
@@ -137,3 +137,20 @@ The same 11 chats, one run each, all five models, with drafting prompt version 3
 
 - **Limits of the check:** 11 chats written by us, one run each; read the numbers as a tendency.
 - **Open:** keeping or dropping Nemotron is decided after the prompt-injection check on 6 November 2026.
+
+## First live claim comparison (sub-phase 5d, 5 November 2026)
+
+One council run with claim prompt v1 on a made-up Maya case (claim: "This is not the style I wanted. The colours are flat and it does not look modern."; 13 agreement lines; 12 record lines), run locally with every model that has a key. Nothing was saved or sent to PayPal.
+
+| Model               | Result                                        | Seconds | Tokens |
+| ------------------- | --------------------------------------------- | ------- | ------ |
+| qwen-groq           | valid, won                                    | 1.0     | 1,621  |
+| gpt-oss-groq        | valid                                         | 3.2     | 2,649  |
+| mistral             | valid                                         | 3.3     | 1,573  |
+| gemini              | refused: daily limit already spent (HTTP 429) | -       | -      |
+| nemotron-openrouter | timed out                                     | -       | -      |
+
+- The winner marked the statement "covered", citing agreement line 6 ("Clean, modern look … settled when the buyer approves stage 1, Sketch") and record entry #18 (the buyer approved the stage 1 sketch), in neutral words; it suggested "send evidence" with type `OTHER`, both allowed. Every quote and number passed the code check; no answer was dropped.
+- The vote had three voters and an agreement of 0.33, so the result was flagged for review.
+- 10 calls (4 failed), about 12,500 tokens counted, 364 seconds in all, almost all of it Nemotron's time-outs on its answer and its vote; without it a run would take about 30 seconds. Input for the Nemotron keep-or-drop decision (4n-2).
+- Limits of the check: one made-up case, one run.

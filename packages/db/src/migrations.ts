@@ -777,4 +777,31 @@ CREATE TRIGGER claim_analyses_moves_once BEFORE UPDATE OR DELETE ON claim_analys
 CREATE TRIGGER claim_analyses_no_truncate BEFORE TRUNCATE ON claim_analyses
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0022_evidence_packets",
+    // Each evidence packet built for a dispute (5e): the packet PDF's fingerprint (its bytes are
+    // stored in file_contents like any file), the exhibits it included and left out, the total
+    // size and the log's seal it carries, with its PACKET_BUILT entry. Append-only.
+    sql: `CREATE TABLE evidence_packets (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  dispute_id text NOT NULL REFERENCES disputes (dispute_id),
+  packet_sha256 text NOT NULL CHECK (packet_sha256 ~ '^[0-9a-f]{64}$'),
+  packet_bytes integer NOT NULL CHECK (packet_bytes > 0),
+  exhibits jsonb NOT NULL,
+  total_bytes integer NOT NULL CHECK (total_bytes > 0),
+  chain_entries integer NOT NULL CHECK (chain_entries > 0),
+  chain_head text NOT NULL CHECK (chain_head ~ '^[0-9a-f]{64}$'),
+  built_by uuid NOT NULL REFERENCES users (id),
+  ledger_seq integer NOT NULL,
+  created_at timestamptz NOT NULL,
+  CONSTRAINT evidence_packets_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq)
+);
+CREATE INDEX evidence_packets_by_dispute ON evidence_packets (dispute_id, created_at DESC);
+CREATE TRIGGER evidence_packets_append_only BEFORE UPDATE OR DELETE ON evidence_packets
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER evidence_packets_no_truncate BEFORE TRUNCATE ON evidence_packets
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

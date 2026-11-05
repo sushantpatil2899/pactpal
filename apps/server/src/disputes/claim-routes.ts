@@ -5,7 +5,6 @@ import {
   addArtifact,
   failClaimAnalysis,
   failStaleClaimAnalyses,
-  getDispute,
   listClaimAnalyses,
   postgresContentStore,
   readLedger,
@@ -13,11 +12,12 @@ import {
   type ClaimAnalysisRecord,
   type StoredDispute,
 } from "@pactpal/db";
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
 import { readBody, sendRefusal, type DealLookup, type FoundDeal } from "../deals/access.js";
 import { councilRecordSchema } from "../drafting/council-record.js";
 import { RunnerBusyError, type ClaimRunner } from "./checker.js";
+import { sellersDispute } from "./dispute-lookup.js";
 import { messagesOf } from "./dispute-view.js";
 
 export interface ClaimRouteOptions {
@@ -78,15 +78,6 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
   const { sellersDeal, clock, newId, claims } = options;
   const base = "/api/deals/:id/disputes/:disputeId/analyses";
 
-  /** The deal's own dispute named in the address, or undefined after answering 404. */
-  async function disputeOf(request: FastifyRequest, reply: FastifyReply, found: FoundDeal) {
-    const params = z.object({ disputeId: z.string().min(1).max(100) }).safeParse(request.params);
-    const dispute = params.success ? await getDispute(found.db, params.data.disputeId) : undefined;
-    if (dispute?.dealId === found.deal.id) return dispute;
-    await reply.code(404).send({ error: "not found" });
-    return undefined;
-  }
-
   async function answer(reply: FastifyReply, found: FoundDeal, dispute: StoredDispute) {
     await failStaleClaimAnalyses(found.db, clock());
     const [analyses, ledger] = await Promise.all([
@@ -103,15 +94,14 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
   }
 
   app.get(base, async (request, reply) => {
-    const found = await sellersDeal(request, reply);
-    const dispute = found && (await disputeOf(request, reply, found));
-    return found && dispute ? answer(reply, found, dispute) : reply;
+    const both = await sellersDispute(sellersDeal, request, reply);
+    return both ? answer(reply, both.found, both.dispute) : reply;
   });
 
   app.post(base, async (request, reply) => {
-    const found = await sellersDeal(request, reply);
-    const dispute = found && (await disputeOf(request, reply, found));
-    if (!found || !dispute) return reply;
+    const both = await sellersDispute(sellersDeal, request, reply);
+    if (!both) return reply;
+    const { found, dispute } = both;
     const body = await readBody(startBody, request, reply);
     if (!body) return reply;
     if (!claims) return reply.code(503).send({ error: "no AI model is configured" });

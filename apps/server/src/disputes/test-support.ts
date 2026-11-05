@@ -1,4 +1,5 @@
 import { PayPalNetworkError, type DisputeDetails } from "@pactpal/paypal";
+import { expect } from "vitest";
 import type { LogSink } from "../payments/payment-sync.js";
 import type { DisputeReader } from "./dispute-sync.js";
 
@@ -76,4 +77,20 @@ export function keptLog() {
   };
   const log: LogSink = { info: keep, warn: keep, error: keep };
   return { log, lines };
+}
+
+/**
+ * Test code only: a dispute route answers its deal's buyer 403, and a dispute that is not this
+ * deal's 404. `url` names dispute PP-R-TEST-1.
+ */
+export async function expectSellerOnly(
+  call: (method: "GET", url: string, token?: string) => Promise<{ statusCode: number }>,
+  url: string,
+  sellerToken: string,
+  buyerToken: string | undefined,
+) {
+  expect((await call("GET", url, buyerToken)).statusCode).toBe(403);
+  expect((await call("GET", url.replace("PP-R-TEST-1", "PP-R-NONE"), sellerToken)).statusCode).toBe(
+    404,
+  );
 }

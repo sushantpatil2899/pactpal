@@ -3,20 +3,17 @@ import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pact
 import { pdfTextLines } from "@pactpal/pdf/testing";
 import { describe, expect, it } from "vitest";
 import { ACCEPTANCE_NOTICE } from "../acceptance/document.js";
-import { buyerVisitors, dealTestApp, signedInAs } from "./test-app.js";
+import {
+  TEST_WORK,
+  buyerVisitors,
+  dealTestApp,
+  sendForAcceptance,
+  signedInAs,
+} from "./test-app.js";
 
 const db = useMigratedTestDatabase();
 
-const work = {
-  summary: "A character illustration",
-  deliverables: ["Full-body character, transparent PNG"],
-  exclusions: ["Merchandise use"],
-  revisionsIncluded: 2,
-  milestones: [
-    { title: "Sketch", amount: "120" },
-    { title: "Final", amount: "120", dueDate: "2026-11-20" },
-  ],
-};
+const work = TEST_WORK;
 
 interface View {
   status: string;
@@ -43,15 +40,8 @@ async function savedDeal(options: { trustProxyHops?: number; emailOff?: boolean 
 }
 
 /** Sends the seller's preview for acceptance and returns the document fingerprint sent. */
-async function send(env: Awaited<ReturnType<typeof savedDeal>>) {
-  const preview = await env.read(env.token);
-  const res = await env.call("POST", `${env.base}/request`, env.token, {
-    version: preview.document?.terms.version,
-    documentSha256: preview.documentSha256,
-  });
-  expect(res.statusCode).toBe(200);
-  return preview.documentSha256 ?? "";
-}
+const send = (env: Awaited<ReturnType<typeof savedDeal>>) =>
+  sendForAcceptance(env.call, env.dealId, env.token);
 
 /** A deal the buyer has signed by link, and the receipt's address. */
 async function signedDeal(options: Parameters<typeof savedDeal>[0] = {}) {

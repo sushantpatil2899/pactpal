@@ -39,6 +39,7 @@ import { screenshotRoutes } from "./screenshot-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 import type { ClaimRunner, DisputeChecker } from "../disputes/checker.js";
 import { claimRoutes } from "../disputes/claim-routes.js";
+import { packetRoutes } from "../disputes/packet-routes.js";
 import { disputeRoutes } from "../disputes/dispute-routes.js";
 
 export interface DealOptions {
@@ -140,6 +141,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   void app.register(milestoneRoutes, { visibleDeal, sellersDeal, clock, invoices, email });
   void app.register(disputeRoutes, { sellersDeal, clock, disputes });
   void app.register(claimRoutes, { sellersDeal, clock, newId, claims });
+  void app.register(packetRoutes, { sellersDeal, clock, newId });
   void app.register(deliveryRoutes, {
     database,
     visibleDeal,

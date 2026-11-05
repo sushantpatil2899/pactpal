@@ -8,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { getDisputePage, type DisputePageView } from "./api";
 import { ClaimPanel } from "./ClaimPanel";
+import { PacketPanel } from "./PacketPanel";
 import { CheckNow } from "./DisputeCheck";
 import { when } from "./format";
 import { WRAP } from "./styles";
@@ -155,6 +156,8 @@ export function DisputePage({ dealId, disputeId }: { dealId: string; disputeId: 
       </section>
 
       <ClaimPanel dealId={dealId} disputeId={disputeId} />
+
+      <PacketPanel dealId={dealId} disputeId={disputeId} />
 
       <section aria-labelledby="actions">
         <h3 id="actions">What you can do now</h3>

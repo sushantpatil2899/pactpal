@@ -41,7 +41,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 5d)
+## Built (sub-phases 2b to 5e)
 
 ### `users`: everyone
 
@@ -453,6 +453,21 @@ Built in 5d (migration 0021). A draft for the seller only, kept apart from the e
 
 Since 5d the dispute's stored `details` also hold `requestedEvidence`: the evidence types PayPal asks the seller for.
 
+### `evidence_packets`: built evidence packets
+
+Built in 5e (migration 0022); append-only, at most 20 per dispute. One row per packet the seller builds for a dispute.
+
+| Column                                 | Meaning                                                                                                                                                                                                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`, `deal_id`, `dispute_id`          | The packet, its deal and its dispute                                                                                                                                                                                           |
+| `packet_sha256`, `packet_bytes`        | The packet PDF's fingerprint and size; its bytes are stored by fingerprint in `file_contents`                                                                                                                                  |
+| `exhibits`                             | Each document considered: id, name, who added it, fingerprint, size, how it is sent (as it is, text as PDF, left out with the reason), and for an included one its number and the fingerprint and size of the file PayPal gets |
+| `total_bytes`                          | The packet PDF plus every included exhibit                                                                                                                                                                                     |
+| `chain_entries`, `chain_head`          | The log's seal the packet carries: how many entries and the latest entry's fingerprint                                                                                                                                         |
+| `built_by`, `ledger_seq`, `created_at` | The seller, the `PACKET_BUILT` entry and when                                                                                                                                                                                  |
+
+`PACKET_BUILT` (by the seller) holds the packet id, dispute id, the packet's fingerprint and size, each included exhibit's id and fingerprints, how many were left out, the total size and the seal.
+
 ## Planned
 
 | Table                               | Sub-phase | What it will hold                                                                                                            |
@@ -461,4 +476,3 @@ Since 5d the dispute's stored `details` also hold `requestedEvidence`: the evide
 | `webhook_events`                    | 2d        | PayPal notifications as received, one row per event id, so repeats are skipped even after a restart                          |
 | `link_tokens`                       | 2e-2      | Single-purpose expiring links tied to one deal and one person, for buyers who do not sign in; only hashes are stored         |
 | `scope_versions`                    | 2f-3      | The agreed work, each version kept and never edited, with its payment stages                                                 |
-| evidence packets                    | 5e        | Each built packet with its fingerprint; designed in 5e                                                                       |

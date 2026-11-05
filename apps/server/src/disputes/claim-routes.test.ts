@@ -13,7 +13,7 @@ import {
 } from "./checker.js";
 import { runClaimJob } from "./claim-job.js";
 import { syncDisputes } from "./dispute-sync.js";
-import { fakeDisputes, keptLog, testDispute } from "./test-support.js";
+import { expectSellerOnly, fakeDisputes, keptLog, testDispute } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 
@@ -139,11 +139,7 @@ describe("claim comparisons", () => {
   it("refuses pasting when PayPal shows the buyer's words, and is for the seller only", async () => {
     const { app, call, token, url, dealId, buyer } = await disputedDeal();
     expect((await call("POST", url, token, { pasted: "x" })).statusCode).toBe(409);
-    const [paypalBuyer] = await buyerVisitors(db, dealId, buyer.id);
-    expect((await call("GET", url, paypalBuyer)).statusCode).toBe(403);
-    expect((await call("GET", url.replace("PP-R-TEST-1", "PP-R-NONE"), token)).statusCode).toBe(
-      404,
-    );
+    await expectSellerOnly(call, url, token, (await buyerVisitors(db, dealId, buyer.id))[0]);
     await app.close();
   });
 
