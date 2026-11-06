@@ -26,6 +26,7 @@ const GOOD = {
   summary: [
     { text: "The deal was set up before the agreement was signed.", record: [1] },
     { text: "Both people signed the agreement.", record: [1] },
+    { text: "No record covers the colours.", record: [] },
   ],
   exhibits: [
     { id: "receipt", use: true, why: "The signed agreement (statement 1)." },
@@ -120,13 +121,20 @@ describe("packet summaries", () => {
     // The models saw the comparison and only the documents that can go to PayPal.
     const asked = clients[0]?.requests[0]?.messages[1]?.content ?? "";
     expect(asked).toContain('1: The buyer said "Not the style I wanted"');
-    expect(asked).toContain(`${testId(600)}: chat.txt (added by the seller; text, sent as PDF)`);
+    // Code says what each document is, so the models never guess from a file name.
+    for (const line of [
+      "receipt: pactpal-receipt-v1.pdf (added by PactPal; the signed agreement with its fingerprints, made by PactPal; PDF)",
+      `${testId(602)}: sketch.png (added by the seller; delivered work; PNG picture)`,
+      `${testId(600)}: chat.txt (added by the seller; a file added during the deal; text (sent as PDF))`,
+    ]) {
+      expect(asked).toContain(line);
+    }
     expect(asked.slice(asked.indexOf("<exhibits-"))).not.toContain("archive.zip");
     const drafted = (await readLedger(db, dealId)).at(-1);
     expect(drafted).toMatchObject({
       type: "SUMMARY_DRAFTED",
       actor: "system",
-      payload: { basedOn: analysisId, sentences: 2, models: ["alpha", "beta"] },
+      payload: { basedOn: analysisId, sentences: 3, models: ["alpha", "beta"] },
     });
     expect(JSON.stringify(drafted?.payload)).not.toContain("look");
 

@@ -6,12 +6,14 @@ import { buildSummaryMessages, summarySource, type ExhibitLine } from "./summary
 /** Room for the summary, the picks and the note, including the thinking some models do first. */
 const SUMMARY_MAX_TOKENS = 5000;
 
-/** What the voters are told the answers are, and what makes one better (approved by the owner, 5f). */
-const RANK_SUMMARY = "Neutral summaries of a dispute record, document picks and a note for PayPal.";
+/** What the voters are told the answers are, and what makes one better (version 2, approved by the owner, 5f-2). */
+const RANK_SUMMARY =
+  "Neutral summaries of what a dispute record shows about each part of a buyer's claim, document picks and a note for PayPal.";
 const RANK_CRITERIA = [
   "Every summary sentence is true to the record entries it cites.",
+  "The summary speaks to the claim's statements rather than retelling the whole record.",
   "The wording is neutral and does not decide who is right.",
-  "The picks keep the documents that relate to the claim and leave out the rest.",
+  "The picks keep the documents that relate to a claim statement and each reason names it; the rest are left out.",
   "The note is clear, polite and short, and says nothing the summary does not.",
   "Nothing is invented.",
 ];

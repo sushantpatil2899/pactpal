@@ -125,7 +125,7 @@ export function packetMeter(exhibits: readonly { bytes: number }[], packetBytes 
   };
 }
 
-const ADDED_BY = { seller: "the seller", buyer: "the buyer", system: "PactPal" } as const;
+export const ADDED_BY = { seller: "the seller", buyer: "the buyer", system: "PactPal" } as const;
 const TYPE_WORDS: Record<string, string> = {
   "application/pdf": "PDF",
   "image/png": "PNG picture",
@@ -133,6 +133,26 @@ const TYPE_WORDS: Record<string, string> = {
   "image/gif": "GIF picture",
   "text/plain": "text (sent as PDF)",
 };
+
+/**
+ * What a document is, in words for the summary council: its kind (with the stage for delivered
+ * work) and its type, so the models never guess from a file name. Pure.
+ */
+export function exhibitWhat(document: {
+  kind: ExhibitSource["kind"];
+  stage?: number | null;
+  mediaType: string;
+}): string {
+  const type = TYPE_WORDS[document.mediaType] ?? document.mediaType;
+  switch (document.kind) {
+    case "receipt":
+      return `the signed agreement with its fingerprints, made by PactPal; ${type}`;
+    case "deliverable":
+      return `delivered work${document.stage == null ? "" : ` for stage ${String(document.stage)}`}; ${type}`;
+    case "source":
+      return `a file added during the deal; ${type}`;
+  }
+}
 
 /** How PactPal keeps records (section 6; wording approved by the owner, 5e). */
 const HOW_RECORDS_ARE_KEPT =

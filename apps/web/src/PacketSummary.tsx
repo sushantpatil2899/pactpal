@@ -12,7 +12,13 @@ function Summary({ view }: { view: PacketSummaryView }) {
         {view.summary.summary.map((sentence, i) => (
           <li key={i}>
             {sentence.text}{" "}
-            <small>(log entries: {sentence.record.map((entry) => entry.text).join("; ")})</small>
+            <small>
+              (
+              {sentence.record.length === 0
+                ? "no log entry"
+                : `log entries: ${sentence.record.map((entry) => entry.text).join("; ")}`}
+              )
+            </small>
           </li>
         ))}
       </ol>

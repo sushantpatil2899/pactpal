@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PACKET_LIMITS,
+  exhibitWhat,
   packetBlocks,
   packetMeter,
   pdfNameOf,
@@ -153,6 +154,21 @@ describe("the packet", () => {
     expect(order.every((at, i) => at > (order[i - 1] ?? 0))).toBe(true);
     expect(text.indexOf("#18")).toBeLessThan(text.indexOf("Timeline from the evidence log"));
     expect(text.split("checked by the seller before sending")).toHaveLength(3);
+  });
+
+  it("says what each document is for the summary council", () => {
+    expect(exhibitWhat({ kind: "receipt", mediaType: "application/pdf" })).toBe(
+      "the signed agreement with its fingerprints, made by PactPal; PDF",
+    );
+    expect(exhibitWhat({ kind: "deliverable", stage: 2, mediaType: "image/png" })).toBe(
+      "delivered work for stage 2; PNG picture",
+    );
+    expect(exhibitWhat({ kind: "deliverable", stage: null, mediaType: "image/png" })).toBe(
+      "delivered work; PNG picture",
+    );
+    expect(exhibitWhat({ kind: "source", mediaType: "application/x-thing" })).toBe(
+      "a file added during the deal; application/x-thing",
+    );
   });
 
   it("gives the same bytes for the same record, and turns text into a PDF the same way", async () => {

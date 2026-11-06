@@ -1,4 +1,5 @@
 import type { ChatOutcome } from "@pactpal/ai";
+import { testSpec } from "@pactpal/ai/testing";
 import { runCouncil } from "@pactpal/council";
 import { FIXED_COUNCIL, councilOf } from "@pactpal/council/testing";
 import { describe, expect, it } from "vitest";
@@ -89,6 +90,16 @@ describe("checkSummary", () => {
     expect(checkSummary(priced, context).ok).toBe(true);
   });
 
+  it("keeps a sentence with no entry (a statement no record covers) but not a summary citing none", () => {
+    const uncovered = { text: "No record covers the colours.", record: [] };
+    const some = { ...GOOD, summary: [...GOOD.summary, uncovered] };
+    expect(checkSummary(some, context).ok).toBe(true);
+    const none = { ...GOOD, summary: [uncovered, uncovered] };
+    expect(checkSummary(none, context).validation.errors).toEqual([
+      "no sentence cites a record entry",
+    ]);
+  });
+
   it("drops a summary that cites what is not there, picks wrongly or writes a bad note", () => {
     const bad = {
       summary: [
@@ -103,7 +114,6 @@ describe("checkSummary", () => {
       note: "You will win in court: see https://example.test. The buyer owes $999.",
     };
     expect(checkSummary(bad, context).validation.errors).toEqual([
-      "sentence 1: cites no record entry",
       "sentence 2: record entry #99 is not in the record",
       "2 document(s) not picked",
       "1 unknown document(s) picked",
@@ -145,6 +155,13 @@ describe("summaryCouncilTask", () => {
       "<exhibits-a1b2c3d4e5f6>\nreceipt: pactpal-receipt-v1.pdf",
     );
     expect(made.task.rank.render(GOOD as never)).toContain("approved the stage 1 sketch");
+    // Prompt version 2: the summary follows the claim's statements and each reason names one.
+    const system = made.task.answerRequest(testSpec()).messages[0]?.content ?? "";
+    expect(system).toContain("about each statement of the claim, in the order of the statements");
+    expect(system).toContain('like "Statement 1:", or with "None:"');
+    expect(made.task.rank.criteria).toContain(
+      "The summary speaks to the claim's statements rather than retelling the whole record.",
+    );
   });
 
   it("refuses a bad marker or one that is already in the text", () => {

@@ -154,3 +154,27 @@ One council run with claim prompt v1 on a made-up Maya case (claim: "This is not
 - The vote had three voters and an agreement of 0.33, so the result was flagged for review.
 - 10 calls (4 failed), about 12,500 tokens counted, 364 seconds in all, almost all of it Nemotron's time-outs on its answer and its vote; without it a run would take about 30 seconds. Input for the Nemotron keep-or-drop decision (4n-2).
 - Limits of the check: one made-up case, one run.
+
+## Live packet summaries (sub-phases 5f and 5f-2, 5 and 6 November 2026)
+
+Council runs of the packet summary on the same made-up Maya case (the comparison above, 12 to 15 record lines, 7 documents), run locally with every model that has a key. Nothing was saved or sent to PayPal.
+
+**Run 1, summary prompt v1.** 4 of 5 valid (qwen-groq hit Groq's rate limit, HTTP 429); nemotron-openrouter won with 4 votes, agreement 0.57, not flagged; 10 calls, about 26,800 tokens, 81 seconds. Every citation and amount passed the code check, but the draft retold the whole timeline instead of the claim's statements, said the receipt "shows PayPal payments" (the models saw only its file name), and its document reasons named no claim statement.
+
+**Run 2, prompt v2 with plain document descriptions.** No valid answer: gemini refused (daily limit, HTTP 429), nemotron-openrouter timed out, and qwen-groq, gpt-oss-groq and mistral were all dropped for the same reason. They followed v2's "for a statement no record covers, say so plainly" with a sentence that cites no log entry, which the checker refused. 5 calls, about 6,200 tokens, 60 seconds.
+
+**Run 3, prompt v2, checker allowing such a sentence when another sentence cites entries (owner's choice "A").**
+
+| Model               | Result                     | Seconds | Tokens |
+| ------------------- | -------------------------- | ------- | ------ |
+| mistral             | valid, won                 | 6.2     | 1,856  |
+| gpt-oss-groq        | valid                      | 3.3     | 2,745  |
+| qwen-groq           | valid                      | 1.7     | 2,037  |
+| gemini              | refused: daily limit (429) | -       | -      |
+| nemotron-openrouter | timed out                  | -       | -      |
+
+- The winner spoke to the claim's statements: statement 1 with entries #7, #14 and #18 (signed agreement with the clean, modern look; one change to the pose; stage 1 approved on 8 November), and statement 2 as "No record covers the buyer's claim that the colors are flat or that the design does not look modern" (no entry).
+- Every reason named its statement or "None:"; the receipt was described correctly ("Confirms the signed agreement with the agreed style"). It picked the receipt and both sketches and left out the final file, the chat, the reference board and the old version; the final file is a debatable leave-out the seller decides.
+- The note was 314 characters, neutral, with no amounts or links. One wording slip for the seller to catch: "the final design for stage 1" for the approved sketch.
+- Three voters, agreement 0.44, so it was flagged for review. 10 calls (4 failed), about 16,200 tokens counted, 120 seconds, most of it Nemotron's time-outs.
+- Limits of the check: one made-up case, one run per version, a council thinned by free-tier limits.

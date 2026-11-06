@@ -654,6 +654,9 @@ export async function compareClaim(
 export interface PacketChoice {
   id: string;
   filename: string;
+  kind: "receipt" | "deliverable" | "source";
+  /** The payment stage a delivered file was sent for. */
+  stage: number | null;
   addedBy: "seller" | "buyer" | "system";
   mediaType: string;
   send: "as-is" | "text-as-pdf" | "left-out";

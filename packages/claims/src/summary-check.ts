@@ -40,8 +40,8 @@ const MONEY = /(?:[$€£]\s?\d[\d,]*(?:\.\d+)?)|(?:\d[\d,]*(?:\.\d+)?\s?(?:usd|
 const digitsOf = (amount: string) => amount.replace(/[^\d.]/g, "").replace(/\.0+$/, "");
 
 /**
- * Checks a summary against what the models were given: each sentence cites record entries that
- * exist, every document is picked exactly once (and no unknown one), and the note has no links,
+ * Checks a summary against what the models were given: at least one sentence cites record
+ * entries, every cited entry exists, every document is picked exactly once (and no unknown one), and the note has no links,
  * no legal or outcome words and no amount the record does not hold. Error messages never repeat
  * the text. The score is the share of record citations found. Pure.
  */
@@ -63,9 +63,11 @@ export function checkSummary(
   const errors: string[] = [];
   let checked = 0;
   let found = 0;
+  // A sentence that says no record covers a statement has nothing to cite (owner's choice, 5f-2),
+  // but a summary that cites nothing at all says nothing checkable.
+  if (summary.summary.every((sentence) => sentence.record.length === 0))
+    errors.push("no sentence cites a record entry");
   summary.summary.forEach((sentence, i) => {
-    if (sentence.record.length === 0)
-      errors.push(`sentence ${String(i + 1)}: cites no record entry`);
     for (const n of sentence.record) {
       checked += 1;
       if (numbers.has(n)) found += 1;

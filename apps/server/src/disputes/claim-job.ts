@@ -30,6 +30,7 @@ import { toCouncilRecord, toJson } from "../drafting/council-record.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import { signedRecord } from "../payments/signed-record.js";
 import { messagesOf } from "./dispute-view.js";
+import { ADDED_BY, exhibitWhat } from "./packet.js";
 import { packetChoices } from "./packet-service.js";
 
 /** What one comparison needs: the database, the models with keys and the council's effects. */
@@ -131,8 +132,6 @@ async function prepareClaim(
   };
 }
 
-const ADDED_BY = { seller: "the seller", buyer: "the buyer", system: "PactPal" } as const;
-
 /**
  * The packet summary (5f): the comparison it is based on, as plain rows, the record and the
  * documents that can go to PayPal.
@@ -158,7 +157,7 @@ async function prepareSummary(
       id: e.id,
       filename: e.filename,
       addedBy: ADDED_BY[e.addedBy],
-      type: e.send === "text-as-pdf" ? "text, sent as PDF" : e.mediaType,
+      type: exhibitWhat(e),
     }));
   return {
     made: summaryCouncilTask({ comparison: rows, record: record.lines, exhibits, marker }),

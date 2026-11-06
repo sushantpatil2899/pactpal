@@ -161,6 +161,8 @@ export async function packetChoices(db: Database, store: ContentStore, deal: Dea
     exhibits: plans.map((plan) => ({
       id: plan.id,
       filename: plan.filename,
+      kind: plan.kind,
+      stage: plan.stage ?? null,
       addedBy: plan.addedBy,
       mediaType: plan.mediaType,
       send: plan.send,
@@ -210,7 +212,10 @@ async function aiSections(
   return {
     sections: {
       comparison: comparisonRows(analysis.data, recordText),
-      summary: drafted.data.summary.map((s) => `${s.text} (log entries ${entries(s.record)})`),
+      summary: drafted.data.summary.map(
+        (s) =>
+          `${s.text} (${s.record.length === 0 ? "no log entry" : `log entries ${entries(s.record)}`})`,
+      ),
     },
     ai: {
       ...ids,
