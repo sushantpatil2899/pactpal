@@ -1,6 +1,6 @@
 import type { PacketSummariesView, PacketSummaryView } from "./api";
 import { CouncilPanel, ReviewFlag } from "./CouncilPanel";
-import { when } from "./format";
+import { DraftControls } from "./DraftControls";
 
 /** One finished summary: the sentences with their log entries, the note, and the council. */
 function Summary({ view }: { view: PacketSummaryView }) {
@@ -47,7 +47,6 @@ export function PacketSummary({
   onDraft: () => void;
 }) {
   const latest = view.summaries[0];
-  const running = latest?.status === "running";
   return (
     <>
       <h4>Summary and document picks (AI draft)</h4>
@@ -57,17 +56,14 @@ export function PacketSummary({
         <strong>AI draft: check every line.</strong>
       </p>
       {latest?.status === "ready" && <Summary view={latest} />}
-      {latest?.status === "failed" && (
-        <p>The last summary did not finish: {latest.failureReason ?? "unknown reason"}.</p>
-      )}
-      {running && <p>Drafting… (started {when(latest.createdAt)}; this takes a minute or two)</p>}
-      {view.canDraft ? (
-        <button type="button" disabled={busy || running} onClick={onDraft}>
-          {latest === undefined ? "Draft a summary and suggest documents" : "Draft again"}
-        </button>
-      ) : (
-        <p>Compare the claim with the record first (and AI models must be set up).</p>
-      )}
+      <DraftControls
+        latest={latest}
+        canDraft={view.canDraft}
+        busy={busy}
+        onDraft={onDraft}
+        first="Draft a summary and suggest documents"
+        off="Compare the claim with the record first (and AI models must be set up)."
+      />
     </>
   );
 }

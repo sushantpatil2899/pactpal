@@ -54,6 +54,8 @@ const ENTRIES = [
     evidenceType: "PROOF_OF_FULFILLMENT",
     files: [{ name: "packet.pdf" }, { name: "sketch.png" }],
   }),
+  entry(23, "RESPONSE_DRAFTED", "system", { options: 3 }),
+  entry(24, "OFFER_MADE", "seller", { offerType: "REFUND", amountMinor: 6000, currency: "USD" }),
 ];
 const RECORD = recordLines(ENTRIES);
 const CLAIM = claimLines({
@@ -105,7 +107,7 @@ const MAYA = {
 describe("recordLines", () => {
   it("writes each evidence entry as a numbered line and leaves out AI output", () => {
     expect(RECORD.cut).toBe(false);
-    expect(RECORD.lines.map(({ n }) => n)).toEqual([1, 5, 10, 14, 16, 17, 18, 19, 20, 22, 23]);
+    expect(RECORD.lines.map(({ n }) => n)).toEqual([1, 5, 10, 14, 16, 17, 18, 19, 20, 22, 23, 25]);
     expect(RECORD.lines.map(({ text }) => text)).toEqual([
       "#1 2 Nov 2026 14:03 UTC, seller: created the deal",
       "#5 2 Nov 2026 14:03 UTC, buyer: signed the agreement (agreement version 1)",
@@ -118,6 +120,7 @@ describe("recordLines", () => {
       "#20 2 Nov 2026 14:03 UTC, witness: something new",
       "#22 2 Nov 2026 14:03 UTC, seller: asked PayPal to decide the dispute (escalated it)",
       "#23 2 Nov 2026 14:03 UTC, seller: sent evidence to PayPal (2 files; type proof of fulfillment)",
+      "#25 2 Nov 2026 14:03 UTC, seller: offered the buyer a refund through PayPal (60.00 USD)",
     ]);
   });
 

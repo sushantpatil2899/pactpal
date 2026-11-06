@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  answerFacts,
   deadlineIsNear,
   deadlineWords,
   disputeActionWords,
@@ -19,14 +20,7 @@ describe("dispute words", () => {
   });
 
   it("explains each known action, the ones not done yet as coming later, an unknown one as not possible", () => {
-    for (const action of [
-      "make_offer",
-      "accept_claim",
-      "send_message",
-      "appeal",
-      "provide_supporting_info",
-      "acknowledge_return_item",
-    ]) {
+    for (const action of ["appeal", "provide_supporting_info", "acknowledge_return_item"]) {
       expect(disputeActionWords(action)).toMatch(/\(coming in a later step\)$/);
     }
     expect(disputeActionWords("escalate")).toBe(
@@ -36,6 +30,23 @@ describe("dispute words", () => {
       "Send evidence: upload documents that answer the claim.",
     );
     expect(disputeActionWords("new_thing")).toBe("new thing: PactPal cannot do this yet.");
+    expect(disputeActionWords("make_offer")).toBe(
+      "Offer a refund: propose a refund the buyer can accept.",
+    );
+  });
+
+  it("states what each answer does in fixed words, with the disputed amount", () => {
+    expect(answerFacts("accept_claim", "120.00 USD")).toBe(
+      "PayPal refunds the buyer 120.00 USD from your PayPal account and closes the case in the buyer's favour. This cannot be undone.",
+    );
+    expect(answerFacts("make_offer", "120.00 USD")).toContain(
+      "your refund offer, up to 120.00 USD.",
+    );
+    expect(answerFacts("make_offer", null)).toContain("your refund offer. If");
+    expect(answerFacts("accept_claim", null)).toContain("refunds the buyer the disputed amount");
+    expect(answerFacts("send_message", null)).toContain("The case stays open.");
+    expect(answerFacts("escalate", null)).toBe(disputeActionWords("escalate"));
+    expect(answerFacts("new_thing", null)).toBe("new thing: PactPal cannot do this yet.");
   });
 
   it("says how long is left, or how long ago the deadline passed", () => {

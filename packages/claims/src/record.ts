@@ -29,6 +29,7 @@ const LEFT_OUT = new Set([
   "MESSAGE_CLASSIFIED",
   "CLAIM_ANALYZED",
   "SUMMARY_DRAFTED",
+  "RESPONSE_DRAFTED",
   "PACKET_BUILT",
   "APPEAL_CHECKED",
   "RECORD_EXPORTED",
@@ -66,6 +67,9 @@ const LABELS: Record<string, string> = {
   DISPUTE_UPDATED: "saw the PayPal dispute change",
   DISPUTE_ESCALATED: "asked PayPal to decide the dispute (escalated it)",
   EVIDENCE_UPLOADED: "sent evidence to PayPal",
+  DISPUTE_MESSAGE_SENT: "messaged the buyer through PayPal",
+  OFFER_MADE: "offered the buyer a refund through PayPal",
+  CLAIM_ACCEPTED: "accepted the claim (full refund through PayPal)",
   DISPUTE_RESOLVED: "saw PayPal decide the dispute",
   NOTE_ADDED: "added a note",
 };
@@ -125,6 +129,11 @@ function detailsOf(type: string, payload: unknown): string {
     const n = fields.files.length;
     parts.push(`${String(n)} file${n === 1 ? "" : "s"}`);
     if (evidenceType !== undefined) parts.push(`type ${plainCode(evidenceType)}`);
+  }
+  const minor = count(fields.amountMinor);
+  const currency = text(fields.currency);
+  if (type === "OFFER_MADE" && minor !== undefined && currency !== undefined) {
+    parts.push(`${(Number(minor) / 100).toFixed(2)} ${currency}`);
   }
   const outcome = text(fields.outcome);
   if (outcome !== undefined) parts.push(plainCode(outcome));

@@ -1,4 +1,5 @@
 import type { CouncilTask } from "@pactpal/council";
+import { draftCouncilTask } from "./draft-task.js";
 import type { RecordLine } from "./record.js";
 import { readSummary, type PacketSummary } from "./summary-check.js";
 import { buildSummaryMessages, summarySource, type ExhibitLine } from "./summary-prompt.js";
@@ -42,25 +43,16 @@ export function summaryCouncilTask(input: {
   };
   return {
     ok: true,
-    task: {
-      answerRequest: () => ({
-        messages: built.messages,
-        maxTokens: SUMMARY_MAX_TOKENS,
-        temperature: 0,
-        reply: "json",
-      }),
+    task: draftCouncilTask<PacketSummary>({
+      messages: built.messages,
+      maxTokens: SUMMARY_MAX_TOKENS,
       check: (outcome) => {
         const result = readSummary(outcome, context);
         return result.ok
           ? { ok: true, content: result.summary, validation: result.validation }
           : { ok: false, validation: result.validation };
       },
-      rank: {
-        summary: RANK_SUMMARY,
-        criteria: RANK_CRITERIA,
-        source: summarySource(input),
-        render: (summary) => JSON.stringify(summary),
-      },
-    },
+      rank: { summary: RANK_SUMMARY, criteria: RANK_CRITERIA, source: summarySource(input) },
+    }),
   };
 }

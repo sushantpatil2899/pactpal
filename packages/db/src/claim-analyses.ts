@@ -12,7 +12,7 @@ export const MAX_ANALYSES_PER_DISPUTE = 10;
 export const ANALYSIS_TIMEOUT_MS = 15 * 60_000;
 
 /** The two dispute council jobs: the claim comparison (5d) and the packet summary (5f). */
-export const ANALYSIS_KINDS = ["claim", "summary"] as const;
+export const ANALYSIS_KINDS = ["claim", "summary", "response"] as const;
 export type AnalysisKind = (typeof ANALYSIS_KINDS)[number];
 
 /** Why a comparison or summary was not started. */
@@ -178,9 +178,16 @@ const finishSchema = z.object({
 });
 export type FinishClaimAnalysis = z.input<typeof finishSchema>;
 
+/** The log entry a ready job of each kind writes. */
+const KIND_EVENTS = {
+  claim: "CLAIM_ANALYZED",
+  summary: "SUMMARY_DRAFTED",
+  response: "RESPONSE_DRAFTED",
+} as const;
+
 /**
  * Marks a running job ready and logs it (by the system) in one transaction: `CLAIM_ANALYZED` for a
- * comparison, `SUMMARY_DRAFTED` for a summary (with the comparison it was based on and the
+ * comparison, `RESPONSE_DRAFTED` for answer help (5h), `SUMMARY_DRAFTED` for a summary (with the comparison it was based on and the
  * document list's fingerprint): ids, fingerprints of the result and of what the models read,
  * prompt versions, models, the winner, the count and whether it needs review. No AI text goes in
  * the log. Undefined (and nothing logged) if it was not running.
@@ -202,7 +209,7 @@ export async function finishClaimAnalysis(
       tx,
       {
         dealId: row.dealId,
-        type: row.kind === "summary" ? "SUMMARY_DRAFTED" : "CLAIM_ANALYZED",
+        type: KIND_EVENTS[row.kind],
         actor: "system",
         payload: {
           analysisId: row.id,
@@ -215,7 +222,9 @@ export async function finishClaimAnalysis(
                 exhibitsSha256: done.exhibitsSha256 ?? null,
                 sentences: done.statements,
               }
-            : { claimSha256: done.claimSha256, statements: done.statements }),
+            : row.kind === "response"
+              ? { claimSha256: done.claimSha256, options: done.statements }
+              : { claimSha256: done.claimSha256, statements: done.statements }),
           recordSha256: done.recordSha256,
           promptVersion: row.promptVersion,
           rankPromptVersion: row.rankPromptVersion,

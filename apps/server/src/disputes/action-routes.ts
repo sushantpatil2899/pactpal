@@ -7,6 +7,7 @@ import {
   resendDisputeAction,
   startDisputeAction,
   type DisputeActionRecord,
+  type NewDisputeAction,
   type StoredDispute,
 } from "@pactpal/db";
 import { sha256Hex } from "@pactpal/ledger";
@@ -51,6 +52,16 @@ const evidenceBody = z.object({
   evidenceType: z.string().regex(/^[A-Z0-9_]{1,255}$/),
 });
 const resendBody = z.object({ confirmed: z.literal(true) });
+/** The only offer type PactPal makes (owner's choice, 5h): a refund, with no return. */
+const OFFER_TYPE = "REFUND";
+const offerBody = z.object({
+  ...confirmedNote,
+  amount: z.object({
+    minor: z.number().int().min(1),
+    currency: z.string().regex(/^[A-Z]{3}$/),
+  }),
+});
+const acceptBody = z.object({ ...confirmedNote, understandsRefund: z.literal(true) });
 const actionParams = z.object({ actionId: z.uuid() });
 
 const REFUSALS = {
@@ -72,6 +83,12 @@ const REFUSALS = {
     error: "a file no longer matches its fingerprint, so nothing was sent; build a new packet",
   },
   "over-limit": { status: 413, error: "the files are over PayPal's size limits" },
+  "no-amount": { status: 409, error: "PayPal gave no disputed amount, so PactPal cannot do this" },
+  "offer-type": { status: 409, error: "PayPal does not take a refund offer for this dispute now" },
+  "offer-amount": {
+    status: 409,
+    error: "the offer must be in the dispute's currency and at most the disputed amount",
+  },
 } as const;
 type Refusal = keyof typeof REFUSALS;
 
@@ -183,31 +200,82 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
     return reply.send({ canSend: writer !== undefined, ...choices });
   });
 
-  app.post(`${dispute}/escalate`, async (request, reply) => {
-    const both = await sellersDispute(sellersDeal, request, reply);
-    if (!both) return reply;
-    const body = await readBody(escalateBody, request, reply);
-    if (!body) return reply;
-    const { found, dispute: stored } = both;
-    return send(request, reply, found, async () => {
-      checkNote(body);
-      allows(stored, "escalate");
-      const action = await startDisputeAction(
-        found.db,
-        {
-          id: newId(),
-          kind: "escalate",
-          dealId: found.deal.id,
-          disputeId: stored.disputeId,
-          sellerId: found.viewer.user.id,
-          note: body.note,
-          noteSha256: body.noteSha256,
-        },
-        clock(),
-      );
-      return { action, files: [] };
+  /**
+   * A send with a note and no files (escalate, message, offer, accept): reads the body, checks the
+   * note and that PayPal allows the action, runs the kind's own checks, then reserves and sends.
+   */
+  function noteSend<T extends { note: string; noteSha256: string }>(
+    path: string,
+    schema: z.ZodType<T>,
+    paypalAction: string,
+    reserve: (
+      body: T,
+      stored: StoredDispute,
+    ) => Omit<NewDisputeAction, "id" | "dealId" | "disputeId" | "sellerId">,
+  ) {
+    app.post(`${dispute}/${path}`, async (request, reply) => {
+      const both = await sellersDispute(sellersDeal, request, reply);
+      if (!both) return reply;
+      const body = await readBody(schema, request, reply);
+      if (!body) return reply;
+      const { found, dispute: stored } = both;
+      return send(request, reply, found, async () => {
+        checkNote(body);
+        allows(stored, paypalAction);
+        const action = await startDisputeAction(
+          found.db,
+          {
+            ...reserve(body, stored),
+            id: newId(),
+            dealId: found.deal.id,
+            disputeId: stored.disputeId,
+            sellerId: found.viewer.user.id,
+          } as NewDisputeAction,
+          clock(),
+        );
+        return { action, files: [] };
+      });
     });
+  }
+
+  /** The disputed amount, for an offer's limit and an accepted claim's full refund. */
+  const disputedOf = (stored: StoredDispute) => {
+    if (stored.amountMinor === null || stored.currency === null) throw new Refused("no-amount");
+    return { minor: stored.amountMinor, currency: stored.currency };
+  };
+
+  noteSend("escalate", escalateBody, "escalate", (body) => ({
+    kind: "escalate",
+    note: body.note,
+    noteSha256: body.noteSha256,
+  }));
+  noteSend("message", escalateBody, "send_message", (body) => ({
+    kind: "message",
+    note: body.note,
+    noteSha256: body.noteSha256,
+  }));
+  // A refund offer of the seller's amount: above 0, at most the disputed amount, its currency.
+  noteSend("offer", offerBody, "make_offer", (body, stored) => {
+    if (!stored.offerTypes.includes(OFFER_TYPE)) throw new Refused("offer-type");
+    const disputed = disputedOf(stored);
+    if (body.amount.currency !== disputed.currency || body.amount.minor > disputed.minor) {
+      throw new Refused("offer-amount");
+    }
+    return {
+      kind: "offer",
+      note: body.note,
+      noteSha256: body.noteSha256,
+      offerType: OFFER_TYPE,
+      amount: body.amount,
+    };
   });
+  // Accepting refunds the whole disputed amount; the second tick says the seller knows it.
+  noteSend("accept", acceptBody, "accept_claim", (body, stored) => ({
+    kind: "accept",
+    note: body.note,
+    noteSha256: body.noteSha256,
+    amount: disputedOf(stored),
+  }));
 
   app.post(`${dispute}/evidence`, async (request, reply) => {
     const both = await sellersDispute(sellersDeal, request, reply);

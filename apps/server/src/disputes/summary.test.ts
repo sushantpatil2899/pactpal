@@ -1,11 +1,8 @@
-import { councilOf } from "@pactpal/council/testing";
 import { finishClaimAnalysis, readLedger, startClaimAnalysis } from "@pactpal/db";
 import { TEST_NOW, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
-import { buyerVisitors, queuedDrafting } from "../deals/test-app.js";
-import { inProcessClaimRunner } from "./checker.js";
-import { runDisputeJob } from "./claim-job.js";
-import { expectSellerOnly, keptLog, signedDispute, type TestFile } from "./test-support.js";
+import { buyerVisitors } from "../deals/test-app.js";
+import { councilDispute, expectSellerOnly, type TestFile } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 const text = (value: string) => new TextEncoder().encode(value);
@@ -53,15 +50,7 @@ interface SummariesView {
 
 /** A signed, disputed deal whose summaries run in process with stand-in models. */
 async function disputedDeal(answers: object[] = [GOOD, GOOD]) {
-  const clients = councilOf(answers);
-  const { runtime, settle } = queuedDrafting(clients);
-  const claims = inProcessClaimRunner(runtime, (analysisId) =>
-    runDisputeJob(
-      { db, clients, council: runtime.council, clock: () => TEST_NOW, log: keptLog().log },
-      analysisId,
-    ),
-  );
-  const deal = await signedDispute(db, FILES, { claims });
+  const deal = await councilDispute(db, answers, FILES);
   /** A ready comparison of the claim, as 5d leaves it. */
   const compare = async () => {
     const started = await startClaimAnalysis(
@@ -97,7 +86,7 @@ async function disputedDeal(answers: object[] = [GOOD, GOOD]) {
     );
     return started.id;
   };
-  return { ...deal, settle, compare, clients, summaries: `${deal.url}/summaries` };
+  return { ...deal, compare, summaries: `${deal.url}/summaries` };
 }
 
 describe("packet summaries", () => {

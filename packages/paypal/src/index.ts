@@ -72,6 +72,7 @@ export {
   type DisputeSummary,
   type EscalateInput,
   type EvidenceInput,
+  type MessageInput,
   type OfferInput,
   type SandboxDisputeAction,
 } from "./disputes.js";

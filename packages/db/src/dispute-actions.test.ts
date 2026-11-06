@@ -184,6 +184,40 @@ describe("dispute actions", () => {
     expect(await getDisputeAction(db, "not-an-id")).toBeUndefined();
   });
 
+  it("logs a message, a refund offer with its amount and an accepted claim", async () => {
+    const { escalate, dealId } = await disputed();
+    const send = async (input: NewDisputeAction) => {
+      const started = await startDisputeAction(db, input, at(3));
+      return finishDisputeAction(
+        db,
+        { actionId: started.id, outcome: { status: "sent", transport: "rest" } },
+        at(4),
+      );
+    };
+    const amount = { minor: 6000, currency: "USD" };
+    const message = await send({ ...escalate(1), kind: "message" });
+    expect(message.action.requestId).toBe(`pactpal-message-${testId(801)}`);
+    expect(message.entry).toMatchObject({ type: "DISPUTE_MESSAGE_SENT", actor: "seller" });
+    const offer = await send({ ...escalate(2), kind: "offer", offerType: "REFUND", amount });
+    expect(offer.action).toMatchObject({ offerType: "REFUND", amount });
+    expect(offer.entry).toMatchObject({
+      type: "OFFER_MADE",
+      payload: { offerType: "REFUND", amountMinor: 6000, currency: "USD" },
+    });
+    const accept = await send({
+      ...escalate(3),
+      kind: "accept",
+      amount: { ...amount, minor: 12000 },
+    });
+    expect(accept.entry).toMatchObject({
+      type: "CLAIM_ACCEPTED",
+      payload: { amountMinor: 12000, currency: "USD" },
+    });
+    expect(JSON.stringify(accept.entry?.payload)).not.toContain("sketch");
+    expect((await verifyStoredLedger(db, dealId)).valid).toBe(true);
+    await expect(db.query("UPDATE dispute_actions SET amount_minor = 1")).rejects.toThrow();
+  });
+
   it("keeps what was confirmed: no edits, no removal", async () => {
     const { escalate } = await disputed();
     await startDisputeAction(db, escalate(1), at(3));

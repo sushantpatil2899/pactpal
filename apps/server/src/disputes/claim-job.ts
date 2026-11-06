@@ -6,9 +6,11 @@ import {
   comparisonRows,
   comparisonText,
   recordLines,
+  responseCouncilTask,
   summaryCouncilTask,
   type ClaimAnalysis,
   type PacketSummary,
+  type ResponseDraft,
 } from "@pactpal/claims";
 import { runCouncil, type CouncilDeps, type CouncilTask } from "@pactpal/council";
 import {
@@ -18,17 +20,19 @@ import {
   getClaimAnalysis,
   getDeal,
   getDispute,
+  listClaimAnalyses,
   postgresContentStore,
   readLedger,
   type Database,
 } from "@pactpal/db";
 import { sha256Hex } from "@pactpal/ledger";
 import { agreementLines } from "@pactpal/qa";
+import { ANSWER_OPTIONS, answerFacts } from "@pactpal/words";
 import { documentFor } from "../acceptance/document.js";
 import { toCouncilRecord, toJson } from "../drafting/council-record.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import { signedRecord } from "../payments/signed-record.js";
-import { messagesOf, requestedEvidenceOf } from "./dispute-view.js";
+import { disputedAmountWords, messagesOf, requestedEvidenceOf } from "./dispute-view.js";
 import { ADDED_BY, exhibitWhat } from "./packet.js";
 import { packetChoices } from "./packet-service.js";
 
@@ -44,6 +48,7 @@ export interface ClaimJobDeps {
 /** The Render Workflow tasks that run a comparison and a summary (`<workflow>/<task>`). */
 export const CLAIM_TASK_NAME = "analyze-claim";
 export const SUMMARY_TASK_NAME = "draft-summary";
+export const RESPONSE_TASK_NAME = "draft-response";
 
 /** A fingerprint of numbered lines as the models read them. */
 const fingerprintOf = (lines: readonly { text: string }[]) =>
@@ -138,13 +143,13 @@ async function prepareSummary(
   marker: string,
 ): Promise<Prepared<PacketSummary>> {
   const { deal } = await dealOf(db, analysis);
-  const base =
-    analysis.basedOn === undefined ? undefined : await getClaimAnalysis(db, analysis.basedOn);
-  const comparison = claimAnalysisSchema.safeParse(base?.analysis);
-  if (!comparison.success) throw new NotBuilt("the comparison it is based on cannot be read");
   const record = recordLines(await readLedger(db, deal.id));
   const recordText = new Map(record.lines.map(({ n, text }) => [n, text]));
-  const rows = comparisonText(comparisonRows(comparison.data, recordText));
+  const rows =
+    analysis.basedOn === undefined
+      ? undefined
+      : await comparisonRowsOf(db, analysis.disputeId, recordText, analysis.basedOn);
+  if (!rows) throw new NotBuilt("the comparison it is based on cannot be read");
   const choices = await packetChoices(db, postgresContentStore(db, clock), deal);
   const exhibits = choices.exhibits
     .filter((e) => e.send !== "left-out")
@@ -165,8 +170,65 @@ async function prepareSummary(
   };
 }
 
+/** The newest ready comparison of a dispute as plain rows, or none. */
+async function comparisonRowsOf(
+  db: Database,
+  disputeId: string,
+  recordText: ReadonlyMap<number, string>,
+  basedOn?: string,
+): Promise<string[] | undefined> {
+  const base =
+    basedOn === undefined
+      ? (await listClaimAnalyses(db, disputeId, "claim")).find((c) => c.status === "ready")
+      : await getClaimAnalysis(db, basedOn);
+  const comparison = claimAnalysisSchema.safeParse(base?.analysis);
+  return comparison.success
+    ? comparisonText(comparisonRows(comparison.data, recordText))
+    : undefined;
+}
+
+/**
+ * Answer help (5h): the buyer's claim, the newest comparison (if any), the record and what PayPal
+ * lets the seller do now, each described in fixed words by code.
+ */
+async function prepareResponse(
+  db: Database,
+  analysis: Analysis,
+  marker: string,
+): Promise<Prepared<ResponseDraft>> {
+  const { dispute, deal } = await dealOf(db, analysis);
+  const record = recordLines(await readLedger(db, deal.id));
+  const recordText = new Map(record.lines.map(({ n, text }) => [n, text]));
+  const comparison = (await comparisonRowsOf(db, dispute.disputeId, recordText)) ?? [];
+  const claim = claimLines({
+    reason: dispute.reason,
+    buyerMessages: (messagesOf(dispute.details) ?? [])
+      .filter((m) => m.from === "BUYER")
+      .map((m) => m.text),
+  });
+  const amount = disputedAmountWords(dispute);
+  const options = ANSWER_OPTIONS.filter((code) => dispute.allowedActions.includes(code)).map(
+    (code) => ({ code, words: answerFacts(code, amount) }),
+  );
+  if (options.length === 0) throw new NotBuilt("PayPal allows no answer right now");
+  return {
+    made: responseCouncilTask({
+      claim: claim.modelView,
+      comparison,
+      record: record.lines,
+      options,
+      marker,
+    }),
+    fingerprints: {
+      claimSha256: fingerprintOf(claim.lines),
+      recordSha256: fingerprintOf(record.lines),
+    },
+    count: (content) => content.options.length,
+  };
+}
+
 /** Each job kind's name in logs and failure reasons. */
-const JOB_WORDS = { claim: "comparison", summary: "summary" } as const;
+const JOB_WORDS = { claim: "comparison", summary: "summary", response: "answer help" } as const;
 
 /** Runs the council on a prepared request and saves the result or the failure. */
 async function runPrepared<T>(
@@ -242,22 +304,34 @@ export async function runDisputeJob(deps: ClaimJobDeps, analysisId: string): Pro
       return;
     }
     const marker = council.newMarker();
-    if (analysis.kind === "summary") {
-      await runPrepared(
-        deps,
-        analysisId,
-        what,
-        await prepareSummary(db, analysis, clock, marker),
-        fail,
-      );
-    } else {
-      await runPrepared(
-        deps,
-        analysisId,
-        what,
-        await prepareClaim(db, analysis, clock, marker),
-        fail,
-      );
+    switch (analysis.kind) {
+      case "summary":
+        await runPrepared(
+          deps,
+          analysisId,
+          what,
+          await prepareSummary(db, analysis, clock, marker),
+          fail,
+        );
+        break;
+      case "response":
+        await runPrepared(
+          deps,
+          analysisId,
+          what,
+          await prepareResponse(db, analysis, marker),
+          fail,
+        );
+        break;
+      case "claim":
+        await runPrepared(
+          deps,
+          analysisId,
+          what,
+          await prepareClaim(db, analysis, clock, marker),
+          fail,
+        );
+        break;
     }
   } catch (error) {
     const reason = error instanceof NotBuilt ? error.message : `the ${what} failed unexpectedly`;

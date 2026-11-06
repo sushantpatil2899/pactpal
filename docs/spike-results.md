@@ -178,3 +178,21 @@ Council runs of the packet summary on the same made-up Maya case (the comparison
 - The note was 314 characters, neutral, with no amounts or links. One wording slip for the seller to catch: "the final design for stage 1" for the approved sketch.
 - Three voters, agreement 0.44, so it was flagged for review. 10 calls (4 failed), about 16,200 tokens counted, 120 seconds, most of it Nemotron's time-outs.
 - Limits of the check: one made-up case, one run per version, a council thinned by free-tier limits.
+
+## First live answer help (sub-phase 5h, 6 November 2026)
+
+One council run of answer help (response prompt version 1) on the made-up Maya case: the claim, the comparison, 15 record lines and the four options PayPal allows in an inquiry (message, refund offer, accept, escalate), with the code-written facts. Run locally with every model that has a key. Nothing was saved or sent to PayPal.
+
+| Model               | Result                     | Seconds | Tokens |
+| ------------------- | -------------------------- | ------- | ------ |
+| mistral             | valid, won (tie)           | 4.9     | 1,754  |
+| gpt-oss-groq        | valid                      | 2.7     | 2,423  |
+| gemini              | refused: daily limit (429) | -       | -      |
+| qwen-groq           | refused: rate limit (429)  | -       | -      |
+| nemotron-openrouter | timed out                  | -       | -      |
+
+- Both valid drafts passed every code check: all four options described once, cited entries exist, no links, legal words or amounts. The option notes were neutral and recommended none.
+- With two drafts, each voter's ranking of its own draft is ignored, so neither got a counted vote: agreement 0, flagged for review, and the winner is a tie-break.
+- Wording slips for the seller to catch, which code does not: the message calls the approved stage 1 sketch "the final design" and speaks of "the attached reference board" (a message carries no files, and the board was the buyer's), reading a style claim into it.
+- 10 calls (6 failed), about 9,400 tokens counted, 120 seconds, most of it Nemotron's time-out.
+- Limits of the check: one made-up case, one run, a council thinned to two models by free-tier limits.

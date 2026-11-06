@@ -426,6 +426,12 @@ describe("escalating and sandbox verdict steps", () => {
       { note: "Please review" },
     ],
     [
+      "messages the buyer",
+      "send_message",
+      (d: PayPalSandboxDisputes) => d.sendMessage("PP-D-1", { message: "Hello", requestId: "r" }),
+      { message: "Hello" },
+    ],
+    [
       "asks the seller for evidence",
       "require_evidence",
       (d: PayPalSandboxDisputes) => d.requireEvidence("PP-D-1", "seller", "r"),

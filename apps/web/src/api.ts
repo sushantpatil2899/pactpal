@@ -790,9 +790,11 @@ export interface UploadFileView {
 /** An escalation or evidence upload the seller confirmed, and how it ended. */
 export interface DisputeActionView {
   id: string;
-  kind: "escalate" | "evidence";
+  kind: "escalate" | "evidence" | "message" | "offer" | "accept";
   status: "sending" | "sent" | "unknown" | "refused";
   evidenceType: string | null;
+  offerType: string | null;
+  amount: { minor: number; currency: string } | null;
   note: string;
   files: UploadFileView[];
   totalBytes: number;
@@ -805,7 +807,18 @@ export interface DisputeActionView {
 export interface DisputeActionsView {
   /** Whether this server can send to PayPal (the seller app's keys are set). */
   canSend: boolean;
-  allowed: { escalate: boolean; evidence: boolean };
+  allowed: {
+    escalate: boolean;
+    evidence: boolean;
+    message: boolean;
+    offer: boolean;
+    accept: boolean;
+  };
+  /** The disputed amount: an offer's limit and what accepting refunds. */
+  disputed: { minor: number; currency: string; words: string } | null;
+  /** Answer help's drafts (5h), starting points for a message and an offer note. */
+  draftMessage: string | null;
+  draftOfferNote: string | null;
   /** The evidence types PayPal asks for (or only OTHER), with the comparison's suggestion. */
   evidenceTypes: string[];
   suggestedType: string | null;
@@ -875,6 +888,83 @@ export const sendEvidence = (
     { ...input, confirmed: true },
     "send the evidence",
     isActionAnswer,
+  );
+
+/** Sends the buyer a message through PayPal (5h). */
+export const sendDisputeMessage = (dealId: string, disputeId: string, note: ConfirmedNote) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "message"),
+    { ...note, confirmed: true },
+    "send the message",
+    isActionAnswer,
+  );
+
+/** Offers the buyer a refund of the amount the seller typed (5h). */
+export const makeRefundOffer = (
+  dealId: string,
+  disputeId: string,
+  input: ConfirmedNote & { amount: { minor: number; currency: string } },
+) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "offer"),
+    { ...input, confirmed: true },
+    "make the offer",
+    isActionAnswer,
+  );
+
+/** Accepts the claim: PayPal refunds the disputed amount and closes the case (5h). */
+export const acceptDisputeClaim = (dealId: string, disputeId: string, note: ConfirmedNote) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "accept"),
+    { ...note, confirmed: true, understandsRefund: true },
+    "accept the claim",
+    isActionAnswer,
+  );
+
+/** One option PayPal allows, with its fixed facts (by code) and the AI's note on this case. */
+export interface AnswerOptionView {
+  code: string;
+  facts: string;
+  fits: string;
+  record: { n: number; text: string }[];
+}
+
+/** One answer help draft (5h): a message, notes on each option and an offer note. */
+export interface ResponseView {
+  id: string;
+  status: "running" | "ready" | "failed";
+  createdAt: string;
+  failureReason: string | null;
+  draft: { message: string; offerNote: string; options: AnswerOptionView[] } | null;
+  council: CouncilView | null;
+}
+
+export interface ResponsesView {
+  canDraft: boolean;
+  responses: ResponseView[];
+}
+
+const isResponses = (value: unknown): value is ResponsesView =>
+  isObject(value) &&
+  typeof value.canDraft === "boolean" &&
+  Array.isArray(value.responses) &&
+  value.responses.every(isCouncilJob);
+
+export async function getResponses(dealId: string, disputeId: string): Promise<ResponsesView> {
+  return readChecked(
+    await fetch(disputeStepUrl(dealId, disputeId, "responses")),
+    isResponses,
+    "load the answer help",
+  );
+}
+
+/** Starts a council draft of answer help. */
+export const draftResponse = (dealId: string, disputeId: string) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "responses"),
+    {},
+    "start the answer help",
+    isResponses,
   );
 
 /** Sends an action whose outcome was unknown again, with the same content and request id. */

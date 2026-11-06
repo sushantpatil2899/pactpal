@@ -32,7 +32,7 @@ import {
 import { ReceiptIntegrityError, buildReceipt } from "../acceptance/receipt.js";
 import { addedByRole } from "../deals/file-routes.js";
 import { nameOf } from "../deals/parties.js";
-import { money } from "../deals/scope-view.js";
+import { disputedAmountWords } from "./dispute-view.js";
 import {
   packetMeter,
   pdfNameOf,
@@ -328,10 +328,7 @@ export async function buildPacket(
     {
       disputeId: dispute.disputeId,
       reason: dispute.reason,
-      amount:
-        dispute.amountMinor === null || dispute.currency === null
-          ? null
-          : `${money(dispute.amountMinor, dispute.currency).text} ${dispute.currency}`,
+      amount: disputedAmountWords(dispute),
       stage: dispute.stage,
       deal: { id: deal.id, title: deal.title },
       sellerName: nameOf(seller, "Seller"),

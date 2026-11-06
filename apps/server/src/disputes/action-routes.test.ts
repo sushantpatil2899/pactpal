@@ -1,18 +1,21 @@
 import { createHash } from "node:crypto";
-import { readLedger, recordDispute } from "@pactpal/db";
-import { TEST_NOW, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
+import { readLedger } from "@pactpal/db";
+import { testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import {
   DisputeActionNotAllowed,
   PayPalApiError,
   PayPalNetworkError,
+  type AcceptClaimInput,
   type EscalateInput,
   type EvidenceInput,
+  type MessageInput,
+  type OfferInput,
 } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { buyerVisitors } from "../deals/test-app.js";
 import type { DisputeWriter } from "./action-service.js";
 import type { CheckRequest } from "./checker.js";
-import { expectSellerOnly, signedDispute, type TestFile } from "./test-support.js";
+import { expectSellerOnly, paypalState, signedDispute, type TestFile } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 const sha = (value: Uint8Array | string) => createHash("sha256").update(value).digest("hex");
@@ -26,11 +29,13 @@ const FILES: TestFile[] = [
   ["sketch.png", "deliverable", png(60), "seller"],
 ];
 
+type WriteInput = EscalateInput | EvidenceInput | MessageInput | OfferInput | AcceptClaimInput;
+
 /** A stand-in for PayPal's dispute writes: keeps what it was sent, or fails as told. */
 function fakeWriter() {
-  const sent: { action: string; disputeId: string; input: EscalateInput | EvidenceInput }[] = [];
+  const sent: { action: string; disputeId: string; input: WriteInput }[] = [];
   const state: { fail: Error | undefined } = { fail: undefined };
-  const answer = (action: string, disputeId: string, input: EscalateInput | EvidenceInput) => {
+  const answer = (action: string, disputeId: string, input: WriteInput) => {
     if (state.fail !== undefined) return Promise.reject(state.fail);
     sent.push({ action, disputeId, input });
     return Promise.resolve({ data: { disputeId }, transport: "rest" as const, debugId: "dbg-1" });
@@ -38,13 +43,16 @@ function fakeWriter() {
   const writer: DisputeWriter = {
     escalate: (disputeId, input) => answer("escalate", disputeId, input),
     provideEvidence: (disputeId, input) => answer("provide_evidence", disputeId, input),
+    sendMessage: (disputeId, input) => answer("send_message", disputeId, input),
+    makeOffer: (disputeId, input) => answer("make_offer", disputeId, input),
+    acceptClaim: (disputeId, input) => answer("accept_claim", disputeId, input),
   };
   return { writer, sent, state };
 }
 
 interface ActionsView {
   canSend: boolean;
-  allowed: { escalate: boolean; evidence: boolean };
+  allowed: Record<string, boolean>;
   evidenceTypes: string[];
   suggestedType: string | null;
   draftNote: string | null;
@@ -57,6 +65,9 @@ interface ActionsView {
     overLimit: boolean;
   } | null;
   actions: { id: string; kind: string; status: string; failure: string | null }[];
+  disputed: { minor: number; currency: string; words: string } | null;
+  draftMessage: string | null;
+  draftOfferNote: string | null;
 }
 
 /** A signed deal with a dispute PayPal lets the seller act on, a stand-in PayPal and a checker. */
@@ -72,20 +83,8 @@ async function disputedDeal(options: { writer?: boolean } = {}) {
       },
     },
   });
-  /** PayPal's state of the dispute at the last check. */
   const paypalAllows = (allowedActions: string[], requestedEvidence: string[] = []) =>
-    recordDispute(
-      db,
-      {
-        disputeId: "PP-R-TEST-1",
-        status: "WAITING_FOR_SELLER_RESPONSE",
-        allowedActions,
-        offerTypes: [],
-        details: { requestedEvidence },
-      },
-      { dealId: deal.dealId, stage: 1, invoiceId: "INV2-TEST-PAID", matchedBy: "transaction" },
-      TEST_NOW,
-    );
+    paypalState(db, deal.dealId, { allowedActions, requestedEvidence });
   const actions = () => deal.call("GET", `${deal.url}/actions`, deal.token);
   const view = async () => (await actions()).json<ActionsView>();
   const buildPacket = async () => {
@@ -271,6 +270,88 @@ describe("when PayPal does not answer properly", () => {
       token,
       (await buyerVisitors(db, dealId, buyer.id))[0],
     );
+    await app.close();
+  });
+});
+
+describe("answering an inquiry", () => {
+  it("messages the buyer, offers a bounded refund and logs both", async () => {
+    const { app, call, token, url, paypal, dealId, view } = await disputedDeal();
+    await paypalState(db, dealId, {
+      allowedActions: ["send_message", "make_offer", "accept_claim", "escalate"],
+      offerTypes: ["REFUND", "REFUND_WITH_RETURN"],
+    });
+    expect(await view()).toMatchObject({
+      allowed: { message: true, offer: true, accept: true, escalate: true, evidence: false },
+      disputed: { minor: 12_000, currency: "USD", words: "120.00 USD" },
+      draftMessage: null,
+      draftOfferNote: null,
+    });
+    expect((await call("POST", `${url}/message`, token, confirmed())).statusCode).toBe(201);
+    const offer = (amount: object) =>
+      call("POST", `${url}/offer`, token, { ...confirmed(), amount });
+    expect((await offer({ minor: 12_001, currency: "USD" })).json()).toEqual({
+      error: "the offer must be in the dispute's currency and at most the disputed amount",
+    });
+    expect((await offer({ minor: 6000, currency: "EUR" })).statusCode).toBe(409);
+    expect((await offer({ minor: 0, currency: "USD" })).statusCode).toBe(400);
+    expect((await offer({ minor: 6000, currency: "USD" })).statusCode).toBe(201);
+    expect(paypal.sent.map((s) => [s.action, s.input])).toEqual([
+      [
+        "send_message",
+        { message: NOTE, requestId: expect.stringMatching(/^pactpal-message-/) as string },
+      ],
+      [
+        "make_offer",
+        {
+          offerType: "REFUND",
+          amount: { minor: 6000, currency: "USD" },
+          note: NOTE,
+          requestId: expect.stringMatching(/^pactpal-offer-/) as string,
+        },
+      ],
+    ]);
+    const types = (await readLedger(db, dealId)).slice(-2).map((e) => e.type);
+    expect(types).toEqual(["DISPUTE_MESSAGE_SENT", "OFFER_MADE"]);
+    expect((await view()).actions[0]).toMatchObject({
+      kind: "offer",
+      offerType: "REFUND",
+      amount: { minor: 6000, currency: "USD" },
+    });
+    await app.close();
+  });
+
+  it("accepts the claim only with the second tick, as a full refund", async () => {
+    const { app, call, token, url, paypal, dealId } = await disputedDeal();
+    await paypalState(db, dealId, { allowedActions: ["accept_claim"] });
+    const accept = (body: object) => call("POST", `${url}/accept`, token, body);
+    expect((await accept(confirmed())).statusCode).toBe(400);
+    expect((await accept({ ...confirmed(), understandsRefund: true })).statusCode).toBe(201);
+    expect(paypal.sent).toEqual([
+      {
+        action: "accept_claim",
+        disputeId: "PP-R-TEST-1",
+        input: { note: NOTE, requestId: expect.stringMatching(/^pactpal-accept-/) as string },
+      },
+    ]);
+    expect((await readLedger(db, dealId)).at(-1)).toMatchObject({
+      type: "CLAIM_ACCEPTED",
+      payload: { amountMinor: 12_000, currency: "USD" },
+    });
+    await app.close();
+  });
+
+  it("refuses an offer when PayPal takes no refund offer", async () => {
+    const { app, call, token, url, dealId, paypal } = await disputedDeal();
+    await paypalState(db, dealId, { allowedActions: ["make_offer"], offerTypes: ["REPLACEMENT"] });
+    const sent = await call("POST", `${url}/offer`, token, {
+      ...confirmed(),
+      amount: { minor: 100, currency: "USD" },
+    });
+    expect(sent.json()).toEqual({
+      error: "PayPal does not take a refund offer for this dispute now",
+    });
+    expect(paypal.sent).toEqual([]);
     await app.close();
   });
 });

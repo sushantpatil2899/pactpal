@@ -3,6 +3,7 @@ import type { Validation } from "@pactpal/council";
 import { z } from "zod";
 import { MAX_NOTE_CHARS } from "./summary-prompt.js";
 import type { RecordLine } from "./record.js";
+import { textProblems } from "./text-checks.js";
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
@@ -30,14 +31,6 @@ export interface SummaryContext {
   /** The comparison's and the record's own text: amounts in the note must appear here. */
   sourceText: string;
 }
-
-const LINK = /https?:\/\/|www\.|[\w.+-]+@[\w-]+\.[\w.]+/i;
-/** Legal or outcome words the note must never use (product guardrail 5). */
-const BANNED =
-  /\b(guarantee[ds]?|legally binding|court|lawsuits?|fraud\w*|will win|chargeback fraud)\b/i;
-/** A money amount: a currency sign or code with a number. */
-const MONEY = /(?:[$€£]\s?\d[\d,]*(?:\.\d+)?)|(?:\d[\d,]*(?:\.\d+)?\s?(?:usd|eur|gbp|cad|aud)\b)/gi;
-const digitsOf = (amount: string) => amount.replace(/[^\d.]/g, "").replace(/\.0+$/, "");
 
 /**
  * Checks a summary against what the models were given: at least one sentence cites record
@@ -81,13 +74,7 @@ export function checkSummary(
   if (missing.length > 0) errors.push(`${String(missing.length)} document(s) not picked`);
   if (unknown.length > 0) errors.push(`${String(unknown.length)} unknown document(s) picked`);
   if (new Set(picked).size !== picked.length) errors.push("a document is picked twice");
-  if (LINK.test(summary.note)) errors.push("the note has a link or an email address");
-  if (BANNED.test(summary.note)) errors.push("the note uses legal or outcome words");
-  const known = context.sourceText;
-  const amounts = summary.note.match(MONEY) ?? [];
-  if (amounts.some((amount) => !known.includes(digitsOf(amount)))) {
-    errors.push("the note names an amount the record does not hold");
-  }
+  errors.push(...textProblems(summary.note, "the note", { known: context.sourceText }));
   const validation = {
     valid: errors.length === 0,
     score: checked === 0 ? 0 : found / checked,

@@ -3,6 +3,8 @@ export { markWords, markedLine, type LineMark } from "./marks.js";
 export { changeLines, dayWords, type ChangeFacts } from "./changes.js";
 export { sizeWords } from "./sizes.js";
 export {
+  ANSWER_OPTIONS,
+  answerFacts,
   deadlineIsNear,
   deadlineWords,
   disputeActionWords,

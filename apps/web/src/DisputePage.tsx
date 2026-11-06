@@ -10,6 +10,7 @@ import { getDisputePage, type DisputePageView } from "./api";
 import { ClaimPanel } from "./ClaimPanel";
 import { DisputeActions } from "./DisputeActions";
 import { PacketPanel } from "./PacketPanel";
+import { ResponsePanel } from "./ResponsePanel";
 import { CheckNow } from "./DisputeCheck";
 import { when } from "./format";
 import { WRAP } from "./styles";
@@ -49,6 +50,17 @@ function eventWords(type: string, payload: unknown): string {
     }
     case "DISPUTE_ESCALATED":
       return "You asked PayPal to decide the case (escalated)";
+    case "DISPUTE_MESSAGE_SENT":
+      return "You messaged the buyer through PayPal";
+    case "OFFER_MADE":
+      return "amountMinor" in fields &&
+        typeof fields.amountMinor === "number" &&
+        "currency" in fields &&
+        typeof fields.currency === "string"
+        ? `You offered a refund of ${(fields.amountMinor / 100).toFixed(2)} ${fields.currency}`
+        : "You offered a refund";
+    case "CLAIM_ACCEPTED":
+      return "You accepted the claim: PayPal refunds the buyer";
     case "EVIDENCE_UPLOADED": {
       const files = "files" in fields && Array.isArray(fields.files) ? fields.files.length : 0;
       return `You sent evidence to PayPal (${String(files)} file${files === 1 ? "" : "s"})`;
@@ -165,6 +177,8 @@ export function DisputePage({ dealId, disputeId }: { dealId: string; disputeId: 
       <ClaimPanel dealId={dealId} disputeId={disputeId} />
 
       <PacketPanel dealId={dealId} disputeId={disputeId} />
+
+      <ResponsePanel dealId={dealId} disputeId={disputeId} />
 
       <section aria-labelledby="actions">
         <h3 id="actions">What you can do now</h3>

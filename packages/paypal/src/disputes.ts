@@ -189,7 +189,7 @@ function parseItems(operation: string, items: unknown[]): DisputeSummary[] {
 
 /** Seller answers to a dispute, by the action name PayPal uses in its links. */
 export type DisputeAction =
-  "provide_evidence" | "make_offer" | "accept_claim" | "appeal" | "escalate";
+  "provide_evidence" | "make_offer" | "accept_claim" | "appeal" | "escalate" | "send_message";
 
 /** Sandbox-only actions that stand in for PayPal's own staff; see `PayPalSandboxDisputes`. */
 export type SandboxDisputeAction = "require_evidence" | "adjudicate";
@@ -213,6 +213,12 @@ export interface OfferInput {
 
 export interface EscalateInput {
   note: string;
+  requestId: string;
+}
+
+export interface MessageInput {
+  /** The seller's message to the buyer, as PayPal shows it in the case. */
+  message: string;
   requestId: string;
 }
 
@@ -372,6 +378,17 @@ export class PayPalDisputes extends PayPalOperations {
           : undefined,
         rest: () => this.post(disputeId, "accept-claim", input.requestId, { body }),
       }),
+    );
+  }
+
+  /**
+   * Sends the buyer a message in the case (inquiry stage only). PayPal's reference names no field
+   * for the text; it is sent as JSON `{ "message": ... }` (to be confirmed by the first real send).
+   */
+  async sendMessage(disputeId: string, input: MessageInput): Promise<PayPalResult<DisputeAnswer>> {
+    const body = { message: input.message };
+    return this.answer(disputeId, "send_message", undefined, () =>
+      this.restOnly(this.post(disputeId, "send-message", input.requestId, { body })),
     );
   }
 

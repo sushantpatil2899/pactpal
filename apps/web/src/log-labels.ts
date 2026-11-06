@@ -33,11 +33,15 @@ const EVENT_LABELS: Record<string, string> = {
   DISPUTE_OPENED: "PayPal dispute found",
   DISPUTE_UPDATED: "PayPal dispute changed",
   DISPUTE_ESCALATED: "Dispute escalated to PayPal (seller confirmed)",
+  DISPUTE_MESSAGE_SENT: "Message sent to the buyer through PayPal (seller confirmed)",
   DISPUTE_RESOLVED: "PayPal dispute decided",
   CLAIM_ANALYZED: "Claim compared with the record (AI draft, fingerprint only)",
   SUMMARY_DRAFTED: "Packet summary drafted (AI draft, fingerprint only)",
   PACKET_BUILT: "Evidence packet built (not sent)",
   EVIDENCE_UPLOADED: "Evidence sent to PayPal (seller confirmed)",
+  OFFER_MADE: "Refund offered through PayPal (seller confirmed)",
+  CLAIM_ACCEPTED: "Claim accepted: PayPal refunds the buyer (seller confirmed)",
+  RESPONSE_DRAFTED: "Answer help drafted (AI draft, fingerprint only)",
   NOTE_ADDED: "Note added",
 };
 

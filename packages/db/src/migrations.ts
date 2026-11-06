@@ -897,4 +897,46 @@ CREATE TRIGGER dispute_actions_moves BEFORE UPDATE OR DELETE ON dispute_actions
 CREATE TRIGGER dispute_actions_no_truncate BEFORE TRUNCATE ON dispute_actions
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0025_dispute_answers",
+    // Answering an inquiry (5h): a third dispute council job (help drafting an answer), and three
+    // more seller sends (a message, a refund offer, accepting the claim) with the amount and offer
+    // type, kept as confirmed like the others.
+    sql: `ALTER TABLE claim_analyses DROP CONSTRAINT claim_analyses_kind_check;
+ALTER TABLE claim_analyses ADD CONSTRAINT claim_analyses_kind_check
+  CHECK (kind IN ('claim', 'summary', 'response'));
+
+ALTER TABLE dispute_actions DROP CONSTRAINT dispute_actions_kind_check;
+ALTER TABLE dispute_actions ADD CONSTRAINT dispute_actions_kind_check
+  CHECK (kind IN ('escalate', 'evidence', 'message', 'offer', 'accept'));
+ALTER TABLE dispute_actions ADD COLUMN offer_type text CHECK (offer_type ~ '^[A-Z_]{1,60}$');
+ALTER TABLE dispute_actions ADD COLUMN amount_minor bigint CHECK (amount_minor > 0);
+ALTER TABLE dispute_actions ADD COLUMN currency text CHECK (currency ~ '^[A-Z]{3}$');
+ALTER TABLE dispute_actions ADD CONSTRAINT dispute_actions_offer_type
+  CHECK ((kind = 'offer') = (offer_type IS NOT NULL));
+ALTER TABLE dispute_actions ADD CONSTRAINT dispute_actions_amount
+  CHECK ((kind IN ('offer', 'accept')) = (amount_minor IS NOT NULL AND currency IS NOT NULL));
+
+CREATE OR REPLACE FUNCTION pactpal_dispute_action_moves() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE'
+     OR NOT ((OLD.status = 'sending' AND NEW.status IN ('sent', 'unknown', 'refused'))
+             OR (OLD.status = 'unknown' AND NEW.status = 'sending'))
+     OR NEW.id <> OLD.id OR NEW.deal_id <> OLD.deal_id OR NEW.dispute_id <> OLD.dispute_id
+     OR NEW.seller_id <> OLD.seller_id OR NEW.kind <> OLD.kind
+     OR NEW.request_id <> OLD.request_id
+     OR NEW.packet_id IS DISTINCT FROM OLD.packet_id
+     OR NEW.evidence_type IS DISTINCT FROM OLD.evidence_type
+     OR NEW.offer_type IS DISTINCT FROM OLD.offer_type
+     OR NEW.amount_minor IS DISTINCT FROM OLD.amount_minor
+     OR NEW.currency IS DISTINCT FROM OLD.currency
+     OR NEW.note <> OLD.note OR NEW.note_sha256 <> OLD.note_sha256
+     OR NEW.files <> OLD.files OR NEW.total_bytes <> OLD.total_bytes
+     OR NEW.created_at <> OLD.created_at THEN
+    RAISE EXCEPTION 'dispute_actions: an action only moves on and keeps what was confirmed'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$`,
+  },
 ];

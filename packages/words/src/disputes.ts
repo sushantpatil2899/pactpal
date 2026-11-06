@@ -29,8 +29,42 @@ const ACTIONS: Record<string, string> = {
   acknowledge_return_item: "Confirm the returned item arrived.",
 };
 
-/** The actions PactPal carries out now (5g); the others come in a later step. */
-const WORKING = new Set(["escalate", "provide_evidence"]);
+/** The actions PactPal carries out now (5g, 5h); the others come in a later step. */
+const WORKING = new Set([
+  "escalate",
+  "provide_evidence",
+  "send_message",
+  "make_offer",
+  "accept_claim",
+]);
+
+/** The actions the answer help (5h) describes, in the order the page lists them. */
+export const ANSWER_OPTIONS = [
+  "send_message",
+  "make_offer",
+  "accept_claim",
+  "escalate",
+  "provide_evidence",
+] as const;
+
+/**
+ * What an action does, in fixed words written by code, never by AI (wording approved by the
+ * owner, 5h); `amount` is the disputed amount ("120.00 USD"), when PayPal gave one.
+ */
+export function answerFacts(action: string, amount: string | null): string {
+  const upTo = amount === null ? "" : `, up to ${amount}`;
+  const refund = amount ?? "the disputed amount";
+  switch (action) {
+    case "send_message":
+      return "Your message goes to the buyer in PayPal's Resolution Center. The case stays open.";
+    case "make_offer":
+      return `PayPal shows the buyer your refund offer${upTo}. If the buyer accepts, PayPal refunds it and closes the case.`;
+    case "accept_claim":
+      return `PayPal refunds the buyer ${refund} from your PayPal account and closes the case in the buyer's favour. This cannot be undone.`;
+    default:
+      return ACTIONS[action] ?? `${plainCode(action)}: PactPal cannot do this yet.`;
+  }
+}
 
 /**
  * What a PayPal action lets the seller do, in one plain sentence (wording approved by the owner,

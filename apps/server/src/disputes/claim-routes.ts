@@ -1,11 +1,14 @@
 import {
   CLAIM_PROMPT_VERSION,
+  RESPONSE_PROMPT_VERSION,
   SUMMARY_PROMPT_VERSION,
   claimAnalysisSchema,
   packetSummarySchema,
   recordLines,
+  responseDraftSchema,
 } from "@pactpal/claims";
 import { COUNCIL_RANK_PROMPT_VERSION } from "@pactpal/council";
+import { ANSWER_OPTIONS, answerFacts } from "@pactpal/words";
 import {
   AnalysisNotAllowedError,
   addArtifact,
@@ -25,7 +28,7 @@ import { readBody, sendRefusal, type DealLookup, type FoundDeal } from "../deals
 import { councilRecordSchema } from "../drafting/council-record.js";
 import { RunnerBusyError, type ClaimRunner } from "./checker.js";
 import { sellersDispute } from "./dispute-lookup.js";
-import { messagesOf } from "./dispute-view.js";
+import { disputedAmountWords, messagesOf } from "./dispute-view.js";
 
 export interface ClaimRouteOptions {
   sellersDeal: DealLookup;
@@ -110,12 +113,40 @@ function summaryView(job: ClaimAnalysisRecord, recordText: ReadonlyMap<number, s
 const JOBS = {
   claim: { promptVersion: CLAIM_PROMPT_VERSION, words: "Claim comparison", noun: "comparison" },
   summary: { promptVersion: SUMMARY_PROMPT_VERSION, words: "Packet summary", noun: "summary" },
+  response: { promptVersion: RESPONSE_PROMPT_VERSION, words: "Answer help", noun: "answer help" },
 } as const;
 
 /**
- * Comparing a dispute claim with the record (5d) and drafting the packet summary from it (5f), for
- * the seller only. Both are drafts by a council of AI models, kept apart from the evidence; the
- * log gets their fingerprints only.
+ * One answer help draft for the page (5h): the message, each option with its fixed facts (by
+ * code) and the AI's sentences with their entries' words, the offer note and the council.
+ */
+function responseView(
+  job: ClaimAnalysisRecord,
+  recordText: ReadonlyMap<number, string>,
+  amount: string | null,
+) {
+  const parsed = responseDraftSchema.safeParse(job.analysis);
+  return {
+    ...jobView(job),
+    draft: parsed.success
+      ? {
+          message: parsed.data.message,
+          offerNote: parsed.data.offerNote,
+          options: parsed.data.options.map((option) => ({
+            code: option.code,
+            facts: answerFacts(option.code, amount),
+            fits: option.fits,
+            record: option.record.map(entryOf(recordText)),
+          })),
+        }
+      : null,
+  };
+}
+
+/**
+ * Comparing a dispute claim with the record (5d), drafting the packet summary from it (5f) and
+ * answer help (5h), for the seller only. All are drafts by a council of AI models, kept apart
+ * from the evidence; the log gets their fingerprints only.
  */
 export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options) => {
   const { sellersDeal, clock, newId, claims } = options;
@@ -135,6 +166,15 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
       listClaimAnalyses(found.db, stored.disputeId, "claim"),
     ]);
     const recordText = new Map(recordLines(ledger).lines.map(({ n, text }) => [n, text]));
+    if (kind === "response") {
+      const amount = disputedAmountWords(stored);
+      return reply.send({
+        canDraft:
+          claims !== undefined &&
+          ANSWER_OPTIONS.some((code) => stored.allowedActions.includes(code)),
+        responses: jobs.map((job) => responseView(job, recordText, amount)),
+      });
+    }
     if (kind === "summary") {
       return reply.send({
         canDraft: claims !== undefined && comparisons.some((c) => c.status === "ready"),
@@ -246,6 +286,21 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
       kind: "claim",
       ...(pasted === undefined ? {} : { pastedArtifactId: pasted.id }),
     });
+  });
+
+  app.get(`${dispute}/responses`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    return both ? answer(reply, both.found, both.dispute, "response") : reply;
+  });
+
+  // Answer help reads the newest comparison when there is one, but does not need it.
+  app.post(`${dispute}/responses`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    if (!both) return reply;
+    if (!ANSWER_OPTIONS.some((code) => both.dispute.allowedActions.includes(code))) {
+      return reply.code(409).send({ error: "PayPal allows no answer for this dispute now" });
+    }
+    return startJob(request, reply, both, { kind: "response" });
   });
 
   app.get(`${dispute}/summaries`, async (request, reply) => {

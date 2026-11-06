@@ -1,8 +1,17 @@
-import { addArtifact, postgresContentStore, type Database } from "@pactpal/db";
+import { addArtifact, postgresContentStore, recordDispute, type Database } from "@pactpal/db";
 import { TEST_NOW, createTestDeal, linkTestDispute, testId } from "@pactpal/db/testing";
 import { PayPalNetworkError, type DisputeDetails } from "@pactpal/paypal";
 import { expect } from "vitest";
-import { buyerVisitors, dealTestApp, signThroughRoutes, signedInAs } from "../deals/test-app.js";
+import { councilOf } from "@pactpal/council/testing";
+import {
+  buyerVisitors,
+  dealTestApp,
+  queuedDrafting,
+  signThroughRoutes,
+  signedInAs,
+} from "../deals/test-app.js";
+import { inProcessClaimRunner } from "./checker.js";
+import { runDisputeJob } from "./claim-job.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import type { DisputeReader } from "./dispute-sync.js";
 
@@ -134,4 +143,59 @@ export async function signedDispute(
   }
   const url = `/api/deals/${deal.dealId}/disputes/PP-R-TEST-1`;
   return { ...deal, ...env, token, url };
+}
+
+/**
+ * Test code only: PayPal's state of dispute PP-R-TEST-1 at the last check, tied to stage 1 of
+ * `dealId`: what it allows, the offer types, the evidence it asks for and the buyer's messages.
+ */
+export const paypalState = (
+  db: Database,
+  dealId: string,
+  state: {
+    allowedActions: string[];
+    offerTypes?: string[];
+    requestedEvidence?: string[];
+    buyerSays?: string;
+  },
+) =>
+  recordDispute(
+    db,
+    {
+      disputeId: "PP-R-TEST-1",
+      reason: "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+      status: "WAITING_FOR_SELLER_RESPONSE",
+      stageName: "INQUIRY",
+      amount: { minor: 12_000, currency: "USD" },
+      allowedActions: state.allowedActions,
+      offerTypes: state.offerTypes ?? [],
+      details: {
+        requestedEvidence: state.requestedEvidence ?? [],
+        messages:
+          state.buyerSays === undefined ? [] : [{ postedBy: "BUYER", content: state.buyerSays }],
+      },
+    },
+    { dealId, stage: 1, invoiceId: "INV2-TEST-PAID", matchedBy: "transaction" },
+    TEST_NOW,
+  );
+
+/**
+ * Test code only: a signed, disputed deal whose dispute council jobs run in process with stand-in
+ * models answering `answers` (`settle` runs them), with `files` added as in `signedDispute`.
+ */
+export async function councilDispute(
+  db: Database,
+  answers: readonly object[],
+  files: readonly TestFile[] = [],
+) {
+  const clients = councilOf(answers);
+  const { runtime, settle } = queuedDrafting(clients);
+  const claims = inProcessClaimRunner(runtime, (analysisId) =>
+    runDisputeJob(
+      { db, clients, council: runtime.council, clock: () => TEST_NOW, log: keptLog().log },
+      analysisId,
+    ),
+  );
+  const deal = await signedDispute(db, files, { claims });
+  return { ...deal, settle, clients };
 }

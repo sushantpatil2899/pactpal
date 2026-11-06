@@ -1,4 +1,4 @@
-import { claimAnalysisSchema, packetSummarySchema } from "@pactpal/claims";
+import { claimAnalysisSchema, packetSummarySchema, responseDraftSchema } from "@pactpal/claims";
 import {
   finishDisputeAction,
   listClaimAnalyses,
@@ -16,10 +16,14 @@ import {
   PayPalApiError,
   type PayPalDisputes,
 } from "@pactpal/paypal";
+import { disputedAmountWords } from "./dispute-view.js";
 import { PACKET_LIMITS, uploadFilesOf } from "./packet.js";
 
 /** What PactPal sends PayPal for a dispute (5g); absent until the seller app's keys are set. */
-export type DisputeWriter = Pick<PayPalDisputes, "escalate" | "provideEvidence">;
+export type DisputeWriter = Pick<
+  PayPalDisputes,
+  "escalate" | "provideEvidence" | "sendMessage" | "makeOffer" | "acceptClaim"
+>;
 
 /** The evidence types the seller may choose: those PayPal asks for, else only "OTHER". */
 export const evidenceTypesFor = (requested: readonly string[]): string[] =>
@@ -29,7 +33,7 @@ export const evidenceTypesFor = (requested: readonly string[]): string[] =>
 async function newestReady<T>(
   db: Database,
   disputeId: string,
-  kind: "claim" | "summary",
+  kind: "claim" | "summary" | "response",
   read: (value: unknown) => T | undefined,
 ): Promise<T | undefined> {
   const jobs = await listClaimAnalyses(db, disputeId, kind);
@@ -43,6 +47,8 @@ export const actionView = (action: DisputeActionRecord) => ({
   kind: action.kind,
   status: action.status,
   evidenceType: action.evidenceType ?? null,
+  offerType: action.offerType ?? null,
+  amount: action.amount ?? null,
   note: action.note,
   files: action.files.map(({ exhibit, name, bytes }) => ({ exhibit, name, bytes })),
   totalBytes: action.totalBytes,
@@ -62,7 +68,7 @@ export async function actionChoices(
   dispute: StoredDispute,
   requested: readonly string[],
 ) {
-  const [suggested, note, packets, actions, ledger] = await Promise.all([
+  const [suggested, note, answerHelp, packets, actions, ledger] = await Promise.all([
     newestReady(
       db,
       dispute.disputeId,
@@ -74,6 +80,12 @@ export async function actionChoices(
       dispute.disputeId,
       "summary",
       (value) => packetSummarySchema.safeParse(value).data?.note,
+    ),
+    newestReady(
+      db,
+      dispute.disputeId,
+      "response",
+      (value) => responseDraftSchema.safeParse(value).data,
     ),
     listPackets(db, dispute.disputeId),
     listDisputeActions(db, dispute.disputeId),
@@ -87,7 +99,22 @@ export async function actionChoices(
     allowed: {
       escalate: dispute.allowedActions.includes("escalate"),
       evidence: dispute.allowedActions.includes("provide_evidence"),
+      message: dispute.allowedActions.includes("send_message"),
+      offer: dispute.allowedActions.includes("make_offer") && dispute.offerTypes.includes("REFUND"),
+      accept: dispute.allowedActions.includes("accept_claim") && dispute.amountMinor !== null,
     },
+    /** The disputed amount: an offer's limit and what accepting refunds. */
+    disputed:
+      dispute.amountMinor === null || dispute.currency === null
+        ? null
+        : {
+            minor: dispute.amountMinor,
+            currency: dispute.currency,
+            words: disputedAmountWords(dispute),
+          },
+    /** The newest ready answer help (5h): starting points for the message and the offer note. */
+    draftMessage: answerHelp?.message ?? null,
+    draftOfferNote: answerHelp?.offerNote ?? null,
     evidenceTypes: types,
     suggestedType: suggested !== undefined && types.includes(suggested) ? suggested : null,
     draftNote: note ?? null,
@@ -130,6 +157,38 @@ export function failedOutcome(error: unknown): Exclude<ActionOutcome, { status: 
   return { status: "unknown", failure: "PayPal did not answer properly; it may have received it" };
 }
 
+/** The PayPal call for one reserved action, with its fixed request id. */
+function send(
+  writer: DisputeWriter,
+  action: DisputeActionRecord,
+  files: readonly { name: string; content: Uint8Array }[],
+) {
+  const { disputeId, note, requestId } = action;
+  switch (action.kind) {
+    case "escalate":
+      return writer.escalate(disputeId, { note, requestId });
+    case "message":
+      return writer.sendMessage(disputeId, { message: note, requestId });
+    case "offer":
+      return writer.makeOffer(disputeId, {
+        offerType: action.offerType ?? "REFUND",
+        amount: action.amount ?? { minor: 0, currency: "USD" },
+        note,
+        requestId,
+      });
+    case "accept":
+      // A full refund: PayPal refunds the disputed amount (no partial amount is sent).
+      return writer.acceptClaim(disputeId, { note, requestId });
+    case "evidence":
+      return writer.provideEvidence(disputeId, {
+        evidenceType: action.evidenceType ?? "OTHER",
+        notes: note,
+        files: files.map(({ name, content }) => ({ filename: name, bytes: content })),
+        requestId,
+      });
+  }
+}
+
 /**
  * Sends one reserved action with its fixed request id and settles it: sent (logged), refused or
  * unknown. Never throws for PayPal's answer; the settled action says what happened.
@@ -142,18 +201,7 @@ export async function deliverAction(
   const { db, writer, clock } = deps;
   let outcome: ActionOutcome;
   try {
-    const result =
-      action.kind === "escalate"
-        ? await writer.escalate(action.disputeId, {
-            note: action.note,
-            requestId: action.requestId,
-          })
-        : await writer.provideEvidence(action.disputeId, {
-            evidenceType: action.evidenceType ?? "OTHER",
-            notes: action.note,
-            files: files.map(({ name, content }) => ({ filename: name, bytes: content })),
-            requestId: action.requestId,
-          });
+    const result = await send(writer, action, files);
     outcome = { status: "sent", transport: result.transport, debugId: result.debugId };
   } catch (error) {
     outcome = failedOutcome(error);

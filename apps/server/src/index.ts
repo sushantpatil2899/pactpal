@@ -30,7 +30,12 @@ import {
   renderWorkflowChecker,
   sameWorkflowTask,
 } from "./disputes/checker.js";
-import { CLAIM_TASK_NAME, SUMMARY_TASK_NAME, runDisputeJob } from "./disputes/claim-job.js";
+import {
+  CLAIM_TASK_NAME,
+  RESPONSE_TASK_NAME,
+  SUMMARY_TASK_NAME,
+  runDisputeJob,
+} from "./disputes/claim-job.js";
 import { syncDisputes } from "./disputes/dispute-sync.js";
 import { jsonLines } from "./disputes/task.js";
 
@@ -93,6 +98,7 @@ const claims = config.render
       {
         claim: sameWorkflowTask(config.render.taskSlug, CLAIM_TASK_NAME),
         summary: sameWorkflowTask(config.render.taskSlug, SUMMARY_TASK_NAME),
+        response: sameWorkflowTask(config.render.taskSlug, RESPONSE_TASK_NAME),
       },
       disputeLog,
     )

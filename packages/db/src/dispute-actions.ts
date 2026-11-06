@@ -10,8 +10,8 @@ export const MAX_EVIDENCE_UPLOADS_PER_DISPUTE = 10;
 /** PayPal's longest note for an escalation or an evidence upload. */
 export const MAX_DISPUTE_NOTE_CHARS = 2000;
 
-/** What the seller sends PayPal for a dispute (5g). */
-export const DISPUTE_ACTION_KINDS = ["escalate", "evidence"] as const;
+/** What the seller sends PayPal for a dispute: escalation and evidence (5g), answers (5h). */
+export const DISPUTE_ACTION_KINDS = ["escalate", "evidence", "message", "offer", "accept"] as const;
 export type DisputeActionKind = (typeof DISPUTE_ACTION_KINDS)[number];
 
 /** Why an action was not started or sent again. */
@@ -53,6 +53,9 @@ const actionRow = z
     request_id: z.string(),
     packet_id: z.string().nullable(),
     evidence_type: z.string().nullable(),
+    offer_type: z.string().nullable(),
+    amount_minor: z.coerce.number().int().nullable(),
+    currency: z.string().nullable(),
     note: z.string(),
     note_sha256: z.string(),
     files: z.array(actionFileSchema),
@@ -74,6 +77,11 @@ const actionRow = z
     requestId: row.request_id,
     packetId: row.packet_id ?? undefined,
     evidenceType: row.evidence_type ?? undefined,
+    offerType: row.offer_type ?? undefined,
+    amount:
+      row.amount_minor === null || row.currency === null
+        ? undefined
+        : { minor: row.amount_minor, currency: row.currency },
     note: row.note,
     noteSha256: row.note_sha256,
     files: row.files,
@@ -96,8 +104,21 @@ const common = {
   note: z.string().min(1).max(MAX_DISPUTE_NOTE_CHARS),
   noteSha256: sha256,
 };
+/** A refund amount in minor units, e.g. 6000 USD cents for 60.00 USD. */
+const amountSchema = z.object({
+  minor: z.number().int().min(1),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+});
 const newActionSchema = z.discriminatedUnion("kind", [
   z.object({ ...common, kind: z.literal("escalate") }),
+  z.object({ ...common, kind: z.literal("message") }),
+  z.object({
+    ...common,
+    kind: z.literal("offer"),
+    offerType: z.string().regex(/^[A-Z_]{1,60}$/),
+    amount: amountSchema,
+  }),
+  z.object({ ...common, kind: z.literal("accept"), amount: amountSchema }),
   z.object({
     ...common,
     kind: z.literal("evidence"),
@@ -168,11 +189,13 @@ export async function startDisputeAction(
     }
     await refuseWhileSending(tx, action.disputeId);
     const files = action.kind === "evidence" ? action.files : [];
+    const amount = action.kind === "offer" || action.kind === "accept" ? action.amount : undefined;
     const rows = await tx.query(
       `INSERT INTO dispute_actions (id, deal_id, dispute_id, seller_id, kind, status, request_id,
                                     packet_id, evidence_type, note, note_sha256, files,
-                                    total_bytes, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'sending', $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
+                                    total_bytes, created_at, offer_type, amount_minor, currency)
+       VALUES ($1, $2, $3, $4, $5, 'sending', $6, $7, $8, $9, $10, $11::jsonb, $12, $13, $14,
+               $15, $16)
        RETURNING *`,
       [
         action.id,
@@ -188,6 +211,9 @@ export async function startDisputeAction(
         JSON.stringify(files),
         files.reduce((sum, file) => sum + file.bytes, 0),
         now,
+        action.kind === "offer" ? action.offerType : null,
+        amount?.minor ?? null,
+        amount?.currency ?? null,
       ],
     );
     return actionRow.parse(rows[0]);
@@ -223,7 +249,7 @@ export type ActionOutcome =
   | { status: "sent"; transport: "rest" | "mcp"; debugId?: string | undefined }
   | { status: "unknown" | "refused"; failure: string };
 
-/** The log entry of a sent action: ids and fingerprints, never the note's words. */
+/** The log entry of a sent action: ids, fingerprints and amounts, never the note's words. */
 function sentEvent(row: DisputeActionRecord, transport: string, debugId: string | undefined) {
   const common = {
     actionId: row.id,
@@ -232,7 +258,25 @@ function sentEvent(row: DisputeActionRecord, transport: string, debugId: string 
     transport,
     debugId: debugId ?? null,
   };
-  if (row.kind === "escalate") return { type: "DISPUTE_ESCALATED" as const, payload: common };
+  const amount = {
+    amountMinor: row.amount?.minor ?? null,
+    currency: row.amount?.currency ?? null,
+  };
+  switch (row.kind) {
+    case "escalate":
+      return { type: "DISPUTE_ESCALATED" as const, payload: common };
+    case "message":
+      return { type: "DISPUTE_MESSAGE_SENT" as const, payload: common };
+    case "offer":
+      return {
+        type: "OFFER_MADE" as const,
+        payload: { ...common, offerType: row.offerType ?? null, ...amount },
+      };
+    case "accept":
+      return { type: "CLAIM_ACCEPTED" as const, payload: { ...common, ...amount } };
+    case "evidence":
+      break;
+  }
   return {
     type: "EVIDENCE_UPLOADED" as const,
     payload: {

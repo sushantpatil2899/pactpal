@@ -40,6 +40,15 @@ const requested = z
 export const requestedEvidenceOf = (details: StoredDispute["details"]): string[] =>
   requested.parse(details).requestedEvidence;
 
+/** The seller's answers to PayPal that the dispute's history lists, besides `DISPUTE_` entries. */
+const SELLER_ANSWERS = new Set(["EVIDENCE_UPLOADED", "OFFER_MADE", "CLAIM_ACCEPTED"]);
+
+/** The disputed amount in words with its currency ("120.00 USD"), or null when PayPal gave none. */
+export const disputedAmountWords = (dispute: StoredDispute): string | null =>
+  dispute.amountMinor === null || dispute.currency === null
+    ? null
+    : `${money(dispute.amountMinor, dispute.currency).text} ${dispute.currency}`;
+
 /** One dispute as the seller's page lists it: PayPal's words, the amount and the respond-by date. */
 export const disputeSummaryView = (dispute: StoredDispute) => ({
   disputeId: dispute.disputeId,
@@ -85,7 +94,7 @@ export function disputePageView(
     events: ledger
       .filter(
         (entry) =>
-          (entry.type.startsWith("DISPUTE_") || entry.type === "EVIDENCE_UPLOADED") &&
+          (entry.type.startsWith("DISPUTE_") || SELLER_ANSWERS.has(entry.type)) &&
           typeof entry.payload === "object" &&
           entry.payload !== null &&
           !Array.isArray(entry.payload) &&
