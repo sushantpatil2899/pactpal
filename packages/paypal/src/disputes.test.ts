@@ -194,6 +194,68 @@ describe("PayPalDisputes.get", () => {
     });
   });
 
+  it("reads the buyer's words from their own evidence when PayPal has no messages", async () => {
+    // The live shape of a dispute opened on PayPal's website at the chargeback stage.
+    const { disputes } = setup({
+      rest: [
+        {
+          dispute_id: "PP-R-1",
+          status: "WAITING_FOR_SELLER_RESPONSE",
+          dispute_life_cycle_stage: "CHARGEBACK",
+          evidences: [
+            {
+              evidence_type: "CREATE",
+              source: "SUBMITTED_BY_BUYER",
+              notes: "Not the style I wanted.",
+              date: "2026-11-06T18:23:09.989Z",
+            },
+            { evidence_type: "OTHER", source: "REQUESTED_FROM_SELLER" },
+            { evidence_type: "OTHER", source: "SUBMITTED_BY_SELLER", notes: "Seller's note" },
+            { evidence_type: "OTHER", source: "SUBMITTED_BY_BUYER", notes: "  " },
+          ],
+        },
+      ],
+    });
+    const result = await disputes.get("PP-R-1");
+    expect(result.data.messages).toEqual([
+      {
+        postedBy: "BUYER",
+        postedAt: "2026-11-06T18:23:09.989Z",
+        content: "Not the style I wanted.",
+      },
+    ]);
+    expect(result.data.requestedEvidence).toEqual(["OTHER"]);
+  });
+
+  it("adds the buyer's evidence notes in time order, without repeating a message", async () => {
+    const { disputes } = setup({
+      rest: [
+        {
+          dispute_id: "PP-R-2",
+          status: "OPEN",
+          messages: [
+            { posted_by: "SELLER", content: "No time given" },
+            { posted_by: "BUYER", time_posted: "2026-11-02T00:00:00.000Z", content: "Same words" },
+          ],
+          evidences: [
+            { source: "SUBMITTED_BY_BUYER", notes: "Same words", date: "2026-11-01T00:00:00.000Z" },
+            {
+              source: "SUBMITTED_BY_BUYER",
+              notes: "Opening words",
+              date: "2026-11-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+    });
+    const result = await disputes.get("PP-R-2");
+    expect(result.data.messages.map((m) => m.content)).toEqual([
+      "Opening words",
+      "Same words",
+      "No time given",
+    ]);
+  });
+
   it("reads a minimal dispute and keeps unknown values as PayPal's text", async () => {
     const { disputes, mcpCalls } = setup({
       mcp: [

@@ -60,6 +60,19 @@ describe("dispute checks", () => {
     expect(lines.join("\n")).not.toContain("style");
   });
 
+  it("reads a copy stored the older way once again, logging nothing new", async () => {
+    const { dealId } = await createPaidTestDeal(db);
+    const paypal = fakeDisputes([testDispute()]);
+    const { run } = checker(paypal);
+    await run();
+    await db.query(`UPDATE disputes SET details = details - 'readVersion'`);
+    expect(await run()).toMatchObject({ readInFull: 1, newEntries: 0 });
+    expect(await run()).toMatchObject({ readInFull: 0, newEntries: 0 });
+    expect(paypal.state.reads).toBe(2);
+    expect(await disputeTypes(dealId)).toEqual(["DISPUTE_OPENED"]);
+    expect((await getDispute(db, "PP-R-TEST-1"))?.details).toMatchObject({ readVersion: 2 });
+  });
+
   it("reads a dispute again when PayPal changed it and logs the change and the decision", async () => {
     const { dealId } = await createPaidTestDeal(db);
     const paypal = fakeDisputes([testDispute()]);

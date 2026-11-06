@@ -61,6 +61,7 @@ Agreed with the owner on 5 November 2026. AI drafts and suggests at every stage;
 | 5i-2      | Appeal statement (council) and sending after confirmation                                                                            | Built; one live council run on a made-up Daniel case (6 Nov 2026, 4 of 5 models valid); checked locally with a stand-in PayPal; the real appeal in 5k                      |
 | 5j        | Emails and reminders to the seller: dispute opened, deadlines, decision (on Render Workflows)                                        | Built and checked locally with a stand-in PayPal and email written to files; live once the workflow service has the email settings (owner) and a dispute is on a deal (5k) |
 | 5k        | Live test: the Maya story end to end (4q), Jun's and Daniel's disputes; test deals are made only here                                |                                                                                                                                                                            |
+| 5k-fix-1  | Buyer's words from PayPal's evidence list (found live in 5k-1); stored disputes read again once                                      | Built; live check on `PP-R-HBM-10196876` after deploy                                                                                                                      |
 
 ## Where things stand (5 November 2026)
 

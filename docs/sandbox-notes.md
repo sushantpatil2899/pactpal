@@ -37,6 +37,7 @@ What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run
 - Appeal availability is controlled with special text in the buyer's email address (`allowappeal`, `noappeal`), per PayPal's dispute testing guide.
 - A new sandbox **personal** buyer can pay invoices and open disputes by hand on `sandbox.paypal.com` (Resolution Center → Report a problem); no REST app is needed. PayPal balance was shown as "unavailable at this time" for a brand-new personal account; a linked bank account worked.
 - A dispute opened by hand shows the buyer's text as a `BUYER` message; one opened through the API does not.
+- **A dispute opened by hand can start straight at the chargeback stage** (`PP-R-HBM-10196876`, 6 Nov 2026: "significantly not as described" for a $120 invoice payment): stage `CHARGEBACK`, only `accept_claim` and `provide_evidence`, about 10 days to respond, PayPal asking for `PROOF_OF_REFUND` or `OTHER`. Its `messages` were absent; **the buyer's text was the evidence entry `{evidence_type: CREATE, source: SUBMITTED_BY_BUYER, notes}`**. PactPal reads both places since 5k-fix-1.
 - The buyer's view on the sandbox website stops at the first verdict ("closed in your favor") and never shows the appeal or offers a way to respond to it.
 
 ## Responding to disputes

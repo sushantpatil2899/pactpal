@@ -457,6 +457,8 @@ Since 5h (migration 0025) `kind` may also be `response`: answer help, with no `b
 
 Since 5i (migration 0026) `kind` may also be `appeal`: the appeal check. Its `analysis` holds a judgement per new item (whether it speaks to the claim, why, cited entries) and a short summary; a ready one logs `APPEAL_CHECKED` (by the system): ids, the fingerprint of the new-items list (`itemsSha256`) and of what the models read, models, the winner and how many items it judged as speaking to the claim (`speaking`); no AI text. Since 5i the dispute's stored `details` also hold `decisionReasons` (PayPal's decision reason codes) and `sellerEvidence` (evidence PayPal lists as sent by the seller: type and document names).
 
+Since 5k-fix-1 the stored `details` also hold `readVersion` (how PactPal read the answer, now 2; a copy with another or no version is read again once), and the buyer's messages include what the buyer wrote in their own evidence entries (`SUBMITTED_BY_BUYER` notes).
+
 Since 5i-2 (migration 0027) `kind` may also be `statement`: the appeal statement, based on a ready appeal check (`based_on`). Its `analysis` holds the sentences with their record entries and the note; a ready one logs `APPEAL_DRAFTED` (by the system): ids, `basedOn`, fingerprints, models, the winner and the number of sentences; no AI text.
 
 Since 5d the dispute's stored `details` also hold `requestedEvidence`: the evidence types PayPal asks the seller for.

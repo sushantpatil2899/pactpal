@@ -102,6 +102,37 @@ const disputePage = z.looseObject({
   links: z.array(link).default([]),
 });
 
+/** Sort key for a message's time: unknown or unreadable times go last, in their order. */
+const timeKey = (postedAt: string | undefined): number => {
+  const time = postedAt === undefined ? Number.NaN : Date.parse(postedAt);
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+};
+
+/**
+ * PayPal's messages plus what the buyer wrote in their own evidence entries
+ * (`source: SUBMITTED_BY_BUYER`, text in `notes`): a dispute opened on PayPal's website at the
+ * chargeback stage keeps the buyer's words there, not in `messages` (live, 6 Nov 2026). Empty
+ * notes and texts already among the buyer's messages are left out; the result is sorted by time.
+ */
+function withBuyerStatements(
+  messages: DisputeMessage[],
+  evidences: readonly {
+    source?: string | undefined;
+    notes?: string | undefined;
+    date?: string | undefined;
+  }[],
+): DisputeMessage[] {
+  const said = new Set(messages.filter((m) => m.postedBy === "BUYER").map((m) => m.content));
+  const statements = evidences.flatMap((e) =>
+    e.source === "SUBMITTED_BY_BUYER" && e.notes !== undefined && e.notes.trim() !== ""
+      ? [{ postedBy: "BUYER", postedAt: e.date, content: e.notes }]
+      : [],
+  );
+  return [...messages, ...statements.filter((s) => !said.has(s.content))].sort(
+    (a, b) => timeKey(a.postedAt) - timeKey(b.postedAt),
+  );
+}
+
 const disputeDetails = z
   .looseObject({
     ...summaryFields,
@@ -137,6 +168,8 @@ const disputeDetails = z
         z.looseObject({
           evidence_type: z.string().optional(),
           source: z.string().optional(),
+          notes: z.string().optional(),
+          date: z.string().optional(),
           documents: z.array(z.looseObject({ name: z.string().optional() })).default([]),
         }),
       )
@@ -154,11 +187,14 @@ const disputeDetails = z
       buyerTransactionId: transaction.buyer_transaction_id,
       invoiceNumber: transaction.invoice_number,
     })),
-    messages: raw.messages.map((message) => ({
-      postedBy: message.posted_by,
-      postedAt: message.time_posted,
-      content: message.content,
-    })),
+    messages: withBuyerStatements(
+      raw.messages.map((message) => ({
+        postedBy: message.posted_by,
+        postedAt: message.time_posted,
+        content: message.content,
+      })),
+      raw.evidences,
+    ),
     allowedActions: raw.links.map((l) => l.rel).filter((rel) => rel !== "self"),
     allowedOfferTypes: raw.allowed_response_options?.make_offer?.offer_types ?? [],
     // Only a type the dispute requests is accepted (EVIDENCE_TYPE_IS_NOT_ALLOWED otherwise).

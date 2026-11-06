@@ -46,11 +46,21 @@ function toDate(value: string | undefined): Date | undefined {
 const sameTime = (a: Date | null | undefined, b: Date | null | undefined) =>
   (a?.getTime() ?? null) === (b?.getTime() ?? null);
 
+/**
+ * How PactPal reads PayPal's answer. A stored copy read the older way is read once again: version 2
+ * takes the buyer's words from their own evidence entries too (5k-fix-1).
+ */
+const READ_VERSION = 2;
+
+const readVersionOf = (details: StoredDispute["details"]): number | undefined =>
+  z.object({ readVersion: z.number() }).safeParse(details).data?.readVersion;
+
 /** True when the listed dispute differs from the stored copy, so it must be read in full again. */
 function changedSince(stored: StoredDispute | undefined, listed: DisputeSummary): boolean {
   if (stored === undefined) return true;
   return (
     stored.details === null ||
+    readVersionOf(stored.details) !== READ_VERSION ||
     stored.status !== listed.status ||
     (stored.stageName ?? undefined) !== listed.stage ||
     !sameTime(stored.paypalUpdatedAt, toDate(listed.updatedAt))
@@ -76,7 +86,10 @@ function snapshotOf(details: DisputeDetails): DisputeSnapshot {
     ...optional("paypalCreatedAt", toDate(details.createdAt)),
     ...optional("paypalUpdatedAt", toDate(details.updatedAt)),
     // Through JSON so fields PayPal left out are dropped rather than stored as undefined.
-    details: JSON.parse(JSON.stringify(details)) as DisputeSnapshot["details"],
+    details: {
+      ...(JSON.parse(JSON.stringify(details)) as Record<string, DisputeSnapshot["details"]>),
+      readVersion: READ_VERSION,
+    },
   };
 }
 
