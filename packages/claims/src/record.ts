@@ -32,6 +32,7 @@ const LEFT_OUT = new Set([
   "RESPONSE_DRAFTED",
   "PACKET_BUILT",
   "APPEAL_CHECKED",
+  "APPEAL_DRAFTED",
   "RECORD_EXPORTED",
 ]);
 
@@ -67,6 +68,7 @@ const LABELS: Record<string, string> = {
   DISPUTE_UPDATED: "saw the PayPal dispute change",
   DISPUTE_ESCALATED: "asked PayPal to decide the dispute (escalated it)",
   EVIDENCE_UPLOADED: "sent evidence to PayPal",
+  APPEAL_SUBMITTED: "appealed PayPal's decision with new evidence",
   DISPUTE_MESSAGE_SENT: "messaged the buyer through PayPal",
   OFFER_MADE: "offered the buyer a refund through PayPal",
   CLAIM_ACCEPTED: "accepted the claim (full refund through PayPal)",
@@ -125,7 +127,10 @@ function detailsOf(type: string, payload: unknown): string {
   const status = text(fields.status);
   if (type.startsWith("DISPUTE_") && status !== undefined) parts.push(plainCode(status));
   const evidenceType = text(fields.evidenceType);
-  if (type === "EVIDENCE_UPLOADED" && Array.isArray(fields.files)) {
+  if (
+    (type === "EVIDENCE_UPLOADED" || type === "APPEAL_SUBMITTED") &&
+    Array.isArray(fields.files)
+  ) {
     const n = fields.files.length;
     parts.push(`${String(n)} file${n === 1 ? "" : "s"}`);
     if (evidenceType !== undefined) parts.push(`type ${plainCode(evidenceType)}`);

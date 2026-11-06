@@ -6,6 +6,7 @@ import {
   postgresContentStore,
   resendDisputeAction,
   startDisputeAction,
+  type ActionFile,
   type DisputeActionRecord,
   type NewDisputeAction,
   type StoredDispute,
@@ -24,6 +25,7 @@ import {
 import type { DisputeChecker } from "./checker.js";
 import { sellersDispute } from "./dispute-lookup.js";
 import { requestedEvidenceOf } from "./dispute-view.js";
+import { appealGaps } from "./appeal-coverage.js";
 import { PACKET_LIMITS } from "./packet.js";
 import { packetUploadFiles } from "./packet-service.js";
 
@@ -83,6 +85,14 @@ const REFUSALS = {
     error: "a file no longer matches its fingerprint, so nothing was sent; build a new packet",
   },
   "over-limit": { status: 413, error: "the files are over PayPal's size limits" },
+  "no-check": {
+    status: 409,
+    error: "run the appeal check first; it must find something that speaks to the claim",
+  },
+  "appeal-coverage": {
+    status: 409,
+    error: "the packet leaves out what the appeal relies on; build a new packet first",
+  },
   "no-amount": { status: 409, error: "PayPal gave no disputed amount, so PactPal cannot do this" },
   "offer-type": { status: 409, error: "PayPal does not take a refund offer for this dispute now" },
   "offer-amount": {
@@ -93,10 +103,22 @@ const REFUSALS = {
 type Refusal = keyof typeof REFUSALS;
 
 class Refused extends Error {
-  constructor(readonly reason: Refusal) {
+  constructor(
+    readonly reason: Refusal,
+    /** What exactly is missing, added to the reason for the seller. */
+    readonly detail?: string,
+  ) {
     super(reason);
   }
 }
+
+/** The refusal for the page, with its detail when there is one. */
+const refusalOf = (error: Refused) => {
+  const refusal = REFUSALS[error.reason];
+  return error.detail === undefined
+    ? refusal
+    : { ...refusal, error: `${refusal.error}: ${error.detail}` };
+};
 
 const STATUS_CODES = { sent: 201, refused: 409, unknown: 502, sending: 502 } as const;
 
@@ -126,7 +148,7 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
     try {
       reserved = await reserve();
     } catch (error) {
-      if (error instanceof Refused) return sendRefusal(reply, REFUSALS[error.reason]);
+      if (error instanceof Refused) return sendRefusal(reply, refusalOf(error));
       if (error instanceof DisputeActionNotAllowedError) {
         return sendRefusal(reply, REFUSALS[error.reason]);
       }
@@ -193,25 +215,29 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
     if (!both) return reply;
     const choices = await actionChoices(
       both.found.db,
-      both.found.deal.id,
+      postgresContentStore(both.found.db, clock),
+      both.found.deal,
       both.dispute,
       requestedEvidenceOf(both.dispute.details),
     );
     return reply.send({ canSend: writer !== undefined, ...choices });
   });
 
+  /** A confirmed send's own fields, before ids, and the files it uploads (none for a note). */
+  interface Prepared {
+    fields: Omit<NewDisputeAction, "id" | "dealId" | "disputeId" | "sellerId">;
+    files: readonly (ActionFile & { content: Uint8Array })[];
+  }
+
   /**
-   * A send with a note and no files (escalate, message, offer, accept): reads the body, checks the
-   * note and that PayPal allows the action, runs the kind's own checks, then reserves and sends.
+   * A send the seller confirmed: reads the body, checks the note's fingerprint and that PayPal
+   * allows the action, runs the kind's own checks (`prepare`), then reserves and sends it.
    */
-  function noteSend<T extends { note: string; noteSha256: string }>(
+  function confirmedSend<T extends { note: string; noteSha256: string }>(
     path: string,
     schema: z.ZodType<T>,
     paypalAction: string,
-    reserve: (
-      body: T,
-      stored: StoredDispute,
-    ) => Omit<NewDisputeAction, "id" | "dealId" | "disputeId" | "sellerId">,
+    prepare: (body: T, stored: StoredDispute, found: FoundDeal) => Promise<Prepared> | Prepared,
   ) {
     app.post(`${dispute}/${path}`, async (request, reply) => {
       const both = await sellersDispute(sellersDeal, request, reply);
@@ -222,10 +248,11 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
       return send(request, reply, found, async () => {
         checkNote(body);
         allows(stored, paypalAction);
+        const { fields, files } = await prepare(body, stored, found);
         const action = await startDisputeAction(
           found.db,
           {
-            ...reserve(body, stored),
+            ...fields,
             id: newId(),
             dealId: found.deal.id,
             disputeId: stored.disputeId,
@@ -233,9 +260,22 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
           } as NewDisputeAction,
           clock(),
         );
-        return { action, files: [] };
+        return { action, files };
       });
     });
+  }
+
+  /** A send with a note and no files (escalate, message, offer, accept). */
+  function noteSend<T extends { note: string; noteSha256: string }>(
+    path: string,
+    schema: z.ZodType<T>,
+    paypalAction: string,
+    reserve: (body: T, stored: StoredDispute) => Prepared["fields"],
+  ) {
+    confirmedSend(path, schema, paypalAction, (body, stored) => ({
+      fields: reserve(body, stored),
+      files: [],
+    }));
   }
 
   /** The disputed amount, for an offer's limit and an accepted claim's full refund. */
@@ -277,27 +317,20 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
     amount: disputedOf(stored),
   }));
 
-  app.post(`${dispute}/evidence`, async (request, reply) => {
-    const both = await sellersDispute(sellersDeal, request, reply);
-    if (!both) return reply;
-    const body = await readBody(evidenceBody, request, reply);
-    if (!body) return reply;
-    const { found, dispute: stored } = both;
-    return send(request, reply, found, async () => {
-      checkNote(body);
-      allows(stored, "provide_evidence");
+  /**
+   * An upload of the newest packet with a type and a note: evidence (5g) or an appeal (5i-2). An
+   * appeal must also carry every item the appeal check found speaking to the claim.
+   */
+  function uploadSend(path: string, kind: "evidence" | "appeal", paypalAction: string) {
+    confirmedSend(path, evidenceBody, paypalAction, async (body, stored, found) => {
       if (!evidenceTypesFor(requestedEvidenceOf(stored.details)).includes(body.evidenceType)) {
         throw new Refused("type-not-asked");
       }
       const files = await filesOf(found, stored, body.packetId, body.packetSha256);
-      const action = await startDisputeAction(
-        found.db,
-        {
-          id: newId(),
-          kind: "evidence",
-          dealId: found.deal.id,
-          disputeId: stored.disputeId,
-          sellerId: found.viewer.user.id,
+      if (kind === "appeal") await checkCoverage(found, stored, body.packetId);
+      return {
+        fields: {
+          kind,
           note: body.note,
           noteSha256: body.noteSha256,
           packetId: body.packetId,
@@ -310,11 +343,28 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
             sha256: fileSha,
           })),
         },
-        clock(),
-      );
-      return { action, files };
+        files,
+      };
     });
-  });
+  }
+
+  /** Refuses an appeal whose packet leaves out an item the appeal check relies on. */
+  async function checkCoverage(found: FoundDeal, stored: StoredDispute, packetId: string) {
+    const packet = await getPacket(found.db, packetId);
+    if (!packet) throw new Refused("packet-changed");
+    const gaps = await appealGaps(
+      found.db,
+      postgresContentStore(found.db, clock),
+      found.deal,
+      stored.disputeId,
+      packet,
+    );
+    if (!gaps) throw new Refused("no-check");
+    if (gaps.missing.length > 0) throw new Refused("appeal-coverage", gaps.missing.join(", "));
+  }
+
+  uploadSend("evidence", "evidence", "provide_evidence");
+  uploadSend("appeal/send", "appeal", "appeal");
 
   // An unknown outcome sent again: the same request id and content, after a new confirmation.
   app.post(`${dispute}/actions/:actionId/resend`, async (request, reply) => {

@@ -790,7 +790,7 @@ export interface UploadFileView {
 /** An escalation or evidence upload the seller confirmed, and how it ended. */
 export interface DisputeActionView {
   id: string;
-  kind: "escalate" | "evidence" | "message" | "offer" | "accept";
+  kind: "escalate" | "evidence" | "message" | "offer" | "accept" | "appeal";
   status: "sending" | "sent" | "unknown" | "refused";
   evidenceType: string | null;
   offerType: string | null;
@@ -813,7 +813,12 @@ export interface DisputeActionsView {
     message: boolean;
     offer: boolean;
     accept: boolean;
+    appeal: boolean;
   };
+  /** The appeal statement's note (5i-2), a starting point for the appeal note. */
+  draftAppealNote: string | null;
+  /** What the newest packet leaves out of what the appeal relies on (null: nothing to check). */
+  appealMissing: string[] | null;
   /** The disputed amount: an offer's limit and what accepting refunds. */
   disputed: { minor: number; currency: string; words: string } | null;
   /** Answer help's drafts (5h), starting points for a message and an offer note. */
@@ -1009,6 +1014,60 @@ export async function getAppeal(dealId: string, disputeId: string): Promise<Appe
 /** Starts the council's appeal check of the new items. */
 export const checkAppeal = (dealId: string, disputeId: string) =>
   postStep(disputeStepUrl(dealId, disputeId, "appeal"), {}, "start the appeal check", isAppeal);
+
+/** Sends the appeal with the confirmed packet, type and note (5i-2). */
+export const sendAppeal = (
+  dealId: string,
+  disputeId: string,
+  input: ConfirmedNote & { packetId: string; packetSha256: string; evidenceType: string },
+) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "appeal/send"),
+    { ...input, confirmed: true },
+    "send the appeal",
+    isActionAnswer,
+  );
+
+/** One appeal statement draft (5i-2): sentences citing log entries, and the note for PayPal. */
+export interface StatementView {
+  id: string;
+  status: "running" | "ready" | "failed";
+  createdAt: string;
+  failureReason: string | null;
+  statement: {
+    note: string;
+    sentences: { text: string; record: { n: number; text: string }[] }[];
+  } | null;
+  council: CouncilView | null;
+}
+
+export interface StatementsView {
+  canDraft: boolean;
+  statements: StatementView[];
+}
+
+const isStatements = (value: unknown): value is StatementsView =>
+  isObject(value) &&
+  typeof value.canDraft === "boolean" &&
+  Array.isArray(value.statements) &&
+  value.statements.every(isCouncilJob);
+
+export async function getStatements(dealId: string, disputeId: string): Promise<StatementsView> {
+  return readChecked(
+    await fetch(disputeStepUrl(dealId, disputeId, "appeal/statements")),
+    isStatements,
+    "load the appeal statement",
+  );
+}
+
+/** Starts a council draft of the appeal statement from the newest appeal check. */
+export const draftStatement = (dealId: string, disputeId: string) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "appeal/statements"),
+    {},
+    "start the appeal statement",
+    isStatements,
+  );
 
 /** Sends an action whose outcome was unknown again, with the same content and request id. */
 export const resendAction = (dealId: string, disputeId: string, actionId: string) =>

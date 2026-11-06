@@ -218,6 +218,22 @@ describe("dispute actions", () => {
     await expect(db.query("UPDATE dispute_actions SET amount_minor = 1")).rejects.toThrow();
   });
 
+  it("logs a sent appeal as APPEAL_SUBMITTED with its packet and files", async () => {
+    const { evidence } = await disputed();
+    const appeal = { ...evidence(1), kind: "appeal" } as NewDisputeAction;
+    const started = await startDisputeAction(db, appeal, at(3));
+    expect(started.requestId).toBe(`pactpal-appeal-${testId(801)}`);
+    const { entry } = await finishDisputeAction(
+      db,
+      { actionId: started.id, outcome: { status: "sent", transport: "rest" } },
+      at(4),
+    );
+    expect(entry).toMatchObject({
+      type: "APPEAL_SUBMITTED",
+      payload: { packetId: testId(700), evidenceType: "OTHER", totalBytes: 900 },
+    });
+  });
+
   it("keeps what was confirmed: no edits, no removal", async () => {
     const { escalate } = await disputed();
     await startDisputeAction(db, escalate(1), at(3));

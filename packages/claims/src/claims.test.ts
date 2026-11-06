@@ -56,6 +56,8 @@ const ENTRIES = [
   }),
   entry(23, "RESPONSE_DRAFTED", "system", { options: 3 }),
   entry(24, "OFFER_MADE", "seller", { offerType: "REFUND", amountMinor: 6000, currency: "USD" }),
+  entry(25, "APPEAL_DRAFTED", "system", { sentences: 2 }),
+  entry(26, "APPEAL_SUBMITTED", "seller", { evidenceType: "OTHER", files: [{ name: "p.pdf" }] }),
 ];
 const RECORD = recordLines(ENTRIES);
 const CLAIM = claimLines({
@@ -107,7 +109,9 @@ const MAYA = {
 describe("recordLines", () => {
   it("writes each evidence entry as a numbered line and leaves out AI output", () => {
     expect(RECORD.cut).toBe(false);
-    expect(RECORD.lines.map(({ n }) => n)).toEqual([1, 5, 10, 14, 16, 17, 18, 19, 20, 22, 23, 25]);
+    expect(RECORD.lines.map(({ n }) => n)).toEqual([
+      1, 5, 10, 14, 16, 17, 18, 19, 20, 22, 23, 25, 27,
+    ]);
     expect(RECORD.lines.map(({ text }) => text)).toEqual([
       "#1 2 Nov 2026 14:03 UTC, seller: created the deal",
       "#5 2 Nov 2026 14:03 UTC, buyer: signed the agreement (agreement version 1)",
@@ -121,6 +125,7 @@ describe("recordLines", () => {
       "#22 2 Nov 2026 14:03 UTC, seller: asked PayPal to decide the dispute (escalated it)",
       "#23 2 Nov 2026 14:03 UTC, seller: sent evidence to PayPal (2 files; type proof of fulfillment)",
       "#25 2 Nov 2026 14:03 UTC, seller: offered the buyer a refund through PayPal (60.00 USD)",
+      "#27 2 Nov 2026 14:03 UTC, seller: appealed PayPal's decision with new evidence (1 file; type other)",
     ]);
   });
 

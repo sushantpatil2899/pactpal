@@ -34,6 +34,7 @@ import {
   CLAIM_TASK_NAME,
   APPEAL_TASK_NAME,
   RESPONSE_TASK_NAME,
+  STATEMENT_TASK_NAME,
   SUMMARY_TASK_NAME,
   runDisputeJob,
 } from "./disputes/claim-job.js";
@@ -101,6 +102,7 @@ const claims = config.render
         summary: sameWorkflowTask(config.render.taskSlug, SUMMARY_TASK_NAME),
         response: sameWorkflowTask(config.render.taskSlug, RESPONSE_TASK_NAME),
         appeal: sameWorkflowTask(config.render.taskSlug, APPEAL_TASK_NAME),
+        statement: sameWorkflowTask(config.render.taskSlug, STATEMENT_TASK_NAME),
       },
       disputeLog,
     )

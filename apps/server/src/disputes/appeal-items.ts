@@ -53,9 +53,10 @@ export function appealItems(
 ): { items: AppealItem[]; cut: boolean } {
   const docs = documents
     .filter((doc) => !sent.fileShas.has(doc.sha256) && !sent.names.has(doc.filename))
-    .map((doc, i) => ({
-      // Short ids with no colon: models copy "doc:x: name" wrongly (5i live run).
-      id: `D${String(i + 1)}`,
+    .map((doc) => ({
+      // Short ids with no colon (models copied "doc:x: name" wrongly in the 5i live run), stable
+      // across checks: "D" and the start of the file's fingerprint.
+      id: docItemId(doc.sha256),
       words: `${doc.filename} (added by ${ADDED_BY[doc.addedBy]}; ${exhibitWhat(doc)})`,
     }));
   const newer = ledger.filter(
@@ -65,12 +66,18 @@ export function appealItems(
       !DISPUTE_PROCESS.has(entry.type),
   );
   const entries = recordLines(newer).lines.map((line) => ({
-    id: `E${String(line.n)}`,
+    id: entryItemId(line.n),
     words: line.text,
   }));
   const all = [...docs, ...entries];
   return { items: all.slice(0, MAX_APPEAL_ITEMS), cut: all.length > MAX_APPEAL_ITEMS };
 }
+
+/** The appeal item id of a document: "D" and the first 6 characters of its SHA-256. */
+export const docItemId = (sha256: string) => `D${sha256.slice(0, 6)}`;
+
+/** The appeal item id of a log entry: "E" and its number as the record shows it (seq + 1). */
+export const entryItemId = (n: number) => `E${String(n)}`;
 
 /** Whether the appeal check applies: PayPal decided for the buyer, or allows an appeal now. */
 export const appealApplies = (dispute: StoredDispute) =>

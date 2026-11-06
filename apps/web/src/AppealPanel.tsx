@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { checkAppeal, getAppeal, type AppealCheckView, type AppealView } from "./api";
+import {
+  checkAppeal,
+  draftStatement,
+  getAppeal,
+  getStatements,
+  type AppealCheckView,
+  type AppealView,
+  type StatementsView,
+} from "./api";
+import { CitedDraft } from "./CitedDraft";
 import { CouncilPanel, ReviewFlag } from "./CouncilPanel";
 import { DraftControls } from "./DraftControls";
 import { useCouncilJobs } from "./useCouncilJobs";
@@ -30,6 +39,58 @@ function Check({ view, items }: { view: AppealCheckView; items: AppealView["item
         ))}
       </ul>
       {view.council !== null && <CouncilPanel council={view.council} />}
+    </>
+  );
+}
+
+/**
+ * The appeal statement (5i-2): a council drafts what the new evidence shows that was not sent
+ * before, and the note for PayPal's appeal, from the newest check that found something.
+ */
+function Statement({ dealId, disputeId }: { dealId: string; disputeId: string }) {
+  const [busy, setBusy] = useState(false);
+  const { view, show, problem, setProblem } = useCouncilJobs(
+    `${dealId}/${disputeId}/statement`,
+    () => getStatements(dealId, disputeId),
+    (next: StatementsView) => next.statements[0]?.status === "running",
+    "appeal statement",
+  );
+  if (view === undefined) return problem ? <p role="alert">{problem}</p> : null;
+  const latest = view.statements[0];
+  const onDraft = () => {
+    setBusy(true);
+    setProblem(undefined);
+    draftStatement(dealId, disputeId).then(
+      (next) => {
+        setBusy(false);
+        show(next);
+      },
+      (error: unknown) => {
+        setBusy(false);
+        setProblem(error instanceof Error ? error.message : "Could not start the statement.");
+      },
+    );
+  };
+  return (
+    <>
+      <h4>Appeal statement (AI draft)</h4>
+      {problem && <p role="alert">{problem}</p>}
+      {latest?.status === "ready" && latest.statement !== null && (
+        <CitedDraft
+          council={latest.council}
+          sentences={latest.statement.sentences}
+          note={latest.statement.note}
+          noteLabel="Draft appeal note for PayPal"
+        />
+      )}
+      <DraftControls
+        latest={latest}
+        canDraft={view.canDraft}
+        busy={busy}
+        onDraft={onDraft}
+        first="Draft the appeal statement"
+        off="The appeal check must find something that speaks to the claim first."
+      />
     </>
   );
 }
@@ -97,6 +158,9 @@ export function AppealPanel({ dealId, disputeId }: { dealId: string; disputeId: 
             sent did not. <strong>AI draft: check every line.</strong> It does not predict what
             PayPal will decide.
           </p>
+          {latest?.check?.items.some((item) => item.answers) === true && (
+            <Statement dealId={dealId} disputeId={disputeId} />
+          )}
           <DraftControls
             latest={latest}
             canDraft={view.canCheck}

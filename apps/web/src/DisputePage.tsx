@@ -60,6 +60,8 @@ function eventWords(type: string, payload: unknown): string {
         typeof fields.currency === "string"
         ? `You offered a refund of ${(fields.amountMinor / 100).toFixed(2)} ${fields.currency}`
         : "You offered a refund";
+    case "APPEAL_SUBMITTED":
+      return "You sent PayPal an appeal with new evidence";
     case "CLAIM_ACCEPTED":
       return "You accepted the claim: PayPal refunds the buyer";
     case "EVIDENCE_UPLOADED": {

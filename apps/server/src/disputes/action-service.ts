@@ -1,4 +1,9 @@
-import { claimAnalysisSchema, packetSummarySchema, responseDraftSchema } from "@pactpal/claims";
+import {
+  appealStatementSchema,
+  claimAnalysisSchema,
+  packetSummarySchema,
+  responseDraftSchema,
+} from "@pactpal/claims";
 import {
   finishDisputeAction,
   listClaimAnalyses,
@@ -6,7 +11,9 @@ import {
   listPackets,
   readLedger,
   type ActionOutcome,
+  type ContentStore,
   type Database,
+  type Deal,
   type DisputeActionRecord,
   type StoredDispute,
 } from "@pactpal/db";
@@ -16,13 +23,14 @@ import {
   PayPalApiError,
   type PayPalDisputes,
 } from "@pactpal/paypal";
+import { appealGaps } from "./appeal-coverage.js";
 import { disputedAmountWords } from "./dispute-view.js";
 import { PACKET_LIMITS, uploadFilesOf } from "./packet.js";
 
 /** What PactPal sends PayPal for a dispute (5g); absent until the seller app's keys are set. */
 export type DisputeWriter = Pick<
   PayPalDisputes,
-  "escalate" | "provideEvidence" | "sendMessage" | "makeOffer" | "acceptClaim"
+  "escalate" | "provideEvidence" | "sendMessage" | "makeOffer" | "acceptClaim" | "appeal"
 >;
 
 /** The evidence types the seller may choose: those PayPal asks for, else only "OTHER". */
@@ -33,7 +41,7 @@ export const evidenceTypesFor = (requested: readonly string[]): string[] =>
 async function newestReady<T>(
   db: Database,
   disputeId: string,
-  kind: "claim" | "summary" | "response",
+  kind: "claim" | "summary" | "response" | "statement",
   read: (value: unknown) => T | undefined,
 ): Promise<T | undefined> {
   const jobs = await listClaimAnalyses(db, disputeId, kind);
@@ -64,11 +72,13 @@ export const actionView = (action: DisputeActionRecord) => ({
  */
 export async function actionChoices(
   db: Database,
-  dealId: string,
+  store: ContentStore,
+  deal: Deal,
   dispute: StoredDispute,
   requested: readonly string[],
 ) {
-  const [suggested, note, answerHelp, packets, actions, ledger] = await Promise.all([
+  const dealId = deal.id;
+  const [suggested, note, answerHelp, appealNote, packets, actions, ledger] = await Promise.all([
     newestReady(
       db,
       dispute.disputeId,
@@ -87,6 +97,12 @@ export async function actionChoices(
       "response",
       (value) => responseDraftSchema.safeParse(value).data,
     ),
+    newestReady(
+      db,
+      dispute.disputeId,
+      "statement",
+      (value) => appealStatementSchema.safeParse(value).data?.note,
+    ),
     listPackets(db, dispute.disputeId),
     listDisputeActions(db, dispute.disputeId),
     readLedger(db, dealId),
@@ -102,7 +118,18 @@ export async function actionChoices(
       message: dispute.allowedActions.includes("send_message"),
       offer: dispute.allowedActions.includes("make_offer") && dispute.offerTypes.includes("REFUND"),
       accept: dispute.allowedActions.includes("accept_claim") && dispute.amountMinor !== null,
+      appeal: dispute.allowedActions.includes("appeal"),
     },
+    /** The appeal statement's note (5i-2), a starting point for the appeal note. */
+    draftAppealNote: appealNote ?? null,
+    /**
+     * For an appeal: what the newest packet leaves out of the items the appeal check relies on
+     * (empty when it carries them all), or null when there is no packet or no such check.
+     */
+    appealMissing:
+      packet === undefined || !dispute.allowedActions.includes("appeal")
+        ? null
+        : ((await appealGaps(db, store, deal, dispute.disputeId, packet))?.missing ?? null),
     /** The disputed amount: an offer's limit and what accepting refunds. */
     disputed:
       dispute.amountMinor === null || dispute.currency === null
@@ -180,12 +207,17 @@ function send(
       // A full refund: PayPal refunds the disputed amount (no partial amount is sent).
       return writer.acceptClaim(disputeId, { note, requestId });
     case "evidence":
-      return writer.provideEvidence(disputeId, {
+    case "appeal": {
+      const upload = {
         evidenceType: action.evidenceType ?? "OTHER",
         notes: note,
         files: files.map(({ name, content }) => ({ filename: name, bytes: content })),
         requestId,
-      });
+      };
+      return action.kind === "appeal"
+        ? writer.appeal(disputeId, upload)
+        : writer.provideEvidence(disputeId, upload);
+    }
   }
 }
 

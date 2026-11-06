@@ -12,7 +12,14 @@ export const MAX_ANALYSES_PER_DISPUTE = 10;
 export const ANALYSIS_TIMEOUT_MS = 15 * 60_000;
 
 /** The two dispute council jobs: the claim comparison (5d) and the packet summary (5f). */
-export const ANALYSIS_KINDS = ["claim", "summary", "response", "appeal"] as const;
+export const ANALYSIS_KINDS = ["claim", "summary", "response", "appeal", "statement"] as const;
+
+/** The kinds drafted from a ready job of another kind: a summary from a comparison (5f), an
+ * appeal statement from an appeal check (5i-2). */
+const BASED_ON: Partial<Record<AnalysisKind, AnalysisKind>> = {
+  summary: "claim",
+  statement: "appeal",
+};
 export type AnalysisKind = (typeof ANALYSIS_KINDS)[number];
 
 /** Why a comparison or summary was not started. */
@@ -22,7 +29,9 @@ export type AnalysisRefusal =
   | "already-running"
   | "too-many"
   /** A summary needs a ready comparison of the same dispute. */
-  | "no-comparison";
+  | "no-comparison"
+  /** An appeal statement needs a ready appeal check of the dispute (5i-2). */
+  | "no-check";
 
 export class AnalysisNotAllowedError extends Error {
   override readonly name = "AnalysisNotAllowedError";
@@ -116,13 +125,16 @@ export async function startClaimAnalysis(
     ]);
     if (owner[0]?.deal_id !== start.dealId) throw new AnalysisNotAllowedError("not-this-deal");
     await failStaleClaimAnalyses(tx, now);
-    if (start.kind === "summary") {
+    const baseKind = BASED_ON[start.kind];
+    if (baseKind !== undefined) {
       const base = await tx.query(
         `SELECT 1 FROM claim_analyses
-          WHERE id = $1 AND dispute_id = $2 AND kind = 'claim' AND status = 'ready'`,
-        [start.basedOn ?? null, start.disputeId],
+          WHERE id = $1 AND dispute_id = $2 AND kind = $3 AND status = 'ready'`,
+        [start.basedOn ?? null, start.disputeId, baseKind],
       );
-      if (base.length === 0) throw new AnalysisNotAllowedError("no-comparison");
+      if (base.length === 0) {
+        throw new AnalysisNotAllowedError(baseKind === "claim" ? "no-comparison" : "no-check");
+      }
     }
     const counts = z
       .object({ total: z.coerce.number().int(), running: z.coerce.number().int() })
@@ -184,6 +196,7 @@ const COUNT_NAMES = {
   summary: "sentences",
   response: "options",
   appeal: "speaking",
+  statement: "sentences",
 } as const;
 
 /** The log entry a ready job of each kind writes. */
@@ -192,6 +205,7 @@ const KIND_EVENTS = {
   summary: "SUMMARY_DRAFTED",
   response: "RESPONSE_DRAFTED",
   appeal: "APPEAL_CHECKED",
+  statement: "APPEAL_DRAFTED",
 } as const;
 
 /**
@@ -232,6 +246,7 @@ export async function finishClaimAnalysis(
                 sentences: done.statements,
               }
             : {
+                ...(row.basedOn === undefined ? {} : { basedOn: row.basedOn }),
                 claimSha256: done.claimSha256,
                 ...(done.exhibitsSha256 === undefined ? {} : { itemsSha256: done.exhibitsSha256 }),
                 [COUNT_NAMES[row.kind]]: done.statements,

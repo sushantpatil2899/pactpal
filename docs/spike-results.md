@@ -219,3 +219,21 @@ Council runs of the appeal check (appeal prompt version 1) on a made-up Daniel c
 - The winner marked as speaking to the claim the signed agreement version 2 (D1) and entries #17, #18, #19, #23 and #25 (the blog proposed, only online ordering signed, the blog declined, the final delivery and payment under version 2), and the earlier entries and the buyer's brief as not. Its summary: the buyer declined a blog during the agreement change, and the final work was delivered and paid under an agreement without one; it predicts nothing.
 - One wording for the seller to weigh: #19 "contradicting claim of a promised blog" reads close to a conclusion.
 - Limits of the check: one made-up case, one valid run.
+
+## First live appeal statement (sub-phase 5i-2, 6 November 2026)
+
+One council run of the appeal statement (statement prompt version 1) on the made-up Daniel case, with the six items the 5i live check judged as speaking to the claim (the signed agreement version 2 and entries #17, #18, #19, #23, #25), each with that check's reason. Run locally with every model that has a key. Nothing was saved or sent to PayPal.
+
+| Model               | Result                     | Seconds | Tokens |
+| ------------------- | -------------------------- | ------- | ------ |
+| nemotron-openrouter | valid, won (tie-break)     | 32.4    | 3,220  |
+| qwen-groq           | valid                      | 31.7    | 1,815  |
+| gpt-oss-groq        | valid                      | 2.4     | 2,308  |
+| mistral             | valid                      | 4.6     | 1,740  |
+| gemini              | refused: daily limit (429) | -       | -      |
+
+- Every answer passed the code check on the first try. Two voters were counted (Qwen's and Nemotron's ballots failed); Nemotron and Qwen tied at 0.75, so it was flagged for review ("top answers scored almost the same"), agreement 0.70.
+- The winner's five sentences: the blog was proposed as a change on 22 September (#17), the buyer signed online ordering and declined the blog, "Not needed for now", on 23 September (#18, #19), and the final delivery and payment were under agreement version 2 without a blog (#23, #25). Its note (618 characters) names the receipt and says the earlier submission (`homepage.png`) did not include this history; no predictions, links or amounts.
+- One inference for the seller to check: "the original agreement (version 1) did not include a blog" rests on #17 (the blog proposed as a change), not on the agreement's own text.
+- 10 calls (4 failed), about 16,000 tokens counted, 73 seconds.
+- Limits of the check: one made-up case, one run.

@@ -7,6 +7,7 @@ import {
   makeRefundOffer,
   resendAction,
   sendDisputeMessage,
+  sendAppeal,
   sendEvidence,
   textFingerprint,
   type DisputeActionView,
@@ -56,6 +57,14 @@ const KINDS: Record<
     note: "Note to PayPal",
     paypal: "escalate",
   },
+  appeal: {
+    words: "Appeal",
+    open: "Send the appeal…",
+    send: "Send the appeal",
+    tick: "I have checked the note and the files; send the appeal to PayPal",
+    note: "Appeal note to PayPal",
+    paypal: "appeal",
+  },
   evidence: {
     words: "Evidence",
     open: "Send evidence…",
@@ -65,7 +74,7 @@ const KINDS: Record<
     paypal: "provide_evidence",
   },
 };
-const ORDER: readonly Kind[] = ["message", "offer", "accept", "escalate", "evidence"];
+const ORDER: readonly Kind[] = ["message", "offer", "accept", "escalate", "evidence", "appeal"];
 
 const STATUS_WORDS = {
   sending: "being sent",
@@ -86,7 +95,7 @@ function minorOf(text: string): number | undefined {
 
 /** What one past send was, in a few words. */
 function sentWords(action: DisputeActionView): string {
-  if (action.kind === "evidence") {
+  if (action.kind === "evidence" || action.kind === "appeal") {
     const files = action.files.length;
     return ` (${plainCode(action.evidenceType ?? "OTHER")}; ${String(files)} file${files === 1 ? "" : "s"}, ${sizeWords(action.totalBytes)})`;
   }
@@ -196,6 +205,8 @@ function draftFor(kind: Kind, view: DisputeActionsView): string {
     case "escalate":
     case "evidence":
       return view.draftNote ?? "";
+    case "appeal":
+      return view.draftAppealNote ?? "";
   }
 }
 
@@ -347,14 +358,19 @@ export function DisputeActions({
         case "escalate":
           return escalateDispute(dealId, disputeId, confirmed);
         case "evidence":
-        case undefined:
+        case "appeal":
+        case undefined: {
           if (!packet) throw new Error("Build a packet first.");
-          return sendEvidence(dealId, disputeId, {
+          const upload = {
             ...confirmed,
             packetId: packet.id,
             packetSha256: packet.packetSha256,
             evidenceType: type,
-          });
+          };
+          return open === "appeal"
+            ? sendAppeal(dealId, disputeId, upload)
+            : sendEvidence(dealId, disputeId, upload);
+        }
       }
     });
   };
@@ -367,6 +383,8 @@ export function DisputeActions({
     !busy &&
     note.trim() !== "" &&
     (open !== "evidence" || (packet !== null && !packet.overLimit)) &&
+    (open !== "appeal" ||
+      (packet !== null && !packet.overLimit && view.appealMissing?.length === 0)) &&
     (open !== "offer" || offerOk) &&
     (open !== "accept" || understood);
 
@@ -403,12 +421,21 @@ export function DisputeActions({
               evidence (PayPal may take a few minutes to allow it).
             </p>
           )}
-          {open !== "evidence" && open !== "escalate" && (
+          {open !== "evidence" && open !== "escalate" && open !== "appeal" && (
             <p>
               <strong>{answerFacts(KINDS[open].paypal, disputed?.words ?? null)}</strong>
             </p>
           )}
-          {open === "evidence" && (
+          {open === "appeal" && view.appealMissing !== null && view.appealMissing.length > 0 && (
+            <p role="alert" style={{ color: "#8a1c1c" }}>
+              This packet leaves out what the appeal relies on: {view.appealMissing.join(", ")}.
+              Build a new packet above first.
+            </p>
+          )}
+          {open === "appeal" && view.appealMissing === null && (
+            <p role="alert">Run the appeal check above first, and build a packet.</p>
+          )}
+          {(open === "evidence" || open === "appeal") && (
             <EvidenceFiles
               view={view}
               type={type}

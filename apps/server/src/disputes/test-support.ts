@@ -191,6 +191,7 @@ export async function councilDispute(
   db: Database,
   answers: readonly object[],
   files: readonly TestFile[] = [],
+  options: Omit<NonNullable<Parameters<typeof dealTestApp>[2]>, "claims"> = {},
 ) {
   const clients = councilOf(answers);
   const { runtime, settle } = queuedDrafting(clients);
@@ -200,6 +201,6 @@ export async function councilDispute(
       analysisId,
     ),
   );
-  const deal = await signedDispute(db, files, { claims });
+  const deal = await signedDispute(db, files, { ...options, claims });
   return { ...deal, settle, clients };
 }

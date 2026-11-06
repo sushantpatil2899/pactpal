@@ -8,8 +8,11 @@ import {
   recordLines,
   responseCouncilTask,
   summaryCouncilTask,
+  appealCheckSchema,
   appealCouncilTask,
+  statementCouncilTask,
   type AppealCheck,
+  type AppealStatement,
   type ClaimAnalysis,
   type PacketSummary,
   type ResponseDraft,
@@ -54,6 +57,7 @@ export const CLAIM_TASK_NAME = "analyze-claim";
 export const SUMMARY_TASK_NAME = "draft-summary";
 export const RESPONSE_TASK_NAME = "draft-response";
 export const APPEAL_TASK_NAME = "check-appeal";
+export const STATEMENT_TASK_NAME = "draft-appeal";
 
 /** A fingerprint of numbered lines as the models read them. */
 const fingerprintOf = (lines: readonly { text: string }[]) =>
@@ -269,12 +273,57 @@ async function prepareAppeal(
   };
 }
 
+/**
+ * The appeal statement (5i-2): the appeal check's facts, with only the new items the check it is
+ * based on found speaking to the claim, each with the check's reason.
+ */
+async function prepareStatement(
+  db: Database,
+  analysis: Analysis,
+  clock: () => Date,
+  marker: string,
+): Promise<Prepared<AppealStatement>> {
+  const { dispute, deal } = await dealOf(db, analysis);
+  const base =
+    analysis.basedOn === undefined ? undefined : await getClaimAnalysis(db, analysis.basedOn);
+  const check = appealCheckSchema.safeParse(base?.analysis);
+  if (!check.success) throw new NotBuilt("the appeal check it is based on cannot be read");
+  const facts = await appealFacts(db, postgresContentStore(db, clock), deal, dispute);
+  const reasons = new Map(check.data.items.filter((i) => i.answers).map((i) => [i.id, i.why]));
+  const items = facts.items.flatMap((item) => {
+    const why = reasons.get(item.id);
+    return why === undefined
+      ? []
+      : [{ id: item.id, words: `${item.words}. Why it speaks to the claim: ${why}` }];
+  });
+  if (items.length === 0) throw new NotBuilt("no new item speaks to the claim");
+  const record = recordLines(await readLedger(db, deal.id));
+  const claim = buyersClaim(dispute);
+  return {
+    made: statementCouncilTask({
+      claim: claim.modelView,
+      decision: facts.decision,
+      sent: facts.sent,
+      record: record.lines,
+      items,
+      marker,
+    }),
+    fingerprints: {
+      claimSha256: fingerprintOf(claim.lines),
+      recordSha256: fingerprintOf(record.lines),
+      exhibitsSha256: sha256Hex(JSON.stringify(items)),
+    },
+    count: (content) => content.statement.length,
+  };
+}
+
 /** Each job kind's name in logs and failure reasons. */
 const JOB_WORDS = {
   claim: "comparison",
   summary: "summary",
   response: "answer help",
   appeal: "appeal check",
+  statement: "appeal statement",
 } as const;
 
 /** Runs the council on a prepared request and saves the result or the failure. */
@@ -376,6 +425,15 @@ export async function runDisputeJob(deps: ClaimJobDeps, analysisId: string): Pro
           analysisId,
           what,
           await prepareAppeal(db, analysis, clock, marker),
+          fail,
+        );
+        break;
+      case "statement":
+        await runPrepared(
+          deps,
+          analysisId,
+          what,
+          await prepareStatement(db, analysis, clock, marker),
           fail,
         );
         break;

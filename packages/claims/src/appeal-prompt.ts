@@ -55,10 +55,13 @@ ${items.map((item) => `${item.id}: ${item.words}`).join("\n")}
 </new-${marker}>`;
 };
 
-/** The two messages that ask a model for the appeal check; every text in a marked element. */
-export function buildAppealMessages(input: Parameters<typeof appealSource>[0]) {
+/**
+ * The two messages for an appeal job (the check, 5i; the statement, 5i-2): `system`, then the
+ * source with every text in a marked element.
+ */
+export function appealMessages(system: string, input: Parameters<typeof appealSource>[0]) {
   return markedPrompt({
-    system: SYSTEM_MESSAGE,
+    system,
     marker: input.marker,
     untrusted: [
       ...input.claim.map((line) => line.text),
@@ -69,3 +72,7 @@ export function buildAppealMessages(input: Parameters<typeof appealSource>[0]) {
     user: appealSource(input),
   });
 }
+
+/** The two messages that ask a model for the appeal check; every text in a marked element. */
+export const buildAppealMessages = (input: Parameters<typeof appealSource>[0]) =>
+  appealMessages(SYSTEM_MESSAGE, input);

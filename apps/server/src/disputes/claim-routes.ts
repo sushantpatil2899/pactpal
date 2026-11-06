@@ -1,11 +1,13 @@
 import {
   APPEAL_PROMPT_VERSION,
   CLAIM_PROMPT_VERSION,
+  STATEMENT_PROMPT_VERSION,
   RESPONSE_PROMPT_VERSION,
   SUMMARY_PROMPT_VERSION,
   claimAnalysisSchema,
   packetSummarySchema,
   appealCheckSchema,
+  appealStatementSchema,
   recordLines,
   responseDraftSchema,
 } from "@pactpal/claims";
@@ -50,6 +52,10 @@ const REFUSALS: Record<AnalysisNotAllowedError["reason"], { status: number; erro
   "already-running": { status: 409, error: "a comparison is already running" },
   "too-many": { status: 429, error: "this dispute already has the most of these allowed" },
   "no-comparison": { status: 409, error: "compare the claim with the record first" },
+  "no-check": {
+    status: 409,
+    error: "run the appeal check first; it must find something that speaks to the claim",
+  },
 };
 
 /** What the council did, for the council panel; the candidates stay stored, not shown. */
@@ -118,7 +124,40 @@ const JOBS = {
   summary: { promptVersion: SUMMARY_PROMPT_VERSION, words: "Packet summary", noun: "summary" },
   response: { promptVersion: RESPONSE_PROMPT_VERSION, words: "Answer help", noun: "answer help" },
   appeal: { promptVersion: APPEAL_PROMPT_VERSION, words: "Appeal check", noun: "appeal check" },
+  statement: {
+    promptVersion: STATEMENT_PROMPT_VERSION,
+    words: "Appeal statement",
+    noun: "appeal statement",
+  },
 } as const;
+
+/** The newest ready appeal check of a dispute that found something speaking to the claim. */
+async function speakingCheck(db: FoundDeal["db"], disputeId: string) {
+  const checks = await listClaimAnalyses(db, disputeId, "appeal");
+  const ready = checks.find((c) => c.status === "ready");
+  const parsed = appealCheckSchema.safeParse(ready?.analysis);
+  return ready !== undefined && parsed.success && parsed.data.items.some((i) => i.answers)
+    ? ready
+    : undefined;
+}
+
+/** One appeal statement for the page (5i-2): sentences with their entries' words, and the note. */
+function statementView(job: ClaimAnalysisRecord, recordText: ReadonlyMap<number, string>) {
+  const parsed = appealStatementSchema.safeParse(job.analysis);
+  return {
+    ...jobView(job),
+    basedOn: job.basedOn ?? null,
+    statement: parsed.success
+      ? {
+          note: parsed.data.note,
+          sentences: parsed.data.statement.map((s) => ({
+            text: s.text,
+            record: s.record.map(entryOf(recordText)),
+          })),
+        }
+      : null,
+  };
+}
 
 /** One appeal check for the page (5i): each new item's judgement with its entries, the summary. */
 function appealView(job: ClaimAnalysisRecord, recordText: ReadonlyMap<number, string>) {
@@ -187,6 +226,13 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
       listClaimAnalyses(found.db, stored.disputeId, "claim"),
     ]);
     const recordText = new Map(recordLines(ledger).lines.map(({ n, text }) => [n, text]));
+    if (kind === "statement") {
+      return reply.send({
+        canDraft:
+          claims !== undefined && (await speakingCheck(found.db, stored.disputeId)) !== undefined,
+        statements: jobs.map((job) => statementView(job, recordText)),
+      });
+    }
     if (kind === "appeal") {
       const facts = await appealFacts(
         found.db,
@@ -362,6 +408,20 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
     );
     if (facts.items.length === 0) return reply.code(409).send({ error: "nothing new to check" });
     return startJob(request, reply, both, { kind: "appeal" });
+  });
+
+  app.get(`${dispute}/appeal/statements`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    return both ? answer(reply, both.found, both.dispute, "statement") : reply;
+  });
+
+  // Drafted from the newest ready appeal check that found something speaking to the claim.
+  app.post(`${dispute}/appeal/statements`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    if (!both) return reply;
+    const check = await speakingCheck(both.found.db, both.dispute.disputeId);
+    if (!check) return sendRefusal(reply, REFUSALS["no-check"]);
+    return startJob(request, reply, both, { kind: "statement", basedOn: check.id });
   });
 
   app.get(`${dispute}/summaries`, async (request, reply) => {

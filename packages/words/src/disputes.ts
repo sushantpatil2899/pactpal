@@ -36,6 +36,7 @@ const WORKING = new Set([
   "send_message",
   "make_offer",
   "accept_claim",
+  "appeal",
 ]);
 
 /** The actions the answer help (5h) describes, in the order the page lists them. */

@@ -11,7 +11,14 @@ export const MAX_EVIDENCE_UPLOADS_PER_DISPUTE = 10;
 export const MAX_DISPUTE_NOTE_CHARS = 2000;
 
 /** What the seller sends PayPal for a dispute: escalation and evidence (5g), answers (5h). */
-export const DISPUTE_ACTION_KINDS = ["escalate", "evidence", "message", "offer", "accept"] as const;
+export const DISPUTE_ACTION_KINDS = [
+  "escalate",
+  "evidence",
+  "message",
+  "offer",
+  "accept",
+  "appeal",
+] as const;
 export type DisputeActionKind = (typeof DISPUTE_ACTION_KINDS)[number];
 
 /** Why an action was not started or sent again. */
@@ -104,6 +111,13 @@ const common = {
   note: z.string().min(1).max(MAX_DISPUTE_NOTE_CHARS),
   noteSha256: sha256,
 };
+/** What an upload to PayPal carries: evidence (5g) and an appeal (5i-2). */
+const uploadFields = {
+  packetId: z.uuid(),
+  evidenceType: z.string().regex(/^[A-Z0-9_]{1,255}$/),
+  files: z.array(actionFileSchema).min(1).max(100),
+};
+
 /** A refund amount in minor units, e.g. 6000 USD cents for 60.00 USD. */
 const amountSchema = z.object({
   minor: z.number().int().min(1),
@@ -119,13 +133,8 @@ const newActionSchema = z.discriminatedUnion("kind", [
     amount: amountSchema,
   }),
   z.object({ ...common, kind: z.literal("accept"), amount: amountSchema }),
-  z.object({
-    ...common,
-    kind: z.literal("evidence"),
-    packetId: z.uuid(),
-    evidenceType: z.string().regex(/^[A-Z0-9_]{1,255}$/),
-    files: z.array(actionFileSchema).min(1).max(100),
-  }),
+  z.object({ ...common, ...uploadFields, kind: z.literal("evidence") }),
+  z.object({ ...common, ...uploadFields, kind: z.literal("appeal") }),
 ]);
 export type NewDisputeAction = z.input<typeof newActionSchema>;
 
@@ -170,7 +179,7 @@ export async function startDisputeAction(
     if (owner[0]?.deal_id !== action.dealId) {
       throw new DisputeActionNotAllowedError("not-this-deal");
     }
-    if (action.kind === "evidence") {
+    if (action.kind === "evidence" || action.kind === "appeal") {
       const packet = await tx.query("SELECT dispute_id FROM evidence_packets WHERE id = $1", [
         action.packetId,
       ]);
@@ -188,7 +197,8 @@ export async function startDisputeAction(
       }
     }
     await refuseWhileSending(tx, action.disputeId);
-    const files = action.kind === "evidence" ? action.files : [];
+    const upload = action.kind === "evidence" || action.kind === "appeal" ? action : undefined;
+    const files = upload?.files ?? [];
     const amount = action.kind === "offer" || action.kind === "accept" ? action.amount : undefined;
     const rows = await tx.query(
       `INSERT INTO dispute_actions (id, deal_id, dispute_id, seller_id, kind, status, request_id,
@@ -204,8 +214,8 @@ export async function startDisputeAction(
         action.sellerId,
         action.kind,
         requestIdOf(action.kind, action.id),
-        action.kind === "evidence" ? action.packetId : null,
-        action.kind === "evidence" ? action.evidenceType : null,
+        upload?.packetId ?? null,
+        upload?.evidenceType ?? null,
         action.note,
         action.noteSha256,
         JSON.stringify(files),
@@ -275,10 +285,11 @@ function sentEvent(row: DisputeActionRecord, transport: string, debugId: string 
     case "accept":
       return { type: "CLAIM_ACCEPTED" as const, payload: { ...common, ...amount } };
     case "evidence":
+    case "appeal":
       break;
   }
   return {
-    type: "EVIDENCE_UPLOADED" as const,
+    type: row.kind === "appeal" ? ("APPEAL_SUBMITTED" as const) : ("EVIDENCE_UPLOADED" as const),
     payload: {
       ...common,
       packetId: row.packetId ?? null,
@@ -295,7 +306,8 @@ function sentEvent(row: DisputeActionRecord, transport: string, debugId: string 
 }
 
 /**
- * Settles a send: `sent` writes `DISPUTE_ESCALATED` or `EVIDENCE_UPLOADED` (by the seller) and
+ * Settles a send: `sent` writes its log entry (`DISPUTE_ESCALATED`, `EVIDENCE_UPLOADED`,
+ * `APPEAL_SUBMITTED`, ...; by the seller) and
  * marks the row in one transaction; `unknown` or `refused` keeps the reason. Only a `sending` row
  * settles; anything else is returned as it is, with no entry.
  */

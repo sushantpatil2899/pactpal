@@ -20,7 +20,7 @@ describe("dispute words", () => {
   });
 
   it("explains each known action, the ones not done yet as coming later, an unknown one as not possible", () => {
-    for (const action of ["appeal", "provide_supporting_info", "acknowledge_return_item"]) {
+    for (const action of ["provide_supporting_info", "acknowledge_return_item"]) {
       expect(disputeActionWords(action)).toMatch(/\(coming in a later step\)$/);
     }
     expect(disputeActionWords("escalate")).toBe(
@@ -30,6 +30,9 @@ describe("dispute words", () => {
       "Send evidence: upload documents that answer the claim.",
     );
     expect(disputeActionWords("new_thing")).toBe("new thing: PactPal cannot do this yet.");
+    expect(disputeActionWords("appeal")).toBe(
+      "Appeal: ask PayPal to look again, with new evidence.",
+    );
     expect(disputeActionWords("make_offer")).toBe(
       "Offer a refund: propose a refund the buyer can accept.",
     );

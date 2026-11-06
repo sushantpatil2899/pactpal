@@ -198,6 +198,7 @@ describe("claim runners", () => {
         summary: "pactpal-workflows/draft-summary",
         response: "pactpal-workflows/draft-response",
         appeal: "pactpal-workflows/check-appeal",
+        statement: "pactpal-workflows/draft-appeal",
       },
       keptLog().log,
     );
@@ -205,11 +206,13 @@ describe("claim runners", () => {
     await runner.start(testId(6), "summary");
     await runner.start(testId(7), "response");
     await runner.start(testId(8), "appeal");
+    await runner.start(testId(9), "statement");
     expect(started).toEqual([
       ["pactpal-workflows/analyze-claim", [testId(5)], `claim:${testId(5)}`],
       ["pactpal-workflows/draft-summary", [testId(6)], `summary:${testId(6)}`],
       ["pactpal-workflows/draft-response", [testId(7)], `response:${testId(7)}`],
       ["pactpal-workflows/check-appeal", [testId(8)], `appeal:${testId(8)}`],
+      ["pactpal-workflows/draft-appeal", [testId(9)], `statement:${testId(9)}`],
     ]);
   });
 

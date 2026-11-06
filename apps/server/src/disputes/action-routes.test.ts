@@ -46,6 +46,7 @@ function fakeWriter() {
     sendMessage: (disputeId, input) => answer("send_message", disputeId, input),
     makeOffer: (disputeId, input) => answer("make_offer", disputeId, input),
     acceptClaim: (disputeId, input) => answer("accept_claim", disputeId, input),
+    appeal: (disputeId, input) => answer("appeal", disputeId, input),
   };
   return { writer, sent, state };
 }

@@ -35,7 +35,7 @@ describe("what was not sent to PayPal before", () => {
       { fileShas: new Set(["a".repeat(64)]), names: new Set(["chat.pdf"]), seal: undefined },
     );
     expect(cut).toBe(false);
-    expect(items.map((item) => item.id)).toEqual(["D1", "E1", "E5", "E10"]);
+    expect(items.map((item) => item.id)).toEqual(["Dbbbbbb", "E1", "E5", "E10"]);
     expect(items[0]?.words).toBe(
       "b.png (added by the seller; delivered work for stage 1; PNG picture)",
     );

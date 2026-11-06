@@ -63,3 +63,16 @@ export {
   type AppealContext,
 } from "./appeal-check.js";
 export { appealCouncilTask, type AppealTask } from "./appeal-task.js";
+export {
+  MAX_APPEAL_NOTE_CHARS,
+  STATEMENT_PROMPT_VERSION,
+  buildStatementMessages,
+} from "./statement-prompt.js";
+export {
+  appealStatementSchema,
+  checkStatement,
+  readStatement,
+  type AppealStatement,
+  type StatementContext,
+} from "./statement-check.js";
+export { statementCouncilTask, type StatementTask } from "./statement-task.js";

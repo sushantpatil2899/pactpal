@@ -947,4 +947,23 @@ END $$`,
 ALTER TABLE claim_analyses ADD CONSTRAINT claim_analyses_kind_check
   CHECK (kind IN ('claim', 'summary', 'response', 'appeal'))`,
   },
+  {
+    id: "0027_appeal_statement",
+    // The appeal statement (5i-2) is a fifth dispute council job, based on a ready appeal check
+    // like a summary is on a comparison; the appeal itself is a seller send with a packet and an
+    // evidence type, like evidence.
+    sql: `ALTER TABLE claim_analyses DROP CONSTRAINT claim_analyses_kind_check;
+ALTER TABLE claim_analyses ADD CONSTRAINT claim_analyses_kind_check
+  CHECK (kind IN ('claim', 'summary', 'response', 'appeal', 'statement'));
+ALTER TABLE claim_analyses DROP CONSTRAINT claim_analyses_based_on;
+ALTER TABLE claim_analyses ADD CONSTRAINT claim_analyses_based_on
+  CHECK ((kind IN ('summary', 'statement')) = (based_on IS NOT NULL));
+
+ALTER TABLE dispute_actions DROP CONSTRAINT dispute_actions_kind_check;
+ALTER TABLE dispute_actions ADD CONSTRAINT dispute_actions_kind_check
+  CHECK (kind IN ('escalate', 'evidence', 'message', 'offer', 'accept', 'appeal'));
+ALTER TABLE dispute_actions DROP CONSTRAINT dispute_actions_evidence_fields;
+ALTER TABLE dispute_actions ADD CONSTRAINT dispute_actions_evidence_fields
+  CHECK ((kind IN ('evidence', 'appeal')) = (packet_id IS NOT NULL AND evidence_type IS NOT NULL))`,
+  },
 ];

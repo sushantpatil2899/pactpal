@@ -185,4 +185,26 @@ describe("claim analyses", () => {
       drafting.id,
     ]);
   });
+
+  it("drafts an appeal statement only from a ready appeal check, and logs APPEAL_DRAFTED", async () => {
+    const { start } = await disputed();
+    const check = await startClaimAnalysis(db, { ...start(1), kind: "appeal" }, at(2));
+    const statement = { ...start(2), kind: "statement" as const, basedOn: check.id };
+    await expect(startClaimAnalysis(db, statement, at(3))).rejects.toEqual(refusal("no-check"));
+    const checked = await finishClaimAnalysis(
+      db,
+      { ...finished(check.id), exhibitsSha256: "e".repeat(64), statements: 2 },
+      at(4),
+    );
+    expect(checked?.entry).toMatchObject({
+      type: "APPEAL_CHECKED",
+      payload: { itemsSha256: "e".repeat(64), speaking: 2 },
+    });
+    const drafting = await startClaimAnalysis(db, statement, at(5));
+    const done = await finishClaimAnalysis(db, { ...finished(drafting.id), statements: 4 }, at(6));
+    expect(done?.entry).toMatchObject({
+      type: "APPEAL_DRAFTED",
+      payload: { basedOn: check.id, sentences: 4 },
+    });
+  });
 });

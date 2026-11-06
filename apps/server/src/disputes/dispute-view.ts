@@ -54,7 +54,12 @@ export const requestedEvidenceOf = (details: StoredDispute["details"]): string[]
   disputeFieldsOf(details).requestedEvidence;
 
 /** The seller's answers to PayPal that the dispute's history lists, besides `DISPUTE_` entries. */
-const SELLER_ANSWERS = new Set(["EVIDENCE_UPLOADED", "OFFER_MADE", "CLAIM_ACCEPTED"]);
+const SELLER_ANSWERS = new Set([
+  "EVIDENCE_UPLOADED",
+  "OFFER_MADE",
+  "CLAIM_ACCEPTED",
+  "APPEAL_SUBMITTED",
+]);
 
 /** The disputed amount in words with its currency ("120.00 USD"), or null when PayPal gave none. */
 export const disputedAmountWords = (dispute: StoredDispute): string | null =>

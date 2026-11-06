@@ -457,6 +457,8 @@ Since 5h (migration 0025) `kind` may also be `response`: answer help, with no `b
 
 Since 5i (migration 0026) `kind` may also be `appeal`: the appeal check. Its `analysis` holds a judgement per new item (whether it speaks to the claim, why, cited entries) and a short summary; a ready one logs `APPEAL_CHECKED` (by the system): ids, the fingerprint of the new-items list (`itemsSha256`) and of what the models read, models, the winner and how many items it judged as speaking to the claim (`speaking`); no AI text. Since 5i the dispute's stored `details` also hold `decisionReasons` (PayPal's decision reason codes) and `sellerEvidence` (evidence PayPal lists as sent by the seller: type and document names).
 
+Since 5i-2 (migration 0027) `kind` may also be `statement`: the appeal statement, based on a ready appeal check (`based_on`). Its `analysis` holds the sentences with their record entries and the note; a ready one logs `APPEAL_DRAFTED` (by the system): ids, `basedOn`, fingerprints, models, the winner and the number of sentences; no AI text.
+
 Since 5d the dispute's stored `details` also hold `requestedEvidence`: the evidence types PayPal asks the seller for.
 
 ### `evidence_packets`: built evidence packets
@@ -492,6 +494,8 @@ Built in 5g (migration 0024). One row per escalation or evidence upload the sell
 | `ledger_seq`, `created_at`, `finished_at`  | The `DISPUTE_ESCALATED` or `EVIDENCE_UPLOADED` entry when sent, and the times                                    |
 
 Since 5h (migration 0025) a row may also be a `message` to the buyer, a refund `offer` or an `accept` of the claim. `offer_type` (`REFUND`), `amount_minor` and `currency` are set for an offer (the amount offered) and an accept (the disputed amount refunded), and kept as confirmed. Sent ones log `DISPUTE_MESSAGE_SENT`, `OFFER_MADE` (with the type and amount) or `CLAIM_ACCEPTED` (with the amount), by the seller.
+
+Since 5i-2 (migration 0027) a row may also be an `appeal`: like `evidence`, with a packet, an evidence type and the files sent; a sent one logs `APPEAL_SUBMITTED` (by the seller) with the same fields as `EVIDENCE_UPLOADED`.
 
 `DISPUTE_ESCALATED` and `EVIDENCE_UPLOADED` (by the seller) hold the action and dispute ids, the note's fingerprint, the transport and PayPal's debug id; an upload also holds the packet id, the evidence type, each file's exhibit number, name, size and fingerprint, and the total size. Never the note's words.
 

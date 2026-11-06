@@ -1,34 +1,17 @@
 import type { PacketSummariesView, PacketSummaryView } from "./api";
-import { CouncilPanel, ReviewFlag } from "./CouncilPanel";
+import { CitedDraft } from "./CitedDraft";
 import { DraftControls } from "./DraftControls";
 
 /** One finished summary: the sentences with their log entries, the note, and the council. */
 function Summary({ view }: { view: PacketSummaryView }) {
   if (view.summary === null) return null;
   return (
-    <>
-      <ReviewFlag council={view.council} />
-      <ol>
-        {view.summary.summary.map((sentence, i) => (
-          <li key={i}>
-            {sentence.text}{" "}
-            <small>
-              (
-              {sentence.record.length === 0
-                ? "no log entry"
-                : `log entries: ${sentence.record.map((entry) => entry.text).join("; ")}`}
-              )
-            </small>
-          </li>
-        ))}
-      </ol>
-      <p>
-        <strong>Draft note for PayPal</strong> (you can change it before anything is sent, in a
-        later step):
-      </p>
-      <blockquote style={{ whiteSpace: "pre-wrap" }}>{view.summary.note}</blockquote>
-      {view.council !== null && <CouncilPanel council={view.council} />}
-    </>
+    <CitedDraft
+      council={view.council}
+      sentences={view.summary.summary}
+      note={view.summary.note}
+      noteLabel="Draft note for PayPal"
+    />
   );
 }
 
