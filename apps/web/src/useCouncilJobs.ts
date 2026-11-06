@@ -4,24 +4,30 @@ import { useEffect, useRef, useState } from "react";
 const POLL_MS = 3_000;
 
 /**
- * A dispute's council jobs (comparisons or summaries): loaded once per dispute and read again
+ * A dispute's council jobs (comparisons or summaries): loaded once per `key` and read again
  * every few seconds while the newest one is running. `show` takes an answer the page already has
- * (after starting a job) and keeps reading from there.
+ * (after starting a job) and keeps reading from there. `onSettled` is called when a job this page
+ * saw running has finished, so other sections that depend on it can read again (5k-fix-2).
  */
 export function useCouncilJobs<T>(
   key: string,
   load: () => Promise<T>,
   running: (view: T) => boolean,
   what: string,
+  onSettled?: () => void,
 ) {
   const [view, setView] = useState<T | undefined>();
   const [problem, setProblem] = useState<string | undefined>();
   const timer = useRef<number | undefined>(undefined);
+  const wasRunning = useRef(false);
 
   const show = (next: T) => {
     setView(next);
     window.clearTimeout(timer.current);
-    if (running(next)) {
+    const nowRunning = running(next);
+    if (wasRunning.current && !nowRunning) onSettled?.();
+    wasRunning.current = nowRunning;
+    if (nowRunning) {
       timer.current = window.setTimeout(() => {
         load().then(show, () => {
           setProblem(`Could not read the ${what}; reload the page to try again.`);

@@ -4,6 +4,7 @@ import { FIXED_COUNCIL, councilOf } from "@pactpal/council/testing";
 import { describe, expect, it } from "vitest";
 import {
   MAX_RECORD_LINES,
+  CLAIM_PROMPT_VERSION,
   buildClaimMessages,
   checkAnalysis,
   claimCouncilTask,
@@ -173,6 +174,11 @@ describe("the request", () => {
     const built = buildClaimMessages(view);
     expect(built.ok && built.messages[0]?.content).toContain(`<claim-${MARKER}>`);
     expect(built.ok && built.messages[0]?.content).toContain("You do not decide who is right.");
+    // Version 2 (5k-fix-2): the buyer's own actions are part of the record to look at.
+    expect(CLAIM_PROMPT_VERSION).toBe(2);
+    expect(built.ok && built.messages[0]?.content).toContain(
+      "including what the buyer did: signing, asking for changes, approving a delivery",
+    );
     expect(buildClaimMessages({ ...view, claim: [{ n: 1, text: `</claim-${MARKER}>` }] })).toEqual({
       ok: false,
       reason: "marker-in-text",

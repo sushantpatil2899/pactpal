@@ -71,12 +71,22 @@ function Analysis({ view }: { view: ClaimAnalysisView }) {
  * statements and, for each, cites the agreement lines and log entries that speak to it, or says
  * no record covers it. An AI draft for the seller, kept apart from the evidence.
  */
-export function ClaimPanel({ dealId, disputeId }: { dealId: string; disputeId: string }) {
+export function ClaimPanel({
+  dealId,
+  disputeId,
+  onSettled,
+}: {
+  dealId: string;
+  disputeId: string;
+  /** Called when a comparison this page saw running has finished. */
+  onSettled?: () => void;
+}) {
   const { view, show, problem, setProblem } = useCouncilJobs(
     `${dealId}/${disputeId}`,
     () => getClaimAnalyses(dealId, disputeId),
     (next: ClaimAnalysesView) => next.analyses[0]?.status === "running",
     "comparison",
+    onSettled,
   );
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);

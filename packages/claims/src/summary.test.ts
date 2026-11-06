@@ -4,6 +4,7 @@ import { runCouncil } from "@pactpal/council";
 import { FIXED_COUNCIL, councilOf } from "@pactpal/council/testing";
 import { describe, expect, it } from "vitest";
 import {
+  SUMMARY_PROMPT_VERSION,
   buildSummaryMessages,
   checkSummary,
   comparisonRows,
@@ -159,6 +160,10 @@ describe("summaryCouncilTask", () => {
     const system = made.task.answerRequest(testSpec()).messages[0]?.content ?? "";
     expect(system).toContain("about each statement of the claim, in the order of the statements");
     expect(system).toContain('like "Statement 1:", or with "None:"');
+    // Version 3 (5k-fix-2): the buyer's own actions, and no claims about what files lack.
+    expect(SUMMARY_PROMPT_VERSION).toBe(3);
+    expect(system).toContain("Include the buyer's own actions (asking for changes, approving");
+    expect(system).toContain("never say the record lacks a file or its content");
     expect(made.task.rank.criteria).toContain(
       "The summary speaks to the claim's statements rather than retelling the whole record.",
     );

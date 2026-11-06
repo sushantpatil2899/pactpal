@@ -4,9 +4,15 @@ import { CouncilPanel, ReviewFlag } from "./CouncilPanel";
 import { DraftControls } from "./DraftControls";
 import { useCouncilJobs } from "./useCouncilJobs";
 
-/** One finished draft: each option's fixed facts and the AI's note, the message and the offer note. */
+/**
+ * One finished draft: each option's fixed facts and the AI's note, then the message and the offer
+ * note when PayPal allowed sending them.
+ */
 function Draft({ view }: { view: ResponseView }) {
   if (view.draft === null) return null;
+  // The message and the offer note show only when PayPal allowed that answer when this was drafted
+  // (5k-fix-2): at the chargeback stage it allows neither.
+  const offered = new Set(view.draft.options.map((option) => option.code));
   return (
     <>
       <ReviewFlag council={view.council} />
@@ -22,13 +28,19 @@ function Draft({ view }: { view: ResponseView }) {
           </li>
         ))}
       </ul>
-      <p>
-        <strong>Draft message to the buyer</strong> (you can change it before sending, below):
-      </p>
-      <blockquote style={{ whiteSpace: "pre-wrap" }}>{view.draft.message}</blockquote>
-      <p>
-        <strong>Draft note for a refund offer:</strong> {view.draft.offerNote}
-      </p>
+      {offered.has("send_message") && (
+        <>
+          <p>
+            <strong>Draft message to the buyer</strong> (you can change it before sending, below):
+          </p>
+          <blockquote style={{ whiteSpace: "pre-wrap" }}>{view.draft.message}</blockquote>
+        </>
+      )}
+      {offered.has("make_offer") && (
+        <p>
+          <strong>Draft note for a refund offer:</strong> {view.draft.offerNote}
+        </p>
+      )}
       {view.council !== null && <CouncilPanel council={view.council} />}
     </>
   );

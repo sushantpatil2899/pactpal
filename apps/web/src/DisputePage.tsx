@@ -98,6 +98,8 @@ function Deadline({ dueAt }: { dueAt: string | null }) {
  */
 export function DisputePage({ dealId, disputeId }: { dealId: string; disputeId: string }) {
   const [view, setView] = useState<DisputePageView | undefined>();
+  /** Counts comparisons finished while the page is open, so the summary section reads again. */
+  const [comparisonsDone, setComparisonsDone] = useState(0);
   const [problem, setProblem] = useState<string | undefined>();
 
   const load = () =>
@@ -175,9 +177,15 @@ export function DisputePage({ dealId, disputeId }: { dealId: string; disputeId: 
         <Deadline dueAt={view.sellerDueAt} />
       </section>
 
-      <ClaimPanel dealId={dealId} disputeId={disputeId} />
+      <ClaimPanel
+        dealId={dealId}
+        disputeId={disputeId}
+        onSettled={() => {
+          setComparisonsDone((n) => n + 1);
+        }}
+      />
 
-      <PacketPanel dealId={dealId} disputeId={disputeId} />
+      <PacketPanel dealId={dealId} disputeId={disputeId} comparisonsDone={comparisonsDone} />
 
       <ResponsePanel dealId={dealId} disputeId={disputeId} />
 

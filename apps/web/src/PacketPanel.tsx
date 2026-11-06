@@ -50,7 +50,16 @@ function AiPick({ pick }: { pick: { use: boolean; why: string } | undefined }) {
  * checked comparison and summary go in only when the seller ticks that they checked them.
  * Nothing is sent to PayPal from here.
  */
-export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: string }) {
+export function PacketPanel({
+  dealId,
+  disputeId,
+  comparisonsDone = 0,
+}: {
+  dealId: string;
+  disputeId: string;
+  /** Bumped when a comparison finishes, so whether a summary can be drafted is read again. */
+  comparisonsDone?: number;
+}) {
   const [view, setView] = useState<PacketView | undefined>();
   const [unticked, setUnticked] = useState<ReadonlySet<string>>(new Set());
   const [problem, setProblem] = useState<string | undefined>();
@@ -59,7 +68,7 @@ export function PacketPanel({ dealId, disputeId }: { dealId: string; disputeId: 
   /** The summary the seller ticked as checked; a newer summary needs a new tick. */
   const [checkedId, setCheckedId] = useState<string | undefined>();
   const summaries = useCouncilJobs(
-    `${dealId}/${disputeId}`,
+    `${dealId}/${disputeId}/${String(comparisonsDone)}`,
     () => getSummaries(dealId, disputeId),
     (next: PacketSummariesView) => next.summaries[0]?.status === "running",
     "summary",
