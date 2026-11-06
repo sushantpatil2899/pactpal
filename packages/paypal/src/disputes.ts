@@ -61,6 +61,10 @@ export interface DisputeDetails extends DisputeSummary {
   /** Evidence types PayPal asks the seller for (`source: REQUESTED_FROM_SELLER`), e.g. "OTHER". */
   requestedEvidence: string[];
   outcome: string | undefined;
+  /** PayPal's reason codes for its decisions (`adjudications[].reason`), e.g. "INELIGIBLE_...". */
+  decisionReasons: string[];
+  /** Evidence the seller sent, as PayPal lists it (`source: SUBMITTED_BY_SELLER`): type, names. */
+  sellerEvidence: { type: string | undefined; documents: string[] }[];
 }
 
 const link = z.looseObject({ rel: z.string(), href: z.string().optional() });
@@ -129,8 +133,15 @@ const disputeDetails = z
       .optional(),
     links: z.array(link).default([]),
     evidences: z
-      .array(z.looseObject({ evidence_type: z.string().optional(), source: z.string().optional() }))
+      .array(
+        z.looseObject({
+          evidence_type: z.string().optional(),
+          source: z.string().optional(),
+          documents: z.array(z.looseObject({ name: z.string().optional() })).default([]),
+        }),
+      )
       .default([]),
+    adjudications: z.array(z.looseObject({ reason: z.string().optional() })).default([]),
     dispute_outcome: z.looseObject({ outcome_code: z.string().optional() }).optional(),
   })
   .transform((raw): DisputeDetails => ({
@@ -161,6 +172,13 @@ const disputeDetails = z
       ),
     ],
     outcome: raw.dispute_outcome?.outcome_code,
+    decisionReasons: raw.adjudications.flatMap((a) => (a.reason === undefined ? [] : [a.reason])),
+    sellerEvidence: raw.evidences
+      .filter((e) => e.source === "SUBMITTED_BY_SELLER")
+      .map((e) => ({
+        type: e.evidence_type,
+        documents: e.documents.flatMap((d) => (d.name === undefined ? [] : [d.name])),
+      })),
   }));
 
 type Page = z.output<typeof disputePage>;

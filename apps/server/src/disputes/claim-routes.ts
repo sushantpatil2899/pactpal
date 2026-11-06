@@ -1,9 +1,11 @@
 import {
+  APPEAL_PROMPT_VERSION,
   CLAIM_PROMPT_VERSION,
   RESPONSE_PROMPT_VERSION,
   SUMMARY_PROMPT_VERSION,
   claimAnalysisSchema,
   packetSummarySchema,
+  appealCheckSchema,
   recordLines,
   responseDraftSchema,
 } from "@pactpal/claims";
@@ -26,6 +28,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { readBody, sendRefusal, type DealLookup, type FoundDeal } from "../deals/access.js";
 import { councilRecordSchema } from "../drafting/council-record.js";
+import { appealApplies, appealFacts } from "./appeal-items.js";
 import { RunnerBusyError, type ClaimRunner } from "./checker.js";
 import { sellersDispute } from "./dispute-lookup.js";
 import { disputedAmountWords, messagesOf } from "./dispute-view.js";
@@ -114,7 +117,25 @@ const JOBS = {
   claim: { promptVersion: CLAIM_PROMPT_VERSION, words: "Claim comparison", noun: "comparison" },
   summary: { promptVersion: SUMMARY_PROMPT_VERSION, words: "Packet summary", noun: "summary" },
   response: { promptVersion: RESPONSE_PROMPT_VERSION, words: "Answer help", noun: "answer help" },
+  appeal: { promptVersion: APPEAL_PROMPT_VERSION, words: "Appeal check", noun: "appeal check" },
 } as const;
+
+/** One appeal check for the page (5i): each new item's judgement with its entries, the summary. */
+function appealView(job: ClaimAnalysisRecord, recordText: ReadonlyMap<number, string>) {
+  const parsed = appealCheckSchema.safeParse(job.analysis);
+  return {
+    ...jobView(job),
+    check: parsed.success
+      ? {
+          summary: parsed.data.summary,
+          items: parsed.data.items.map((item) => ({
+            ...item,
+            record: item.record.map(entryOf(recordText)),
+          })),
+        }
+      : null,
+  };
+}
 
 /**
  * One answer help draft for the page (5h): the message, each option with its fixed facts (by
@@ -166,6 +187,22 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
       listClaimAnalyses(found.db, stored.disputeId, "claim"),
     ]);
     const recordText = new Map(recordLines(ledger).lines.map(({ n, text }) => [n, text]));
+    if (kind === "appeal") {
+      const facts = await appealFacts(
+        found.db,
+        postgresContentStore(found.db, clock),
+        found.deal,
+        stored,
+      );
+      const applies = appealApplies(stored);
+      return reply.send({
+        applies,
+        canCheck: claims !== undefined && applies && facts.items.length > 0,
+        items: facts.items,
+        cut: facts.cut,
+        checks: jobs.map((job) => appealView(job, recordText)),
+      });
+    }
     if (kind === "response") {
       const amount = disputedAmountWords(stored);
       return reply.send({
@@ -301,6 +338,30 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
       return reply.code(409).send({ error: "PayPal allows no answer for this dispute now" });
     }
     return startJob(request, reply, both, { kind: "response" });
+  });
+
+  app.get(`${dispute}/appeal`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    return both ? answer(reply, both.found, both.dispute, "appeal") : reply;
+  });
+
+  // Only after a decision for the buyer (or while PayPal allows an appeal), and only when code
+  // found something not sent before: with nothing new there is nothing for the models to judge.
+  app.post(`${dispute}/appeal`, async (request, reply) => {
+    const both = await sellersDispute(sellersDeal, request, reply);
+    if (!both) return reply;
+    const { found, dispute: stored } = both;
+    if (!appealApplies(stored)) {
+      return reply.code(409).send({ error: "PayPal has not decided this dispute for the buyer" });
+    }
+    const facts = await appealFacts(
+      found.db,
+      postgresContentStore(found.db, clock),
+      found.deal,
+      stored,
+    );
+    if (facts.items.length === 0) return reply.code(409).send({ error: "nothing new to check" });
+    return startJob(request, reply, both, { kind: "appeal" });
   });
 
   app.get(`${dispute}/summaries`, async (request, reply) => {

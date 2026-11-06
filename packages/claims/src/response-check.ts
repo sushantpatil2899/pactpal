@@ -2,23 +2,27 @@ import { parseJsonReply, type ChatOutcome } from "@pactpal/ai";
 import { z } from "zod";
 import type { RecordLine } from "./record.js";
 import { MAX_MESSAGE_CHARS, MAX_OFFER_NOTE_CHARS } from "./response-prompt.js";
-import { textProblems } from "./text-checks.js";
-
-const text = (max: number) => z.string().trim().min(1).max(max);
+import {
+  citations,
+  coverageProblems,
+  draftText,
+  invalidReply,
+  textProblems,
+} from "./text-checks.js";
 
 export const responseDraftSchema = z.object({
-  message: text(MAX_MESSAGE_CHARS),
+  message: draftText(MAX_MESSAGE_CHARS),
   options: z
     .array(
       z.object({
-        code: text(60),
-        fits: text(400),
-        record: z.array(z.number().int().min(1)).max(12).default([]),
+        code: draftText(60),
+        fits: draftText(400),
+        record: citations,
       }),
     )
     .min(1)
     .max(10),
-  offerNote: text(MAX_OFFER_NOTE_CHARS),
+  offerNote: draftText(MAX_OFFER_NOTE_CHARS),
 });
 
 /** A model's answer help after the checks: a draft message, option notes and an offer note. */
@@ -33,11 +37,6 @@ export interface ResponseContext {
   optionText: string;
 }
 
-const invalid = (errors: string[]) => ({
-  ok: false as const,
-  validation: { valid: false, score: 0, errors },
-});
-
 /**
  * Checks answer help against what the models were given: every allowed option described exactly
  * once (and no other), cited record entries exist, and neither the message nor the offer note
@@ -47,16 +46,12 @@ const invalid = (errors: string[]) => ({
  */
 export function checkResponse(value: unknown, context: ResponseContext) {
   const parsed = responseDraftSchema.safeParse(value);
-  if (!parsed.success) return invalid(["the reply is not in the expected shape"]);
+  if (!parsed.success) return invalidReply(["the reply is not in the expected shape"]);
   const draft = parsed.data;
   const numbers = new Set(context.record.map(({ n }) => n));
   const errors: string[] = [];
   const codes = draft.options.map((option) => option.code);
-  const missing = context.optionCodes.filter((code) => !codes.includes(code));
-  const unknown = codes.filter((code) => !context.optionCodes.includes(code));
-  if (missing.length > 0) errors.push(`${String(missing.length)} option(s) not described`);
-  if (unknown.length > 0) errors.push(`${String(unknown.length)} unknown option(s) described`);
-  if (new Set(codes).size !== codes.length) errors.push("an option is described twice");
+  errors.push(...coverageProblems(codes, context.optionCodes, "option", "described"));
   let checked = 0;
   let found = 0;
   for (const option of draft.options) {
@@ -84,6 +79,6 @@ export function checkResponse(value: unknown, context: ResponseContext) {
 /** Reads a model's outcome: a failed call or a reply that is not JSON is invalid, never thrown. */
 export function readResponse(outcome: ChatOutcome, context: ResponseContext) {
   const parsed = parseJsonReply(outcome);
-  if (!parsed.ok) return invalid([`no usable reply (${parsed.kind})`]);
+  if (!parsed.ok) return invalidReply([`no usable reply (${parsed.kind})`]);
   return checkResponse(parsed.value, context);
 }

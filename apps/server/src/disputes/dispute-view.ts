@@ -32,13 +32,26 @@ export function messagesOf(details: StoredDispute["details"]): DisputeMessageVie
   }));
 }
 
-const requested = z
-  .object({ requestedEvidence: z.array(z.string()).default([]) })
-  .catch({ requestedEvidence: [] });
+const keptFields = z
+  .object({
+    requestedEvidence: z.array(z.string()).default([]),
+    decisionReasons: z.array(z.string()).default([]),
+    sellerEvidence: z
+      .array(z.object({ type: z.string().optional(), documents: z.array(z.string()).default([]) }))
+      .default([]),
+  })
+  .catch({ requestedEvidence: [], decisionReasons: [], sellerEvidence: [] });
+
+/**
+ * What PactPal keeps from PayPal's answer about a dispute (empty when unreadable): the evidence
+ * types PayPal asks the seller for, its decision reason codes (5i) and the evidence the seller
+ * sent as PayPal lists it, with document names.
+ */
+export const disputeFieldsOf = (details: StoredDispute["details"]) => keptFields.parse(details);
 
 /** The evidence types PayPal asks the seller for, kept from its answer (none when unreadable). */
 export const requestedEvidenceOf = (details: StoredDispute["details"]): string[] =>
-  requested.parse(details).requestedEvidence;
+  disputeFieldsOf(details).requestedEvidence;
 
 /** The seller's answers to PayPal that the dispute's history lists, besides `DISPUTE_` entries. */
 const SELLER_ANSWERS = new Set(["EVIDENCE_UPLOADED", "OFFER_MADE", "CLAIM_ACCEPTED"]);

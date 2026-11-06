@@ -939,4 +939,12 @@ BEGIN
   RETURN NEW;
 END $$`,
   },
+  {
+    id: "0026_appeal_check",
+    // The appeal check (5i) is a fourth dispute council job: whether evidence not sent before
+    // speaks to the claim PayPal decided for the buyer.
+    sql: `ALTER TABLE claim_analyses DROP CONSTRAINT claim_analyses_kind_check;
+ALTER TABLE claim_analyses ADD CONSTRAINT claim_analyses_kind_check
+  CHECK (kind IN ('claim', 'summary', 'response', 'appeal'))`,
+  },
 ];

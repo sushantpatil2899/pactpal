@@ -196,3 +196,26 @@ One council run of answer help (response prompt version 1) on the made-up Maya c
 - Wording slips for the seller to catch, which code does not: the message calls the approved stage 1 sketch "the final design" and speaks of "the attached reference board" (a message carries no files, and the board was the buyer's), reading a style claim into it.
 - 10 calls (6 failed), about 9,400 tokens counted, 120 seconds, most of it Nemotron's time-out.
 - Limits of the check: one made-up case, one run, a council thinned to two models by free-tier limits.
+
+## Live appeal checks (sub-phase 5i, 6 November 2026)
+
+Council runs of the appeal check (appeal prompt version 1) on a made-up Daniel case: claim "The site has no blog. I was promised a full website."; PayPal decided for the buyer; only `homepage.png` was sent (outside PactPal); 2 documents and 10 log entries not sent before, among them #19 "declined a change to the agreement ("A blog"; "Not needed for now")". Run locally with every model that has a key. Nothing was saved or sent to PayPal.
+
+**Runs 1 and 2 (the second saving each model's raw reply):** no valid answer. Gemini refused (daily limit) and Nemotron timed out. Qwen and Mistral copied ids such as `doc:receipt` together with the file name after them (`doc:receipt: pactpal-receipt-v2.pdf`), as the id held a colon itself. GPT-OSS and Mistral gave an empty or null reason for items that add nothing, which the checker refused. About 7,200 tokens and 60 seconds each.
+
+**Fix (code only, prompt unchanged):** the new items have short ids with no colon (`D1`, `E19`); an id copied with its line's words after it is read as the item it starts with; the reason may be empty for an item that does not speak to the claim, and is still required for one that does.
+
+**Run 3:**
+
+| Model               | Result                     | Seconds | Tokens |
+| ------------------- | -------------------------- | ------- | ------ |
+| nemotron-openrouter | valid, won                 | 59.8    | 4,565  |
+| qwen-groq           | valid                      | 2.9     | 2,265  |
+| mistral             | valid                      | 7.8     | 2,010  |
+| gpt-oss-groq        | valid                      | 2.5     | 2,418  |
+| gemini              | refused: daily limit (429) | -       | -      |
+
+- Agreement 1.00 (every counted voter ranked Nemotron's first), not flagged for review. 10 calls (3 failed), about 21,900 tokens counted, 120 seconds.
+- The winner marked as speaking to the claim the signed agreement version 2 (D1) and entries #17, #18, #19, #23 and #25 (the blog proposed, only online ordering signed, the blog declined, the final delivery and payment under version 2), and the earlier entries and the buyer's brief as not. Its summary: the buyer declined a blog during the agreement change, and the final work was delivered and paid under an agreement without one; it predicts nothing.
+- One wording for the seller to weigh: #19 "contradicting claim of a promised blog" reads close to a conclusion.
+- Limits of the check: one made-up case, one valid run.

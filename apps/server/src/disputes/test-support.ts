@@ -40,6 +40,8 @@ export const testDispute = (overrides: Partial<DisputeDetails> = {}): DisputeDet
   allowedOfferTypes: ["REFUND"],
   requestedEvidence: [],
   outcome: undefined,
+  decisionReasons: [],
+  sellerEvidence: [],
   ...overrides,
 });
 
@@ -157,6 +159,7 @@ export const paypalState = (
     offerTypes?: string[];
     requestedEvidence?: string[];
     buyerSays?: string;
+    outcome?: string;
   },
 ) =>
   recordDispute(
@@ -169,6 +172,7 @@ export const paypalState = (
       amount: { minor: 12_000, currency: "USD" },
       allowedActions: state.allowedActions,
       offerTypes: state.offerTypes ?? [],
+      ...(state.outcome === undefined ? {} : { outcome: state.outcome }),
       details: {
         requestedEvidence: state.requestedEvidence ?? [],
         messages:

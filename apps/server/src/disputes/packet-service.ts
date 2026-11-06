@@ -171,6 +171,7 @@ export async function packetChoices(db: Database, store: ContentStore, deal: Dea
     exhibits: plans.map((plan) => ({
       id: plan.id,
       filename: plan.filename,
+      sha256: plan.sha256,
       kind: plan.kind,
       stage: plan.stage ?? null,
       addedBy: plan.addedBy,

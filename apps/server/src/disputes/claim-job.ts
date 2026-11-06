@@ -8,6 +8,8 @@ import {
   recordLines,
   responseCouncilTask,
   summaryCouncilTask,
+  appealCouncilTask,
+  type AppealCheck,
   type ClaimAnalysis,
   type PacketSummary,
   type ResponseDraft,
@@ -24,6 +26,7 @@ import {
   postgresContentStore,
   readLedger,
   type Database,
+  type StoredDispute,
 } from "@pactpal/db";
 import { sha256Hex } from "@pactpal/ledger";
 import { agreementLines } from "@pactpal/qa";
@@ -34,6 +37,7 @@ import type { LogSink } from "../payments/payment-sync.js";
 import { signedRecord } from "../payments/signed-record.js";
 import { disputedAmountWords, messagesOf, requestedEvidenceOf } from "./dispute-view.js";
 import { ADDED_BY, exhibitWhat } from "./packet.js";
+import { appealFacts } from "./appeal-items.js";
 import { packetChoices } from "./packet-service.js";
 
 /** What one comparison needs: the database, the models with keys and the council's effects. */
@@ -49,6 +53,7 @@ export interface ClaimJobDeps {
 export const CLAIM_TASK_NAME = "analyze-claim";
 export const SUMMARY_TASK_NAME = "draft-summary";
 export const RESPONSE_TASK_NAME = "draft-response";
+export const APPEAL_TASK_NAME = "check-appeal";
 
 /** A fingerprint of numbered lines as the models read them. */
 const fingerprintOf = (lines: readonly { text: string }[]) =>
@@ -170,6 +175,15 @@ async function prepareSummary(
   };
 }
 
+/** The buyer's claim as PayPal shows it: the reason and the buyer's messages, as numbered lines. */
+const buyersClaim = (dispute: StoredDispute) =>
+  claimLines({
+    reason: dispute.reason,
+    buyerMessages: (messagesOf(dispute.details) ?? [])
+      .filter((m) => m.from === "BUYER")
+      .map((m) => m.text),
+  });
+
 /** The newest ready comparison of a dispute as plain rows, or none. */
 async function comparisonRowsOf(
   db: Database,
@@ -200,12 +214,7 @@ async function prepareResponse(
   const record = recordLines(await readLedger(db, deal.id));
   const recordText = new Map(record.lines.map(({ n, text }) => [n, text]));
   const comparison = (await comparisonRowsOf(db, dispute.disputeId, recordText)) ?? [];
-  const claim = claimLines({
-    reason: dispute.reason,
-    buyerMessages: (messagesOf(dispute.details) ?? [])
-      .filter((m) => m.from === "BUYER")
-      .map((m) => m.text),
-  });
+  const claim = buyersClaim(dispute);
   const amount = disputedAmountWords(dispute);
   const options = ANSWER_OPTIONS.filter((code) => dispute.allowedActions.includes(code)).map(
     (code) => ({ code, words: answerFacts(code, amount) }),
@@ -227,8 +236,46 @@ async function prepareResponse(
   };
 }
 
+/**
+ * The appeal check (5i): the buyer's claim, PayPal's decision, what was sent and the record, and
+ * the items code found that were not sent before, which the models judge.
+ */
+async function prepareAppeal(
+  db: Database,
+  analysis: Analysis,
+  clock: () => Date,
+  marker: string,
+): Promise<Prepared<AppealCheck>> {
+  const { dispute, deal } = await dealOf(db, analysis);
+  const facts = await appealFacts(db, postgresContentStore(db, clock), deal, dispute);
+  if (facts.items.length === 0) throw new NotBuilt("nothing new to check");
+  const record = recordLines(await readLedger(db, deal.id));
+  const claim = buyersClaim(dispute);
+  return {
+    made: appealCouncilTask({
+      claim: claim.modelView,
+      decision: facts.decision,
+      sent: facts.sent,
+      record: record.lines,
+      items: facts.items,
+      marker,
+    }),
+    fingerprints: {
+      claimSha256: fingerprintOf(claim.lines),
+      recordSha256: fingerprintOf(record.lines),
+      exhibitsSha256: sha256Hex(JSON.stringify(facts.items)),
+    },
+    count: (content) => content.items.filter((item) => item.answers).length,
+  };
+}
+
 /** Each job kind's name in logs and failure reasons. */
-const JOB_WORDS = { claim: "comparison", summary: "summary", response: "answer help" } as const;
+const JOB_WORDS = {
+  claim: "comparison",
+  summary: "summary",
+  response: "answer help",
+  appeal: "appeal check",
+} as const;
 
 /** Runs the council on a prepared request and saves the result or the failure. */
 async function runPrepared<T>(
@@ -320,6 +367,15 @@ export async function runDisputeJob(deps: ClaimJobDeps, analysisId: string): Pro
           analysisId,
           what,
           await prepareResponse(db, analysis, marker),
+          fail,
+        );
+        break;
+      case "appeal":
+        await runPrepared(
+          deps,
+          analysisId,
+          what,
+          await prepareAppeal(db, analysis, clock, marker),
           fail,
         );
         break;

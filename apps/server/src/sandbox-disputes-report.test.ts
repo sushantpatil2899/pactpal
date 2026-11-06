@@ -70,6 +70,8 @@ describe("formatDisputeDetails", () => {
     allowedOfferTypes: ["REFUND"],
     requestedEvidence: [],
     outcome: undefined,
+    decisionReasons: [],
+    sellerEvidence: [],
   };
 
   it("shows the deadline, allowed actions, transactions and messages", () => {

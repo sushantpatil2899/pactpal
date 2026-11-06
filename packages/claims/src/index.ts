@@ -49,3 +49,17 @@ export {
 } from "./response-check.js";
 export { responseCouncilTask, type ResponseTask } from "./response-task.js";
 export { textProblems } from "./text-checks.js";
+export {
+  APPEAL_PROMPT_VERSION,
+  appealSource,
+  buildAppealMessages,
+  type AppealItem,
+} from "./appeal-prompt.js";
+export {
+  appealCheckSchema,
+  checkAppeal,
+  readAppeal,
+  type AppealCheck,
+  type AppealContext,
+} from "./appeal-check.js";
+export { appealCouncilTask, type AppealTask } from "./appeal-task.js";

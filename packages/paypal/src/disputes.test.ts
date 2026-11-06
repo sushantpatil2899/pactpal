@@ -189,6 +189,8 @@ describe("PayPalDisputes.get", () => {
       allowedOfferTypes: ["REFUND", "REFUND_WITH_RETURN"],
       requestedEvidence: ["PROOF_OF_REFUND", "OTHER"],
       outcome: undefined,
+      decisionReasons: [],
+      sellerEvidence: [],
     });
   });
 
@@ -201,6 +203,15 @@ describe("PayPalDisputes.get", () => {
           dispute_life_cycle_stage: "SOME_NEW_STAGE",
           messages: [{ posted_by: "SELLER" }],
           dispute_outcome: { outcome_code: "RESOLVED_SELLER_FAVOUR" },
+          adjudications: [{ type: "PAYOUT", reason: "INELIGIBLE_BUYER_PROTECTION_POLICY" }, {}],
+          evidences: [
+            {
+              evidence_type: "OTHER",
+              source: "SUBMITTED_BY_SELLER",
+              documents: [{ name: "packet.pdf" }, {}],
+            },
+            { evidence_type: "PROOF_OF_REFUND", source: "REQUESTED_FROM_SELLER" },
+          ],
         },
       ],
     });
@@ -218,8 +229,10 @@ describe("PayPalDisputes.get", () => {
         messages: [{ postedBy: "SELLER", postedAt: undefined, content: "" }],
         allowedActions: [],
         allowedOfferTypes: [],
-        requestedEvidence: [],
+        requestedEvidence: ["PROOF_OF_REFUND"],
         outcome: "RESOLVED_SELLER_FAVOUR",
+        decisionReasons: ["INELIGIBLE_BUYER_PROTECTION_POLICY"],
+        sellerEvidence: [{ type: "OTHER", documents: ["packet.pdf"] }],
       },
     });
   });

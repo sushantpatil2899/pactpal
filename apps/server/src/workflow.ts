@@ -11,7 +11,12 @@ import {
   PayPalRestClient,
 } from "@pactpal/paypal";
 import { task } from "@renderinc/sdk/workflows";
-import { CLAIM_TASK_NAME, RESPONSE_TASK_NAME, SUMMARY_TASK_NAME } from "./disputes/claim-job.js";
+import {
+  APPEAL_TASK_NAME,
+  CLAIM_TASK_NAME,
+  RESPONSE_TASK_NAME,
+  SUMMARY_TASK_NAME,
+} from "./disputes/claim-job.js";
 import { DISPUTE_TASK_NAME, jsonLines, runClaimTask, runDisputeTask } from "./disputes/task.js";
 import { councilClients } from "./drafting/runtime.js";
 
@@ -52,7 +57,7 @@ task(
 // handler reads the job's kind. A council takes about a minute and a few minutes at worst (each
 // model call has its own limits). The job never throws for a model failure, so a retry only
 // follows a crash or a lost database.
-for (const name of [CLAIM_TASK_NAME, SUMMARY_TASK_NAME, RESPONSE_TASK_NAME]) {
+for (const name of [CLAIM_TASK_NAME, SUMMARY_TASK_NAME, RESPONSE_TASK_NAME, APPEAL_TASK_NAME]) {
   task(
     {
       name,

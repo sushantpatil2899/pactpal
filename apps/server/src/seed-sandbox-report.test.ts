@@ -106,6 +106,8 @@ describe("seed messages", () => {
     allowedOfferTypes: [],
     requestedEvidence: [],
     outcome: undefined,
+    decisionReasons: [],
+    sellerEvidence: [],
   };
   const base = {
     invoiceId: "INV2-A",

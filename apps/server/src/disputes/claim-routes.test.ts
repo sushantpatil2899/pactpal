@@ -197,16 +197,19 @@ describe("claim runners", () => {
         claim: "pactpal-workflows/analyze-claim",
         summary: "pactpal-workflows/draft-summary",
         response: "pactpal-workflows/draft-response",
+        appeal: "pactpal-workflows/check-appeal",
       },
       keptLog().log,
     );
     await runner.start(testId(5), "claim");
     await runner.start(testId(6), "summary");
     await runner.start(testId(7), "response");
+    await runner.start(testId(8), "appeal");
     expect(started).toEqual([
       ["pactpal-workflows/analyze-claim", [testId(5)], `claim:${testId(5)}`],
       ["pactpal-workflows/draft-summary", [testId(6)], `summary:${testId(6)}`],
       ["pactpal-workflows/draft-response", [testId(7)], `response:${testId(7)}`],
+      ["pactpal-workflows/check-appeal", [testId(8)], `appeal:${testId(8)}`],
     ]);
   });
 

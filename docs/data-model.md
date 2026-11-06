@@ -455,6 +455,8 @@ Since 5f (migration 0023) the table also holds packet summaries: `kind` is `clai
 
 Since 5h (migration 0025) `kind` may also be `response`: answer help, with no `based_on`. Its `analysis` holds the draft message, one note per option PayPal allowed (with record entries) and the offer note; a ready one logs `RESPONSE_DRAFTED` (by the system): ids, fingerprints, models, the winner and the number of options; no AI text.
 
+Since 5i (migration 0026) `kind` may also be `appeal`: the appeal check. Its `analysis` holds a judgement per new item (whether it speaks to the claim, why, cited entries) and a short summary; a ready one logs `APPEAL_CHECKED` (by the system): ids, the fingerprint of the new-items list (`itemsSha256`) and of what the models read, models, the winner and how many items it judged as speaking to the claim (`speaking`); no AI text. Since 5i the dispute's stored `details` also hold `decisionReasons` (PayPal's decision reason codes) and `sellerEvidence` (evidence PayPal lists as sent by the seller: type and document names).
+
 Since 5d the dispute's stored `details` also hold `requestedEvidence`: the evidence types PayPal asks the seller for.
 
 ### `evidence_packets`: built evidence packets

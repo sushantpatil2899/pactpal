@@ -967,6 +967,49 @@ export const draftResponse = (dealId: string, disputeId: string) =>
     isResponses,
   );
 
+/** One judgement of a new item by the appeal check (5i). */
+export interface AppealCheckView {
+  id: string;
+  status: "running" | "ready" | "failed";
+  createdAt: string;
+  failureReason: string | null;
+  check: {
+    summary: string;
+    items: { id: string; answers: boolean; why: string; record: { n: number; text: string }[] }[];
+  } | null;
+  council: CouncilView | null;
+}
+
+export interface AppealView {
+  /** Whether PayPal decided for the buyer, or allows an appeal now. */
+  applies: boolean;
+  canCheck: boolean;
+  /** What PactPal holds that was not sent to PayPal before (found by code). */
+  items: { id: string; words: string }[];
+  cut: boolean;
+  checks: AppealCheckView[];
+}
+
+const isAppeal = (value: unknown): value is AppealView =>
+  isObject(value) &&
+  typeof value.applies === "boolean" &&
+  typeof value.canCheck === "boolean" &&
+  Array.isArray(value.items) &&
+  Array.isArray(value.checks) &&
+  value.checks.every(isCouncilJob);
+
+export async function getAppeal(dealId: string, disputeId: string): Promise<AppealView> {
+  return readChecked(
+    await fetch(disputeStepUrl(dealId, disputeId, "appeal")),
+    isAppeal,
+    "load the appeal check",
+  );
+}
+
+/** Starts the council's appeal check of the new items. */
+export const checkAppeal = (dealId: string, disputeId: string) =>
+  postStep(disputeStepUrl(dealId, disputeId, "appeal"), {}, "start the appeal check", isAppeal);
+
 /** Sends an action whose outcome was unknown again, with the same content and request id. */
 export const resendAction = (dealId: string, disputeId: string, actionId: string) =>
   postStep(

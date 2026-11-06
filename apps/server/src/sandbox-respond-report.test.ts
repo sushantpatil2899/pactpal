@@ -93,6 +93,8 @@ const dispute: DisputeDetails = {
   allowedOfferTypes: ["REFUND"],
   requestedEvidence: [],
   outcome: undefined,
+  decisionReasons: [],
+  sellerEvidence: [],
 };
 
 function args(argv: string[]): RespondArgs {

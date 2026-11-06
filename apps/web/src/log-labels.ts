@@ -42,6 +42,7 @@ const EVENT_LABELS: Record<string, string> = {
   OFFER_MADE: "Refund offered through PayPal (seller confirmed)",
   CLAIM_ACCEPTED: "Claim accepted: PayPal refunds the buyer (seller confirmed)",
   RESPONSE_DRAFTED: "Answer help drafted (AI draft, fingerprint only)",
+  APPEAL_CHECKED: "Appeal check made (AI draft, fingerprint only)",
   NOTE_ADDED: "Note added",
 };
 

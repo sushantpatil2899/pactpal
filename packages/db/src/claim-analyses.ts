@@ -12,7 +12,7 @@ export const MAX_ANALYSES_PER_DISPUTE = 10;
 export const ANALYSIS_TIMEOUT_MS = 15 * 60_000;
 
 /** The two dispute council jobs: the claim comparison (5d) and the packet summary (5f). */
-export const ANALYSIS_KINDS = ["claim", "summary", "response"] as const;
+export const ANALYSIS_KINDS = ["claim", "summary", "response", "appeal"] as const;
 export type AnalysisKind = (typeof ANALYSIS_KINDS)[number];
 
 /** Why a comparison or summary was not started. */
@@ -178,11 +178,20 @@ const finishSchema = z.object({
 });
 export type FinishClaimAnalysis = z.input<typeof finishSchema>;
 
+/** What a ready job's count means, by kind (a summary logs its own fields). */
+const COUNT_NAMES = {
+  claim: "statements",
+  summary: "sentences",
+  response: "options",
+  appeal: "speaking",
+} as const;
+
 /** The log entry a ready job of each kind writes. */
 const KIND_EVENTS = {
   claim: "CLAIM_ANALYZED",
   summary: "SUMMARY_DRAFTED",
   response: "RESPONSE_DRAFTED",
+  appeal: "APPEAL_CHECKED",
 } as const;
 
 /**
@@ -222,9 +231,11 @@ export async function finishClaimAnalysis(
                 exhibitsSha256: done.exhibitsSha256 ?? null,
                 sentences: done.statements,
               }
-            : row.kind === "response"
-              ? { claimSha256: done.claimSha256, options: done.statements }
-              : { claimSha256: done.claimSha256, statements: done.statements }),
+            : {
+                claimSha256: done.claimSha256,
+                ...(done.exhibitsSha256 === undefined ? {} : { itemsSha256: done.exhibitsSha256 }),
+                [COUNT_NAMES[row.kind]]: done.statements,
+              }),
           recordSha256: done.recordSha256,
           promptVersion: row.promptVersion,
           rankPromptVersion: row.rankPromptVersion,
