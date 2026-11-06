@@ -838,4 +838,63 @@ ALTER TABLE evidence_packets ADD COLUMN summary_id uuid REFERENCES claim_analyse
 ALTER TABLE evidence_packets ADD CONSTRAINT evidence_packets_ai_together
   CHECK ((analysis_id IS NULL) = (summary_id IS NULL))`,
   },
+  {
+    id: "0024_dispute_actions",
+    // What the seller sent PayPal for a dispute (5g): an escalation or an evidence upload, with
+    // the confirmed note, the files' fingerprints and a fixed PayPal-Request-Id. A row moves from
+    // sending to sent (with its log entry), unknown (PayPal may have it) or refused; an unknown one
+    // may be sent again, with the same request id. Nothing else changes and nothing is removed.
+    sql: `CREATE TABLE dispute_actions (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  dispute_id text NOT NULL REFERENCES disputes (dispute_id),
+  seller_id uuid NOT NULL REFERENCES users (id),
+  kind text NOT NULL CHECK (kind IN ('escalate', 'evidence')),
+  status text NOT NULL CHECK (status IN ('sending', 'sent', 'unknown', 'refused')),
+  request_id text NOT NULL UNIQUE,
+  packet_id uuid REFERENCES evidence_packets (id),
+  evidence_type text CHECK (evidence_type ~ '^[A-Z0-9_]{1,255}$'),
+  note text NOT NULL CHECK (char_length(note) BETWEEN 1 AND 2000),
+  note_sha256 text NOT NULL CHECK (note_sha256 ~ '^[0-9a-f]{64}$'),
+  files jsonb NOT NULL,
+  total_bytes integer NOT NULL CHECK (total_bytes >= 0),
+  transport text CHECK (transport IN ('rest', 'mcp')),
+  debug_id text,
+  failure text,
+  ledger_seq integer,
+  created_at timestamptz NOT NULL,
+  finished_at timestamptz,
+  CONSTRAINT dispute_actions_evidence_fields
+    CHECK ((kind = 'evidence') = (packet_id IS NOT NULL AND evidence_type IS NOT NULL)),
+  CONSTRAINT dispute_actions_sent_logged CHECK ((status = 'sent') = (ledger_seq IS NOT NULL)),
+  CONSTRAINT dispute_actions_recorded_in_ledger FOREIGN KEY (deal_id, ledger_seq)
+    REFERENCES ledger_entries (deal_id, seq)
+);
+CREATE INDEX dispute_actions_by_dispute ON dispute_actions (dispute_id, created_at DESC);
+CREATE UNIQUE INDEX dispute_actions_one_sending ON dispute_actions (dispute_id)
+  WHERE status = 'sending';
+
+CREATE FUNCTION pactpal_dispute_action_moves() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE'
+     OR NOT ((OLD.status = 'sending' AND NEW.status IN ('sent', 'unknown', 'refused'))
+             OR (OLD.status = 'unknown' AND NEW.status = 'sending'))
+     OR NEW.id <> OLD.id OR NEW.deal_id <> OLD.deal_id OR NEW.dispute_id <> OLD.dispute_id
+     OR NEW.seller_id <> OLD.seller_id OR NEW.kind <> OLD.kind
+     OR NEW.request_id <> OLD.request_id
+     OR NEW.packet_id IS DISTINCT FROM OLD.packet_id
+     OR NEW.evidence_type IS DISTINCT FROM OLD.evidence_type
+     OR NEW.note <> OLD.note OR NEW.note_sha256 <> OLD.note_sha256
+     OR NEW.files <> OLD.files OR NEW.total_bytes <> OLD.total_bytes
+     OR NEW.created_at <> OLD.created_at THEN
+    RAISE EXCEPTION 'dispute_actions: an action only moves on and keeps what was confirmed'
+      USING ERRCODE = 'restrict_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER dispute_actions_moves BEFORE UPDATE OR DELETE ON dispute_actions
+  FOR EACH ROW EXECUTE FUNCTION pactpal_dispute_action_moves();
+CREATE TRIGGER dispute_actions_no_truncate BEFORE TRUNCATE ON dispute_actions
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

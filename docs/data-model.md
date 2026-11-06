@@ -471,6 +471,24 @@ Built in 5e (migration 0022); append-only, at most 20 per dispute. One row per p
 
 `PACKET_BUILT` (by the seller) holds the packet id, dispute id, the packet's fingerprint and size, each included exhibit's id and fingerprints, how many were left out, the total size and the seal, and since 5f the AI comparison and summary ids with the fingerprints of the two drafts when the packet carries them.
 
+### `dispute_actions`: what the seller sent PayPal for a dispute
+
+Built in 5g (migration 0024). One row per escalation or evidence upload the seller confirmed. A row moves from `sending` to `sent`, `refused` or `unknown`; an `unknown` one may go back to `sending` to be sent again with the same request id. Nothing it recorded changes and nothing is removed. One `sending` row per dispute at a time; at most 10 evidence uploads per dispute, refused ones not counted.
+
+| Column                                     | Meaning                                                                                                          |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `id`, `deal_id`, `dispute_id`, `seller_id` | The action, its deal, dispute and the seller who confirmed it                                                    |
+| `kind`                                     | `escalate` or `evidence`                                                                                         |
+| `status`                                   | `sending`, `sent`, `refused` (nothing was sent) or `unknown` (PayPal may have it)                                |
+| `request_id`                               | The fixed PayPal-Request-Id, `pactpal-<kind>-<id>`                                                               |
+| `packet_id`, `evidence_type`               | For an upload: the packet and PayPal's evidence type                                                             |
+| `note`, `note_sha256`                      | The confirmed note (at most 2,000 characters) and its fingerprint                                                |
+| `files`, `total_bytes`                     | For an upload: each file's exhibit number (none for the packet PDF), name, type, size and fingerprint; the total |
+| `transport`, `debug_id`, `failure`         | How it went and PayPal's debug id, or why not                                                                    |
+| `ledger_seq`, `created_at`, `finished_at`  | The `DISPUTE_ESCALATED` or `EVIDENCE_UPLOADED` entry when sent, and the times                                    |
+
+`DISPUTE_ESCALATED` and `EVIDENCE_UPLOADED` (by the seller) hold the action and dispute ids, the note's fingerprint, the transport and PayPal's debug id; an upload also holds the packet id, the evidence type, each file's exhibit number, name, size and fingerprint, and the total size. Never the note's words.
+
 ## Planned
 
 | Table                               | Sub-phase | What it will hold                                                                                                            |

@@ -25,6 +25,7 @@ export function dealTestApp(
     inbound?: AppOptions["inbound"];
     disputes?: AppOptions["disputes"];
     claims?: AppOptions["claims"];
+    disputeWriter?: AppOptions["disputeWriter"];
   } = {},
 ) {
   let ids = 200;

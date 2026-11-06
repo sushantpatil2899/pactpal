@@ -29,15 +29,17 @@ const ACTIONS: Record<string, string> = {
   acknowledge_return_item: "Confirm the returned item arrived.",
 };
 
+/** The actions PactPal carries out now (5g); the others come in a later step. */
+const WORKING = new Set(["escalate", "provide_evidence"]);
+
 /**
  * What a PayPal action lets the seller do, in one plain sentence (wording approved by the owner,
- * 5c). None can be done from PactPal yet, so each says it is coming in a later step.
+ * 5c). One PactPal cannot do yet says it is coming in a later step.
  */
 export function disputeActionWords(action: string): string {
   const known = ACTIONS[action];
-  return known === undefined
-    ? `${plainCode(action)}: PactPal cannot do this yet.`
-    : `${known} (coming in a later step)`;
+  if (known === undefined) return `${plainCode(action)}: PactPal cannot do this yet.`;
+  return WORKING.has(action) ? known : `${known} (coming in a later step)`;
 }
 
 const HOUR_MS = 3_600_000;

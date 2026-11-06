@@ -11,6 +11,7 @@ import type { DraftingRuntime } from "./drafting/runtime.js";
 import { StandInEmailSender, type EmailSender } from "@pactpal/email";
 import { missingRuntimeSettings, type ConfigReport } from "./config.js";
 import { paymentNotifications } from "./payments/payment-sync.js";
+import type { DisputeWriter } from "./disputes/action-service.js";
 import type { ClaimRunner, DisputeChecker } from "./disputes/checker.js";
 import { disputeNotifications } from "./disputes/notifications.js";
 import { registerWebPages } from "./web-pages.js";
@@ -46,6 +47,8 @@ export interface AppOptions {
   disputes?: DisputeChecker;
   /** Starts claim comparisons (5d); off until AI models (or Render) are set up. */
   claims?: ClaimRunner;
+  /** Escalates disputes and sends evidence to PayPal (5g); off until the seller app is set. */
+  disputeWriter?: DisputeWriter;
 }
 
 /**
@@ -133,6 +136,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     inboundDomain: opts.inbound?.domain,
     disputes: opts.disputes,
     claims: opts.claims,
+    disputeWriter: opts.disputeWriter,
   });
   void app.register(resendInboundRoutes, {
     database: signIn.database,

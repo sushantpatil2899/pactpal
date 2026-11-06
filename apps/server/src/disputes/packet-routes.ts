@@ -5,7 +5,6 @@ import {
   postgresContentStore,
   type EvidencePacket,
 } from "@pactpal/db";
-import { verifyFile } from "@pactpal/ledger";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { readBody, sendRefusal, type DealLookup } from "../deals/access.js";
@@ -16,7 +15,9 @@ import {
   buildPacket,
   packetChoices,
   packetExhibitFile,
+  storedPacketPdf,
 } from "./packet-service.js";
+import { packetFilename } from "./packet.js";
 
 export interface PacketRouteOptions {
   sellersDeal: DealLookup;
@@ -123,19 +124,14 @@ export const packetRoutes: FastifyPluginAsync<PacketRouteOptions> = (app, option
     if (packet?.disputeId !== both.dispute.disputeId) {
       return reply.code(404).send({ error: "not found" });
     }
-    const bytes = await postgresContentStore(db, clock).get(packet.packetSha256);
-    const fingerprint = {
-      sha256: packet.packetSha256,
-      size: packet.packetBytes,
-      filename: "packet.pdf",
-    };
-    if (bytes === undefined || !verifyFile(bytes, fingerprint)) {
+    const bytes = await storedPacketPdf(postgresContentStore(db, clock), packet);
+    if (bytes === undefined) {
       request.log.error({ packetId: packet.id }, "Stored packet failed its fingerprint check");
       return reply.code(409).send({ error: "the stored packet failed its fingerprint check" });
     }
     return sendDownload(reply, {
       mediaType: "application/pdf",
-      filename: `pactpal-packet-${packet.disputeId}.pdf`,
+      filename: packetFilename(packet.disputeId),
       bytes,
     });
   });

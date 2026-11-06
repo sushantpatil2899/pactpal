@@ -32,6 +32,14 @@ export function messagesOf(details: StoredDispute["details"]): DisputeMessageVie
   }));
 }
 
+const requested = z
+  .object({ requestedEvidence: z.array(z.string()).default([]) })
+  .catch({ requestedEvidence: [] });
+
+/** The evidence types PayPal asks the seller for, kept from its answer (none when unreadable). */
+export const requestedEvidenceOf = (details: StoredDispute["details"]): string[] =>
+  requested.parse(details).requestedEvidence;
+
 /** One dispute as the seller's page lists it: PayPal's words, the amount and the respond-by date. */
 export const disputeSummaryView = (dispute: StoredDispute) => ({
   disputeId: dispute.disputeId,
@@ -77,7 +85,7 @@ export function disputePageView(
     events: ledger
       .filter(
         (entry) =>
-          entry.type.startsWith("DISPUTE_") &&
+          (entry.type.startsWith("DISPUTE_") || entry.type === "EVIDENCE_UPLOADED") &&
           typeof entry.payload === "object" &&
           entry.payload !== null &&
           !Array.isArray(entry.payload) &&

@@ -38,6 +38,8 @@ import { scopeRoutes } from "./scope-routes.js";
 import { screenshotRoutes } from "./screenshot-routes.js";
 import { canSeeDeal, roleIn, type Viewer } from "./visibility.js";
 import type { ClaimRunner, DisputeChecker } from "../disputes/checker.js";
+import { actionRoutes } from "../disputes/action-routes.js";
+import type { DisputeWriter } from "../disputes/action-service.js";
 import { claimRoutes } from "../disputes/claim-routes.js";
 import { packetRoutes } from "../disputes/packet-routes.js";
 import { disputeRoutes } from "../disputes/dispute-routes.js";
@@ -64,6 +66,8 @@ export interface DealOptions {
   disputes?: DisputeChecker | undefined;
   /** Starts claim comparisons (5d); undefined until AI models (or Render) are set up. */
   claims?: ClaimRunner | undefined;
+  /** Escalates disputes and sends evidence (5g); undefined until the seller app is set. */
+  disputeWriter?: DisputeWriter | undefined;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -120,6 +124,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     invoices,
     disputes,
     claims,
+    disputeWriter,
   } = options;
   app.get("/api/deal-options", (_request, reply) =>
     reply.send({
@@ -142,6 +147,13 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   void app.register(disputeRoutes, { sellersDeal, clock, disputes });
   void app.register(claimRoutes, { sellersDeal, clock, newId, claims });
   void app.register(packetRoutes, { sellersDeal, clock, newId });
+  void app.register(actionRoutes, {
+    sellersDeal,
+    clock,
+    newId,
+    writer: disputeWriter,
+    disputes,
+  });
   void app.register(deliveryRoutes, {
     database,
     visibleDeal,

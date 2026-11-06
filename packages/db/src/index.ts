@@ -304,3 +304,23 @@ export {
   recordPacket,
 } from "./packets.js";
 export type { EvidencePacket, NewPacket, PacketExhibit, PacketRefusal } from "./packets.js";
+export {
+  DISPUTE_ACTION_KINDS,
+  DisputeActionNotAllowedError,
+  MAX_DISPUTE_NOTE_CHARS,
+  MAX_EVIDENCE_UPLOADS_PER_DISPUTE,
+  actionFileSchema,
+  finishDisputeAction,
+  getDisputeAction,
+  listDisputeActions,
+  resendDisputeAction,
+  startDisputeAction,
+} from "./dispute-actions.js";
+export type {
+  ActionFile,
+  ActionOutcome,
+  DisputeActionKind,
+  DisputeActionRecord,
+  DisputeActionRefusal,
+  NewDisputeAction,
+} from "./dispute-actions.js";

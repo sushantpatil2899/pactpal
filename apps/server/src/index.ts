@@ -45,6 +45,8 @@ const { config, report } = result;
 const seller = config.paypal.apps.seller;
 // One login per seller app, shared by webhook checks and invoices.
 const sellerRest = seller && new PayPalRestClient(new AccessTokenProvider(seller));
+// One client for the seller's disputes, so its reads and writes for a dispute go one at a time.
+const sellerDisputes = sellerRest && new PayPalDisputes(sellerRest, undefined, new McpFallback());
 const database =
   config.database &&
   connectPostgres({
@@ -65,12 +67,12 @@ const disputes = config.render
       clock,
       disputeLog,
     )
-  : database && sellerRest
+  : database && sellerDisputes
     ? inProcessChecker((source) =>
         syncDisputes(
           {
             db: database,
-            disputes: new PayPalDisputes(sellerRest, undefined, new McpFallback()),
+            disputes: sellerDisputes,
             clock,
             newId: randomUUID,
             log: disputeLog,
@@ -117,6 +119,8 @@ const app = buildApp(report, {
   // Invoices go over REST only: PayPal's MCP tool takes no request id, so a retry could create a
   // second invoice (docs/decisions.md, 4d). No MCP client means McpFallback goes straight to REST.
   ...(sellerRest ? { invoices: new PayPalInvoices(sellerRest, undefined, new McpFallback()) } : {}),
+  // Escalations and evidence (5g) go from this server over REST, after the seller confirms.
+  ...(sellerDisputes ? { disputeWriter: sellerDisputes } : {}),
   // Without Resend's key and a sender the app uses its stand-in, which sends nothing.
   ...(config.email ? { email: new ResendEmailSender(config.email) } : {}),
   // Forwarding to the private address needs Resend's inbound key, its webhook secret and the domain.

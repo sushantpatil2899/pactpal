@@ -5,6 +5,7 @@ import {
   recordLines,
 } from "@pactpal/claims";
 import {
+  ArtifactIntegrityError,
   getArtifact,
   getClaimAnalysis,
   getLatestAcceptance,
@@ -13,13 +14,21 @@ import {
   listDeliveries,
   readLedger,
   recordPacket,
+  type ActionFile,
   type ContentStore,
   type Database,
   type Deal,
+  type EvidencePacket,
   type PacketExhibit,
   type StoredDispute,
 } from "@pactpal/db";
-import { canonicalJson, sha256Hex, verifyChain, type LedgerEntry } from "@pactpal/ledger";
+import {
+  canonicalJson,
+  sha256Hex,
+  verifyChain,
+  verifyFile,
+  type LedgerEntry,
+} from "@pactpal/ledger";
 import { ReceiptIntegrityError, buildReceipt } from "../acceptance/receipt.js";
 import { addedByRole } from "../deals/file-routes.js";
 import { nameOf } from "../deals/parties.js";
@@ -30,6 +39,7 @@ import {
   planExhibits,
   renderPacket,
   textAsPdf,
+  uploadFilesOf,
   type ExhibitPlan,
   type ExhibitSource,
   type SentExhibit,
@@ -173,6 +183,26 @@ export async function packetChoices(db: Database, store: ContentStore, deal: Dea
   };
 }
 
+/** One included exhibit made again from the deal's documents, if it still matches its record. */
+async function rebuiltExhibit(
+  db: Database,
+  store: ContentStore,
+  deal: Deal,
+  docs: DealDocuments,
+  recorded: PacketExhibit,
+): Promise<SentExhibit | undefined> {
+  if (recorded.number === undefined || recorded.send === "left-out") return undefined;
+  const plan = planExhibits(docs.sources, new Set()).find((p) => p.id === recorded.id);
+  if (!plan || plan.send === "left-out") return undefined;
+  const number = recorded.number;
+  const file = await sentFile(db, store, deal, docs, plan, number).catch((error: unknown) => {
+    // A stored file whose bytes no longer match its own fingerprint is a changed file too.
+    if (error instanceof ArtifactIntegrityError) return undefined;
+    throw error;
+  });
+  return file?.sha256 === recorded.sentSha256 ? file : undefined;
+}
+
 /** One included exhibit of a built packet, made again and checked against what was recorded. */
 export async function packetExhibitFile(
   db: Database,
@@ -180,12 +210,49 @@ export async function packetExhibitFile(
   deal: Deal,
   recorded: PacketExhibit,
 ): Promise<SentExhibit | undefined> {
-  if (recorded.number === undefined || recorded.send === "left-out") return undefined;
+  return rebuiltExhibit(db, store, deal, await documentsOf(db, deal), recorded);
+}
+
+/** The stored packet PDF, if its bytes still match the fingerprint recorded when it was built. */
+export async function storedPacketPdf(
+  store: ContentStore,
+  packet: Pick<EvidencePacket, "packetSha256" | "packetBytes">,
+): Promise<Uint8Array | undefined> {
+  const bytes = await store.get(packet.packetSha256);
+  const fingerprint = {
+    sha256: packet.packetSha256,
+    size: packet.packetBytes,
+    filename: "packet.pdf",
+  };
+  return bytes !== undefined && verifyFile(bytes, fingerprint) ? bytes : undefined;
+}
+
+/**
+ * Every file one upload of a built packet sends (5g), with its bytes: the packet PDF, then each
+ * included exhibit made again and checked against its recorded fingerprint. Undefined when any
+ * file no longer matches, so nothing that changed is ever sent.
+ */
+export async function packetUploadFiles(
+  db: Database,
+  store: ContentStore,
+  deal: Deal,
+  packet: EvidencePacket,
+): Promise<(ActionFile & { content: Uint8Array })[] | undefined> {
+  const pdf = await storedPacketPdf(store, packet);
+  if (!pdf) return undefined;
   const docs = await documentsOf(db, deal);
-  const plan = planExhibits(docs.sources, new Set()).find((p) => p.id === recorded.id);
-  if (!plan || plan.send === "left-out") return undefined;
-  const file = await sentFile(db, store, deal, docs, plan, recorded.number);
-  return file.sha256 === recorded.sentSha256 ? file : undefined;
+  const files: (ActionFile & { content: Uint8Array })[] = [];
+  for (const listed of uploadFilesOf(packet)) {
+    if (listed.exhibit === null) {
+      files.push({ ...listed, mediaType: "application/pdf", content: pdf });
+      continue;
+    }
+    const recorded = packet.exhibits.find((e) => e.number === listed.exhibit);
+    const file = recorded && (await rebuiltExhibit(db, store, deal, docs, recorded));
+    if (!file) return undefined;
+    files.push({ ...listed, mediaType: file.mediaType, content: file.bytes });
+  }
+  return files;
 }
 
 /**

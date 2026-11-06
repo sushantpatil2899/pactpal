@@ -64,6 +64,8 @@ const LABELS: Record<string, string> = {
   REFUND_ISSUED: "issued a refund",
   DISPUTE_OPENED: "found a PayPal dispute",
   DISPUTE_UPDATED: "saw the PayPal dispute change",
+  DISPUTE_ESCALATED: "asked PayPal to decide the dispute (escalated it)",
+  EVIDENCE_UPLOADED: "sent evidence to PayPal",
   DISPUTE_RESOLVED: "saw PayPal decide the dispute",
   NOTE_ADDED: "added a note",
 };
@@ -118,6 +120,12 @@ function detailsOf(type: string, payload: unknown): string {
   }
   const status = text(fields.status);
   if (type.startsWith("DISPUTE_") && status !== undefined) parts.push(plainCode(status));
+  const evidenceType = text(fields.evidenceType);
+  if (type === "EVIDENCE_UPLOADED" && Array.isArray(fields.files)) {
+    const n = fields.files.length;
+    parts.push(`${String(n)} file${n === 1 ? "" : "s"}`);
+    if (evidenceType !== undefined) parts.push(`type ${plainCode(evidenceType)}`);
+  }
   const outcome = text(fields.outcome);
   if (outcome !== undefined) parts.push(plainCode(outcome));
   return parts.length === 0 ? "" : ` (${parts.join("; ")})`;

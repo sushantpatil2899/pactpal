@@ -779,6 +779,119 @@ export async function getSummaries(
 export const draftSummary = (dealId: string, disputeId: string) =>
   postStep(summariesUrl(dealId, disputeId), {}, "start the summary", isSummaries);
 
+/** One file of an evidence upload: the packet PDF (exhibit null) or a numbered exhibit (5g). */
+export interface UploadFileView {
+  exhibit: number | null;
+  name: string;
+  bytes: number;
+  sha256?: string;
+}
+
+/** An escalation or evidence upload the seller confirmed, and how it ended. */
+export interface DisputeActionView {
+  id: string;
+  kind: "escalate" | "evidence";
+  status: "sending" | "sent" | "unknown" | "refused";
+  evidenceType: string | null;
+  note: string;
+  files: UploadFileView[];
+  totalBytes: number;
+  failure: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+/** What the seller can send PayPal now, for the review screens (5g). */
+export interface DisputeActionsView {
+  /** Whether this server can send to PayPal (the seller app's keys are set). */
+  canSend: boolean;
+  allowed: { escalate: boolean; evidence: boolean };
+  /** The evidence types PayPal asks for (or only OTHER), with the comparison's suggestion. */
+  evidenceTypes: string[];
+  suggestedType: string | null;
+  /** The packet summary's draft note for PayPal (5f), if one is ready. */
+  draftNote: string | null;
+  packet: {
+    id: string;
+    packetSha256: string;
+    createdAt: string;
+    newerEntries: number;
+    files: UploadFileView[];
+    totalBytes: number;
+    overLimit: boolean;
+  } | null;
+  limits: { maxFileBytes: number; maxTotalBytes: number };
+  actions: DisputeActionView[];
+}
+
+const isDisputeActions = (value: unknown): value is DisputeActionsView =>
+  isObject(value) &&
+  typeof value.canSend === "boolean" &&
+  isObject(value.allowed) &&
+  Array.isArray(value.evidenceTypes) &&
+  isObject(value.limits) &&
+  Array.isArray(value.actions);
+
+const isActionAnswer = (value: unknown): value is { action: DisputeActionView } =>
+  isObject(value) && isObject(value.action) && typeof value.action.id === "string";
+
+const disputeStepUrl = (dealId: string, disputeId: string, step: string) =>
+  `${disputesUrl(dealId)}/${encodeURIComponent(disputeId)}/${step}`;
+
+export async function getDisputeActions(
+  dealId: string,
+  disputeId: string,
+): Promise<DisputeActionsView> {
+  return readChecked(
+    await fetch(disputeStepUrl(dealId, disputeId, "actions")),
+    isDisputeActions,
+    "load what can be sent",
+  );
+}
+
+/** The note the seller confirmed, with the fingerprint the server checks it against. */
+export interface ConfirmedNote {
+  note: string;
+  noteSha256: string;
+}
+
+/** Escalates the dispute to PayPal with the confirmed note. */
+export const escalateDispute = (dealId: string, disputeId: string, note: ConfirmedNote) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "escalate"),
+    { ...note, confirmed: true },
+    "escalate the dispute",
+    isActionAnswer,
+  );
+
+/** Sends the confirmed packet, evidence type and note to PayPal. */
+export const sendEvidence = (
+  dealId: string,
+  disputeId: string,
+  input: ConfirmedNote & { packetId: string; packetSha256: string; evidenceType: string },
+) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, "evidence"),
+    { ...input, confirmed: true },
+    "send the evidence",
+    isActionAnswer,
+  );
+
+/** Sends an action whose outcome was unknown again, with the same content and request id. */
+export const resendAction = (dealId: string, disputeId: string, actionId: string) =>
+  postStep(
+    disputeStepUrl(dealId, disputeId, `actions/${encodeURIComponent(actionId)}/resend`),
+    { confirmed: true },
+    "send it again",
+    isActionAnswer,
+  );
+
+/** The SHA-256 fingerprint of a text as UTF-8, in hex, as the server takes it. */
+export async function textFingerprint(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Starts a check of the seller's PayPal disputes; the result shows up in `getDisputes`. */
 export async function checkDisputes(dealId: string): Promise<void> {
   const response = await fetch(`${disputesUrl(dealId)}/check`, {

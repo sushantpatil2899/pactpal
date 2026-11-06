@@ -112,6 +112,59 @@ export async function textAsPdf(input: {
 /** The PDF file name an included text file is sent as. */
 export const pdfNameOf = (filename: string) => `${filename.replace(/\.txt$/i, "")}.pdf`;
 
+/** One file of an evidence upload: the packet PDF (exhibit null) or a numbered exhibit. */
+export interface UploadFile {
+  exhibit: number | null;
+  name: string;
+  bytes: number;
+  sha256: string;
+}
+
+/** The packet PDF's name as PayPal gets it (and as it downloads). */
+export const packetFilename = (disputeId: string) => `pactpal-packet-${disputeId}.pdf`;
+
+/**
+ * What one upload of a built packet sends, in order: the packet PDF, then each included exhibit
+ * by number, with the name, size and fingerprint recorded when it was built. Pure.
+ */
+export function uploadFilesOf(packet: {
+  disputeId: string;
+  packetSha256: string;
+  packetBytes: number;
+  exhibits: readonly {
+    filename: string;
+    send: ExhibitPlan["send"];
+    number?: number | undefined;
+    sentSha256?: string | undefined;
+    sentBytes?: number | undefined;
+  }[];
+}): UploadFile[] {
+  const exhibits = packet.exhibits.flatMap((e) =>
+    e.send === "left-out" ||
+    e.number === undefined ||
+    e.sentSha256 === undefined ||
+    e.sentBytes === undefined
+      ? []
+      : [
+          {
+            exhibit: e.number,
+            name: e.send === "text-as-pdf" ? pdfNameOf(e.filename) : e.filename,
+            bytes: e.sentBytes,
+            sha256: e.sentSha256,
+          },
+        ],
+  );
+  return [
+    {
+      exhibit: null,
+      name: packetFilename(packet.disputeId),
+      bytes: packet.packetBytes,
+      sha256: packet.packetSha256,
+    },
+    ...exhibits.sort((a, b) => a.exhibit - b.exhibit),
+  ];
+}
+
 /** Sizes against PayPal's limits; `packetBytes` is the packet PDF itself, once built. */
 export function packetMeter(exhibits: readonly { bytes: number }[], packetBytes = 0) {
   const totalBytes = exhibits.reduce((sum, e) => sum + e.bytes, packetBytes);

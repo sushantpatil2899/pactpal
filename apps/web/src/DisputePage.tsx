@@ -8,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { getDisputePage, type DisputePageView } from "./api";
 import { ClaimPanel } from "./ClaimPanel";
+import { DisputeActions } from "./DisputeActions";
 import { PacketPanel } from "./PacketPanel";
 import { CheckNow } from "./DisputeCheck";
 import { when } from "./format";
@@ -45,6 +46,12 @@ function eventWords(type: string, payload: unknown): string {
       return what.length === 0
         ? "PayPal changed the dispute"
         : `PayPal changed it: ${what.join("; ")}`;
+    }
+    case "DISPUTE_ESCALATED":
+      return "You asked PayPal to decide the case (escalated)";
+    case "EVIDENCE_UPLOADED": {
+      const files = "files" in fields && Array.isArray(fields.files) ? fields.files.length : 0;
+      return `You sent evidence to PayPal (${String(files)} file${files === 1 ? "" : "s"})`;
     }
     default:
       return plainCode(type);
@@ -174,6 +181,13 @@ export function DisputePage({ dealId, disputeId }: { dealId: string; disputeId: 
         {view.offerTypes.length > 0 && (
           <p>Refund offers PayPal accepts now: {view.offerTypes.map(plainCode).join(", ")}.</p>
         )}
+        <DisputeActions
+          dealId={dealId}
+          disputeId={disputeId}
+          onSent={() => {
+            void load();
+          }}
+        />
         <CheckNow
           dealId={dealId}
           lastCheck={view.lastCheck}

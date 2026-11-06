@@ -24,12 +24,11 @@ import {
 } from "@pactpal/db";
 import { sha256Hex } from "@pactpal/ledger";
 import { agreementLines } from "@pactpal/qa";
-import { z } from "zod";
 import { documentFor } from "../acceptance/document.js";
 import { toCouncilRecord, toJson } from "../drafting/council-record.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import { signedRecord } from "../payments/signed-record.js";
-import { messagesOf } from "./dispute-view.js";
+import { messagesOf, requestedEvidenceOf } from "./dispute-view.js";
 import { ADDED_BY, exhibitWhat } from "./packet.js";
 import { packetChoices } from "./packet-service.js";
 
@@ -45,10 +44,6 @@ export interface ClaimJobDeps {
 /** The Render Workflow tasks that run a comparison and a summary (`<workflow>/<task>`). */
 export const CLAIM_TASK_NAME = "analyze-claim";
 export const SUMMARY_TASK_NAME = "draft-summary";
-
-const requested = z
-  .object({ requestedEvidence: z.array(z.string()).default([]) })
-  .catch({ requestedEvidence: [] });
 
 /** A fingerprint of numbered lines as the models read them. */
 const fingerprintOf = (lines: readonly { text: string }[]) =>
@@ -120,7 +115,7 @@ async function prepareClaim(
       record,
       paypal: {
         allowedActions: dispute.allowedActions,
-        requestedEvidence: requested.parse(dispute.details).requestedEvidence,
+        requestedEvidence: requestedEvidenceOf(dispute.details),
       },
       marker,
     }),

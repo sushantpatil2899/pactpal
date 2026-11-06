@@ -18,10 +18,8 @@ describe("dispute words", () => {
     expect(plainCode("PRE_ARBITRATION")).toBe("pre arbitration");
   });
 
-  it("explains every known action as coming later, and an unknown one as not possible yet", () => {
+  it("explains each known action, the ones not done yet as coming later, an unknown one as not possible", () => {
     for (const action of [
-      "escalate",
-      "provide_evidence",
       "make_offer",
       "accept_claim",
       "send_message",
@@ -32,7 +30,10 @@ describe("dispute words", () => {
       expect(disputeActionWords(action)).toMatch(/\(coming in a later step\)$/);
     }
     expect(disputeActionWords("escalate")).toBe(
-      "Escalate: ask PayPal to decide the case. Only after this can you send evidence. (coming in a later step)",
+      "Escalate: ask PayPal to decide the case. Only after this can you send evidence.",
+    );
+    expect(disputeActionWords("provide_evidence")).toBe(
+      "Send evidence: upload documents that answer the claim.",
     );
     expect(disputeActionWords("new_thing")).toBe("new thing: PactPal cannot do this yet.");
   });
