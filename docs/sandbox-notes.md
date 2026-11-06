@@ -38,6 +38,7 @@ What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run
 - A new sandbox **personal** buyer can pay invoices and open disputes by hand on `sandbox.paypal.com` (Resolution Center → Report a problem); no REST app is needed. PayPal balance was shown as "unavailable at this time" for a brand-new personal account; a linked bank account worked.
 - A dispute opened by hand shows the buyer's text as a `BUYER` message; one opened through the API does not.
 - **A dispute opened by hand can start straight at the chargeback stage** (`PP-R-HBM-10196876`, 6 Nov 2026: "significantly not as described" for a $120 invoice payment): stage `CHARGEBACK`, only `accept_claim` and `provide_evidence`, about 10 days to respond, PayPal asking for `PROOF_OF_REFUND` or `OTHER`. Its `messages` were absent; **the buyer's text was the evidence entry `{evidence_type: CREATE, source: SUBMITTED_BY_BUYER, notes}`**. PactPal reads both places since 5k-fix-1.
+- **Live run 5k-1 (6 Nov 2026):** six files of about 121 KB in one upload (PDF and PNG, the largest 49 KB) were accepted with type `OTHER` at the chargeback stage; the dispute read `UNDER_REVIEW` / `UNDER_PAYPAL_REVIEW`, the `adjudicate` link appeared 13 minutes after the evidence, and `RESOLVED_SELLER_FAVOUR` showed about 2 minutes after settling.
 - The buyer's view on the sandbox website stops at the first verdict ("closed in your favor") and never shows the appeal or offers a way to respond to it.
 
 ## Responding to disputes
@@ -71,6 +72,8 @@ What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run
   - The two swap addresses keep codes separately: with a made-up code the identity service answers `400 access_denied: Invalid authorization code`, `/v1/oauth2/token` answers `401 invalid_authz_code: Authorization code not found in cache`.
 - **Signing in as the app's own PayPal account does not work fully:** with the seller account (which owns the app) the identity service returns an ID token with PayPal ids (`sub`, `payer_id`) but no email or name, and userinfo declines its key with 400 (debug ids `f6901268204a8`, `f69012698734c`, `f69012632318d`), so PactPal shows "PayPal did not share an email address". Test with any other sandbox account. Real users never sign in as PactPal's own app account.
 - With the app's own client-credentials token (no sign-in), both userinfo addresses answer with the app owner's details, which is why the problem only showed in a real sign-in.
+
+- A **new app** answers "invalid client_id or redirect_uri" on PayPal's sign-in page until its Log in with PayPal Return URL is saved (seen 6 Nov 2026 with the new seller app).
 
 ## Webhooks
 
