@@ -92,3 +92,4 @@ What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run
 
 - `docs.paypal.ai` is deprecated; use `developer.paypal.com` (for disputes: `/disputes/set-up` and `/disputes/test-go-live`).
 - Official resources: the AI tools getting-started page on developer.paypal.com, the PayPal Postman collection at postman.com/paypal, and github.com/paypal-examples/docs-examples.
+- **Dispute emails (5j)** are sent by the dispute check on the workflow service, which needs `RESEND_API_KEY`, `EMAIL_FROM` and `PUBLIC_BASE_URL` (the website's values). Reminders go 72, 24 and 6 hours before the seller's respond-by date; PayPal's sandbox gives 20 days in an inquiry and about 27 hours for an appeal, so an appeal window usually starts with the 24-hour reminder.

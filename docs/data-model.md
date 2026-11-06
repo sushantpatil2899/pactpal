@@ -499,6 +499,19 @@ Since 5i-2 (migration 0027) a row may also be an `appeal`: like `evidence`, with
 
 `DISPUTE_ESCALATED` and `EVIDENCE_UPLOADED` (by the seller) hold the action and dispute ids, the note's fingerprint, the transport and PayPal's debug id; an upload also holds the packet id, the evidence type, each file's exhibit number, name, size and fingerprint, and the total size. Never the note's words.
 
+### `dispute_notices`: emails sent to the seller about disputes
+
+Built in 5j (migration 0028); append-only. One row per email key: a new dispute, a change, PayPal's decision or a deadline reminder. Notices, not evidence: they never go in the evidence log.
+
+| Column                  | Meaning                                                                                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `key`                   | The email's fixed key, also Resend's idempotency key: `dispute-entry:<deal>:<seq>` or `dispute-reminder:<dispute>:<respond-by date>:<72h, 24h or 6h>` |
+| `deal_id`, `dispute_id` | The deal and the dispute                                                                                                                              |
+| `kind`                  | `opened`, `changed`, `decided` or `reminder`                                                                                                          |
+| `ledger_seq`            | For an event email, the dispute entry it is about                                                                                                     |
+| `sent_at`               | When it was sent or refused                                                                                                                           |
+| `email_id`, `failure`   | Resend's id when sent, or `rejected` when the address was refused (exactly one of the two)                                                            |
+
 ## Planned
 
 | Table                               | Sub-phase | What it will hold                                                                                                            |

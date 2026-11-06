@@ -6,12 +6,13 @@ import {
   type DisputeCheckResult,
 } from "@pactpal/db";
 import type { ChatClient } from "@pactpal/ai";
+import type { EmailSender } from "@pactpal/email";
 import type { PayPalAppCredentials } from "@pactpal/paypal";
 import type { Secret } from "@pactpal/net";
 import { cryptoCouncilDeps } from "../drafting/runtime.js";
 import { runDisputeJob } from "./claim-job.js";
 import { z } from "zod";
-import { formatErrors, loadConfig } from "../config.js";
+import { formatErrors, loadConfig, type Config } from "../config.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import { renderWorkflowChecker, type TaskStarter } from "./checker.js";
 import { syncDisputes, type DisputeReader } from "./dispute-sync.js";
@@ -26,6 +27,8 @@ export interface TaskWiring {
   clock: () => Date;
   newId: () => string;
   log: LogSink;
+  /** The email service for the seller's dispute emails (5j), from the email settings. */
+  emailFor?: (settings: NonNullable<Config["email"]>) => EmailSender;
 }
 
 /**
@@ -44,6 +47,11 @@ export async function runDisputeTask(
   if (config.database === undefined || seller === undefined) {
     throw new Error("Dispute checks need DATABASE_URL and the PayPal seller app's keys");
   }
+  const notices =
+    config.email && config.publicBaseUrl !== undefined && wiring.emailFor
+      ? { email: wiring.emailFor(config.email), publicBaseUrl: config.publicBaseUrl }
+      : undefined;
+  if (!notices) wiring.log.info({}, "Dispute emails are off (no email settings or site address)");
   return withDatabase(config.database.url, wiring, (db) =>
     syncDisputes(
       {
@@ -52,6 +60,7 @@ export async function runDisputeTask(
         clock: wiring.clock,
         newId: wiring.newId,
         log: wiring.log,
+        ...(notices ? { notices } : {}),
       },
       source,
     ),

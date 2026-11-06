@@ -64,6 +64,8 @@ const database =
 // The built web app sits two folders up from both src/ and dist/ (apps/web/dist).
 const webDir = fileURLToPath(new URL("../../web/dist/", import.meta.url));
 const clock = () => new Date();
+// Without Resend's key and a sender the app uses its stand-in, which sends nothing.
+const email = config.email ? new ResendEmailSender(config.email) : undefined;
 // Dispute checks run as Render Workflow task runs when Render is set up; otherwise "Check now"
 // runs the check inside this server (a local copy). Reads go over REST, like invoices.
 const disputeLog = jsonLines((line) => process.stdout.write(line));
@@ -83,6 +85,10 @@ const disputes = config.render
             clock,
             newId: randomUUID,
             log: disputeLog,
+            // The seller's dispute emails (5j), when email and the site address are set.
+            ...(email && config.publicBaseUrl !== undefined
+              ? { notices: { email, publicBaseUrl: config.publicBaseUrl } }
+              : {}),
           },
           source,
         ),
@@ -131,8 +137,7 @@ const app = buildApp(report, {
   ...(sellerRest ? { invoices: new PayPalInvoices(sellerRest, undefined, new McpFallback()) } : {}),
   // Escalations and evidence (5g) go from this server over REST, after the seller confirms.
   ...(sellerDisputes ? { disputeWriter: sellerDisputes } : {}),
-  // Without Resend's key and a sender the app uses its stand-in, which sends nothing.
-  ...(config.email ? { email: new ResendEmailSender(config.email) } : {}),
+  ...(email ? { email } : {}),
   // Forwarding to the private address needs Resend's inbound key, its webhook secret and the domain.
   ...(config.inbound
     ? {

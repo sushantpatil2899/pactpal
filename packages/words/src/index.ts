@@ -8,6 +8,7 @@ export {
   deadlineIsNear,
   deadlineWords,
   disputeActionWords,
+  disputeChangeWords,
   disputeReasonWords,
   plainCode,
 } from "./disputes.js";

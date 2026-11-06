@@ -105,3 +105,23 @@ export const deadlineIsNear = (dueAt: Date, now: Date): boolean => {
   const left = dueAt.getTime() - now.getTime();
   return left > 0 && left < 48 * HOUR_MS;
 };
+
+/**
+ * What PayPal changed in a dispute (a `DISPUTE_UPDATED` entry's `changes`), one phrase each:
+ * "status now waiting for seller response", "respond-by date now <date>", "respond-by date
+ * cleared". `date` writes a respond-by date (the page and emails write dates their own way).
+ */
+export function disputeChangeWords(changes: unknown, date: (iso: string) => string): string[] {
+  if (typeof changes !== "object" || changes === null) return [];
+  return Object.entries(changes as Record<string, unknown>).map(([name, change]) => {
+    const to = typeof change === "object" && change !== null && "to" in change ? change.to : null;
+    const label =
+      name === "sellerDueAt"
+        ? "respond-by date"
+        : name === "paypalStage"
+          ? "PayPal stage"
+          : plainCode(name);
+    if (typeof to !== "string") return `${label} cleared`;
+    return `${label} now ${name === "sellerDueAt" ? date(to) : plainCode(to)}`;
+  });
+}

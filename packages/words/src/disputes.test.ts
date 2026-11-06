@@ -4,6 +4,7 @@ import {
   deadlineIsNear,
   deadlineWords,
   disputeActionWords,
+  disputeChangeWords,
   disputeReasonWords,
   plainCode,
 } from "./disputes.js";
@@ -63,5 +64,21 @@ describe("dispute words", () => {
     expect(deadlineIsNear(later(30), now)).toBe(true);
     expect(deadlineIsNear(later(49), now)).toBe(false);
     expect(deadlineIsNear(later(-1), now)).toBe(false);
+  });
+
+  it("says what PayPal changed, one phrase each", () => {
+    const changes = {
+      status: { from: "OPEN", to: "WAITING_FOR_SELLER_RESPONSE" },
+      paypalStage: { from: "INQUIRY", to: "CHARGEBACK" },
+      sellerDueAt: { from: null, to: "2026-11-25T18:58:40.000Z" },
+      dispute_state: { from: "x", to: null },
+    };
+    expect(disputeChangeWords(changes, (iso) => iso.slice(0, 10))).toEqual([
+      "status now waiting for seller response",
+      "PayPal stage now chargeback",
+      "respond-by date now 2026-11-25",
+      "dispute state cleared",
+    ]);
+    expect(disputeChangeWords(undefined, String)).toEqual([]);
   });
 });

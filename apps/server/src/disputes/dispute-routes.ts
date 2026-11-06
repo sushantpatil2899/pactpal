@@ -1,6 +1,7 @@
 import {
   getDispute,
   latestDisputeCheck,
+  listDisputeNotices,
   listArtifacts,
   listDealDisputes,
   readLedger,
@@ -63,13 +64,20 @@ export const disputeRoutes: FastifyPluginAsync<DisputeRouteOptions> = (app, opti
     const params = disputeParams.safeParse(request.params);
     const dispute = params.success ? await getDispute(found.db, params.data.disputeId) : undefined;
     if (dispute?.dealId !== found.deal.id) return reply.code(404).send({ error: "not found" });
-    const [ledger, files, check] = await Promise.all([
+    const [ledger, files, check, notices] = await Promise.all([
       readLedger(found.db, found.deal.id),
       listArtifacts(found.db, found.deal.id, "source"),
       latestDisputeCheck(found.db),
+      listDisputeNotices(found.db, dispute.disputeId),
     ]);
     return reply.send({
       ...disputePageView(dispute, found.deal, ledger, files),
+      // The emails PactPal sent the seller about this dispute (5j): what and when, never the text.
+      notices: notices.map((n) => ({
+        kind: n.kind,
+        sentAt: n.sentAt.toISOString(),
+        sent: n.emailId !== undefined,
+      })),
       lastCheck: checkView(check),
       canCheck: disputes !== undefined,
     });

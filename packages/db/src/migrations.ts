@@ -966,4 +966,25 @@ ALTER TABLE dispute_actions DROP CONSTRAINT dispute_actions_evidence_fields;
 ALTER TABLE dispute_actions ADD CONSTRAINT dispute_actions_evidence_fields
   CHECK ((kind IN ('evidence', 'appeal')) = (packet_id IS NOT NULL AND evidence_type IS NOT NULL))`,
   },
+  {
+    id: "0028_dispute_notices",
+    // Emails sent to the seller about disputes (5j): a new dispute, a change, PayPal's decision and
+    // deadline reminders. Notices, not evidence: never in the log. One row per email key, kept.
+    sql: `CREATE TABLE dispute_notices (
+  key text PRIMARY KEY CHECK (char_length(key) BETWEEN 1 AND 256),
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  dispute_id text NOT NULL REFERENCES disputes (dispute_id),
+  kind text NOT NULL CHECK (kind IN ('opened', 'changed', 'decided', 'reminder')),
+  ledger_seq integer,
+  sent_at timestamptz NOT NULL,
+  email_id text,
+  failure text,
+  CONSTRAINT dispute_notices_sent_or_refused CHECK ((email_id IS NULL) <> (failure IS NULL))
+);
+CREATE INDEX dispute_notices_by_dispute ON dispute_notices (dispute_id, sent_at DESC);
+CREATE TRIGGER dispute_notices_append_only BEFORE UPDATE OR DELETE ON dispute_notices
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER dispute_notices_no_truncate BEFORE TRUNCATE ON dispute_notices
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

@@ -261,6 +261,7 @@ export {
   getDispute,
   latestDisputeCheck,
   listDealDisputes,
+  listDisputesDueBy,
   recordDispute,
   startDisputeCheck,
 } from "./disputes.js";
@@ -324,3 +325,16 @@ export type {
   DisputeActionRefusal,
   NewDisputeAction,
 } from "./dispute-actions.js";
+export {
+  NOTICE_KINDS,
+  listDisputeEntriesSince,
+  listDisputeNotices,
+  noticeKeysTaken,
+  recordDisputeNotice,
+} from "./dispute-notices.js";
+export type {
+  DisputeEntry,
+  DisputeNotice,
+  NewDisputeNotice,
+  NoticeKind,
+} from "./dispute-notices.js";

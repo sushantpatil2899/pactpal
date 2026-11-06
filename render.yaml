@@ -102,6 +102,14 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      # The seller's dispute emails and deadline reminders (5j), sent after each check; same values
+      # as on pactpal-server. Without them the checks run and send no email.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
 
   # Render Workflows has no schedule of its own, so this Cron Job starts check-disputes every
   # 5 minutes and exits (a few seconds a run). PayPal sends no dispute notifications to the app.

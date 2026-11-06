@@ -182,6 +182,25 @@ export async function listDealDisputes(q: Queryable, dealId: string): Promise<St
 }
 
 /**
+ * Disputes tied to a deal that PayPal is waiting on the seller to answer, with a respond-by date
+ * after `now` and at most `until` (for deadline reminders, 5j).
+ */
+export async function listDisputesDueBy(
+  q: Queryable,
+  now: Date,
+  until: Date,
+): Promise<StoredDispute[]> {
+  const rows = await q.query(
+    `SELECT ${COLUMNS} FROM disputes
+      WHERE deal_id IS NOT NULL AND status = 'WAITING_FOR_SELLER_RESPONSE'
+        AND seller_due_at > $1 AND seller_due_at <= $2
+      ORDER BY seller_due_at, dispute_id`,
+    [now, until],
+  );
+  return rows.map((row) => disputeRow.parse(row));
+}
+
+/**
  * Saves a dispute as just read from PayPal, matched to a payment stage when `match` is given,
  * and writes the log entries the change calls for (`disputeChanges`), all in one transaction with
  * the dispute's row locked, so two checks at once write each entry once. A dispute already linked

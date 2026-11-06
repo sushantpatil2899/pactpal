@@ -554,6 +554,8 @@ export interface DisputePageView extends DisputeView {
   filesSince: { id: string; filename: string; addedBy: DealFile["addedBy"]; addedAt: string }[];
   lastCheck: DisputesView["lastCheck"];
   canCheck: boolean;
+  /** The emails PactPal sent the seller about this dispute (5j). */
+  notices: { kind: "opened" | "changed" | "decided" | "reminder"; sentAt: string; sent: boolean }[];
 }
 
 const isDisputePage = (value: unknown): value is DisputePageView =>

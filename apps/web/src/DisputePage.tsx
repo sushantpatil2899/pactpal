@@ -2,6 +2,7 @@ import {
   deadlineIsNear,
   deadlineWords,
   disputeActionWords,
+  disputeChangeWords,
   disputeReasonWords,
   plainCode,
 } from "@pactpal/words";
@@ -34,17 +35,7 @@ function eventWords(type: string, payload: unknown): string {
         ? `PayPal decided: ${plainCode(fields.outcome)}`
         : "PayPal decided";
     case "DISPUTE_UPDATED": {
-      const changes: [string, unknown][] =
-        "changes" in fields && typeof fields.changes === "object" && fields.changes !== null
-          ? Object.entries(fields.changes as Record<string, unknown>)
-          : [];
-      const what = changes.map(([name, change]) => {
-        const to =
-          typeof change === "object" && change !== null && "to" in change ? change.to : null;
-        const label = name === "sellerDueAt" ? "respond-by date" : plainCode(name);
-        if (typeof to !== "string") return `${label} cleared`;
-        return `${label} now ${name === "sellerDueAt" ? when(to) : plainCode(to)}`;
-      });
+      const what = disputeChangeWords("changes" in fields ? fields.changes : undefined, when);
       return what.length === 0
         ? "PayPal changed the dispute"
         : `PayPal changed it: ${what.join("; ")}`;
@@ -72,6 +63,13 @@ function eventWords(type: string, payload: unknown): string {
       return plainCode(type);
   }
 }
+
+const NOTICE_WORDS = {
+  opened: "new dispute",
+  changed: "PayPal changed it",
+  decided: "PayPal decided it",
+  reminder: "reminder of the respond-by date",
+} as const;
 
 /** The respond-by line: a countdown that turns red under two days and says when it has passed. */
 function Deadline({ dueAt }: { dueAt: string | null }) {
@@ -225,6 +223,22 @@ export function DisputePage({ dealId, disputeId }: { dealId: string; disputeId: 
             </li>
           ))}
         </ol>
+        <h4>Emails to you</h4>
+        {view.notices.length === 0 ? (
+          <p>
+            None yet. PactPal emails you about changes and 72, 24 and 6 hours before the respond-by
+            date.
+          </p>
+        ) : (
+          <ul>
+            {view.notices.map((notice) => (
+              <li key={`${notice.kind}-${notice.sentAt}`}>
+                {when(notice.sentAt)}: {NOTICE_WORDS[notice.kind]}
+                {notice.sent ? "" : " (not delivered: the address was refused)"}
+              </li>
+            ))}
+          </ul>
+        )}
         <h4>Files added since the buyer opened it</h4>
         {view.filesSince.length === 0 ? (
           <p>None.</p>

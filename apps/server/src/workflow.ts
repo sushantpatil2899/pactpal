@@ -3,6 +3,7 @@
  * Render's SDK starts serving them by itself once this file has run (RENDER_SDK_SOCKET_PATH).
  */
 import { randomUUID } from "node:crypto";
+import { ResendEmailSender } from "@pactpal/email";
 import { connectPostgres } from "@pactpal/db";
 import {
   AccessTokenProvider,
@@ -51,6 +52,8 @@ task(
       clock: () => new Date(),
       newId: randomUUID,
       log,
+      // The seller's dispute emails (5j) go through Resend when the email settings are set here.
+      emailFor: (settings) => new ResendEmailSender(settings),
     }),
 );
 

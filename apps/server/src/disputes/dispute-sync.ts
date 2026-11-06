@@ -20,6 +20,7 @@ import {
 } from "@pactpal/paypal";
 import { z } from "zod";
 import type { LogSink } from "../payments/payment-sync.js";
+import { sendDisputeNotices, type NoticeDeps } from "./notices.js";
 import { matchDispute, paymentKeys, type DisputedPayments } from "./match.js";
 
 /** The PayPal reads a dispute check makes. */
@@ -31,6 +32,8 @@ export interface DisputeSyncDeps {
   clock: () => Date;
   newId: () => string;
   log: LogSink;
+  /** Emails the seller after each check (5j); off without an email service and a site address. */
+  notices?: Omit<NoticeDeps, "db" | "clock" | "log">;
 }
 
 /** A PayPal date, or undefined when PayPal sent none or something that is not a date. */
@@ -191,5 +194,9 @@ export async function syncDisputes(
   const result: DisputeCheckResult = { ok: true, ...counts };
   await finishDisputeCheck(db, checkId, result, clock());
   log.info({ checkId, source, ...counts }, "Dispute check done");
+  if (deps.notices) {
+    const emails = await sendDisputeNotices({ ...deps.notices, db, clock, log });
+    log.info({ checkId, ...emails }, "Dispute emails done");
+  }
   return result;
 }
