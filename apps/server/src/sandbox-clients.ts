@@ -58,3 +58,24 @@ export function appClients(
 
 /** The seller app's clients, used by most sandbox commands. */
 export const sellerClients = () => appClients("seller");
+
+/**
+ * Clients for the dispute commands: the seller app, or with `asSeller` (a
+ * connected seller's payer id) the platform app working for that seller over
+ * REST only, because PayPal's MCP server ignores the seller header (6a).
+ */
+export function disputeClients(asSeller: string | undefined): {
+  rest: PayPalRestClient;
+  mcp: PayPalMcpClient | undefined;
+  fallback: McpFallback;
+  close: () => Promise<void>;
+} {
+  const clients =
+    asSeller === undefined ? sellerClients() : appClients("platform", { actAs: asSeller });
+  return {
+    rest: clients.rest,
+    mcp: asSeller === undefined ? clients.mcp : undefined,
+    fallback: clients.fallback,
+    close: () => clients.mcp.close(),
+  };
+}

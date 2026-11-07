@@ -12,6 +12,7 @@ import {
   AMOUNT_OPTIONS,
   amountOption,
   disputeIdOption,
+  payPalIdOption,
   readChecked,
   type Checked,
 } from "./cli-args.js";
@@ -24,12 +25,16 @@ export type PlannedAnswer =
   | { kind: "accept"; refundAmount: MinorAmount | undefined }
   | { kind: "appeal"; files: string[] }
   | { kind: "escalate" }
+  /** A message to the buyer; the note is the message. */
+  | { kind: "message" }
   // Sandbox-only steps that stand in for PayPal's staff; they send no note.
   | { kind: "require-evidence"; from: DisputeParty }
   | { kind: "settle"; winner: DisputeParty };
 
 export interface RespondArgs {
   id: string;
+  /** A connected seller's payer id: answer for them through the platform app. */
+  as: string | undefined;
   answer: PlannedAnswer;
   /** Empty for the sandbox steps, which send no note. */
   note: string;
@@ -40,8 +45,8 @@ export interface RespondArgs {
 export const USAGE =
   "Usage: pnpm sandbox:respond --id <dispute id> [--note <text>] " +
   "(--evidence <TYPE> [--file <path>]... | --offer <TYPE> --amount <decimal> | " +
-  "--accept [--amount <decimal>] | --appeal [--file <path>]... | --escalate | " +
-  "--require-evidence seller|buyer | --settle seller|buyer) [--currency USD] [--send]\n" +
+  "--accept [--amount <decimal>] | --appeal [--file <path>]... | --escalate | --message | " +
+  "--require-evidence seller|buyer | --settle seller|buyer) [--currency USD] [--as <payer id>] [--send]\n" +
   "--note is required except with --require-evidence and --settle (sandbox-only steps).";
 
 /** PayPal's action name for each answer, as it appears in the dispute's links. */
@@ -51,6 +56,7 @@ export const ACTION_OF: Record<PlannedAnswer["kind"], DisputeAction | SandboxDis
   accept: "accept_claim",
   appeal: "appeal",
   escalate: "escalate",
+  message: "send_message",
   "require-evidence": "require_evidence",
   settle: "adjudicate",
 };
@@ -65,11 +71,13 @@ const argsSchema = z.object({
   accept: z.boolean().default(false),
   appeal: z.boolean().default(false),
   escalate: z.boolean().default(false),
+  message: z.boolean().default(false),
   "require-evidence": party.optional(),
   settle: party.optional(),
   file: z.array(z.string().min(1)).default([]),
   amount: z.string().optional(),
   currency: z.string().default("USD"),
+  as: payPalIdOption("--as").optional(),
   send: z.boolean().default(false),
 });
 
@@ -82,6 +90,7 @@ function plan(values: Values): Checked<PlannedAnswer> {
     values.accept && "--accept",
     values.appeal && "--appeal",
     values.escalate && "--escalate",
+    values.message && "--message",
     values["require-evidence"] !== undefined && "--require-evidence",
     values.settle !== undefined && "--settle",
   ].filter((flag) => flag !== false);
@@ -89,7 +98,7 @@ function plan(values: Values): Checked<PlannedAnswer> {
     return {
       ok: false,
       error:
-        "give exactly one of --evidence, --offer, --accept, --appeal, --escalate, " +
+        "give exactly one of --evidence, --offer, --accept, --appeal, --escalate, --message, " +
         "--require-evidence or --settle",
     };
   }
@@ -128,6 +137,7 @@ function plan(values: Values): Checked<PlannedAnswer> {
   if (values.settle !== undefined) {
     return { ok: true, value: { kind: "settle", winner: values.settle } };
   }
+  if (values.message) return { ok: true, value: { kind: "message" } };
   return { ok: true, value: { kind: "escalate" } };
 }
 
@@ -143,9 +153,11 @@ export function parseRespondArgs(argv: readonly string[]): Checked<RespondArgs> 
       accept: { type: "boolean" },
       appeal: { type: "boolean" },
       escalate: { type: "boolean" },
+      message: { type: "boolean" },
       "require-evidence": { type: "string" },
       settle: { type: "string" },
       file: { type: "string", multiple: true },
+      as: { type: "string" },
       send: { type: "boolean" },
       ...AMOUNT_OPTIONS,
     },
@@ -159,6 +171,7 @@ export function parseRespondArgs(argv: readonly string[]): Checked<RespondArgs> 
     ok: true,
     value: {
       id: values.id,
+      as: values.as,
       note: values.note,
       answer: answer.value,
       send: values.send,
@@ -180,6 +193,8 @@ function describeAnswer(answer: PlannedAnswer): string {
       return `appeal, files: ${answer.files.join(", ") || "none"}`;
     case "escalate":
       return "escalate the inquiry to a PayPal claim";
+    case "message":
+      return "send the note to the buyer as a message";
     case "require-evidence":
       return `sandbox: ask the ${answer.from} for evidence`;
     case "settle":
@@ -208,6 +223,7 @@ export function formatPlan(args: RespondArgs, dispute: DisputeDetails): string {
       ["Seller due by", dispute.sellerResponseDueDate ?? "-"],
       ["Allowed actions", list(dispute.allowedActions)],
       ["Offer types", list(dispute.allowedOfferTypes)],
+      ["Answer as", args.as === undefined ? "the seller app" : `connected seller ${args.as}`],
       ["Answer", describeAnswer(args.answer)],
       ["Note", args.note || "-"],
       ["Allowed now", allowedNow(args, dispute)],

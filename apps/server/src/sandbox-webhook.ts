@@ -1,11 +1,12 @@
 /**
- * `pnpm sandbox:webhook`: lists, registers or removes the seller app's PayPal
+ * `pnpm sandbox:webhook`: lists, registers or removes the seller app's (or with
+ * --app platform, the platform app's) PayPal
  * notification addresses, or shows PayPal's record of recent notifications.
  * Registering and removing are dry runs unless --send is given.
  */
 import { randomUUID } from "node:crypto";
 import { PayPalWebhooks } from "@pactpal/paypal";
-import { fail, sellerClients } from "./sandbox-clients.js";
+import { appClients, fail } from "./sandbox-clients.js";
 import {
   USAGE,
   formatEvents,
@@ -19,7 +20,7 @@ const parsed = parseWebhookArgs(process.argv.slice(2));
 if (!parsed.ok) fail(`${parsed.error}\n${USAGE}`);
 const task = parsed.value;
 
-const { rest, mcp } = sellerClients();
+const { rest, mcp } = appClients(task.app);
 const webhooks = new PayPalWebhooks(rest);
 const requestId = `sandbox-webhook-${randomUUID()}`;
 try {
@@ -33,7 +34,7 @@ try {
     case "register":
       process.stdout.write(
         task.send
-          ? formatRegistered(await webhooks.register(task.url, requestId))
+          ? formatRegistered(await webhooks.register(task.url, requestId), task.app)
           : formatPreview(task),
       );
       break;

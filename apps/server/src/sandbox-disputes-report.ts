@@ -1,29 +1,35 @@
 import type { DisputeDetails, DisputeList, Route } from "@pactpal/paypal";
 import { z } from "zod";
-import { disputeIdOption, readChecked } from "./cli-args.js";
+import { disputeIdOption, payPalIdOption, readChecked } from "./cli-args.js";
 import { describeRoute, formatAmount, rows } from "./format.js";
 
-/** Reads the optional `--id <dispute id>`. */
+/** Reads the optional `--id <dispute id>` and `--as <connected seller's payer id>`. */
 export function parseDisputeArgs(
   argv: readonly string[],
-): { ok: true; id: string | undefined } | { ok: false; error: string } {
+): { ok: true; id: string | undefined; as: string | undefined } | { ok: false; error: string } {
   const parsed = readChecked(
     argv,
-    { id: { type: "string" } },
-    z.object({ id: disputeIdOption.optional() }),
+    { id: { type: "string" }, as: { type: "string" } },
+    z.object({ id: disputeIdOption.optional(), as: payPalIdOption("--as").optional() }),
   );
-  return parsed.ok ? { ok: true, id: parsed.value.id } : parsed;
+  return parsed.ok ? { ok: true, id: parsed.value.id, as: parsed.value.as } : parsed;
 }
 
 /** The seller's disputes, one line each. */
-export function formatDisputeList(list: DisputeList, route: Route): string {
+export function formatDisputeList(
+  list: DisputeList,
+  route: Route,
+  /** A connected seller's payer id when read through the platform app (--as). */
+  asSeller?: string,
+): string {
+  const whose = asSeller === undefined ? "seller app" : `connected seller ${asSeller}`;
   const lines = list.disputes.map(
     (d) =>
       `  ${d.disputeId}  ${d.status}  ${d.stage ?? "-"}  ${d.reason ?? "-"}  ${formatAmount(d.amount)}  ${d.createdAt ?? "-"}\n`,
   );
   const more = list.truncated ? "  (more disputes exist beyond the page limit)\n" : "";
   return (
-    `Sandbox disputes (seller app): ${list.disputes.length}\n` +
+    `Sandbox disputes (${whose}): ${list.disputes.length}\n` +
     (lines.join("") || "  none\n") +
     more +
     `Read via ${describeRoute(route)}\n`

@@ -21,12 +21,18 @@ const summary = {
 
 describe("parseDisputeArgs", () => {
   it("accepts no arguments or a dispute id", () => {
-    expect(parseDisputeArgs([])).toEqual({ ok: true, id: undefined });
-    expect(parseDisputeArgs(["--id", "PP-D-1"])).toEqual({ ok: true, id: "PP-D-1" });
+    expect(parseDisputeArgs([])).toEqual({ ok: true, id: undefined, as: undefined });
+    expect(parseDisputeArgs(["--id", "PP-D-1"])).toEqual({ ok: true, id: "PP-D-1", as: undefined });
+    expect(parseDisputeArgs(["--as", "JDNTE6K43SE6N"])).toEqual({
+      ok: true,
+      id: undefined,
+      as: "JDNTE6K43SE6N",
+    });
   });
 
   it.each([
     [["--id", "../etc"], /--id must be a PayPal dispute id/],
+    [["--as", "not an id"], /--as needs a PayPal id/],
     [["--color", "red"], /Unknown option '--color'/],
   ])("rejects %j", (argv, message) => {
     const result = parseDisputeArgs(argv);
@@ -49,6 +55,9 @@ describe("formatDisputeList", () => {
     expect(formatDisputeList({ disputes: [], truncated: false }, { transport: "mcp" })).toBe(
       "Sandbox disputes (seller app): 0\n  none\nRead via mcp\n",
     );
+    expect(
+      formatDisputeList({ disputes: [], truncated: false }, { transport: "rest" }, "SELLER2"),
+    ).toContain("Sandbox disputes (connected seller SELLER2): 0\n");
     const bare = { ...summary, stage: undefined, reason: undefined, createdAt: undefined };
     expect(formatDisputeList({ disputes: [bare], truncated: false }, viaRest)).toContain(
       "  PP-D-1  WAITING_FOR_SELLER_RESPONSE  -  -  1.00 USD  -\n",

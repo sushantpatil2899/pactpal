@@ -7,7 +7,7 @@ import {
   type PartnerFeature,
 } from "@pactpal/paypal";
 import { z } from "zod";
-import { readChecked, type Checked } from "./cli-args.js";
+import { payPalIdOption, readChecked, type Checked } from "./cli-args.js";
 import { formatAmount, rows } from "./format.js";
 
 /** Where a connecting seller lands after approving, unless --return-url says otherwise. */
@@ -21,11 +21,7 @@ export type PartnerTask =
 export const USAGE =
   "Usage: pnpm sandbox:partner (--link [--features <list>] [--return-url <https url>] | --status <tracking id> [--partner-id <id>] | --act <seller payer id>) [--send]";
 
-const id = (option: string) =>
-  z
-    .string()
-    .regex(/^[A-Za-z0-9_-]{1,64}$/, `${option} needs a PayPal id`)
-    .optional();
+const id = (option: string) => payPalIdOption(option).optional();
 
 /**
  * `--features READ_SELLER_DISPUTE,UPDATE_SELLER_DISPUTE`: ask for fewer permissions. The sandbox

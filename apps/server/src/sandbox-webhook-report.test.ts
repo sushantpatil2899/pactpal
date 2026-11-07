@@ -24,7 +24,14 @@ describe("parseWebhookArgs", () => {
       { kind: "delete", webhookId: "8PT597110X687430LKGECATA", send: true },
     ],
   ])("reads %j", (argv, value) => {
-    expect(parseWebhookArgs(argv)).toEqual({ ok: true, value });
+    expect(parseWebhookArgs(argv)).toEqual({ ok: true, value: { app: "seller", ...value } });
+  });
+
+  it("works on the platform app with --app platform", () => {
+    expect(parseWebhookArgs(["--events", "--app", "platform"])).toEqual({
+      ok: true,
+      value: { app: "platform", kind: "events" },
+    });
   });
 
   it.each([
@@ -35,6 +42,7 @@ describe("parseWebhookArgs", () => {
     [["--delete", "../x"], /--delete needs a webhook id/],
     [["--list", "--send"], /--send is only used with --register or --delete/],
     [["--colour"], /Unknown option '--colour'/],
+    [["--list", "--app", "buyer"], /--app must be seller or platform/],
   ])("rejects %j", (argv, message) => {
     const result = parseWebhookArgs(argv);
     expect(result.ok).toBe(false);
@@ -53,10 +61,10 @@ describe("webhook output", () => {
   });
 
   it("previews without sending", () => {
-    expect(formatPreview({ kind: "register", url: "https://x.example/w", send: false })).toContain(
-      "Would register https://x.example/w\n  for: INVOICING.INVOICE.CREATED,",
-    );
-    expect(formatPreview({ kind: "delete", webhookId: "WH-ID", send: false })).toBe(
+    expect(
+      formatPreview({ app: "seller", kind: "register", url: "https://x.example/w", send: false }),
+    ).toContain("Would register https://x.example/w\n  for: INVOICING.INVOICE.CREATED,");
+    expect(formatPreview({ app: "seller", kind: "delete", webhookId: "WH-ID", send: false })).toBe(
       "Would remove webhook WH-ID\nDry run: nothing was sent. Add --send to send it.\n",
     );
   });
@@ -65,6 +73,10 @@ describe("webhook output", () => {
     expect(formatRegistered(registration)).toContain(
       "Next: set PAYPAL_WEBHOOK_ID=WH-ID in Render's Environment page.\n",
     );
+    const platform = formatRegistered(registration, "platform");
+    expect(platform).toContain("Registered for the platform app.");
+    expect(platform).toContain("'not verified' for now");
+    expect(platform).not.toContain("PAYPAL_WEBHOOK_ID");
   });
 
   it("shows recent notifications with their deliveries", () => {

@@ -1,6 +1,6 @@
 /**
  * `pnpm sandbox:respond`: answers one sandbox dispute (evidence, offer,
- * accepting the claim, escalating, appeal), or takes a sandbox-only step
+ * accepting the claim, escalating, a message, appeal), or takes a sandbox-only step
  * towards a verdict (require evidence, settle). A dry run unless --send is given.
  */
 import { randomUUID } from "node:crypto";
@@ -13,14 +13,14 @@ import {
   type EvidenceFile,
   type PayPalResult,
 } from "@pactpal/paypal";
-import { fail, sellerClients } from "./sandbox-clients.js";
+import { disputeClients, fail } from "./sandbox-clients.js";
 import { USAGE, formatPlan, formatSent, parseRespondArgs } from "./sandbox-respond-report.js";
 
 const parsed = parseRespondArgs(process.argv.slice(2));
 if (!parsed.ok) fail(`${parsed.error}\n${USAGE}`);
 const args = parsed.value;
 
-const { rest, mcp, fallback } = sellerClients();
+const { rest, mcp, fallback, close } = disputeClients(args.as);
 const disputes = new PayPalSandboxDisputes(rest, mcp, fallback);
 
 function send(requestId: string, files: EvidenceFile[]): Promise<PayPalResult<DisputeAnswer>> {
@@ -50,6 +50,8 @@ function send(requestId: string, files: EvidenceFile[]): Promise<PayPalResult<Di
       return disputes.appeal(id, { evidenceType: "OTHER", notes: note, files, requestId });
     case "escalate":
       return disputes.escalate(id, { note, requestId });
+    case "message":
+      return disputes.sendMessage(id, { message: note, requestId });
     case "require-evidence":
       return disputes.requireEvidence(id, answer.from, requestId);
     case "settle":
@@ -74,5 +76,5 @@ try {
   process.exitCode = 1;
   process.stderr.write(`${String(error)}\n`);
 } finally {
-  await mcp.close();
+  await close();
 }

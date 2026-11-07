@@ -26,6 +26,7 @@ describe("parseRespondArgs", () => {
     ],
     [[...base, "--appeal"], { kind: "appeal", files: [] }],
     [[...base, "--escalate"], { kind: "escalate" }],
+    [[...base, "--message"], { kind: "message" }],
   ])("reads %j", (argv, answer) => {
     expect(parseRespondArgs(argv)).toEqual({
       ok: true,
@@ -43,6 +44,13 @@ describe("parseRespondArgs", () => {
     });
   });
 
+  it("answers for a connected seller with --as", () => {
+    expect(parseRespondArgs([...base, "--message", "--as", "JDNTE6K43SE6N"])).toMatchObject({
+      ok: true,
+      value: { as: "JDNTE6K43SE6N", answer: { kind: "message" } },
+    });
+  });
+
   it("sends only with --send", () => {
     expect(parseRespondArgs([...base, "--accept", "--send"])).toMatchObject({
       ok: true,
@@ -56,6 +64,8 @@ describe("parseRespondArgs", () => {
     [["--id", "../x", "--note", "x", "--accept"], /--id must be a PayPal dispute id/],
     [base, /exactly one of/],
     [[...base, "--accept", "--appeal"], /exactly one of/],
+    [["--id", "PP-D-1", "--message"], /--note is required/],
+    [[...base, "--message", "--as", "a b"], /--as needs a PayPal id/],
     [[...base, "--offer", "REFUND"], /--offer needs --amount/],
     [
       [...base, "--offer", "REFUND", "--amount", "1.234"],
@@ -138,6 +148,13 @@ describe("formatPlan", () => {
     );
     expect(formatPlan(args(["--escalate"]), none)).toContain(
       "  Answer           escalate the inquiry to a PayPal claim\n",
+    );
+    expect(formatPlan(args(["--message"]), none)).toContain(
+      "  Answer           send the note to the buyer as a message\n",
+    );
+    expect(formatPlan(args(["--message"]), none)).toContain("  Answer as        the seller app\n");
+    expect(formatPlan(args(["--message", "--as", "SELLER2"]), none)).toContain(
+      "  Answer as        connected seller SELLER2\n",
     );
     const step = (argv: string[]) => {
       const parsed = parseRespondArgs(["--id", "PP-D-1", ...argv]);

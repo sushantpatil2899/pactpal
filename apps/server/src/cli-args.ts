@@ -67,6 +67,10 @@ export function amountOption(value: string, currency: string): Checked<MinorAmou
   }
 }
 
+/** A PayPal account id (payer id) or similar plain PayPal id given as `option`. */
+export const payPalIdOption = (option: string) =>
+  z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, `${option} needs a PayPal id`);
+
 export const disputeIdOption = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,255}$/, "--id must be a PayPal dispute id");
