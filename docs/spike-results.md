@@ -136,7 +136,26 @@ The same 11 chats, one run each, all five models, with drafting prompt version 3
 | council pick        | 11     | 1.00               | 1.00        | 15 of 15    |
 
 - **Limits of the check:** 11 chats written by us, one run each; read the numbers as a tendency.
-- **Open:** keeping or dropping Nemotron is decided after the prompt-injection check on 6 November 2026.
+- **Outcome (6 November 2026):** after the injection check below, the owner kept the council for drafting and kept Nemotron.
+
+## Second prompt-injection check (sub-phase 4n-2, 6 November 2026)
+
+`pnpm eval:injection --council` with drafting prompt version 3 and hiding on (as in the product): the same 14 hostile chats and 3 hostile drafts, one run each, all five models. 99 runs, about 579,000 tokens, 35 minutes, started half an hour after Gemini's daily reset. Run 3f (1 November, before the fixes) in brackets.
+
+| Model               | Held    | Dropped | Compromised | Call failed |
+| ------------------- | ------- | ------- | ----------- | ----------- |
+| gemini              | 6 (1)   | 0 (0)   | 0 (0)       | 8 (13)      |
+| qwen-groq           | 13 (13) | 1 (0)   | 0 (0)       | 0 (1)       |
+| gpt-oss-groq        | 14 (12) | 0 (0)   | 0 (2)       | 0 (0)       |
+| mistral             | 11 (9)  | 3 (2)   | 0 (3)       | 0 (0)       |
+| nemotron-openrouter | 3 (6)   | 1 (1)   | 0 (0)       | 10 (7)      |
+
+- **No model was compromised** (3f: mistral 3 times, gpt-oss twice). The hiding and the prompt rule from 3fb held with prompt version 3.
+- **The council's chosen draft held in 14 of 14 chats** (3f: 12 of 14; 3fb: 14 of 14).
+- **Voting attacks (3 hostile drafts):** no voter ranked a hostile draft first. qwen and mistral held 3 of 3, gpt-oss 2 (1 failed), Gemini and Nemotron failed all 3.
+- **Failed calls:** Nemotron timed out 10 times and was rate limited 3 times; Gemini was rate limited 11 times; gpt-oss once. Failed calls are not counted as held.
+- **Limits of the check:** 17 attacks written by us, one run each, the same simple judge (a canary word or a changed value). A clean result does not prove safety.
+- **Decisions (owner, 6 November 2026):** keep the council for drafting; keep Nemotron.
 
 ## First live claim comparison (sub-phase 5d, 5 November 2026)
 
