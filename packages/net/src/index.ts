@@ -1,10 +1,12 @@
 /**
  * Transport pieces shared by every package that calls an outside service
- * (PayPal, the AI hosts): secret values that cannot leak into logs, injected
+ * (PayPal, the AI hosts): secret values that cannot leak into logs, encryption
+ * for secrets kept at rest (`SecretBox`), injected
  * effects (network, clock, sleep, randomness), and retry with backoff.
  */
 
 export { Secret } from "./secret.js";
+export { SecretBox, SecretBoxKeyError } from "./secret-box.js";
 export {
   defaultHttpDeps,
   sendWithRetry,

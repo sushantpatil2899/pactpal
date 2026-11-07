@@ -1,4 +1,4 @@
-import { grantedFeatures, type AccessToken } from "@pactpal/paypal";
+import { grantedFeatures, type AccessToken, type SellerAppCheck } from "@pactpal/paypal";
 import { APP_KEYS, type PayPalApp } from "./config.js";
 import { rows } from "./format.js";
 
@@ -16,13 +16,35 @@ export type McpCheck =
   | { connected: false; error: string }
   | { connected: true; tools: number; testCall: { ok: true } | { ok: false; error: string } };
 
+/** Whether the app could be linked as a seller's own app (6h); `error` when the check itself failed. */
+export type SellerAppRow = SellerAppCheck | { ok: false; reason: "error"; error: string };
+
 /** Outcome of logging in with one app. */
 export type LoginCheck =
-  | { status: "ok"; token: Pick<AccessToken, "expiresAt" | "scopes" | "appId">; mcp: McpCheck }
+  | {
+      status: "ok";
+      token: Pick<AccessToken, "expiresAt" | "scopes" | "appId">;
+      mcp: McpCheck;
+      sellerApp: SellerAppRow;
+    }
   | { status: "failed"; error: string }
   | { status: "skipped" };
 
 const HOUR_MS = 3_600_000;
+
+function sellerAppText(check: SellerAppRow): string {
+  if (check.ok) return `yes, PayPal account ${check.merchantId}`;
+  switch (check.reason) {
+    case "login-failed":
+      return "no: PayPal refused the keys";
+    case "missing-features":
+      return `no: missing ${check.missing.join(", ")}`;
+    case "account-unreadable":
+      return "no: PayPal would not name the account";
+    case "error":
+      return `check failed: ${check.error}`;
+  }
+}
 
 function appSection(app: PayPalApp, check: LoginCheck, now: number): string {
   switch (check.status) {
@@ -54,6 +76,7 @@ function appSection(app: PayPalApp, check: LoginCheck, now: number): string {
                 ] as [string, string],
               ]
             : []),
+          ["Seller's own app", sellerAppText(check.sellerApp)],
         ]) +
         `  Permissions (${scopes.length})\n${permissions}`
       );

@@ -67,6 +67,11 @@ services:
         sync: false
       - key: DISPUTE_TASK_SLUG
         value: pactpal-workflows/check-disputes
+      # Sellers' own PayPal apps (6h): the key that encrypts their app secrets in the database.
+      # 32 random bytes in base64; the same value on pactpal-workflows. Losing it means every
+      # seller must link again.
+      - key: SELLER_KEYS_ENCRYPTION_KEY
+        sync: false
 
   # Render Workflows: PactPal's background tasks, run on Render outside the website: check-disputes,
   # which reads the seller's PayPal disputes and logs them on their deals, and analyze-claim, which
@@ -109,6 +114,10 @@ services:
       - key: EMAIL_FROM
         sync: false
       - key: PUBLIC_BASE_URL
+        sync: false
+      # Sellers' own PayPal apps (6h): the dispute checks act through them; same value as on
+      # pactpal-server.
+      - key: SELLER_KEYS_ENCRYPTION_KEY
         sync: false
 
   # Render Workflows has no schedule of its own, so this Cron Job starts check-disputes every

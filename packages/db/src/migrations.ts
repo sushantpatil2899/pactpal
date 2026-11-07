@@ -1016,4 +1016,25 @@ CREATE UNIQUE INDEX seller_connections_one_per_user ON seller_connections (user_
 CREATE UNIQUE INDEX seller_connections_one_per_account ON seller_connections (merchant_id)
   WHERE status = 'connected'`,
   },
+  {
+    id: "0030_seller_own_apps",
+    // A seller's own sandbox REST app (6h): its client id, and its secret encrypted with a key held
+    // outside the database. Linked directly (never pending); unlinking wipes the secret.
+    sql: `ALTER TABLE seller_connections DROP CONSTRAINT seller_connections_method_check;
+ALTER TABLE seller_connections ADD CONSTRAINT seller_connections_method_check
+  CHECK (method IN ('partner', 'own_app'));
+ALTER TABLE seller_connections ALTER COLUMN tracking_id DROP NOT NULL;
+ALTER TABLE seller_connections
+  ADD COLUMN client_id text CHECK (client_id ~ '^[A-Za-z0-9_-]{1,128}$'),
+  ADD COLUMN client_secret_sealed text CHECK (char_length(client_secret_sealed) BETWEEN 1 AND 1024),
+  ADD CONSTRAINT seller_connections_partner_fields CHECK (
+    method <> 'partner'
+    OR (tracking_id IS NOT NULL AND client_id IS NULL AND client_secret_sealed IS NULL)),
+  ADD CONSTRAINT seller_connections_own_app_fields CHECK (
+    method <> 'own_app'
+    OR (tracking_id IS NULL AND client_id IS NOT NULL AND status <> 'pending'
+        AND (status <> 'connected' OR client_secret_sealed IS NOT NULL))),
+  ADD CONSTRAINT seller_connections_no_secret_once_ended CHECK (
+    status <> 'disconnected' OR client_secret_sealed IS NULL)`,
+  },
 ];

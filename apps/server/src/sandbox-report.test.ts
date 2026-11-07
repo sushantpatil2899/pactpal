@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSandboxReport } from "./sandbox-report.js";
+import { formatSandboxReport, type SellerAppRow } from "./sandbox-report.js";
 
 describe("formatSandboxReport", () => {
   it("shows each app's login, needed features and permissions", () => {
@@ -21,6 +21,7 @@ describe("formatSandboxReport", () => {
             tools: 43,
             testCall: { ok: false, error: "MCP list_invoices failed: PAYPAL_API_SETUP_ERROR: x" },
           },
+          sellerApp: { ok: true, merchantId: "SELLER1", scopes: [] },
         },
         buyerBiz: {
           status: "failed",
@@ -40,6 +41,7 @@ describe("formatSandboxReport", () => {
         "  Transaction search  no",
         "  MCP connection      ok, 43 tools",
         "  MCP list_invoices   failed: MCP list_invoices failed: PAYPAL_API_SETUP_ERROR: x",
+        "  Seller's own app    yes, PayPal account SELLER1",
         "  Permissions (2)",
         "    https://uri.paypal.com/services/invoicing",
         "    https://uri.paypal.com/services/disputes/read-seller",
@@ -61,6 +63,7 @@ describe("formatSandboxReport", () => {
           status: "ok",
           token: { expiresAt: 0, appId: undefined, scopes: [] },
           mcp: { connected: false, error: "MCP tools/list failed: CONNECT_FAILED: refused" },
+          sellerApp: { ok: false, reason: "login-failed", debugId: undefined },
         },
         buyerBiz: { status: "skipped" },
         platform: { status: "skipped" },
@@ -74,4 +77,32 @@ describe("formatSandboxReport", () => {
     );
     expect(text).not.toContain("MCP list_invoices");
   });
+
+  it.each([
+    [{ ok: false, reason: "login-failed", debugId: "d" }, "no: PayPal refused the keys"],
+    [{ ok: false, reason: "missing-features", missing: ["Invoicing"] }, "no: missing Invoicing"],
+    [
+      { ok: false, reason: "account-unreadable", debugId: "d" },
+      "no: PayPal would not name the account",
+    ],
+    [{ ok: false, reason: "error", error: "timeout" }, "check failed: timeout"],
+  ] satisfies [SellerAppRow, string][])(
+    "says whether the app could be a seller's own app: %j",
+    (sellerApp, line) => {
+      const text = formatSandboxReport(
+        {
+          seller: {
+            status: "ok",
+            token: { expiresAt: 0, appId: undefined, scopes: [] },
+            mcp: { connected: false, error: "x" },
+            sellerApp,
+          },
+          buyerBiz: { status: "skipped" },
+          platform: { status: "skipped" },
+        },
+        0,
+      );
+      expect(text).toContain(`Seller's own app    ${line}\n`);
+    },
+  );
 });

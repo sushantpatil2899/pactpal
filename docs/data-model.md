@@ -42,7 +42,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 6c)
+## Built (sub-phases 2b to 6h-1)
 
 ### `users`: everyone
 
@@ -517,19 +517,21 @@ Built in 5j (migration 0028); append-only. One row per email key: a new dispute,
 
 ### `seller_connections`: sellers connected to their own PayPal account
 
-Built in 6c (migration 0029). One row per attempt to connect through Partner Referrals ("Connect with PayPal"). Not append-only, because the status changes, and not evidence. Ending a connection keeps the row, and reconnecting makes a new one, so it stays known which PayPal account past invoices came from. Sellers with no live connection use PactPal's own sandbox seller app, as before. Nothing writes rows until 6d.
+Built in 6c (migration 0029); own apps added in 6h-1 (migration 0030). One row per attempt to connect through Partner Referrals ("Connect with PayPal"), or per link of a seller's own sandbox REST app. Not append-only, because the status changes, and not evidence. Ending a connection keeps the row, and reconnecting makes a new one, so it stays known which PayPal account past invoices came from. Sellers with no live connection use PactPal's own sandbox seller app, as before. Nothing on the site writes rows yet: own apps from 6h-2, Partner Referrals from 6d.
 
-| Column                                          | Meaning                                                                                                    |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `id`, `user_id`                                 | The attempt and the PactPal seller. Deleting the user deletes their rows                                   |
-| `method`                                        | `partner` (Partner Referrals). A seller's own app would be a new value, added only if 6h is built          |
-| `tracking_id`                                   | PactPal's own id for the attempt, sent to PayPal and given back when the seller is looked up. Unique       |
-| `status`                                        | `pending` (link made, not confirmed), `connected` or `disconnected`                                        |
-| `merchant_id`                                   | The seller's PayPal account id (payer id), set once connected. Not secret; no email, name or key is stored |
-| `scopes`                                        | The permission addresses PayPal lists as granted to PactPal's platform app, as PayPal writes them          |
-| `created_at`, `connected_at`, `disconnected_at` | Server times of each step                                                                                  |
+| Column                                          | Meaning                                                                                                                                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`, `user_id`                                 | The attempt and the PactPal seller. Deleting the user deletes their rows                                                                               |
+| `method`                                        | `partner` (Partner Referrals) or `own_app` (the seller's own sandbox REST app, 6h)                                                                     |
+| `tracking_id`                                   | Partner Referrals only: PactPal's own id for the attempt, sent to PayPal and given back when the seller is looked up. Unique                           |
+| `client_id`                                     | Own apps only: the app's client id. Not secret                                                                                                         |
+| `client_secret_sealed`                          | Own apps only, while connected: the app's secret encrypted with `SELLER_KEYS_ENCRYPTION_KEY` (AES-256-GCM, bound to the row). Wiped when the link ends |
+| `status`                                        | `pending` (link made, not confirmed), `connected` or `disconnected`                                                                                    |
+| `merchant_id`                                   | The seller's PayPal account id (payer id), set once connected. Not secret; no email, name or key is stored                                             |
+| `scopes`                                        | The permission addresses PayPal lists for the app that acts for the seller (the platform app, or the seller's own app), as PayPal writes them          |
+| `created_at`, `connected_at`, `disconnected_at` | Server times of each step                                                                                                                              |
 
-The database refuses a connected row without an account or time, a pending row with either, and a disconnected row without its time. At most one connected row per user and one per PayPal account (partial unique indexes), so a dispute can never be shown to the wrong seller.
+The database refuses a connected row without an account or time, a pending row with either, and a disconnected row without its time. A Partner Referrals row needs its tracking id and holds no app keys; an own-app row needs its client id, is never pending, holds its sealed secret while connected, and no row holds a secret once ended. At most one connected row per user and one per PayPal account (partial unique indexes), so a dispute can never be shown to the wrong seller.
 
 ## Planned
 

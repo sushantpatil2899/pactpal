@@ -62,6 +62,7 @@ describe("render.yaml", () => {
       ...settingsFor("Dispute checks (Render Workflows)").filter(
         (name) => name !== "DISPUTE_TASK_SLUG",
       ),
+      ...settingsFor("Linked seller apps").filter((name) => name !== "DATABASE_URL"),
     ]);
     // Sign-in needs nothing secret beyond those.
     for (const name of settingsFor("Sign in with PayPal")) {
@@ -152,13 +153,15 @@ describe("render.yaml", () => {
       [...section.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
     // ...and, for the claim comparison council (5d), every AI host's key.
     const aiKeys = [...new Set(MODEL_REGISTRY.map((spec) => spec.apiKeyEnv))];
-    // ...and, for the seller's dispute emails (5j), email and the site address.
+    // ...and, for the seller's dispute emails (5j), email and the site address; and the key that
+    // opens sellers' own app secrets (6h), since the checks act through those apps too.
     expect(secrets(workflowSection)).toEqual([
       ...settingsFor("Invoices and disputes (seller app)"),
       ...aiKeys,
       "RESEND_API_KEY",
       "EMAIL_FROM",
       "PUBLIC_BASE_URL",
+      ...settingsFor("Linked seller apps").filter((name) => name !== "DATABASE_URL"),
     ]);
     expect(secrets(cronSection)).toEqual(["RENDER_API_KEY"]);
     // Both the website and the cron start the same task, by a name the settings accept.

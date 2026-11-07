@@ -121,6 +121,15 @@ const statusAnswer = z
     ),
   }));
 
+/**
+ * The PayPal account id (payer id) of whichever app is logged in to `rest`, read from its balances
+ * report: PactPal's platform app, or a seller's own app (6h). Works with no payments yet.
+ */
+export async function ownAccountId(rest: Pick<PayPalRestClient, "request">): Promise<string> {
+  const response = await rest.request({ method: "GET", path: BALANCES_PATH, schema: ownerAnswer });
+  return response.data.account_id;
+}
+
 const partnerPath = (partnerId: string) =>
   `/v1/customer/partners/${encodeURIComponent(partnerId)}/merchant-integrations`;
 
@@ -148,13 +157,8 @@ export class PayPalPartners {
   }
 
   /** The platform account's own PayPal id (the "partner id" in the lookups below). */
-  async ownAccountId(): Promise<string> {
-    const response = await this.#rest.request({
-      method: "GET",
-      path: BALANCES_PATH,
-      schema: ownerAnswer,
-    });
-    return response.data.account_id;
+  ownAccountId(): Promise<string> {
+    return ownAccountId(this.#rest);
   }
 
   /** Finds the seller who connected with this tracking id; PayPal answers 404 until someone has. */

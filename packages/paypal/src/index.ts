@@ -55,6 +55,12 @@ export {
   type WriteRequest,
 } from "./rest.js";
 export { FEATURE_SCOPES, grantedFeatures } from "./scopes.js";
+export {
+  SELLER_APP_FEATURES,
+  checkSellerApp,
+  type SellerAppCheck,
+  type SellerAppCheckOptions,
+} from "./seller-app.js";
 import type { InvoiceDraft } from "./invoices.js";
 import type {
   AcceptClaimInput,

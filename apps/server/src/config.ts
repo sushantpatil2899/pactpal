@@ -30,6 +30,7 @@ type Part =
   | "email"
   | "inbound"
   | "render"
+  | "sellerKeys"
   | `ai:${string}`;
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
@@ -45,6 +46,10 @@ const INBOUND_DOMAIN = "INBOUND_DOMAIN";
 /** Dispute checks (5a): a Render API key, and the Workflow task to start ("workflow/task"). */
 const RENDER_API_KEY = "RENDER_API_KEY";
 const DISPUTE_TASK_SLUG = "DISPUTE_TASK_SLUG";
+/** Sellers' own apps (6h): the key that encrypts their app secrets in the database. */
+const SELLER_KEYS_ENCRYPTION_KEY = "SELLER_KEYS_ENCRYPTION_KEY";
+/** 32 bytes in standard base64, as `openssl rand -base64 32` prints them. */
+const ENCRYPTION_KEY = /^[A-Za-z0-9+/]{43}=$/;
 const DEFAULT_PORT = 3000;
 
 function appVars(app: PayPalApp): { id: string; secret: string } {
@@ -65,6 +70,7 @@ function partVars(part: Part): string[] {
   if (part === "email") return [RESEND_API_KEY, EMAIL_FROM];
   if (part === "inbound") return [RESEND_INBOUND_API_KEY, RESEND_WEBHOOK_SECRET, INBOUND_DOMAIN];
   if (part === "render") return [RENDER_API_KEY, DISPUTE_TASK_SLUG];
+  if (part === "sellerKeys") return [SELLER_KEYS_ENCRYPTION_KEY];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
@@ -81,6 +87,7 @@ export const SETTING_NAMES: readonly string[] = [
   "email" as const,
   "inbound" as const,
   "render" as const,
+  "sellerKeys" as const,
   ...AI_KEYS.map((name): Part => `ai:${name}`),
 ].flatMap(partVars);
 
@@ -99,6 +106,8 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Email forwarding (Resend inbound)", needs: ["inbound", "database"], runtime: true },
   // Without it "Check now" runs the check inside the server and nothing checks on a schedule.
   { name: "Dispute checks (Render Workflows)", needs: ["render"], runtime: true },
+  // Without it a seller cannot link their own PayPal app (6h); everything else works.
+  { name: "Linked seller apps", needs: ["sellerKeys", "database"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
   // Not runtime yet: the server starts using AI models in sub-phase 3d.
@@ -157,6 +166,7 @@ function addressAllowed(name: string, value: string): boolean {
   if (name === EMAIL_FROM) return z.email().safeParse(value).success;
   if (name === INBOUND_DOMAIN) return /^(?=.{1,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/.test(value);
   if (name === DISPUTE_TASK_SLUG) return TASK_SLUG.test(value);
+  if (name === SELLER_KEYS_ENCRYPTION_KEY) return ENCRYPTION_KEY.test(value);
   const rule = ADDRESS_RULES[name];
   const url = parseUrl(value);
   return rule === undefined || (url !== undefined && rule.valid(url));
@@ -194,6 +204,8 @@ export interface Config {
   inbound?: { apiKey: Secret; webhookSecret: Secret; domain: string };
   /** Starting dispute checks as Render Workflow task runs (5a); absent until both are set. */
   render?: { apiKey: Secret; taskSlug: string };
+  /** The 32-byte key that encrypts sellers' own app secrets (6h); absent until set. */
+  sellerKeys?: { encryptionKey: Secret };
   /**
    * How many proxies stand in front of the server, from `TRUST_PROXY_HOPS`. Absent until measured:
    * visitors' IP addresses are then not recorded, because the address seen would be the proxy's.
@@ -241,7 +253,9 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
           ? "must be a domain name such as in.example.com"
           : name === DISPUTE_TASK_SLUG
             ? "must be a workflow and task name such as pactpal-workflows/check-disputes"
-            : (ADDRESS_RULES[name]?.message ?? "must be an email address");
+            : name === SELLER_KEYS_ENCRYPTION_KEY
+              ? "must be 32 random bytes in base64 (make one with: openssl rand -base64 32)"
+              : (ADDRESS_RULES[name]?.message ?? "must be an email address");
       errors.push(`${name} ${message}`);
     } else {
       values.set(name, parsed.data);
@@ -314,6 +328,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
   if (renderKey !== undefined && taskSlug !== undefined) {
     config.render = { apiKey: new Secret(renderKey), taskSlug };
   }
+  const encryptionKey = values.get(SELLER_KEYS_ENCRYPTION_KEY);
+  if (encryptionKey !== undefined) config.sellerKeys = { encryptionKey: new Secret(encryptionKey) };
   return { ok: true, config, report };
 }
 

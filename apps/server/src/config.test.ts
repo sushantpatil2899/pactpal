@@ -19,6 +19,7 @@ const fullEnv: Record<string, string> = {
   EMAIL_FROM: "receipts@send.pactpal.example.com",
   INBOUND_DOMAIN: "in.pactpal.example.com",
   DISPUTE_TASK_SLUG: "pactpal-workflows/check-disputes",
+  SELLER_KEYS_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64"),
 };
 
 const unsetSettings = (report: ConfigReport) =>
@@ -91,6 +92,7 @@ describe("loadConfig", () => {
         "DATABASE_URL",
       ],
       "Dispute checks (Render Workflows)": ["RENDER_API_KEY", "DISPUTE_TASK_SLUG"],
+      "Linked seller apps": ["SELLER_KEYS_ENCRYPTION_KEY", "DATABASE_URL"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
       "AI model: gemini": ["GEMINI_API_KEY"],
@@ -219,6 +221,20 @@ describe("loadConfig", () => {
     expect(JSON.stringify(expectLoaded(render).config)).not.toContain("rnd_key");
   });
 
+  it("reads the key for sellers' app secrets only when it is 32 bytes in base64, never echoing it", () => {
+    const key = Buffer.alloc(32, 3).toString("base64");
+    const { config } = expectLoaded({ SELLER_KEYS_ENCRYPTION_KEY: key });
+    expect(config.sellerKeys?.encryptionKey.reveal()).toBe(key);
+    expect(JSON.stringify(config)).not.toContain(key);
+    expect(expectLoaded({}).config.sellerKeys).toBeUndefined();
+    const short = Buffer.alloc(16, 3).toString("base64");
+    for (const bad of [short, `${key.slice(0, -1)}A`, key.replace("A", "-")]) {
+      expect(expectErrors({ SELLER_KEYS_ENCRYPTION_KEY: bad })).toEqual([
+        "SELLER_KEYS_ENCRYPTION_KEY must be 32 random bytes in base64 (make one with: openssl rand -base64 32)",
+      ]);
+    }
+  });
+
   it("reads how many proxies stand in front of the server, and leaves it unset by default", () => {
     expect(expectLoaded({}).config.trustProxyHops).toBeUndefined();
     expect(expectLoaded({ TRUST_PROXY_HOPS: "0" }).config.trustProxyHops).toBe(0);
@@ -256,6 +272,7 @@ describe("missingRuntimeSettings", () => {
       "INBOUND_DOMAIN",
       "RENDER_API_KEY",
       "DISPUTE_TASK_SLUG",
+      "SELLER_KEYS_ENCRYPTION_KEY",
     ]);
   });
 
@@ -273,6 +290,7 @@ describe("missingRuntimeSettings", () => {
       INBOUND_DOMAIN: "in.pactpal.example.com",
       RENDER_API_KEY: "rnd_key",
       DISPUTE_TASK_SLUG: "pactpal-workflows/check-disputes",
+      SELLER_KEYS_ENCRYPTION_KEY: fullEnv.SELLER_KEYS_ENCRYPTION_KEY,
     });
     expect(missingRuntimeSettings(report)).toEqual([]);
   });

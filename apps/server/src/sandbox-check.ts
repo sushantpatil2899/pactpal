@@ -1,11 +1,20 @@
-/** `pnpm sandbox:check`: logs in to the PayPal sandbox with each configured app and reports its permissions. */
-import { AccessTokenProvider, PayPalMcpClient } from "@pactpal/paypal";
+/**
+ * `pnpm sandbox:check`: logs in to the PayPal sandbox with each configured app and reports its
+ * permissions, and whether it could be linked as a seller's own app (6h).
+ */
+import {
+  AccessTokenProvider,
+  PayPalMcpClient,
+  checkSellerApp,
+  type PayPalAppCredentials,
+} from "@pactpal/paypal";
 import { APP_KEYS, formatErrors, loadConfig } from "./config.js";
 import {
   MCP_TEST_TOOL,
   formatSandboxReport,
   type LoginCheck,
   type McpCheck,
+  type SellerAppRow,
 } from "./sandbox-report.js";
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -28,6 +37,15 @@ async function checkMcp(tokens: AccessTokenProvider): Promise<McpCheck> {
   }
 }
 
+/** Whether the app could be linked as a seller's own app (6h): the same check a seller's keys get. */
+async function checkAsSellerApp(credentials: PayPalAppCredentials): Promise<SellerAppRow> {
+  try {
+    return await checkSellerApp(credentials);
+  } catch (error) {
+    return { ok: false, reason: "error", error: message(error) };
+  }
+}
+
 const result = loadConfig(process.env);
 if (!result.ok) {
   process.stderr.write(formatErrors(result.errors));
@@ -43,7 +61,11 @@ const checks = Object.fromEntries(
       const tokens = new AccessTokenProvider(credentials);
       try {
         const token = await tokens.get();
-        return [app, { status: "ok", token, mcp: await checkMcp(tokens) }];
+        const [mcp, sellerApp] = await Promise.all([
+          checkMcp(tokens),
+          checkAsSellerApp(credentials),
+        ]);
+        return [app, { status: "ok", token, mcp, sellerApp }];
       } catch (error) {
         return [app, { status: "failed", error: String(error) }];
       }
