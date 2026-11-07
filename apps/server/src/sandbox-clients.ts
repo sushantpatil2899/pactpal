@@ -3,6 +3,9 @@ import {
   McpFallback,
   PayPalMcpClient,
   PayPalRestClient,
+  SANDBOX_MCP_SSE_URL,
+  authAssertion,
+  sseTransport,
 } from "@pactpal/paypal";
 import { formatErrors, loadConfig, type PayPalApp } from "./config.js";
 
@@ -18,11 +21,18 @@ const APP_NAMES: Record<PayPalApp, string> = {
   platform: "platform",
 };
 
-/** PayPal clients for one sandbox app, built from the environment, for the sandbox commands. */
-export function appClients(app: PayPalApp): {
+/**
+ * PayPal clients for one sandbox app, built from the environment, for the sandbox commands.
+ * With `actAs` (a connected seller's payer id) every REST and MCP call is made for that seller.
+ */
+export function appClients(
+  app: PayPalApp,
+  options: { actAs?: string } = {},
+): {
   rest: PayPalRestClient;
   mcp: PayPalMcpClient;
   fallback: McpFallback;
+  clientId: string;
 } {
   const config = loadConfig(process.env);
   if (!config.ok) fail(formatErrors(config.errors));
@@ -31,10 +41,18 @@ export function appClients(app: PayPalApp): {
     fail(`The ${APP_NAMES[app]} app keys are not set; run pnpm env:check.`);
   }
   const tokens = new AccessTokenProvider(credentials);
+  const assertion =
+    options.actAs === undefined ? undefined : authAssertion(credentials.clientId, options.actAs);
   return {
-    rest: new PayPalRestClient(tokens),
-    mcp: new PayPalMcpClient(tokens),
+    rest: new PayPalRestClient(tokens, assertion === undefined ? {} : { authAssertion: assertion }),
+    mcp: new PayPalMcpClient(
+      tokens,
+      assertion === undefined
+        ? {}
+        : { transport: sseTransport(SANDBOX_MCP_SSE_URL, { "PayPal-Auth-Assertion": assertion }) },
+    ),
     fallback: new McpFallback(),
+    clientId: credentials.clientId,
   };
 }
 

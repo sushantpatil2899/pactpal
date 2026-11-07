@@ -22,6 +22,17 @@ export {
   PayPalResponseError,
   type PayPalErrorDetail,
 } from "./errors.js";
+export { authAssertion } from "./assertion.js";
+export {
+  PARTNER_FEATURES,
+  PayPalPartners,
+  referralBody,
+  type MerchantLookup,
+  type MerchantStatus,
+  type PartnerFeature,
+  type Referral,
+  type ReferralRequest,
+} from "./partners.js";
 export { AccessTokenProvider, type AccessToken, type AccessTokenOptions } from "./token.js";
 export {
   LOGIN_SCOPES,
@@ -104,6 +115,7 @@ export {
   InvoiceSendError,
   PayPalInvoices,
   invoiceNote,
+  type DraftInvoice,
   type InvoiceDetails,
   type InvoiceDraft,
   type Route,

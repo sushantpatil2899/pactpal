@@ -32,6 +32,7 @@
     "sandbox:disputes": "pnpm --filter @pactpal/server sandbox:disputes",
     "sandbox:respond": "pnpm --filter @pactpal/server sandbox:respond",
     "sandbox:webhook": "pnpm --filter @pactpal/server sandbox:webhook",
+    "sandbox:partner": "pnpm --filter @pactpal/server sandbox:partner",
     "seed:sandbox": "pnpm --filter @pactpal/server seed:sandbox"
   },
   "devDependencies": {

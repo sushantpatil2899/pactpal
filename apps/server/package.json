@@ -15,6 +15,7 @@
     "sandbox:disputes": "tsx src/sandbox-disputes.ts",
     "sandbox:respond": "tsx src/sandbox-respond.ts",
     "sandbox:webhook": "tsx src/sandbox-webhook.ts",
+    "sandbox:partner": "tsx src/sandbox-partner.ts",
     "seed:sandbox": "tsx src/seed-sandbox.ts",
     "ai:check": "tsx src/ai-check.ts",
     "eval:injection": "tsx src/injection-check.ts",

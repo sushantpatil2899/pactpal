@@ -51,6 +51,11 @@ export interface RestClientOptions {
   baseUrl?: string;
   deps?: HttpDeps;
   policy?: RetryPolicy;
+  /**
+   * Sent as `PayPal-Auth-Assertion` on every request, so a platform app acts
+   * for one connected seller (see `authAssertion`).
+   */
+  authAssertion?: string;
 }
 
 /** Sends authenticated JSON requests and file uploads to the PayPal REST API for one app. */
@@ -59,12 +64,14 @@ export class PayPalRestClient {
   readonly #baseUrl: string;
   readonly #deps: HttpDeps;
   readonly #policy: RetryPolicy;
+  readonly #authAssertion: string | undefined;
 
   constructor(tokens: AccessTokenProvider, options: RestClientOptions = {}) {
     this.#tokens = tokens;
     this.#baseUrl = options.baseUrl ?? SANDBOX_API_BASE_URL;
     this.#deps = options.deps ?? defaultHttpDeps;
     this.#policy = options.policy ?? DEFAULT_RETRY_POLICY;
+    this.#authAssertion = options.authAssertion;
   }
 
   /**
@@ -85,6 +92,9 @@ export class PayPalRestClient {
         Authorization: `Bearer ${token.value.reveal()}`,
         Accept: "application/json",
       };
+      if (this.#authAssertion !== undefined) {
+        headers["PayPal-Auth-Assertion"] = this.#authAssertion;
+      }
       let body: string | FormData | undefined;
       if (request.method !== "GET") {
         headers["PayPal-Request-Id"] = request.requestId;

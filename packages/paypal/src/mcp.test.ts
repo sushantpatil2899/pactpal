@@ -5,7 +5,13 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Secret } from "@pactpal/net";
 import { describe, expect, it } from "vitest";
 import { PayPalMcpError } from "./errors.js";
-import { PayPalMcpClient, sseTransport, type McpTransportFactory } from "./mcp.js";
+import {
+  PayPalMcpClient,
+  SANDBOX_MCP_SSE_URL,
+  mcpHeaders,
+  sseTransport,
+  type McpTransportFactory,
+} from "./mcp.js";
 import type { AccessToken } from "./token.js";
 
 const text = (value: string) => ({ content: [{ type: "text" as const, text: value }] });
@@ -181,5 +187,15 @@ describe("PayPalMcpClient", () => {
     // PayPal only serves MCP over SSE, which the SDK marks deprecated.
     // eslint-disable-next-line @typescript-eslint/no-deprecated
     expect(sseTransport()(new Secret("t"))).toBeInstanceOf(SSEClientTransport);
+  });
+
+  it("sends the app's token with any extra headers, and the token always wins", () => {
+    expect(mcpHeaders(new Secret("t"))).toEqual({ Authorization: "Bearer t" });
+    expect(
+      mcpHeaders(new Secret("t"), { "PayPal-Auth-Assertion": "a.b.", Authorization: "other" }),
+    ).toEqual({ "PayPal-Auth-Assertion": "a.b.", Authorization: "Bearer t" });
+    const transport = sseTransport(SANDBOX_MCP_SSE_URL, { "X-Test": "1" })(new Secret("t"));
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    expect(transport).toBeInstanceOf(SSEClientTransport);
   });
 });

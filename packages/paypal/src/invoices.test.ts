@@ -21,6 +21,7 @@ const invoiceBody = {
     note: "Agreed scope: scope v1 sha256:ab12",
     metadata: { recipient_view_url: "https://www.sandbox.paypal.com/invoice/p/#INV2-AAAA" },
   },
+  invoicer: { email_address: "seller@example.com" },
   primary_recipients: [{ billing_info: { email_address: "buyer@example.com" } }],
   amount: { currency_code: "USD", value: "10.50" },
 };
@@ -154,6 +155,18 @@ describe("PayPalInvoices.createAndSend", () => {
   });
 });
 
+describe("PayPalInvoices.createDraft", () => {
+  it("creates the invoice without sending it", async () => {
+    const { invoices, restCalls } = setup({ mcp: "none", rest: [{ id: "INV2-DRAFT" }] });
+    const created = await invoices.createDraft(draft);
+    expect(created).toEqual({
+      invoiceId: "INV2-DRAFT",
+      create: { transport: "rest", fallbackReason: undefined, debugId: "dbg-rest" },
+    });
+    expect(restCalls.map((call) => call.path)).toEqual(["/v2/invoicing/invoices"]);
+  });
+});
+
 describe("PayPalInvoices.get", () => {
   it("reads status, amount, recipient, note and payment link", async () => {
     const { invoices, restCalls } = setup({ rest: [invoiceBody] });
@@ -168,6 +181,7 @@ describe("PayPalInvoices.get", () => {
         recipientEmail: "buyer@example.com",
         note: "Agreed scope: scope v1 sha256:ab12",
         payerViewUrl: "https://www.sandbox.paypal.com/invoice/p/#INV2-AAAA",
+        invoicerEmail: "seller@example.com",
       },
     });
     expect(restCalls[0]).toMatchObject({ method: "GET", path: "/v2/invoicing/invoices/INV2-AAAA" });

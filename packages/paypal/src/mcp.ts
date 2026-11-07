@@ -15,13 +15,22 @@ export const SANDBOX_MCP_SSE_URL = "https://mcp.sandbox.paypal.com/sse";
 /** Opens the MCP connection for a given access token; replaced in tests. */
 export type McpTransportFactory = (token: Secret) => Transport;
 
+/** The headers of every MCP request: the app's token, plus any extra ones (such as `PayPal-Auth-Assertion`). */
+export const mcpHeaders = (
+  token: Secret,
+  extraHeaders: Readonly<Record<string, string>> = {},
+): Record<string, string> => ({ ...extraHeaders, Authorization: `Bearer ${token.reveal()}` });
+
 export const sseTransport =
-  (url: string = SANDBOX_MCP_SSE_URL): McpTransportFactory =>
+  (
+    url: string = SANDBOX_MCP_SSE_URL,
+    extraHeaders: Readonly<Record<string, string>> = {},
+  ): McpTransportFactory =>
   (token) =>
     // PayPal's sandbox MCP server only works over SSE (its streamable HTTP address returns 404).
     // eslint-disable-next-line @typescript-eslint/no-deprecated
     new SSEClientTransport(new URL(url), {
-      requestInit: { headers: { Authorization: `Bearer ${token.reveal()}` } },
+      requestInit: { headers: mcpHeaders(token, extraHeaders) },
     });
 
 export interface McpClientOptions {

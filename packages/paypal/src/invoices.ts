@@ -24,9 +24,13 @@ export const invoiceNote = (scopeReference: string): string => `Agreed scope: ${
 /** Which route served a step, and why MCP was not used. */
 export type Route = Omit<PayPalResult<unknown>, "data">;
 
-export interface SentInvoice {
+/** An invoice created as a draft: not sent, so the recipient sees nothing yet. */
+export interface DraftInvoice {
   invoiceId: string;
   create: Route;
+}
+
+export interface SentInvoice extends DraftInvoice {
   send: Route;
 }
 
@@ -41,6 +45,8 @@ export interface InvoiceDetails {
   note: string | undefined;
   /** Where the buyer views and pays the invoice. */
   payerViewUrl: string | undefined;
+  /** Whose invoice it is: the sending seller's PayPal email, when PayPal shows it. */
+  invoicerEmail?: string | undefined;
   /** What has been paid: the total and each payment, as PayPal records them. */
   payments: {
     paidAmount: MinorAmount | undefined;
@@ -93,6 +99,7 @@ const invoiceDetails = z
         metadata: z.looseObject({ recipient_view_url: z.string().optional() }).optional(),
       })
       .optional(),
+    invoicer: z.looseObject({ email_address: z.string().optional() }).optional(),
     primary_recipients: z
       .array(
         z.looseObject({
@@ -124,6 +131,7 @@ const invoiceDetails = z
     recipientEmail: invoice.primary_recipients?.[0]?.billing_info?.email_address,
     note: invoice.detail?.note,
     payerViewUrl: invoice.detail?.metadata?.recipient_view_url,
+    invoicerEmail: invoice.invoicer?.email_address,
     payments: {
       paidAmount: invoice.payments?.paid_amount,
       transactions: (invoice.payments?.transactions ?? []).map((payment) => ({
@@ -143,8 +151,8 @@ function route<T>({ transport, fallbackReason, debugId }: PayPalResult<T>): Rout
  * first and falls back to the REST API through `McpFallback`.
  */
 export class PayPalInvoices extends PayPalOperations {
-  /** Creates the invoice, then sends it to the recipient. */
-  async createAndSend(draft: InvoiceDraft): Promise<SentInvoice> {
+  /** Creates the invoice as a draft; nothing reaches the recipient until it is sent. */
+  async createDraft(draft: InvoiceDraft): Promise<DraftInvoice> {
     const unitAmount = toPayPalMoney(draft.amount);
     const note = invoiceNote(draft.scopeReference);
     const primary_recipients = [{ billing_info: { email_address: draft.recipientEmail } }];
@@ -179,8 +187,12 @@ export class PayPalInvoices extends PayPalOperations {
           schema: createdInvoice,
         }),
     });
-    const invoiceId = created.data;
+    return { invoiceId: created.data, create: route(created) };
+  }
 
+  /** Creates the invoice, then sends it to the recipient. */
+  async createAndSend(draft: InvoiceDraft): Promise<SentInvoice> {
+    const { invoiceId, create } = await this.createDraft(draft);
     let sent: PayPalResult<unknown>;
     try {
       sent = await this.fallback.run({
@@ -202,7 +214,7 @@ export class PayPalInvoices extends PayPalOperations {
     } catch (error) {
       throw new InvoiceSendError(invoiceId, { cause: error });
     }
-    return { invoiceId, create: route(created), send: route(sent) };
+    return { invoiceId, create, send: route(sent) };
   }
 
   /** Reads an invoice's current status, amount and payment link. */

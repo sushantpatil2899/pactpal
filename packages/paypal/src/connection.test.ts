@@ -39,7 +39,9 @@ function tokenReply(overrides: Record<string, unknown> = {}): Response {
 }
 
 /** Fake network: answers token requests and API requests from separate queues. */
-function setup(options: { tokens?: Reply[]; api?: Reply[]; timeoutMs?: number } = {}) {
+function setup(
+  options: { tokens?: Reply[]; api?: Reply[]; timeoutMs?: number; authAssertion?: string } = {},
+) {
   const tokenQueue = [...(options.tokens ?? [])];
   const apiQueue = [...(options.api ?? [])];
   const calls: Call[] = [];
@@ -69,7 +71,12 @@ function setup(options: { tokens?: Reply[]; api?: Reply[]; timeoutMs?: number } 
   const policy = { ...DEFAULT_RETRY_POLICY, timeoutMs: options.timeoutMs ?? 1000 };
   const credentials = { clientId: "client-id", clientSecret: new Secret("client-secret") };
   const tokens = new AccessTokenProvider(credentials, { baseUrl: BASE, deps, policy });
-  const client = new PayPalRestClient(tokens, { baseUrl: BASE, deps, policy });
+  const client = new PayPalRestClient(tokens, {
+    baseUrl: BASE,
+    deps,
+    policy,
+    ...(options.authAssertion === undefined ? {} : { authAssertion: options.authAssertion }),
+  });
 
   return {
     tokens,
@@ -220,6 +227,18 @@ describe("PayPalRestClient", () => {
     expect(call?.url).toBe(`${BASE}/v2/invoicing/invoices?page=1&total_required=true`);
     expect(header(call, "Authorization")).toMatch(/^Bearer tok-/);
     expect(header(call, "PayPal-Request-Id")).toBeNull();
+  });
+
+  it("acts for a connected seller only when given an assertion", async () => {
+    const plain = setup({ api: [json(200, { id: "INV-1" })] });
+    await plain.client.request({ method: "GET", path: "/v2/invoicing/invoices", schema: item });
+    expect(header(plain.apiCalls()[0], "PayPal-Auth-Assertion")).toBeNull();
+
+    const seller = setup({ api: [json(200, { id: "INV-1" })], authAssertion: "e30.e30." });
+    await seller.client.request({ method: "GET", path: "/v2/invoicing/invoices", schema: item });
+    expect(header(seller.apiCalls()[0], "PayPal-Auth-Assertion")).toBe("e30.e30.");
+    // The app's own login never carries it.
+    expect(header(seller.tokenCalls()[0], "PayPal-Auth-Assertion")).toBeNull();
   });
 
   it("sends a write as JSON with its request id", async () => {
