@@ -43,8 +43,26 @@ function toDate(value: string | undefined): Date | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-const sameTime = (a: Date | null | undefined, b: Date | null | undefined) =>
-  (a?.getTime() ?? null) === (b?.getTime() ?? null);
+/**
+ * Same time to the second: PayPal's dispute list gives whole seconds while the full dispute gives
+ * milliseconds, so comparing milliseconds would read every dispute in full at every check
+ * (5k-fix-3).
+ */
+const sameSecond = (a: Date | null | undefined, b: Date | null | undefined) =>
+  (a === null || a === undefined ? null : Math.floor(a.getTime() / 1000)) ===
+  (b === null || b === undefined ? null : Math.floor(b.getTime() / 1000));
+
+/** A full read this close to PayPal's last change may have caught PayPal mid-update. */
+const SETTLE_MS = 60_000;
+
+/**
+ * True when PactPal's last full read came within a minute of PayPal's last change, so PayPal may
+ * still have been changing what it allows (seen live after a refund offer, 5k-2). The next check
+ * reads it once more; that read comes minutes later, so it happens at most once (5k-fix-3).
+ */
+const readTooSoon = (stored: StoredDispute): boolean =>
+  stored.paypalUpdatedAt !== null &&
+  Math.abs(stored.checkedAt.getTime() - stored.paypalUpdatedAt.getTime()) < SETTLE_MS;
 
 /**
  * How PactPal reads PayPal's answer. A stored copy read the older way is read once again: version 2
@@ -63,7 +81,8 @@ function changedSince(stored: StoredDispute | undefined, listed: DisputeSummary)
     readVersionOf(stored.details) !== READ_VERSION ||
     stored.status !== listed.status ||
     (stored.stageName ?? undefined) !== listed.stage ||
-    !sameTime(stored.paypalUpdatedAt, toDate(listed.updatedAt))
+    !sameSecond(stored.paypalUpdatedAt, toDate(listed.updatedAt)) ||
+    readTooSoon(stored)
   );
 }
 

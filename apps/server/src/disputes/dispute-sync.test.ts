@@ -13,8 +13,12 @@ import { fakeDisputes, keptLog, testDispute } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 
-/** A check against these disputes, with fixed ids and a kept log. */
-function checker(paypal: ReturnType<typeof fakeDisputes>, database: Database = db) {
+/** A check against these disputes, with fixed ids, a kept log and a clock (the test clock by default). */
+function checker(
+  paypal: Pick<ReturnType<typeof fakeDisputes>, "reader">,
+  database: Database = db,
+  clock: () => Date = () => TEST_NOW,
+) {
   let ids = 500;
   const { log, lines } = keptLog();
   const run = () =>
@@ -22,7 +26,7 @@ function checker(paypal: ReturnType<typeof fakeDisputes>, database: Database = d
       {
         db: database,
         disputes: paypal.reader,
-        clock: () => TEST_NOW,
+        clock,
         newId: () => testId(ids++),
         log,
       },
@@ -58,6 +62,39 @@ describe("dispute checks", () => {
     expect(await latestDisputeCheck(db)).toMatchObject({ source: "schedule", listed: 1 });
     // The buyer's words are kept with the dispute but never written to the log lines.
     expect(lines.join("\n")).not.toContain("style");
+  });
+
+  it("compares PayPal's change times to the second, as its list gives them", async () => {
+    await createPaidTestDeal(db);
+    const paypal = fakeDisputes([testDispute({ updatedAt: "2026-11-05T19:02:04.997Z" })]);
+    // The list rounds to whole seconds; the full dispute keeps milliseconds (live, 5k-2).
+    const reader = {
+      ...paypal.reader,
+      list: async () => {
+        const listed = await paypal.reader.list();
+        const disputes = listed.data.disputes.map((d) => ({
+          ...d,
+          updatedAt: d.updatedAt?.replace(/\.\d+Z$/, ".000Z"),
+        }));
+        return { ...listed, data: { ...listed.data, disputes } };
+      },
+    };
+    const { run } = checker({ reader });
+    await run();
+    expect(await run()).toMatchObject({ readInFull: 0, newEntries: 0 });
+    expect(paypal.state.reads).toBe(1);
+  });
+
+  it("reads once more a dispute last read within a minute of PayPal's change", async () => {
+    await createPaidTestDeal(db);
+    const paypal = fakeDisputes([testDispute()]);
+    let now = new Date("2026-11-05T19:02:20.000Z"); // 16 seconds after PayPal's change
+    const { run } = checker(paypal, db, () => now);
+    await run();
+    now = new Date("2026-11-05T19:07:20.000Z");
+    expect(await run()).toMatchObject({ readInFull: 1, newEntries: 0 });
+    expect(await run()).toMatchObject({ readInFull: 0, newEntries: 0 });
+    expect(paypal.state.reads).toBe(2);
   });
 
   it("reads a copy stored the older way once again, logging nothing new", async () => {

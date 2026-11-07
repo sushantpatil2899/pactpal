@@ -1,6 +1,7 @@
 import {
   PacketNotAllowedError,
   getPacket,
+  listClaimAnalyses,
   listPackets,
   postgresContentStore,
   type EvidencePacket,
@@ -77,9 +78,16 @@ export const packetRoutes: FastifyPluginAsync<PacketRouteOptions> = (app, option
     const { db, deal } = both.found;
     const store = postgresContentStore(db, clock);
     try {
+      const { disputeId } = both.dispute;
+      // Buyer claims the seller pasted for this dispute's comparisons start unticked (5k-fix-3).
+      const pasted = new Set(
+        (await listClaimAnalyses(db, disputeId, "claim")).flatMap((c) =>
+          c.pastedArtifactId === undefined ? [] : [c.pastedArtifactId],
+        ),
+      );
       const [choices, packets] = await Promise.all([
-        packetChoices(db, store, deal),
-        listPackets(db, both.dispute.disputeId),
+        packetChoices(db, store, deal, pasted),
+        listPackets(db, disputeId),
       ]);
       return await reply.send({ ...choices, packets: packets.map(packetView) });
     } catch (error) {

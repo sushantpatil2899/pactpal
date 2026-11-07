@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { readLedger } from "@pactpal/db";
-import { testId, useMigratedTestDatabase } from "@pactpal/db/testing";
+import { readLedger, startClaimAnalysis } from "@pactpal/db";
+import { TEST_NOW, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
 import { buyerVisitors } from "../deals/test-app.js";
 import { expectSellerOnly, signedDispute, type TestFile } from "./test-support.js";
@@ -19,6 +19,7 @@ interface ChoicesView {
     send: string;
     reason: string | null;
     sentBytes: number | null;
+    pastedClaim: boolean;
   }[];
   meter: { totalBytes: number; overTotal: boolean; maxTotalBytes: number };
   packets: {
@@ -66,6 +67,31 @@ describe("evidence packets", () => {
     expect(view.exhibits.find((e) => e.filename === "reference.png")?.addedBy).toBe("buyer");
     expect(view.meter).toMatchObject({ overTotal: false, maxTotalBytes: 50 * 1024 * 1024 });
     expect(view.packets).toEqual([]);
+    await app.close();
+  });
+
+  it("marks a buyer claim the seller pasted for this dispute, so the page starts with it unticked", async () => {
+    const { app, call, token, url, dealId, seller } = await disputedDeal();
+    const before = (await call("GET", url, token)).json<ChoicesView>();
+    expect(before.exhibits.every((e) => !e.pastedClaim)).toBe(true);
+    const notes = before.exhibits.find((e) => e.filename === "notes.txt");
+    await startClaimAnalysis(
+      db,
+      {
+        id: testId(810),
+        dealId,
+        disputeId: "PP-R-TEST-1",
+        sellerId: seller.id,
+        pastedArtifactId: notes?.id,
+        promptVersion: 2,
+        rankPromptVersion: 1,
+      },
+      TEST_NOW,
+    );
+    const after = (await call("GET", url, token)).json<ChoicesView>();
+    expect(after.exhibits.filter((e) => e.pastedClaim).map((e) => e.filename)).toEqual([
+      "notes.txt",
+    ]);
     await app.close();
   });
 

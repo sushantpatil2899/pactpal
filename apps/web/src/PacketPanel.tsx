@@ -1,5 +1,5 @@
 import { sizeWords } from "@pactpal/words";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   buildPacket,
   draftSummary,
@@ -74,12 +74,27 @@ export function PacketPanel({
     "summary",
   );
 
+  /** Pasted buyer claims already unticked once, so a later reload keeps the seller's choice. */
+  const seenPasted = useRef<ReadonlySet<string>>(new Set());
   const load = () => {
-    getPacketView(dealId, disputeId).then(setView, (error: unknown) => {
-      setProblem(error instanceof Error ? error.message : "Could not load the packet.");
-    });
+    getPacketView(dealId, disputeId).then(
+      (next) => {
+        const fresh = next.exhibits
+          .filter((e) => e.pastedClaim === true && !seenPasted.current.has(e.id))
+          .map((e) => e.id);
+        if (fresh.length > 0) {
+          seenPasted.current = new Set([...seenPasted.current, ...fresh]);
+          setUnticked((now) => new Set([...now, ...fresh]));
+        }
+        setView(next);
+      },
+      (error: unknown) => {
+        setProblem(error instanceof Error ? error.message : "Could not load the packet.");
+      },
+    );
   };
-  useEffect(load, [dealId, disputeId]);
+  // Read again when a comparison finishes: a claim pasted for it is a new document.
+  useEffect(load, [dealId, disputeId, comparisonsDone]);
 
   if (view === undefined) return problem ? <p role="alert">{problem}</p> : null;
   const sendable = view.exhibits.filter((e) => e.send !== "left-out");
@@ -174,6 +189,9 @@ export function PacketPanel({
                 }}
               />{" "}
               {choice.filename} ({ADDED_BY[choice.addedBy]}; {howSent(choice)})
+              {choice.pastedClaim === true && (
+                <small> The buyer&apos;s claim you pasted; left out unless you tick it.</small>
+              )}
             </label>
             <AiPick pick={picks.get(choice.id)} />
           </li>

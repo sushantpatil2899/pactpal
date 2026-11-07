@@ -665,6 +665,8 @@ export interface PacketChoice {
   reason: "unticked" | "type" | "too-large" | null;
   /** The size PayPal would get (a text file's PDF); null when it cannot go. */
   sentBytes: number | null;
+  /** A buyer claim the seller pasted: the page starts with it unticked (5k-fix-3). */
+  pastedClaim?: boolean;
 }
 
 /** A built packet: its fingerprints and what went in. */

@@ -161,8 +161,17 @@ async function sentExhibits(
   return Promise.all(included.map((plan, i) => sentFile(db, store, deal, docs, plan, i + 1)));
 }
 
-/** The documents the seller can choose from, as the page lists them, and the sizes so far. */
-export async function packetChoices(db: Database, store: ContentStore, deal: Deal) {
+/**
+ * The documents the seller can choose from, as the page lists them, and the sizes so far.
+ * `pasted` holds the ids of buyer claims the seller pasted for this dispute: they are marked so
+ * the page starts with them unticked, as they are the buyer's words, not evidence (5k-fix-3).
+ */
+export async function packetChoices(
+  db: Database,
+  store: ContentStore,
+  deal: Deal,
+  pasted: ReadonlySet<string> = new Set(),
+) {
   const docs = await documentsOf(db, deal);
   const plans = planExhibits(docs.sources, new Set());
   const sent = await sentExhibits(db, store, deal, docs, plans);
@@ -179,6 +188,7 @@ export async function packetChoices(db: Database, store: ContentStore, deal: Dea
       send: plan.send,
       reason: plan.send === "left-out" ? plan.reason : null,
       sentBytes: sentBytes.get(plan.id) ?? null,
+      pastedClaim: pasted.has(plan.id),
     })),
     meter: packetMeter(sent.map((e) => ({ bytes: e.bytes.byteLength }))),
   };
