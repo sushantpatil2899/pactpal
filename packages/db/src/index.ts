@@ -60,6 +60,14 @@ export type {
   ArtifactRejection,
   NewArtifact,
 } from "./artifacts.js";
+export {
+  activeConnection,
+  confirmConnection,
+  connectedSellers,
+  disconnectSeller,
+  startConnection,
+} from "./seller-connections.js";
+export type { ConfirmRefusal, SellerConnection } from "./seller-connections.js";
 export { newWebhookEventSchema, recordWebhookEvent } from "./webhook-events.js";
 export type { NewWebhookEvent, RecordResult } from "./webhook-events.js";
 export {

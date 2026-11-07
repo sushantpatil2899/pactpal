@@ -30,6 +30,7 @@ erDiagram
   ledger_entries |o--o| disputes : "opened and decided by"
   users ||--o{ sessions : "signed in"
   users ||--o{ link_tokens : "buyer links"
+  users ||--o{ seller_connections : "PayPal connections (Phase 6)"
   deals ||--o{ link_tokens : "for one deal"
 ```
 
@@ -41,7 +42,7 @@ erDiagram
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
 - **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
 
-## Built (sub-phases 2b to 5e)
+## Built (sub-phases 2b to 6c)
 
 ### `users`: everyone
 
@@ -513,6 +514,22 @@ Built in 5j (migration 0028); append-only. One row per email key: a new dispute,
 | `ledger_seq`            | For an event email, the dispute entry it is about                                                                                                     |
 | `sent_at`               | When it was sent or refused                                                                                                                           |
 | `email_id`, `failure`   | Resend's id when sent, or `rejected` when the address was refused (exactly one of the two)                                                            |
+
+### `seller_connections`: sellers connected to their own PayPal account
+
+Built in 6c (migration 0029). One row per attempt to connect through Partner Referrals ("Connect with PayPal"). Not append-only, because the status changes, and not evidence. Ending a connection keeps the row, and reconnecting makes a new one, so it stays known which PayPal account past invoices came from. Sellers with no live connection use PactPal's own sandbox seller app, as before. Nothing writes rows until 6d.
+
+| Column                                          | Meaning                                                                                                    |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `id`, `user_id`                                 | The attempt and the PactPal seller. Deleting the user deletes their rows                                   |
+| `method`                                        | `partner` (Partner Referrals). A seller's own app would be a new value, added only if 6h is built          |
+| `tracking_id`                                   | PactPal's own id for the attempt, sent to PayPal and given back when the seller is looked up. Unique       |
+| `status`                                        | `pending` (link made, not confirmed), `connected` or `disconnected`                                        |
+| `merchant_id`                                   | The seller's PayPal account id (payer id), set once connected. Not secret; no email, name or key is stored |
+| `scopes`                                        | The permission addresses PayPal lists as granted to PactPal's platform app, as PayPal writes them          |
+| `created_at`, `connected_at`, `disconnected_at` | Server times of each step                                                                                  |
+
+The database refuses a connected row without an account or time, a pending row with either, and a disconnected row without its time. At most one connected row per user and one per PayPal account (partial unique indexes), so a dispute can never be shown to the wrong seller.
 
 ## Planned
 

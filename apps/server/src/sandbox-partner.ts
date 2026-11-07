@@ -5,9 +5,9 @@
  * sent, a dispute listing, and one MCP read. Writes are dry runs unless --send.
  */
 import { randomUUID } from "node:crypto";
-import { PayPalDisputes, PayPalInvoices, PayPalPartners } from "@pactpal/paypal";
+import { PayPalPartners } from "@pactpal/paypal";
 import { valueOrExit } from "./cli-args.js";
-import { appClients } from "./sandbox-clients.js";
+import { appClients, platformSellers } from "./sandbox-clients.js";
 import {
   USAGE,
   formatActPreview,
@@ -37,10 +37,9 @@ async function step(work: () => Promise<string>): Promise<StepResult> {
 
 /** Steps 1–4 of S0a/S0c for one connected seller; each is reported on its own. */
 async function actFor(merchantId: string): Promise<string> {
+  const { invoices, disputes } = platformSellers().for(merchantId);
+  // Only for the S0c check: the MCP connection with the seller header, which MCP ignores.
   const seller = appClients("platform", { actAs: merchantId });
-  // REST only for the seller's writes: MCP takes no request id, so a repeat could duplicate.
-  const invoices = new PayPalInvoices(seller.rest, undefined, seller.fallback);
-  const disputes = new PayPalDisputes(seller.rest, undefined, seller.fallback);
   let draftId: string | undefined;
   try {
     const steps: [string, StepResult][] = [];

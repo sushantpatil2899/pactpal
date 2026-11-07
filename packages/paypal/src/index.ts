@@ -24,6 +24,11 @@ export {
 } from "./errors.js";
 export { authAssertion } from "./assertion.js";
 export {
+  PlatformSellerClients,
+  type PlatformSellerOptions,
+  type SellerClients,
+} from "./seller-clients.js";
+export {
   PARTNER_FEATURES,
   PayPalPartners,
   referralBody,

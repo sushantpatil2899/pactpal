@@ -987,4 +987,33 @@ CREATE TRIGGER dispute_notices_append_only BEFORE UPDATE OR DELETE ON dispute_no
 CREATE TRIGGER dispute_notices_no_truncate BEFORE TRUNCATE ON dispute_notices
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0029_seller_connections",
+    // Which PactPal seller is connected to which PayPal account through Partner Referrals (6c).
+    // Not append-only (the status changes) and not evidence; a reconnection is a new row.
+    sql: `CREATE TABLE seller_connections (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  method text NOT NULL CHECK (method IN ('partner')),
+  tracking_id text NOT NULL UNIQUE CHECK (char_length(tracking_id) BETWEEN 1 AND 127),
+  status text NOT NULL CHECK (status IN ('pending', 'connected', 'disconnected')),
+  merchant_id text CHECK (merchant_id ~ '^[A-Za-z0-9]{1,64}$'),
+  scopes text[] NOT NULL DEFAULT '{}',
+  created_at timestamptz NOT NULL,
+  connected_at timestamptz,
+  disconnected_at timestamptz,
+  CONSTRAINT seller_connections_pending CHECK (
+    status <> 'pending' OR (merchant_id IS NULL AND connected_at IS NULL AND disconnected_at IS NULL)),
+  CONSTRAINT seller_connections_connected CHECK (
+    status <> 'connected'
+    OR (merchant_id IS NOT NULL AND connected_at IS NOT NULL AND disconnected_at IS NULL)),
+  CONSTRAINT seller_connections_disconnected CHECK (
+    status <> 'disconnected' OR disconnected_at IS NOT NULL)
+);
+-- One live connection per PactPal user, and one per PayPal account.
+CREATE UNIQUE INDEX seller_connections_one_per_user ON seller_connections (user_id)
+  WHERE status = 'connected';
+CREATE UNIQUE INDEX seller_connections_one_per_account ON seller_connections (merchant_id)
+  WHERE status = 'connected'`,
+  },
 ];

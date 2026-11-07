@@ -3,7 +3,9 @@ import {
   McpFallback,
   PayPalMcpClient,
   PayPalRestClient,
+  PlatformSellerClients,
   SANDBOX_MCP_SSE_URL,
+  type PayPalAppCredentials,
   authAssertion,
   sseTransport,
 } from "@pactpal/paypal";
@@ -21,6 +23,21 @@ const APP_NAMES: Record<PayPalApp, string> = {
   platform: "platform",
 };
 
+/** One sandbox app's keys from the environment; stops with a message when they are missing. */
+function appCredentials(app: PayPalApp): PayPalAppCredentials {
+  const config = loadConfig(process.env);
+  if (!config.ok) fail(formatErrors(config.errors));
+  const credentials = config.config.paypal.apps[app];
+  if (credentials === undefined) {
+    fail(`The ${APP_NAMES[app]} app keys are not set; run pnpm env:check.`);
+  }
+  return credentials;
+}
+
+/** The platform app working for connected sellers (REST only), as the server will use it. */
+export const platformSellers = (): PlatformSellerClients =>
+  new PlatformSellerClients(appCredentials("platform"));
+
 /**
  * PayPal clients for one sandbox app, built from the environment, for the sandbox commands.
  * With `actAs` (a connected seller's payer id) every REST and MCP call is made for that seller.
@@ -34,12 +51,7 @@ export function appClients(
   fallback: McpFallback;
   clientId: string;
 } {
-  const config = loadConfig(process.env);
-  if (!config.ok) fail(formatErrors(config.errors));
-  const credentials = config.config.paypal.apps[app];
-  if (credentials === undefined) {
-    fail(`The ${APP_NAMES[app]} app keys are not set; run pnpm env:check.`);
-  }
+  const credentials = appCredentials(app);
   const tokens = new AccessTokenProvider(credentials);
   const assertion =
     options.actAs === undefined ? undefined : authAssertion(credentials.clientId, options.actAs);
@@ -70,12 +82,10 @@ export function disputeClients(asSeller: string | undefined): {
   fallback: McpFallback;
   close: () => Promise<void>;
 } {
-  const clients =
-    asSeller === undefined ? sellerClients() : appClients("platform", { actAs: asSeller });
-  return {
-    rest: clients.rest,
-    mcp: asSeller === undefined ? clients.mcp : undefined,
-    fallback: clients.fallback,
-    close: () => clients.mcp.close(),
-  };
+  if (asSeller !== undefined) {
+    const { rest } = platformSellers().for(asSeller);
+    return { rest, mcp: undefined, fallback: new McpFallback(), close: () => Promise.resolve() };
+  }
+  const { rest, mcp, fallback } = sellerClients();
+  return { rest, mcp, fallback, close: () => mcp.close() };
 }
