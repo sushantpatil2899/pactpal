@@ -557,6 +557,18 @@ A deal holds at most 5,000 messages; a cancelled deal's chat is closed.
 
 One row per deal and person: `read_seq` (the last message they have read; it only moves forward), `logged_seq` and `logged_at` (what was last written to the log). It changes as they read, so it is not append-only; the evidence is the `MESSAGES_READ` entry (`upToSeq`), written when the position has moved, at most once a minute per person, and always when their page closes.
 
+### `notifications`: what needs each person (7e)
+
+| Column                     | Meaning                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `id`, `user_id`, `deal_id` | The notification, who it is for and its deal                                                            |
+| `kind`                     | `message`, `review-requested`, `changes-requested`, `signed`, `step` or `reminder`                      |
+| `tab`                      | The deal space tab it opens                                                                             |
+| `text`                     | The words shown (at most 300 characters; for a message, the sender's name and the start of the message) |
+| `created_at`, `read_at`    | Server times; `read_at` is empty until seen                                                             |
+
+Not evidence: the log records what happened. A person has at most one unread `message` notification per deal; later messages fold into it until they read the chat, which also marks it read. Each new notification is emailed (the buyer's with a fresh private link), except a message while the person has the deal open. Emails never quote a message.
+
 ## Phase 7 (deal space)
 
 Being built in 7b–7m; each table is described in full above once it exists.

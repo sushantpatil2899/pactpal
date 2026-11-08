@@ -1,3 +1,4 @@
+import { NotificationsList } from "./NotificationsList";
 import { useEffect, useState, type FormEvent } from "react";
 import { createDeal, getDealOptions, listDeals, type DealOptions, type DealSummary } from "./api";
 import { IntakePanel } from "./IntakePanel";
@@ -51,6 +52,12 @@ export function DealsHome() {
           {problem}
         </p>
       )}
+      <NotificationsList
+        refreshKey={0}
+        onOpen={(note) => {
+          window.location.assign(`/deals/${note.dealId}#${note.tab}`);
+        }}
+      />
       <section aria-labelledby="your-deals">
         <h2 id="your-deals">Your deals</h2>
         {deals === undefined && <p aria-busy="true">Loading…</p>}

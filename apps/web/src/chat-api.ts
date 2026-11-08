@@ -73,3 +73,47 @@ export function liveUrl(
   const scheme = location.protocol === "https:" ? "wss:" : "ws:";
   return `${scheme}//${location.host}/api/deals/${encodeURIComponent(dealId)}/live?after=${String(after)}`;
 }
+
+/** Something that needs the person, as the server lists it. */
+export interface NotificationView {
+  id: string;
+  dealId: string;
+  kind: string;
+  tab: string;
+  text: string;
+  createdAt: string;
+  read: boolean;
+}
+
+const isNotification = (value: unknown): value is NotificationView =>
+  isObject(value) &&
+  typeof value.id === "string" &&
+  typeof value.dealId === "string" &&
+  typeof value.kind === "string" &&
+  typeof value.tab === "string" &&
+  typeof value.text === "string" &&
+  typeof value.createdAt === "string" &&
+  typeof value.read === "boolean";
+
+/** The person's notifications, all deals or one. */
+export async function getNotifications(dealId?: string): Promise<NotificationView[]> {
+  const query = dealId === undefined ? "" : `?dealId=${encodeURIComponent(dealId)}`;
+  const body = await readChecked(
+    await fetch(`/api/notifications${query}`),
+    (b): b is { notifications: unknown[] } => isObject(b) && Array.isArray(b.notifications),
+    "load your notifications",
+  );
+  return body.notifications.filter(isNotification);
+}
+
+/** Marks notifications read: some by id, or all of one deal's. */
+export async function markNotificationsRead(
+  which: { ids: string[] } | { dealId: string },
+): Promise<void> {
+  await postStep(
+    "/api/notifications/read",
+    which,
+    "mark notifications read",
+    (b): b is { changed: number } => isObject(b) && typeof b.changed === "number",
+  );
+}

@@ -1101,4 +1101,25 @@ CREATE TRIGGER deal_messages_no_truncate BEFORE TRUNCATE ON deal_messages
   PRIMARY KEY (deal_id, user_id)
 )`,
   },
+  {
+    id: "0035_notifications",
+    // What each person has not seen yet (7e): a chat message while they were away, the agreement
+    // sent for review, changes asked for, a signature, a timeline step or a reminder, with the tab
+    // it is about. Not evidence (the log holds what happened); read_at is set when seen. Messages
+    // fold into one unread notification per person and deal.
+    sql: `CREATE TABLE notifications (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  kind text NOT NULL CHECK (
+    kind IN ('message', 'review-requested', 'changes-requested', 'signed', 'step', 'reminder')),
+  tab text NOT NULL CHECK (tab IN ('chat', 'scope', 'timeline', 'files', 'disputes', 'log')),
+  text text NOT NULL CHECK (char_length(text) BETWEEN 1 AND 300),
+  created_at timestamptz NOT NULL,
+  read_at timestamptz
+);
+CREATE INDEX notifications_by_user ON notifications (user_id, created_at DESC);
+CREATE UNIQUE INDEX notifications_one_unread_message ON notifications (user_id, deal_id)
+  WHERE kind = 'message' AND read_at IS NULL`,
+  },
 ];

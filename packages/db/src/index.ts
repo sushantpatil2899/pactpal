@@ -374,3 +374,18 @@ export type { ChatMessage, ChatNotice, ChatRefusal, ChatRole, NewMessage } from 
 export { READ_LOG_INTERVAL_MS, markRead, readPositions } from "./chat.js";
 export { CHAT_CHANNEL, chatEventSchema, parseChatEvent, publishChatEvent } from "./chat-events.js";
 export type { ChatEvent } from "./chat-events.js";
+export {
+  DEAL_TABS,
+  NOTIFICATION_KINDS,
+  NOTIFICATION_LIST_SIZE,
+  addNotification,
+  listNotifications,
+  markNotificationsRead,
+  newNotificationSchema,
+} from "./notifications.js";
+export type {
+  DealTabName,
+  NewNotification,
+  Notification,
+  NotificationKind,
+} from "./notifications.js";

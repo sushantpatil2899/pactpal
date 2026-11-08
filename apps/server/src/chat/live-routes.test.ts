@@ -1,92 +1,13 @@
 import { createUser, readLedger } from "@pactpal/db";
-import { TEST_NOW, createTestDeal, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
-import { parseServerFrame, type ServerFrame } from "@pactpal/live";
-import { afterEach, describe, expect, it } from "vitest";
-import WebSocket from "ws";
-import { SESSION_COOKIE } from "../auth/sign-in.js";
-import { buyerVisitors, dealTestApp, signedInAs } from "../deals/test-app.js";
+import { TEST_NOW, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
+import { describe, expect, it } from "vitest";
+import { signedInAs } from "../deals/test-app.js";
+import { closePagesAfterEach, openLiveDeal, page } from "./live-test-support.js";
 import { originAllowed } from "./live-routes.js";
 
 const db = useMigratedTestDatabase();
-const ORIGIN = "https://pactpal.test";
-const opened: { close(): void }[] = [];
-afterEach(() => {
-  for (const socket of opened.splice(0)) socket.close();
-});
-
-/** A connected page: every frame it got, and a way to wait for one. */
-function page(url: string, token: string | undefined, origin = ORIGIN) {
-  const frames: ServerFrame[] = [];
-  const waiters: { match: (f: ServerFrame) => boolean; resolve: (f: ServerFrame) => void }[] = [];
-  const socket = new WebSocket(url, {
-    headers: { origin, ...(token ? { cookie: `${SESSION_COOKIE}=${token}` } : {}) },
-  });
-  opened.push(socket);
-  // Closing a socket that never opened reports an error; the tests read refusals elsewhere.
-  socket.on("error", () => undefined);
-  socket.on("message", (data: Buffer) => {
-    const frame = parseServerFrame(data.toString("utf8"));
-    if (!frame) throw new Error(`unreadable frame ${data.toString("utf8")}`);
-    frames.push(frame);
-    for (const waiter of [...waiters]) {
-      if (waiter.match(frame)) {
-        waiters.splice(waiters.indexOf(waiter), 1);
-        waiter.resolve(frame);
-      }
-    }
-  });
-  const next = <T extends ServerFrame["type"]>(
-    type: T,
-    match: (frame: Extract<ServerFrame, { type: T }>) => boolean = () => true,
-  ) =>
-    new Promise<Extract<ServerFrame, { type: T }>>((resolve) => {
-      const test = (frame: ServerFrame) =>
-        frame.type === type && match(frame as Extract<ServerFrame, { type: T }>);
-      const earlier = frames.find(test);
-      if (earlier) {
-        frames.splice(frames.indexOf(earlier), 1);
-        resolve(earlier as Extract<ServerFrame, { type: T }>);
-        return;
-      }
-      waiters.push({
-        match: test,
-        resolve: (f) => {
-          resolve(f as Extract<ServerFrame, { type: T }>);
-        },
-      });
-    });
-  const send = (frame: object | string) => {
-    socket.send(typeof frame === "string" ? frame : JSON.stringify(frame));
-  };
-  const closed = new Promise<number>((resolve) =>
-    socket.on("close", (code) => {
-      resolve(code);
-    }),
-  );
-  const refused = new Promise<number>((resolve) =>
-    socket.on("unexpected-response", (_request, response) => {
-      resolve(response.statusCode ?? 0);
-    }),
-  );
-  return { socket, frames, next, send, closed, refused };
-}
-
-async function liveDeal() {
-  const deal = await createTestDeal(db);
-  const [, buyerLink] = await buyerVisitors(db, deal.dealId, deal.buyer.id);
-  const { app, call } = dealTestApp(db);
-  const address = await app.listen({ port: 0, host: "127.0.0.1" });
-  return {
-    ...deal,
-    app,
-    call,
-    sellerToken: await signedInAs(db, deal.seller.id),
-    buyerToken: buyerLink ?? "",
-    live: (after = 0) =>
-      `${address.replace("http", "ws")}/api/deals/${deal.dealId}/live?after=${String(after)}`,
-    chat: `/api/deals/${deal.dealId}/chat`,
-  };
-}
+closePagesAfterEach();
+const liveDeal = () => openLiveDeal(db);
 
 describe("the live chat", () => {
   it("sends messages, typing, presence and reading to the other side at once", async () => {

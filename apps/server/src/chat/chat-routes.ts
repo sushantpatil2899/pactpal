@@ -27,8 +27,8 @@ export interface ChatRouteOptions {
   clock: () => Date;
   newId: () => string;
   recordIp: boolean;
-  /** Told after a message is saved, so open pages get it at once (7c). */
-  onPosted?: (dealId: string) => Promise<void>;
+  /** Told after a message is saved: open pages get it at once (7c), the other side is notified (7e). */
+  onPosted?: (deal: Deal, message: ChatMessage, names: ChatNames) => Promise<void>;
 }
 
 /** At most this many messages per person in `POST_WINDOW_MS`. */
@@ -115,13 +115,12 @@ export const chatRoutes: FastifyPluginAsync<ChatRouteOptions> = (app, options) =
         },
         clock(),
       );
+      const names = await chatNames(db, deal);
       if (created) {
         request.log.info({ dealId: deal.id, seq: message.seq }, "Chat message posted");
-        await onPosted?.(deal.id);
+        await onPosted?.(deal, message, names);
       }
-      return await reply
-        .code(created ? 201 : 200)
-        .send(messageView(message, await chatNames(db, deal)));
+      return await reply.code(created ? 201 : 200).send(messageView(message, names));
     } catch (error) {
       if (!(error instanceof ChatNotAllowedError)) throw error;
       return sendRefusal(reply, REFUSALS[error.reason]);

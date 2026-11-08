@@ -2,6 +2,7 @@ import {
   MESSAGE_PAGE_SIZE,
   getDeal,
   listMessages,
+  markNotificationsRead,
   markRead,
   readPositions,
   type Database,
@@ -93,6 +94,14 @@ export class LiveHub {
       this.options.clock(),
     );
     if (state) state.readSeq = readSeq;
+    // Reading the chat settles its message notifications; the person's other pages are told.
+    const settled = await markNotificationsRead(
+      this.options.db,
+      page.userId,
+      { dealId: page.dealId, kind: "message" },
+      this.options.clock(),
+    );
+    if (settled > 0) await this.options.bus.publish({ type: "notify", userId: page.userId });
     if (moved) {
       await this.options.bus.publish({
         type: "read",
@@ -165,6 +174,10 @@ export class LiveHub {
         this.onPresence(signal.dealId, signal.role, signal.online, signal.server);
         return;
       case "notify":
+        for (const set of this.pages.values()) {
+          for (const state of set)
+            if (state.page.userId === signal.userId) state.page.send({ type: "notify" });
+        }
         return;
     }
   }
@@ -181,6 +194,11 @@ export class LiveHub {
       role,
       online: this.online(dealId)[role],
     });
+  }
+
+  /** Whether that side has a page of the deal open on any server copy. */
+  isOnline(dealId: string, role: Party): boolean {
+    return this.online(dealId)[role];
   }
 
   private online(dealId: string): Online {

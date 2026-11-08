@@ -18,6 +18,8 @@ import { ChatTab, type DealTab } from "./ChatTab";
 import { lastSeq, unreadCount } from "./chat-state";
 import { TabPanel, Tabs, useTabInAddress, type TabDefinition } from "./Tabs";
 import { useLiveChat } from "./useLiveChat";
+import { NotificationsList } from "./NotificationsList";
+import { tabFromHash } from "./tab-address";
 import {
   SIGN_IN_PATH,
   checkLedger,
@@ -52,7 +54,14 @@ export function DealPage({ dealId }: { dealId: string }) {
   const [revision, setRevision] = useState(0);
   const [tab, openTab] = useTabInAddress<DealTab>(DEAL_TABS, "chat");
   // The chat stays connected on every tab, so the Chat tab can count new messages.
-  const chat = useLiveChat(dealId, { reading: tab === "chat" });
+  // Changes when the server says this person's notifications changed.
+  const [notesKey, setNotesKey] = useState(0);
+  const chat = useLiveChat(dealId, {
+    reading: tab === "chat",
+    onNotify: () => {
+      setNotesKey((n) => n + 1);
+    },
+  });
 
   useEffect(() => {
     Promise.all([getDeal(dealId), getLedger(dealId), getMe()]).then(
@@ -136,6 +145,13 @@ export function DealPage({ dealId }: { dealId: string }) {
           to keep access without it (use the PayPal account with the email the link was sent to).
         </p>
       )}
+      <NotificationsList
+        dealId={deal.id}
+        refreshKey={notesKey}
+        onOpen={(note) => {
+          openTab(tabFromHash(`#${note.tab}`, DEAL_TABS, "chat"));
+        }}
+      />
       <Tabs tabs={tabs} current={tab} onChange={openTab} label="Deal space" />
       <TabPanel id="chat" current={tab}>
         <ChatTab dealId={deal.id} chat={chat} otherName={otherName} onOpenTab={openTab} />

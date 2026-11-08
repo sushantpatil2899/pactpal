@@ -48,6 +48,8 @@ import { chatRoutes } from "../chat/chat-routes.js";
 import type { ChatBus } from "../chat/bus.js";
 import { LiveHub } from "../chat/live-hub.js";
 import { liveRoutes } from "../chat/live-routes.js";
+import { notificationRoutes } from "../chat/notification-routes.js";
+import { Notifier } from "../chat/notifier.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -212,21 +214,46 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
   const { chatBus } = options;
+  const hub =
+    database &&
+    new LiveHub({ db: database, bus: chatBus, serverId: options.serverId, clock, log: app.log });
+  const notifier =
+    database &&
+    new Notifier({
+      db: database,
+      bus: chatBus,
+      email,
+      clock,
+      newId,
+      log: app.log,
+      publicBaseUrl,
+      isOnline: (dealId, role) => hub?.isOnline(dealId, role) ?? false,
+    });
   void app.register(chatRoutes, {
     visibleDeal,
     clock,
     newId,
     recordIp,
-    onPosted: (dealId) => chatBus.publish({ type: "messages", dealId }),
+    onPosted: async (deal, message, names) => {
+      await chatBus.publish({ type: "messages", dealId: deal.id });
+      if (message.role === "system") return;
+      const sender = names[message.role];
+      await notifier?.notify(deal, message.role === "seller" ? "buyer" : "seller", {
+        kind: "message",
+        tab: "chat",
+        text: `${sender}: ${message.body}`,
+        email: {
+          subject: `New message: "${deal.title}"`,
+          lines: [
+            `${sender} sent you a message in "${deal.title}".`,
+            "Open the chat to read and answer it.",
+          ],
+        },
+      });
+    },
   });
-  if (database) {
-    const hub = new LiveHub({
-      db: database,
-      bus: chatBus,
-      serverId: options.serverId,
-      clock,
-      log: app.log,
-    });
+  void app.register(notificationRoutes, { database, clock, bus: chatBus });
+  if (hub) {
     app.addHook("onClose", (_instance, done) => {
       hub.close();
       done();
