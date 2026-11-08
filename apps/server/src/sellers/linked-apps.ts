@@ -1,16 +1,19 @@
 import { ownAppKeys, type Database } from "@pactpal/db";
 import type { SecretBox } from "@pactpal/net";
-import type { PayPalAppCredentials } from "@pactpal/paypal";
+import type { PayPalAppCredentials, PayPalWebhooks } from "@pactpal/paypal";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
 
 /** What PactPal uses of a seller's own app; grows with 6h-5 (disputes). */
 export interface LinkedAppClients {
   invoices: InvoiceSender;
+  /** Its alert address (6h-4): registering, removing, and checking alerts are genuine. */
+  webhooks: Pick<PayPalWebhooks, "verify" | "register" | "remove">;
 }
 
-/** A linked app's clients and the PayPal account they act as. */
+/** A linked app's clients, the PayPal account they act as, and its alert address id if any. */
 export interface LinkedApp {
   merchantId: string;
+  webhookId: string | undefined;
   clients: LinkedAppClients;
 }
 
@@ -42,11 +45,13 @@ export class LinkedApps {
       return undefined;
     }
     const known = this.#known.get(connectionId);
-    if (known) return known;
+    // The alert id is set after linking, so it is read fresh each time.
+    if (known) return { ...known, webhookId: keys.webhookId };
     const clientSecret = this.#box.open(keys.sealedSecret, `${connectionId}:${keys.clientId}`);
     if (!clientSecret) return undefined;
     const app = {
       merchantId: keys.merchantId,
+      webhookId: keys.webhookId,
       clients: this.#connect({ clientId: keys.clientId, clientSecret }),
     };
     this.#known.set(connectionId, app);

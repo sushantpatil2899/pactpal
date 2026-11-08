@@ -6,6 +6,7 @@ import {
   disconnectSeller,
   linkOwnApp,
   ownAppKeys,
+  setOwnAppWebhook,
   startConnection,
 } from "./index.js";
 import { TEST_NOW, createTestParties, useMigratedTestDatabase } from "./testing.js";
@@ -214,6 +215,7 @@ describe("seller connections", () => {
         clientId: "client-M1",
         sealedSecret: "v1.sealed-M1",
         merchantId: "M1",
+        webhookId: undefined,
       });
       expect(await activeConnection(db, seller.id)).toMatchObject({ method: "own_app" });
     });
@@ -249,6 +251,22 @@ describe("seller connections", () => {
       expect(
         await db.query("SELECT client_id, client_secret_sealed FROM seller_connections"),
       ).toEqual([{ client_id: "client-M1", client_secret_sealed: null }]);
+    });
+
+    it("keeps the alert address id of a live own app only (6h-4)", async () => {
+      const { seller } = await createTestParties(db);
+      const linked = await link(seller.id, "M1");
+      const id = linked.ok ? linked.connection.id : "";
+      expect(await setOwnAppWebhook(db, id, "WH-1A2B")).toBe(true);
+      expect((await ownAppKeys(db, id))?.webhookId).toBe("WH-1A2B");
+      expect(await activeConnection(db, seller.id)).toMatchObject({ webhookId: "WH-1A2B" });
+      await disconnectSeller(db, seller.id, later(1));
+      expect(await setOwnAppWebhook(db, id, "WH-2")).toBe(false);
+      const started = await attempt(seller.id, "t-9");
+      expect(await setOwnAppWebhook(db, started.id, "WH-3")).toBe(false);
+      await expect(
+        db.query("UPDATE seller_connections SET webhook_id = 'WH-4' WHERE id = $1", [started.id]),
+      ).rejects.toThrow(/webhook_own_app/);
     });
 
     it("gives no keys for a Partner Referrals connection", async () => {

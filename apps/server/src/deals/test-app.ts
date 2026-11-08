@@ -27,13 +27,16 @@ export function dealTestApp(
     claims?: AppOptions["claims"];
     disputeWriter?: AppOptions["disputeWriter"];
     sellerApps?: AppOptions["sellerApps"];
+    webhooks?: AppOptions["webhooks"];
+    /** The site's address; https by default. */
+    publicBaseUrl?: string;
   } = {},
 ) {
   let ids = 200;
   const mail = capturingEmail();
   const { sent, failEmailTo } = mail;
   const logs: string[] = [];
-  const { emailOff = false, ...appOptions } = options;
+  const { emailOff = false, publicBaseUrl = "https://pactpal.test", ...appOptions } = options;
   const email = emailOff ? new StandInEmailSender({ info: () => undefined }) : mail.email;
   const app = buildApp(
     { settings: [], features: [] },
@@ -46,7 +49,7 @@ export function dealTestApp(
       signIn: {
         login: undefined,
         database: db,
-        publicBaseUrl: "https://pactpal.test",
+        publicBaseUrl,
         clock: () => TEST_NOW,
         newId: () => testId(ids++),
       },

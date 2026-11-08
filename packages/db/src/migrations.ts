@@ -1045,4 +1045,12 @@ ALTER TABLE seller_connections
     sql: `ALTER TABLE milestones
   ADD COLUMN seller_connection_id uuid REFERENCES seller_connections (id)`,
   },
+  {
+    id: "0032_seller_app_alerts",
+    // PayPal's id for the notification address registered on a seller's own app (6h-4). Not
+    // secret; it is what that app's notifications are verified against. Own apps only.
+    sql: `ALTER TABLE seller_connections
+  ADD COLUMN webhook_id text CHECK (webhook_id ~ '^[A-Za-z0-9-]{1,64}$'),
+  ADD CONSTRAINT seller_connections_webhook_own_app CHECK (method = 'own_app' OR webhook_id IS NULL)`,
+  },
 ];

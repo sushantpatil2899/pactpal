@@ -2,6 +2,7 @@ import {
   activeConnection,
   disconnectSeller,
   linkOwnApp,
+  setOwnAppWebhook,
   type Database,
   type SellerConnection,
 } from "@pactpal/db";
@@ -13,11 +14,12 @@ import {
   type PayPalAppCredentials,
   type SellerAppCheck,
 } from "@pactpal/paypal";
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { currentSession } from "../auth/sign-in.js";
 import { readBody } from "../deals/access.js";
-import type { ConnectApp } from "./linked-apps.js";
+import type { ConnectApp, LinkedApps } from "./linked-apps.js";
+import { sellerWebhookUrl } from "../webhooks/paypal-webhook.js";
 
 export const SELLER_APP_PATH = "/api/seller-app";
 
@@ -36,6 +38,10 @@ export interface SellerAppRouteOptions {
   clock: () => Date;
   newId: () => string;
   sellerApps: SellerAppLinking | undefined;
+  /** Opens linked apps, to register and remove their alert address (6h-4). */
+  linked: LinkedApps | undefined;
+  /** The site's own address; alerts are registered only when it is https. */
+  publicBaseUrl: string | undefined;
 }
 
 /** A linked app as the page sees it: never the secret. */
@@ -43,6 +49,8 @@ export interface SellerAppView {
   merchantId: string;
   clientId: string;
   linkedAt: string;
+  /** Whether PayPal sends this app's payment alerts to PactPal (6h-4). */
+  alerts: boolean;
 }
 
 /** The seller's own-app link, or null (no link, or a "Connect with PayPal" one). */
@@ -52,6 +60,7 @@ export function sellerAppView(connection: SellerConnection | undefined): SellerA
     merchantId: connection.merchantId,
     clientId: connection.clientId,
     linkedAt: (connection.connectedAt ?? connection.createdAt).toISOString(),
+    alerts: connection.webhookId !== undefined,
   };
 }
 
@@ -76,7 +85,42 @@ const paypalUnavailable = (error: unknown): boolean =>
  * error answers name fields, never values. Buyers who came in through a link may not use it.
  */
 export const sellerAppRoutes: FastifyPluginAsync<SellerAppRouteOptions> = (app, options) => {
-  const { database, clock, newId, sellerApps } = options;
+  const { database, clock, newId, sellerApps, linked, publicBaseUrl } = options;
+
+  /**
+   * Asks PayPal, through the new link's app, to send its alerts to this link's own address. Best
+   * effort: a refusal leaves the link working, with "Check payment status" as the way to see payments.
+   */
+  async function registerAlerts(db: Database, connectionId: string, log: FastifyBaseLogger) {
+    if (!publicBaseUrl?.startsWith("https://")) return false;
+    const linkedApp = await linked?.get(connectionId);
+    if (!linkedApp) return false;
+    try {
+      const registered = await linkedApp.clients.webhooks.register(
+        sellerWebhookUrl(publicBaseUrl, connectionId),
+        `alerts-${connectionId}`,
+      );
+      return await setOwnAppWebhook(db, connectionId, registered.webhookId);
+    } catch (error) {
+      if (!paypalUnavailable(error)) throw error;
+      const debugId = error instanceof PayPalApiError ? error.debugId : undefined;
+      log.warn({ connectionId, debugId }, "Seller app alerts not registered");
+      return false;
+    }
+  }
+
+  /** Removes the link's alert address before the link (and its secret) ends. Best effort. */
+  async function removeAlerts(connectionId: string, log: FastifyBaseLogger) {
+    const linkedApp = await linked?.get(connectionId);
+    if (linkedApp?.webhookId === undefined) return;
+    try {
+      await linkedApp.clients.webhooks.remove(linkedApp.webhookId, `alerts-off-${connectionId}`);
+    } catch (error) {
+      if (!paypalUnavailable(error)) throw error;
+      const debugId = error instanceof PayPalApiError ? error.debugId : undefined;
+      log.warn({ connectionId, debugId }, "Seller app alerts not removed");
+    }
+  }
 
   /** The PayPal-signed-in user, or undefined after answering 503, 401 or 403. */
   async function seller(request: FastifyRequest, reply: FastifyReply) {
@@ -134,7 +178,7 @@ export const sellerAppRoutes: FastifyPluginAsync<SellerAppRouteOptions> = (app, 
     }
 
     const id = newId();
-    const linked = await linkOwnApp(
+    const result = await linkOwnApp(
       found.db,
       {
         id,
@@ -149,12 +193,16 @@ export const sellerAppRoutes: FastifyPluginAsync<SellerAppRouteOptions> = (app, 
       },
       clock(),
     );
-    if (!linked.ok) {
-      request.log.info({ reason: linked.reason }, "Seller app refused");
-      return reply.code(409).send({ error: linked.reason });
+    if (!result.ok) {
+      request.log.info({ reason: result.reason }, "Seller app refused");
+      return reply.code(409).send({ error: result.reason });
     }
-    request.log.info({ connectionId: id, merchantId: check.merchantId }, "Seller app linked");
-    return reply.send({ link: sellerAppView(linked.connection) });
+    const alerts = await registerAlerts(found.db, id, request.log);
+    request.log.info(
+      { connectionId: id, merchantId: check.merchantId, alerts },
+      "Seller app linked",
+    );
+    return reply.send({ link: sellerAppView(await activeConnection(found.db, found.user.id)) });
   });
 
   app.delete(SELLER_APP_PATH, async (request, reply) => {
@@ -162,6 +210,7 @@ export const sellerAppRoutes: FastifyPluginAsync<SellerAppRouteOptions> = (app, 
     if (!found) return reply;
     // Only an own-app link is ended here; a "Connect with PayPal" one has its own page (6d).
     const current = await activeConnection(found.db, found.user.id);
+    if (current?.method === "own_app") await removeAlerts(current.id, request.log);
     if (
       current?.method === "own_app" &&
       (await disconnectSeller(found.db, found.user.id, clock()))

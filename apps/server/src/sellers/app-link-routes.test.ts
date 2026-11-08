@@ -10,7 +10,7 @@ import { SecretBox } from "@pactpal/net";
 import { PayPalApiError, type PayPalAppCredentials, type SellerAppCheck } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { buyerVisitors, dealTestApp, signedInAs } from "../deals/test-app.js";
-import { fakePayPal } from "../payments/paypal-test-support.js";
+import { fakeAppWebhooks, fakePayPal } from "../payments/paypal-test-support.js";
 import { SELLER_APP_PATH, sellerAppView } from "./app-link-routes.js";
 
 const db = useMigratedTestDatabase();
@@ -28,7 +28,7 @@ function setup(
     checked.push(credentials);
     return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
   };
-  const connect = () => ({ invoices: fakePayPal().invoices });
+  const connect = () => ({ invoices: fakePayPal().invoices, webhooks: fakeAppWebhooks().webhooks });
   return { ...dealTestApp(db, undefined, { sellerApps: { box, check, connect } }), checked };
 }
 
@@ -53,6 +53,7 @@ describe("seller app routes", () => {
       merchantId: "SELLER2",
       clientId: keys.clientId,
       linkedAt: TEST_NOW.toISOString(),
+      alerts: true,
     };
     expect(res.json()).toEqual({ link });
     expect(checked.map((c) => [c.clientId, c.clientSecret.reveal()])).toEqual([
@@ -174,10 +175,11 @@ describe("sellerAppView", () => {
     };
     expect(sellerAppView(undefined)).toBeNull();
     expect(sellerAppView({ ...base, method: "partner", trackingId: "t" })).toBeNull();
-    expect(sellerAppView({ ...base, method: "own_app", clientId: "c" })).toEqual({
+    expect(sellerAppView({ ...base, method: "own_app", clientId: "c", webhookId: "WH" })).toEqual({
       merchantId: "M1",
       clientId: "c",
       linkedAt: TEST_NOW.toISOString(),
+      alerts: true,
     });
   });
 });

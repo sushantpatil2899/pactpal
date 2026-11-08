@@ -56,6 +56,11 @@ function Linked({ link, onUnlinked }: { link: SellerAppLink; onUnlinked: () => v
         Linked to PayPal account <strong>{link.merchantId}</strong> through the app{" "}
         <code>{link.clientId}</code>, since {when(link.linkedAt)}.
       </p>
+      <p>
+        {link.alerts
+          ? "Automatic payment alerts: on. Paid invoices are marked paid by themselves."
+          : "Automatic payment alerts: off. Use \u201cCheck payment status\u201d on a deal to see payments."}
+      </p>
       {problem && (
         <p role="alert" style={{ color: "#8a1c1c" }}>
           {problem}

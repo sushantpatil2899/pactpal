@@ -1,10 +1,22 @@
 import type { NewWebhookEvent, RecordResult } from "@pactpal/db";
 import type { JsonValue } from "@pactpal/ledger";
 import type { PayPalWebhooks } from "@pactpal/paypal";
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 export const PAYPAL_WEBHOOK_PATH = "/webhooks/paypal";
+/** One address per seller's own linked app (6h-4); the link's id tells whose alert it is. */
+export const SELLER_WEBHOOK_PATH = "/webhooks/paypal/seller/:connectionId";
+export const sellerWebhookUrl = (publicBaseUrl: string, connectionId: string) =>
+  `${publicBaseUrl}/webhooks/paypal/seller/${connectionId}`;
+
+/** How a seller's alert is checked: that app's own verifier and alert id, or why it cannot be. */
+export type SellerAlertLookup = (
+  connectionId: string,
+) => Promise<
+  | { ok: true; verifier: Pick<PayPalWebhooks, "verify">; webhookId: string }
+  | { ok: false; reason: "unknown" | "unregistered" }
+>;
 
 export interface PayPalWebhookOptions {
   /** Checks signatures with PayPal; undefined when the seller app keys are not set. */
@@ -18,7 +30,11 @@ export interface PayPalWebhookOptions {
    * answered 500, so PayPal sends the notification again and it is tried again.
    */
   process?: (event: { eventId: string; eventType: string; body: JsonValue }) => Promise<void>;
+  /** Finds a seller's linked app for its alert address (6h-4); absent when linking is off. */
+  sellerAlerts?: SellerAlertLookup | undefined;
 }
+
+const sellerParams = z.object({ connectionId: z.uuid() });
 
 // Only the envelope is read; the event's contents are used by later phases.
 const envelope = z.looseObject({
@@ -44,8 +60,78 @@ function toDate(value: string | undefined): Date | undefined {
   return date === undefined || Number.isNaN(date.getTime()) ? undefined : date;
 }
 
+/** Everything `receive` needs: all set, since the routes answer 503 otherwise. */
+interface Receiver {
+  verifier: Pick<PayPalWebhooks, "verify">;
+  webhookId: string;
+  events: NonNullable<PayPalWebhookOptions["events"]>;
+  process: PayPalWebhookOptions["process"];
+}
+
+/** Verify against the exact bytes, save, then process: the steps every alert address shares. */
+async function receive(request: FastifyRequest, reply: FastifyReply, options: Receiver) {
+  const { verifier, webhookId, events } = options;
+  const rawBody = typeof request.body === "string" ? request.body : "";
+  const body = parseJson(rawBody);
+  if (!body.ok) return reply.code(400).send({ error: "body is not JSON" });
+
+  const headers = Object.fromEntries(
+    Object.entries(request.headers).map(([name, value]) => [
+      name,
+      Array.isArray(value) ? value[0] : value,
+    ]),
+  );
+  let verification;
+  try {
+    verification = await verifier.verify(rawBody, headers, webhookId);
+  } catch (error) {
+    request.log.error({ err: error }, "PayPal notification could not be verified now");
+    return reply.code(500).send({ error: "verification unavailable" });
+  }
+  if (!verification.verified) {
+    request.log.warn({ reason: verification.reason }, "PayPal notification rejected");
+    return reply.code(400).send({ error: "not verified" });
+  }
+
+  const event = envelope.safeParse(body.value);
+  if (!event.success) return reply.code(400).send({ error: "not a PayPal event" });
+  const { id, event_type: eventType, create_time: createdAt, resource_type } = event.data;
+  let result: RecordResult;
+  try {
+    result = await events.record({
+      source: "paypal",
+      eventId: id,
+      eventType,
+      resourceType: resource_type,
+      eventCreatedAt: toDate(createdAt),
+      body: body.value,
+    });
+  } catch (error) {
+    request.log.error({ err: error, eventId: id }, "PayPal notification could not be saved");
+    return reply.code(500).send({ error: "could not save" });
+  }
+  if (result === "repeat") {
+    request.log.info({ eventId: id, eventType }, "PayPal notification repeated");
+  } else {
+    request.log.info({ eventId: id, eventType, createdAt }, "PayPal notification stored");
+  }
+  if (options.process) {
+    try {
+      await options.process({ eventId: id, eventType, body: body.value });
+    } catch (error) {
+      request.log.error(
+        { eventId: id, eventType, err: error instanceof Error ? error.name : "unknown" },
+        "PayPal notification stored but not processed; PayPal will send it again",
+      );
+      return reply.code(500).send({ error: "could not process" });
+    }
+  }
+  return reply.code(200).send({ status: result === "repeat" ? "repeat" : "received" });
+}
+
 /**
- * `POST /webhooks/paypal`: receives PayPal notifications. Each is verified
+ * `POST /webhooks/paypal`: receives PayPal notifications (and, from 6h-4, each seller app's own
+ * address). Each is verified
  * with PayPal against the exact bytes received before anything in it is used,
  * then saved in full; only then is it acknowledged, so an event we have not
  * saved is never acknowledged. Repeats are acknowledged without being saved again.
@@ -70,62 +156,32 @@ export const paypalWebhookRoutes: FastifyPluginAsync<PayPalWebhookOptions> = (ap
       request.log.warn("PayPal notification refused: webhooks are not configured");
       return reply.code(503).send({ error: "not configured" });
     }
-    const rawBody = typeof request.body === "string" ? request.body : "";
-    const body = parseJson(rawBody);
-    if (!body.ok) return reply.code(400).send({ error: "body is not JSON" });
+    return receive(request, reply, { verifier, webhookId, events, process: options.process });
+  });
 
-    const headers = Object.fromEntries(
-      Object.entries(request.headers).map(([name, value]) => [
-        name,
-        Array.isArray(value) ? value[0] : value,
-      ]),
-    );
-    let verification;
-    try {
-      verification = await verifier.verify(rawBody, headers, webhookId);
-    } catch (error) {
-      request.log.error({ err: error }, "PayPal notification could not be verified now");
-      return reply.code(500).send({ error: "verification unavailable" });
+  // A seller's own app (6h-4): checked with that app and its own alert id, then handled the same.
+  app.post(SELLER_WEBHOOK_PATH, async (request, reply) => {
+    const { sellerAlerts, events } = options;
+    if (sellerAlerts === undefined || events === undefined) {
+      request.log.warn("Seller app notification refused: not configured");
+      return reply.code(503).send({ error: "not configured" });
     }
-    if (!verification.verified) {
-      request.log.warn({ reason: verification.reason }, "PayPal notification rejected");
-      return reply.code(400).send({ error: "not verified" });
+    const params = sellerParams.safeParse(request.params);
+    const found = params.success
+      ? await sellerAlerts(params.data.connectionId)
+      : ({ ok: false, reason: "unknown" } as const);
+    if (!found.ok) {
+      request.log.warn({ reason: found.reason }, "Seller app notification refused");
+      return found.reason === "unknown"
+        ? reply.code(404).send({ error: "not found" })
+        : reply.code(503).send({ error: "not configured" });
     }
-
-    const event = envelope.safeParse(body.value);
-    if (!event.success) return reply.code(400).send({ error: "not a PayPal event" });
-    const { id, event_type: eventType, create_time: createdAt, resource_type } = event.data;
-    let result: RecordResult;
-    try {
-      result = await events.record({
-        source: "paypal",
-        eventId: id,
-        eventType,
-        resourceType: resource_type,
-        eventCreatedAt: toDate(createdAt),
-        body: body.value,
-      });
-    } catch (error) {
-      request.log.error({ err: error, eventId: id }, "PayPal notification could not be saved");
-      return reply.code(500).send({ error: "could not save" });
-    }
-    if (result === "repeat") {
-      request.log.info({ eventId: id, eventType }, "PayPal notification repeated");
-    } else {
-      request.log.info({ eventId: id, eventType, createdAt }, "PayPal notification stored");
-    }
-    if (options.process) {
-      try {
-        await options.process({ eventId: id, eventType, body: body.value });
-      } catch (error) {
-        request.log.error(
-          { eventId: id, eventType, err: error instanceof Error ? error.name : "unknown" },
-          "PayPal notification stored but not processed; PayPal will send it again",
-        );
-        return reply.code(500).send({ error: "could not process" });
-      }
-    }
-    return reply.code(200).send({ status: result === "repeat" ? "repeat" : "received" });
+    return receive(request, reply, {
+      verifier: found.verifier,
+      webhookId: found.webhookId,
+      events,
+      process: options.process,
+    });
   });
 
   return Promise.resolve();

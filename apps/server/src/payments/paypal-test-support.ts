@@ -86,3 +86,34 @@ export function fakePayPal(idPrefix = "INV2-TEST") {
   };
   return { invoices, drafts, paid, state };
 }
+
+/**
+ * Test code only: a stand-in for one PayPal app's alert addresses (6h-4). `register` answers with
+ * `WH-<n>` unless `refuse` is set; `verify` answers `verified`. Calls are kept in order.
+ */
+export function fakeAppWebhooks() {
+  const calls: string[] = [];
+  const state = { refuse: false, verified: true };
+  const webhooks = {
+    register: (url: string, requestId: string) => {
+      calls.push(`register ${url} ${requestId}`);
+      if (state.refuse) {
+        return Promise.reject(new PayPalApiError("register", 400, "x", "y", [], "dbg-wh"));
+      }
+      return Promise.resolve({ webhookId: `WH-${String(calls.length)}`, url, eventTypes: [] });
+    },
+    remove: (webhookId: string) => {
+      calls.push(`remove ${webhookId}`);
+      return Promise.resolve();
+    },
+    verify: (_body: string, _headers: unknown, webhookId: string) => {
+      calls.push(`verify ${webhookId}`);
+      return Promise.resolve(
+        state.verified
+          ? ({ verified: true } as const)
+          : ({ verified: false, reason: "PayPal reported FAILURE" } as const),
+      );
+    },
+  };
+  return { webhooks, calls, state };
+}

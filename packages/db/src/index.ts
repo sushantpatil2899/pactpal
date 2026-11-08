@@ -67,6 +67,7 @@ export {
   disconnectSeller,
   linkOwnApp,
   ownAppKeys,
+  setOwnAppWebhook,
   startConnection,
 } from "./seller-connections.js";
 export type { ConfirmRefusal, OwnAppLink, SellerConnection } from "./seller-connections.js";

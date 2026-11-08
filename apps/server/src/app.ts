@@ -15,7 +15,11 @@ import type { DisputeWriter } from "./disputes/action-service.js";
 import type { ClaimRunner, DisputeChecker } from "./disputes/checker.js";
 import { disputeNotifications } from "./disputes/notifications.js";
 import { registerWebPages } from "./web-pages.js";
-import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
+import {
+  paypalWebhookRoutes,
+  type PayPalWebhookOptions,
+  type SellerAlertLookup,
+} from "./webhooks/paypal-webhook.js";
 import { resendInboundRoutes, type ResendInboundOptions } from "./webhooks/resend-inbound.js";
 import { sellerAppRoutes, type SellerAppLinking } from "./sellers/app-link-routes.js";
 import { LinkedApps } from "./sellers/linked-apps.js";
@@ -137,6 +141,8 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     clock: signIn.clock,
     newId: signIn.newId,
     sellerApps: opts.sellerApps,
+    linked,
+    publicBaseUrl: signIn.publicBaseUrl,
   });
   const email = opts.email ?? new StandInEmailSender(app.log);
   void app.register(dealRoutes, {
@@ -172,9 +178,10 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
   };
   // A dispute notification (PayPal has sent none so far) starts a dispute check.
   const handlers = [
-    database && (opts.invoices || linked)
+    // The routes' database, as for every route (the same one in the running server).
+    signIn.database && (opts.invoices || linked)
       ? paymentNotifications({
-          db: database,
+          db: signIn.database,
           invoices: opts.invoices,
           linked,
           email,
@@ -191,7 +198,21 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
       : async (event: Parameters<NonNullable<PayPalWebhookOptions["process"]>>[0]) => {
           for (const handle of handlers) await handle(event);
         });
-  void app.register(paypalWebhookRoutes, process ? { ...webhooks, process } : webhooks);
+  // Each seller's own app has its own alert address, checked with that app (6h-4).
+  const sellerAlerts: SellerAlertLookup | undefined =
+    linked &&
+    (async (connectionId) => {
+      const found = await linked.get(connectionId);
+      if (!found) return { ok: false, reason: "unknown" };
+      return found.webhookId === undefined
+        ? { ok: false, reason: "unregistered" }
+        : { ok: true, verifier: found.clients.webhooks, webhookId: found.webhookId };
+    });
+  void app.register(paypalWebhookRoutes, {
+    ...webhooks,
+    ...(process ? { process } : {}),
+    sellerAlerts,
+  });
 
   return app;
 }

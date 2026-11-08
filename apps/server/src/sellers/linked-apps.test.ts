@@ -10,7 +10,7 @@ import { Secret, SecretBox } from "@pactpal/net";
 import type { PayPalAppCredentials } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { dealTestApp, signedInAs } from "../deals/test-app.js";
-import { fakePayPal } from "../payments/paypal-test-support.js";
+import { fakeAppWebhooks, fakePayPal } from "../payments/paypal-test-support.js";
 import { LinkedApps, invoicesFor } from "./linked-apps.js";
 
 const db = useMigratedTestDatabase();
@@ -38,7 +38,7 @@ function apps() {
   const own = fakePayPal();
   const linked = new LinkedApps(db, box, (credentials) => {
     opened.push(credentials);
-    return { invoices: own.invoices };
+    return { invoices: own.invoices, webhooks: fakeAppWebhooks().webhooks };
   });
   return { linked, opened, own };
 }
@@ -50,7 +50,7 @@ describe("LinkedApps", () => {
     const { linked, opened } = apps();
     const first = await linked.get(CONNECTION);
     expect(first?.merchantId).toBe("OWN1");
-    expect(await linked.get(CONNECTION)).toBe(first);
+    expect(await linked.get(CONNECTION)).toEqual(first);
     expect(opened.map((c) => [c.clientId, c.clientSecret.reveal()])).toEqual([
       ["own-client", "own-secret"],
     ]);
@@ -92,16 +92,18 @@ describe("invoicesFor", () => {
 
 describe("invoices from a seller's own app (6h-3)", () => {
   /** A signed deal whose seller has linked their own app; PactPal's app is a separate fake. */
-  async function setup() {
+  async function setup(publicBaseUrl?: string) {
     const deal = await createSignedTestDeal(db);
     const pactpal = fakePayPal();
     const own = fakePayPal("INV2-OWN");
+    const alerts = fakeAppWebhooks();
     const env = dealTestApp(db, undefined, {
+      ...(publicBaseUrl === undefined ? {} : { publicBaseUrl }),
       invoices: pactpal.invoices,
       sellerApps: {
         box,
         check: () => Promise.resolve({ ok: true, merchantId: "OWN1", scopes: [] }),
-        connect: () => ({ invoices: own.invoices }),
+        connect: () => ({ invoices: own.invoices, webhooks: alerts.webhooks }),
       },
     });
     const token = await signedInAs(db, deal.seller.id);
@@ -121,7 +123,7 @@ describe("invoices from a seller's own app (6h-3)", () => {
       env.call("POST", "/api/seller-app", token, { clientId: "own-client", clientSecret: "s" });
     const unlink = () => env.call("DELETE", "/api/seller-app", token);
     const check = () => env.call("POST", `${base}/check`, token);
-    return { ...deal, ...env, pactpal, own, stages, send, link, unlink, check };
+    return { ...deal, ...env, pactpal, own, alerts, stages, send, link, unlink, check };
   }
 
   it("sends from PactPal's app until the seller links, then from theirs, and logs the account", async () => {
@@ -189,7 +191,8 @@ describe("invoices from a seller's own app (6h-3)", () => {
   });
 
   it("drops the reservation when the linked app cannot be used before anything was created", async () => {
-    const { send, link, own, pactpal, dealId } = await setup();
+    // Over http no alert address is registered, so the app has not been opened before the send.
+    const { send, link, own, pactpal, dealId } = await setup("http://localhost:3000");
     await link();
     // The secret becomes unreadable between the press and the send (as if the key changed).
     await db.query("UPDATE seller_connections SET client_secret_sealed = 'v1.x.y.z'");

@@ -1924,6 +1924,8 @@ export interface SellerAppLink {
   merchantId: string;
   clientId: string;
   linkedAt: string;
+  /** Whether PayPal sends this app's payment alerts to PactPal (6h-4). */
+  alerts: boolean;
 }
 
 export interface SellerAppState {
@@ -1957,7 +1959,8 @@ const isSellerAppLink = (value: unknown): value is SellerAppLink =>
   isObject(value) &&
   typeof value.merchantId === "string" &&
   typeof value.clientId === "string" &&
-  typeof value.linkedAt === "string";
+  typeof value.linkedAt === "string" &&
+  typeof value.alerts === "boolean";
 
 const isSellerAppState = (value: unknown): value is SellerAppState =>
   isObject(value) &&

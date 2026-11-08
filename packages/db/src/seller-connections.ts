@@ -28,10 +28,12 @@ export type SellerConnection =
       method: "own_app";
       /** The client id of the seller's own app. Not secret; the secret is read with `ownAppKeys`. */
       clientId: string;
+      /** PayPal's id for the alert address registered on the app (6h-4), if registered. */
+      webhookId: string | undefined;
     });
 
 const COLUMNS =
-  "id, user_id, method, tracking_id, client_id, status, merchant_id, scopes, created_at, connected_at, disconnected_at";
+  "id, user_id, method, tracking_id, client_id, webhook_id, status, merchant_id, scopes, created_at, connected_at, disconnected_at";
 
 const connectionRow = z
   .object({
@@ -40,6 +42,7 @@ const connectionRow = z
     method: z.enum(["partner", "own_app"]),
     tracking_id: z.string().nullable(),
     client_id: z.string().nullable(),
+    webhook_id: z.string().nullable(),
     status: z.enum(["pending", "connected", "disconnected"]),
     merchant_id: z.string().nullable(),
     scopes: z.array(z.string()),
@@ -62,7 +65,12 @@ const connectionRow = z
       return { ...base, method: "partner", trackingId: row.tracking_id };
     }
     if (row.method === "own_app" && row.client_id !== null) {
-      return { ...base, method: "own_app", clientId: row.client_id };
+      return {
+        ...base,
+        method: "own_app",
+        clientId: row.client_id,
+        webhookId: row.webhook_id ?? undefined,
+      };
     }
     // The database's own checks make this unreachable; refuse rather than guess.
     ctx.addIssue({ code: "custom", message: `a ${row.method} connection is missing its id` });
@@ -215,6 +223,7 @@ const keysRow = z.object({
   client_id: z.string(),
   client_secret_sealed: z.string(),
   merchant_id: z.string(),
+  webhook_id: z.string().nullable(),
 });
 
 /**
@@ -224,9 +233,12 @@ const keysRow = z.object({
 export async function ownAppKeys(
   q: Queryable,
   connectionId: string,
-): Promise<{ clientId: string; sealedSecret: string; merchantId: string } | undefined> {
+): Promise<
+  | { clientId: string; sealedSecret: string; merchantId: string; webhookId: string | undefined }
+  | undefined
+> {
   const rows = await q.query(
-    `SELECT client_id, client_secret_sealed, merchant_id FROM seller_connections
+    `SELECT client_id, client_secret_sealed, merchant_id, webhook_id FROM seller_connections
      WHERE id = $1 AND method = 'own_app' AND status = 'connected'`,
     [connectionId],
   );
@@ -236,7 +248,23 @@ export async function ownAppKeys(
     clientId: row.client_id,
     sealedSecret: row.client_secret_sealed,
     merchantId: row.merchant_id,
+    webhookId: row.webhook_id ?? undefined,
   };
+}
+
+/** Keeps the alert address PayPal registered on a live own app (6h-4). True if one was updated. */
+export async function setOwnAppWebhook(
+  q: Queryable,
+  connectionId: string,
+  webhookId: string,
+): Promise<boolean> {
+  const rows = await q.query(
+    `UPDATE seller_connections SET webhook_id = $2
+     WHERE id = $1 AND method = 'own_app' AND status = 'connected'
+     RETURNING id`,
+    [connectionId, webhookId],
+  );
+  return rows.length > 0;
 }
 
 /** The seller's live connection, or undefined (they then use PactPal's own seller app). */
