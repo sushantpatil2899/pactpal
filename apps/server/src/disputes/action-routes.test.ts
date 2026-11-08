@@ -5,17 +5,18 @@ import {
   DisputeActionNotAllowed,
   PayPalApiError,
   PayPalNetworkError,
-  type AcceptClaimInput,
-  type EscalateInput,
   type EvidenceInput,
-  type MessageInput,
-  type OfferInput,
 } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { buyerVisitors } from "../deals/test-app.js";
-import type { DisputeWriter } from "./action-service.js";
 import type { CheckRequest } from "./checker.js";
-import { expectSellerOnly, paypalState, signedDispute, type TestFile } from "./test-support.js";
+import {
+  expectSellerOnly,
+  fakeWriter,
+  paypalState,
+  signedDispute,
+  type TestFile,
+} from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 const sha = (value: Uint8Array | string) => createHash("sha256").update(value).digest("hex");
@@ -28,28 +29,6 @@ const FILES: TestFile[] = [
   ["chat.txt", "source", text("Maya: a clean, modern look\nChris: deal"), "seller"],
   ["sketch.png", "deliverable", png(60), "seller"],
 ];
-
-type WriteInput = EscalateInput | EvidenceInput | MessageInput | OfferInput | AcceptClaimInput;
-
-/** A stand-in for PayPal's dispute writes: keeps what it was sent, or fails as told. */
-function fakeWriter() {
-  const sent: { action: string; disputeId: string; input: WriteInput }[] = [];
-  const state: { fail: Error | undefined } = { fail: undefined };
-  const answer = (action: string, disputeId: string, input: WriteInput) => {
-    if (state.fail !== undefined) return Promise.reject(state.fail);
-    sent.push({ action, disputeId, input });
-    return Promise.resolve({ data: { disputeId }, transport: "rest" as const, debugId: "dbg-1" });
-  };
-  const writer: DisputeWriter = {
-    escalate: (disputeId, input) => answer("escalate", disputeId, input),
-    provideEvidence: (disputeId, input) => answer("provide_evidence", disputeId, input),
-    sendMessage: (disputeId, input) => answer("send_message", disputeId, input),
-    makeOffer: (disputeId, input) => answer("make_offer", disputeId, input),
-    acceptClaim: (disputeId, input) => answer("accept_claim", disputeId, input),
-    appeal: (disputeId, input) => answer("appeal", disputeId, input),
-  };
-  return { writer, sent, state };
-}
 
 interface ActionsView {
   canSend: boolean;

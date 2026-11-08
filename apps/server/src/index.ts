@@ -18,13 +18,14 @@ import {
   PayPalRestClient,
   PayPalWebhooks,
   checkSellerApp,
-  ownAppClients,
   type PayPalAppCredentials,
 } from "@pactpal/paypal";
-import { SecretBox } from "@pactpal/net";
 import { ResendEmailSender, ResendReceivedEmails } from "@pactpal/email";
 import { Render } from "@renderinc/sdk";
 import { buildApp, closeOnSignals } from "./app.js";
+import { connectOwnApp } from "./sellers/connect-app.js";
+import { sellerKeyBox } from "./sellers/key-box.js";
+import { LinkedApps, linkedDisputeAccounts } from "./sellers/linked-apps.js";
 import { councilClients, createDraftingRuntime } from "./drafting/runtime.js";
 import { formatErrors, loadConfig } from "./config.js";
 import {
@@ -73,6 +74,10 @@ const email = config.email ? new ResendEmailSender(config.email) : undefined;
 // Dispute checks run as Render Workflow task runs when Render is set up; otherwise "Check now"
 // runs the check inside this server (a local copy). Reads go over REST, like invoices.
 const disputeLog = jsonLines((line) => process.stdout.write(line));
+// Sellers' own PayPal apps (6h): their secrets are encrypted with this key before storing.
+const sellerBox = config.sellerKeys && sellerKeyBox(config.sellerKeys.encryptionKey);
+// A local copy checks linked apps' disputes in process too (6h-5).
+const localLinked = database && sellerBox && new LinkedApps(database, sellerBox, connectOwnApp);
 const disputes = config.render
   ? renderWorkflowChecker(
       new Render({ token: config.render.apiKey.reveal() }).workflows,
@@ -80,12 +85,15 @@ const disputes = config.render
       clock,
       disputeLog,
     )
-  : database && sellerDisputes
+  : database && (sellerDisputes || localLinked)
     ? inProcessChecker((source) =>
         syncDisputes(
           {
             db: database,
             disputes: sellerDisputes,
+            ...(localLinked
+              ? { linkedAccounts: () => linkedDisputeAccounts(database, localLinked) }
+              : {}),
             clock,
             newId: randomUUID,
             log: disputeLog,
@@ -130,17 +138,12 @@ const claims = config.render
         ),
       )
     : undefined;
-// Sellers' own PayPal apps (6h): their secrets are encrypted with this key before storing.
 const sellerApps =
-  database && config.sellerKeys
+  database && sellerBox
     ? {
-        box: new SecretBox(Buffer.from(config.sellerKeys.encryptionKey.reveal(), "base64")),
+        box: sellerBox,
         check: (credentials: PayPalAppCredentials) => checkSellerApp(credentials),
-        // Invoices go over REST only, as for PactPal's own app (docs/decisions.md, 4d).
-        connect: (credentials: PayPalAppCredentials) => {
-          const clients = ownAppClients(credentials);
-          return { invoices: clients.invoices, webhooks: new PayPalWebhooks(clients.rest) };
-        },
+        connect: connectOwnApp,
       }
     : undefined;
 const app = buildApp(report, {

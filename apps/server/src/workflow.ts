@@ -21,6 +21,7 @@ import {
 } from "./disputes/claim-job.js";
 import { DISPUTE_TASK_NAME, jsonLines, runClaimTask, runDisputeTask } from "./disputes/task.js";
 import { councilClients } from "./drafting/runtime.js";
+import { connectOwnApp } from "./sellers/connect-app.js";
 
 const log = jsonLines((line) => process.stdout.write(line));
 const connect = (url: string) =>
@@ -49,6 +50,8 @@ task(
           undefined,
           new McpFallback(),
         ),
+      // Sellers' own linked apps are checked too (6h-5), with SELLER_KEYS_ENCRYPTION_KEY.
+      connectApp: connectOwnApp,
       clock: () => new Date(),
       newId: randomUUID,
       log,

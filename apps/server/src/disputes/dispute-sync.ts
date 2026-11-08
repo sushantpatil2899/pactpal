@@ -8,6 +8,7 @@ import {
   type DisputeCheckResult,
   type DisputeCheckSource,
   type DisputeSnapshot,
+  type PaidStageAccount,
   type StoredDispute,
 } from "@pactpal/db";
 import {
@@ -16,19 +17,22 @@ import {
   PayPalResponseError,
   type DisputeDetails,
   type DisputeSummary,
-  type PayPalDisputes,
 } from "@pactpal/paypal";
 import { z } from "zod";
 import type { LogSink } from "../payments/payment-sync.js";
 import { sendDisputeNotices, type NoticeDeps } from "./notices.js";
 import { matchDispute, paymentKeys, type DisputedPayments } from "./match.js";
 
-/** The PayPal reads a dispute check makes. */
-export type DisputeReader = Pick<PayPalDisputes, "list" | "get">;
+import type { DisputeReader, LinkedDisputeAccount } from "./dispute-reader.js";
+
+export type { DisputeReader, LinkedDisputeAccount } from "./dispute-reader.js";
 
 export interface DisputeSyncDeps {
   db: Database;
-  disputes: DisputeReader;
+  /** PactPal's own seller app; absent when only sellers' own apps are set up. */
+  disputes?: DisputeReader | undefined;
+  /** Sellers' own linked apps, read at the start of each check (6h-5). */
+  linkedAccounts?: () => Promise<LinkedDisputeAccount[]>;
   clock: () => Date;
   newId: () => string;
   log: LogSink;
@@ -169,53 +173,84 @@ export function failureCode(error: unknown): string {
   return "the check failed inside PactPal";
 }
 
+type Counts = Omit<Extract<DisputeCheckResult, { ok: true }>, "ok">;
+
 /**
- * One dispute check: reads the seller's dispute list from PayPal, reads in full each dispute
- * that is new or changed, ties each to the paid stage it is about (`matchDispute`) and saves it,
- * writing its log entries (`recordDispute`). Each check is recorded in `dispute_checks` with its
- * counts or why it failed; a failure is then thrown again, so a scheduled task is retried.
+ * Reads one account's dispute list, reads in full each dispute that is new or changed, ties each
+ * to the paid stage of that same account it is about (`matchDispute`) and saves it (`recordDispute`).
+ */
+async function syncAccount(
+  deps: DisputeSyncDeps,
+  disputes: DisputeReader,
+  account: PaidStageAccount,
+  counts: Counts,
+  checkId: string,
+): Promise<void> {
+  const { db, clock, log } = deps;
+  const { data: list } = await disputes.list();
+  if (list.truncated) log.warn({ checkId }, "Dispute list stopped at the page limit");
+  for (const listed of list.disputes) {
+    counts.listed += 1;
+    const stored = await getDispute(db, listed.disputeId);
+    let snapshot: DisputeSnapshot;
+    let transactions: DisputedPayments;
+    if (changedSince(stored, listed)) {
+      const { data: details } = await disputes.get(listed.disputeId);
+      counts.readInFull += 1;
+      snapshot = snapshotOf(details);
+      transactions = details.transactions;
+    } else if (stored?.dealId === null) {
+      // Unchanged at PayPal, but its payment may have been recorded since: try matching again.
+      snapshot = storedSnapshot(stored);
+      transactions = storedTransactions(stored);
+    } else {
+      counts.matched += 1;
+      continue;
+    }
+    const stages = await findPaidStages(db, paymentKeys(transactions), account);
+    const match = matchDispute(transactions, stages);
+    if (!match.ok)
+      log.info({ disputeId: listed.disputeId, reason: match.reason }, "Dispute not matched");
+    const { dispute, entries } = await recordDispute(
+      db,
+      snapshot,
+      match.ok ? match.link : undefined,
+      clock(),
+    );
+    counts.newEntries += entries.length;
+    if (dispute.dealId === null) counts.unmatched += 1;
+    else counts.matched += 1;
+  }
+}
+
+/**
+ * One dispute check: PactPal's own seller app, then each seller's own linked app (6h-5), each
+ * matched only against stages invoiced from that account. Each check is recorded in
+ * `dispute_checks` with its counts or why it failed. A failure of PactPal's own app (or of reading
+ * the links) fails the check and is thrown again, so a scheduled task is retried; one linked app
+ * failing is logged and the others are still checked.
  */
 export async function syncDisputes(
   deps: DisputeSyncDeps,
   source: DisputeCheckSource,
 ): Promise<DisputeCheckResult> {
-  const { db, disputes, clock, log } = deps;
+  const { db, clock, log } = deps;
   const checkId = deps.newId();
   await startDisputeCheck(db, { id: checkId, source }, clock());
-  const counts = { listed: 0, readInFull: 0, matched: 0, unmatched: 0, newEntries: 0 };
+  const counts: Counts = { listed: 0, readInFull: 0, matched: 0, unmatched: 0, newEntries: 0 };
   try {
-    const { data: list } = await disputes.list();
-    if (list.truncated) log.warn({ checkId }, "Dispute list stopped at the page limit");
-    for (const listed of list.disputes) {
-      counts.listed += 1;
-      const stored = await getDispute(db, listed.disputeId);
-      let snapshot: DisputeSnapshot;
-      let transactions: DisputedPayments;
-      if (changedSince(stored, listed)) {
-        const { data: details } = await disputes.get(listed.disputeId);
-        counts.readInFull += 1;
-        snapshot = snapshotOf(details);
-        transactions = details.transactions;
-      } else if (stored?.dealId === null) {
-        // Unchanged at PayPal, but its payment may have been recorded since: try matching again.
-        snapshot = storedSnapshot(stored);
-        transactions = storedTransactions(stored);
-      } else {
-        counts.matched += 1;
-        continue;
+    if (deps.disputes) {
+      await syncAccount(deps, deps.disputes, { kind: "pactpal" }, counts, checkId);
+    }
+    for (const linked of (await deps.linkedAccounts?.()) ?? []) {
+      const account = { kind: "own-app", merchantId: linked.merchantId } as const;
+      try {
+        await syncAccount(deps, linked.disputes, account, counts, checkId);
+      } catch (error) {
+        const failure = failureCode(error);
+        if (failure === "the check failed inside PactPal") throw error;
+        log.warn({ checkId, connectionId: linked.connectionId, failure }, "Seller app not checked");
       }
-      const match = matchDispute(transactions, await findPaidStages(db, paymentKeys(transactions)));
-      if (!match.ok)
-        log.info({ disputeId: listed.disputeId, reason: match.reason }, "Dispute not matched");
-      const { dispute, entries } = await recordDispute(
-        db,
-        snapshot,
-        match.ok ? match.link : undefined,
-        clock(),
-      );
-      counts.newEntries += entries.length;
-      if (dispute.dealId === null) counts.unmatched += 1;
-      else counts.matched += 1;
     }
   } catch (error) {
     const failure = failureCode(error);

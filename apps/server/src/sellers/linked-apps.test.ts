@@ -9,6 +9,7 @@ import {
 import { Secret, SecretBox } from "@pactpal/net";
 import type { PayPalAppCredentials } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
+import { fakeAppClients } from "./test-support.js";
 import { dealTestApp, signedInAs } from "../deals/test-app.js";
 import { fakeAppWebhooks, fakePayPal } from "../payments/paypal-test-support.js";
 import { LinkedApps, invoicesFor } from "./linked-apps.js";
@@ -38,7 +39,7 @@ function apps() {
   const own = fakePayPal();
   const linked = new LinkedApps(db, box, (credentials) => {
     opened.push(credentials);
-    return { invoices: own.invoices, webhooks: fakeAppWebhooks().webhooks };
+    return fakeAppClients({ invoices: own.invoices });
   });
   return { linked, opened, own };
 }
@@ -103,7 +104,7 @@ describe("invoices from a seller's own app (6h-3)", () => {
       sellerApps: {
         box,
         check: () => Promise.resolve({ ok: true, merchantId: "OWN1", scopes: [] }),
-        connect: () => ({ invoices: own.invoices, webhooks: alerts.webhooks }),
+        connect: () => fakeAppClients({ invoices: own.invoices, webhooks: alerts.webhooks }),
       },
     });
     const token = await signedInAs(db, deal.seller.id);

@@ -15,17 +15,12 @@ import { sha256Hex } from "@pactpal/ledger";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { readBody, sendRefusal, type DealLookup, type FoundDeal } from "../deals/access.js";
-import {
-  actionChoices,
-  actionView,
-  deliverAction,
-  evidenceTypesFor,
-  type DisputeWriter,
-} from "./action-service.js";
+import { actionChoices, actionView, deliverAction, evidenceTypesFor } from "./action-service.js";
 import type { DisputeChecker } from "./checker.js";
 import { sellersDispute } from "./dispute-lookup.js";
 import { requestedEvidenceOf } from "./dispute-view.js";
 import { appealGaps } from "./appeal-coverage.js";
+import type { DisputeWriterLookup } from "../sellers/linked-apps.js";
 import { PACKET_LIMITS } from "./packet.js";
 import { packetUploadFiles } from "./packet-service.js";
 
@@ -33,8 +28,8 @@ export interface ActionRouteOptions {
   sellersDeal: DealLookup;
   clock: () => Date;
   newId: () => string;
-  /** Sends to PayPal; absent until the seller app's keys are set. */
-  writer: DisputeWriter | undefined;
+  /** Who sends a dispute's answers to PayPal: the account its stage was invoiced from (6h-5). */
+  writerFor: DisputeWriterLookup;
   /** Checks the dispute again after a send, so the page shows PayPal's new state. */
   disputes: DisputeChecker | undefined;
 }
@@ -130,7 +125,7 @@ const STATUS_CODES = { sent: 201, refused: 409, unknown: 502, sending: 502 } as 
  * outcome is never sent again without the seller's new confirmation.
  */
 export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, options) => {
-  const { sellersDeal, clock, newId, writer, disputes } = options;
+  const { sellersDeal, clock, newId, writerFor, disputes } = options;
   const dispute = "/api/deals/:id/disputes/:disputeId";
 
   /** Sends a reserved action, checks the dispute again when it went, and answers the page. */
@@ -138,11 +133,13 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
     request: FastifyRequest,
     reply: FastifyReply,
     found: FoundDeal,
+    stored: StoredDispute,
     reserve: () => Promise<{
       action: DisputeActionRecord;
       files: readonly { name: string; content: Uint8Array }[];
     }>,
   ) {
+    const writer = await writerFor(found.db, stored);
     if (!writer) return reply.code(503).send({ error: "sending to PayPal is not set up" });
     let reserved;
     try {
@@ -220,6 +217,7 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
       both.dispute,
       requestedEvidenceOf(both.dispute.details),
     );
+    const writer = await writerFor(both.found.db, both.dispute);
     return reply.send({ canSend: writer !== undefined, ...choices });
   });
 
@@ -245,7 +243,7 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
       const body = await readBody(schema, request, reply);
       if (!body) return reply;
       const { found, dispute: stored } = both;
-      return send(request, reply, found, async () => {
+      return send(request, reply, found, stored, async () => {
         checkNote(body);
         allows(stored, paypalAction);
         const { fields, files } = await prepare(body, stored, found);
@@ -379,7 +377,7 @@ export const actionRoutes: FastifyPluginAsync<ActionRouteOptions> = (app, option
     }
     if (!(await readBody(resendBody, request, reply))) return reply;
     const { found, dispute: stored } = both;
-    return send(request, reply, found, async () => {
+    return send(request, reply, found, stored, async () => {
       const files =
         existing.packetId === undefined ? [] : await filesOf(found, stored, existing.packetId);
       // The files must still be exactly the ones confirmed the first time.

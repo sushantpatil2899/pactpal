@@ -282,24 +282,41 @@ const paidStageRow = z.object({
 export type PaidStage = z.output<typeof paidStageRow>;
 
 /**
- * Paid stages whose PayPal transaction id is one of `transactionIds`, or whose invoice is named
- * in `invoiceNumbers`. A dispute's `invoice_number` holds the invoice's id (INV2-…), not its
- * number (checked in the sandbox on 5 Nov 2026), so both are compared.
+ * Which PayPal account's invoices to look in (6h-5): PactPal's own seller app (stages sent with no
+ * link), or a seller's own PayPal account (stages sent through any of their links to it).
+ */
+export type PaidStageAccount = { kind: "pactpal" } | { kind: "own-app"; merchantId: string };
+
+/**
+ * Paid stages invoiced from `account` whose PayPal transaction id is one of `transactionIds`, or
+ * whose invoice is named in `invoiceNumbers`. A dispute's `invoice_number` holds the invoice's id
+ * (INV2-…), not its number (checked in the sandbox on 5 Nov 2026), so both are compared. Only the
+ * account's own stages, so a dispute never lands on another seller's deal.
  */
 export async function findPaidStages(
   q: Queryable,
   keys: { transactionIds: readonly string[]; invoiceNumbers: readonly string[] },
+  account: PaidStageAccount = { kind: "pactpal" },
 ): Promise<PaidStage[]> {
   if (keys.transactionIds.length === 0 && keys.invoiceNumbers.length === 0) return [];
+  const sentFrom =
+    account.kind === "pactpal"
+      ? "seller_connection_id IS NULL AND $3::text IS NULL"
+      : `seller_connection_id IN (SELECT id FROM seller_connections WHERE merchant_id = $3)`;
   const rows = await q.query(
     `SELECT deal_id AS "dealId", stage, invoice_id AS "invoiceId",
             transaction_id AS "transactionId", invoice_number AS "invoiceNumber"
        FROM milestones
       WHERE status = 'paid'
+        AND ${sentFrom}
         AND (transaction_id = ANY($1::text[]) OR invoice_number = ANY($2::text[])
              OR invoice_id = ANY($2::text[]))
       ORDER BY deal_id, stage`,
-    [[...keys.transactionIds], [...keys.invoiceNumbers]],
+    [
+      [...keys.transactionIds],
+      [...keys.invoiceNumbers],
+      account.kind === "pactpal" ? null : account.merchantId,
+    ],
   );
   return rows.map((row) => paidStageRow.parse(row));
 }

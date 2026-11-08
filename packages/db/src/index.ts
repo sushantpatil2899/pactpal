@@ -66,6 +66,7 @@ export {
   connectedSellers,
   disconnectSeller,
   linkOwnApp,
+  liveLinkForAccount,
   ownAppKeys,
   setOwnAppWebhook,
   startConnection,
@@ -286,6 +287,7 @@ export type {
   DisputeMatch,
   DisputeSnapshot,
   PaidStage,
+  PaidStageAccount,
   StoredDispute,
 } from "./disputes.js";
 export {

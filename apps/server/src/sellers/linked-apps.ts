@@ -1,11 +1,22 @@
-import { ownAppKeys, type Database } from "@pactpal/db";
+import {
+  connectedSellers,
+  listMilestones,
+  liveLinkForAccount,
+  ownAppKeys,
+  type Database,
+  type StoredDispute,
+} from "@pactpal/db";
 import type { SecretBox } from "@pactpal/net";
 import type { PayPalAppCredentials, PayPalWebhooks } from "@pactpal/paypal";
+import type { DisputeWriter } from "../disputes/action-service.js";
+import type { DisputeReader, LinkedDisputeAccount } from "../disputes/dispute-reader.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
 
-/** What PactPal uses of a seller's own app; grows with 6h-5 (disputes). */
+/** What PactPal uses of a seller's own app. */
 export interface LinkedAppClients {
   invoices: InvoiceSender;
+  /** Reading its disputes and answering them (6h-5). */
+  disputes: DisputeReader & DisputeWriter;
   /** Its alert address (6h-4): registering, removing, and checking alerts are genuine. */
   webhooks: Pick<PayPalWebhooks, "verify" | "register" | "remove">;
 }
@@ -57,6 +68,16 @@ export class LinkedApps {
     this.#known.set(connectionId, app);
     return app;
   }
+
+  /**
+   * The app to reach the PayPal account of `connectionId` with: that link while live, else the
+   * same seller's later link to the same account (6h-5). For reads and dispute answers only:
+   * sending an invoice stays on its own link, so a request id never reaches another app.
+   */
+  async forAccount(connectionId: string): Promise<LinkedApp | undefined> {
+    const live = await liveLinkForAccount(this.#db, connectionId);
+    return live === undefined ? undefined : this.get(live);
+  }
 }
 
 /** Where a stage's invoice goes: PactPal's own seller app, or a seller's linked app. */
@@ -82,17 +103,68 @@ export interface InvoiceAccounts {
 export async function invoicesFor(
   accounts: InvoiceAccounts,
   connectionId: string | null | undefined,
+  /** `account`: also through a later link to the same account (payment checks, not sending). */
+  reach: "link" | "account" = "link",
 ): Promise<{ ok: true; account: InvoiceAccount } | { ok: false; reason: NoInvoiceAccount }> {
   if (connectionId === null || connectionId === undefined) {
     return accounts.invoices
       ? { ok: true, account: { kind: "pactpal", invoices: accounts.invoices } }
       : { ok: false, reason: "not-set-up" };
   }
-  const app = await accounts.linked?.get(connectionId);
+  const app =
+    reach === "account"
+      ? await accounts.linked?.forAccount(connectionId)
+      : await accounts.linked?.get(connectionId);
   return app
     ? {
         ok: true,
         account: { kind: "own-app", merchantId: app.merchantId, invoices: app.clients.invoices },
       }
     : { ok: false, reason: "account-unlinked" };
+}
+
+/** Finds who answers a dispute; undefined when no account can (sending is then off). */
+export type DisputeWriterLookup = (
+  db: Database,
+  dispute: Pick<StoredDispute, "dealId" | "stage">,
+) => Promise<DisputeWriter | undefined>;
+
+/**
+ * Who answers a dispute (6h-5): the account its disputed stage was invoiced from, PactPal's own app
+ * or the seller's linked app (through a later link to the same account, if relinked).
+ */
+export function disputeWriters(
+  pactpal: DisputeWriter | undefined,
+  linked: LinkedApps | undefined,
+): DisputeWriterLookup {
+  return async (db, dispute) => {
+    if (dispute.dealId === null || dispute.stage === null) return undefined;
+    const stage = (await listMilestones(db, dispute.dealId)).find((m) => m.stage === dispute.stage);
+    const connectionId = stage?.sellerConnectionId ?? null;
+    if (connectionId === null) return pactpal;
+    return (await linked?.forAccount(connectionId))?.clients.disputes;
+  };
+}
+
+/**
+ * Every live linked app whose secret opens, for one dispute check (6h-5). A link whose secret
+ * cannot be opened is left out; the check logs nothing about it here.
+ */
+export async function linkedDisputeAccounts(
+  db: Database,
+  linked: LinkedApps,
+): Promise<LinkedDisputeAccount[]> {
+  const accounts: LinkedDisputeAccount[] = [];
+  for (const connection of await connectedSellers(db)) {
+    if (connection.method !== "own_app") continue;
+    const app = await linked.get(connection.id);
+    if (app) {
+      accounts.push({
+        connectionId: connection.id,
+        merchantId: app.merchantId,
+        disputes: app.clients.disputes,
+      });
+    }
+  }
+  return accounts;
 }

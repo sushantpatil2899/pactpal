@@ -5,6 +5,7 @@ import {
   connectedSellers,
   disconnectSeller,
   linkOwnApp,
+  liveLinkForAccount,
   ownAppKeys,
   setOwnAppWebhook,
   startConnection,
@@ -267,6 +268,24 @@ describe("seller connections", () => {
       await expect(
         db.query("UPDATE seller_connections SET webhook_id = 'WH-4' WHERE id = $1", [started.id]),
       ).rejects.toThrow(/webhook_own_app/);
+    });
+
+    it("finds a relink of the same seller and account, never another seller's (6h-5)", async () => {
+      const { seller, buyer } = await createTestParties(db);
+      const first = await link(seller.id, "M1");
+      const firstId = first.ok ? first.connection.id : "";
+      expect(await liveLinkForAccount(db, firstId)).toBe(firstId);
+      await disconnectSeller(db, seller.id, later(1));
+      expect(await liveLinkForAccount(db, firstId)).toBeUndefined();
+      // Another user now holds account M1: not the same seller, so not used.
+      await link(buyer.id, "M1", later(2));
+      expect(await liveLinkForAccount(db, firstId)).toBeUndefined();
+      await disconnectSeller(db, buyer.id, later(3));
+      const again = await link(seller.id, "M1", later(4));
+      expect(await liveLinkForAccount(db, firstId)).toBe(again.ok ? again.connection.id : "x");
+      // A different account of the same seller is not the same account.
+      await link(seller.id, "M2", later(5));
+      expect(await liveLinkForAccount(db, firstId)).toBeUndefined();
     });
 
     it("gives no keys for a Partner Referrals connection", async () => {

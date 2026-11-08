@@ -53,8 +53,9 @@ export async function checkInvoicePaid(
   if (!row) return "unknown";
   if (row.status === "paid") return "already-paid";
   if (row.status !== "sent") return "not-paid";
-  // Always the account that sent it: another account could not see the invoice.
-  const access = await invoicesFor(deps, row.sellerConnectionId);
+  // Always the account that sent it (through a later link to it, if relinked): another account
+  // could not see the invoice.
+  const access = await invoicesFor(deps, row.sellerConnectionId, "account");
   if (!access.ok) return "account-unlinked";
   const { data: invoice } = await access.account.invoices.get(invoiceId);
   if (invoice.status !== "PAID") return "not-paid";

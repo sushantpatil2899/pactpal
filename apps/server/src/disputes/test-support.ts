@@ -1,6 +1,14 @@
 import { addArtifact, postgresContentStore, recordDispute, type Database } from "@pactpal/db";
 import { TEST_NOW, createTestDeal, linkTestDispute, testId } from "@pactpal/db/testing";
-import { PayPalNetworkError, type DisputeDetails } from "@pactpal/paypal";
+import {
+  PayPalNetworkError,
+  type AcceptClaimInput,
+  type DisputeDetails,
+  type EscalateInput,
+  type EvidenceInput,
+  type MessageInput,
+  type OfferInput,
+} from "@pactpal/paypal";
 import { expect } from "vitest";
 import { councilOf } from "@pactpal/council/testing";
 import {
@@ -14,6 +22,7 @@ import { inProcessClaimRunner } from "./checker.js";
 import { runDisputeJob } from "./claim-job.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import type { DisputeReader } from "./dispute-sync.js";
+import type { DisputeWriter } from "./action-service.js";
 
 /** Test code only: a dispute as PayPal answers it, ready to override. */
 export const testDispute = (overrides: Partial<DisputeDetails> = {}): DisputeDetails => ({
@@ -81,6 +90,28 @@ export function fakeDisputes(disputes: DisputeDetails[] = []) {
       }),
   };
   return { reader, disputes, state };
+}
+
+type WriteInput = EscalateInput | EvidenceInput | MessageInput | OfferInput | AcceptClaimInput;
+
+/** Test code only: a stand-in for PayPal's dispute writes: keeps what it was sent, or fails as told. */
+export function fakeWriter() {
+  const sent: { action: string; disputeId: string; input: WriteInput }[] = [];
+  const state: { fail: Error | undefined } = { fail: undefined };
+  const answer = (action: string, disputeId: string, input: WriteInput) => {
+    if (state.fail !== undefined) return Promise.reject(state.fail);
+    sent.push({ action, disputeId, input });
+    return Promise.resolve({ data: { disputeId }, transport: "rest" as const, debugId: "dbg-1" });
+  };
+  const writer: DisputeWriter = {
+    escalate: (disputeId, input) => answer("escalate", disputeId, input),
+    provideEvidence: (disputeId, input) => answer("provide_evidence", disputeId, input),
+    sendMessage: (disputeId, input) => answer("send_message", disputeId, input),
+    makeOffer: (disputeId, input) => answer("make_offer", disputeId, input),
+    acceptClaim: (disputeId, input) => answer("accept_claim", disputeId, input),
+    appeal: (disputeId, input) => answer("appeal", disputeId, input),
+  };
+  return { writer, sent, state };
 }
 
 /** Test code only: a log that keeps its lines, to check that nothing private is written. */

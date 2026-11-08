@@ -2,6 +2,7 @@ import { activeConnection, recordWebhookEvent } from "@pactpal/db";
 import { TEST_NOW, createSignedTestDeal, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { SecretBox } from "@pactpal/net";
 import { describe, expect, it } from "vitest";
+import { fakeAppClients } from "./test-support.js";
 import { dealTestApp, signedInAs } from "../deals/test-app.js";
 import { fakeAppWebhooks, fakePayPal } from "../payments/paypal-test-support.js";
 
@@ -17,7 +18,7 @@ async function setup(publicBaseUrl?: string) {
     sellerApps: {
       box: new SecretBox(Buffer.alloc(32, 4)),
       check: () => Promise.resolve({ ok: true, merchantId: "OWN1", scopes: [] }),
-      connect: () => ({ invoices: own.invoices, webhooks: alerts.webhooks }),
+      connect: () => fakeAppClients({ invoices: own.invoices, webhooks: alerts.webhooks }),
     },
     webhooks: {
       verifier: undefined,

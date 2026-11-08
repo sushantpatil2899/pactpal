@@ -27,7 +27,7 @@ import { changeOrderRoutes } from "./change-order-routes.js";
 import { completenessRoutes } from "./completeness-routes.js";
 import { questionRoutes } from "./question-routes.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
-import type { LinkedApps } from "../sellers/linked-apps.js";
+import { disputeWriters, type LinkedApps } from "../sellers/linked-apps.js";
 import { deliveryCheckRoutes } from "./delivery-check-routes.js";
 import { deliveryRoutes } from "./delivery-routes.js";
 import { messageRoutes } from "./message-routes.js";
@@ -162,7 +162,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     sellersDeal,
     clock,
     newId,
-    writer: disputeWriter,
+    writerFor: disputeWriters(disputeWriter, linked),
     disputes,
   });
   void app.register(deliveryRoutes, {

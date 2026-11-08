@@ -267,6 +267,25 @@ export async function setOwnAppWebhook(
   return rows.length > 0;
 }
 
+/**
+ * The live own-app link of the same seller and the same PayPal account as `connectionId` (itself
+ * while live, or a later relink), or undefined. Never another seller's link (6h-5).
+ */
+export async function liveLinkForAccount(
+  q: Queryable,
+  connectionId: string,
+): Promise<string | undefined> {
+  const rows = await q.query(
+    `SELECT live.id FROM seller_connections earlier
+       JOIN seller_connections live
+         ON live.user_id = earlier.user_id AND live.merchant_id = earlier.merchant_id
+      WHERE earlier.id = $1 AND earlier.method = 'own_app'
+        AND live.method = 'own_app' AND live.status = 'connected'`,
+    [connectionId],
+  );
+  return z.object({ id: z.string() }).optional().parse(rows[0])?.id;
+}
+
 /** The seller's live connection, or undefined (they then use PactPal's own seller app). */
 export async function activeConnection(
   q: Queryable,

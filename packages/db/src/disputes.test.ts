@@ -5,6 +5,7 @@ import {
   finishDisputeCheck,
   getDispute,
   latestDisputeCheck,
+  linkOwnApp,
   listDealDisputes,
   readLedger,
   recordDispute,
@@ -188,6 +189,34 @@ describe("disputes", () => {
     expect(
       await findPaidStages(db, { transactionIds: [], invoiceNumbers: ["INV2-TEST-PAID"] }),
     ).toHaveLength(1);
+  });
+
+  it("finds only the stages invoiced from the account asked about (6h-5)", async () => {
+    const { dealId, seller } = await createPaidTestDeal(db, { transactionId: "TX-1" });
+    const keys = { transactionIds: ["TX-1"], invoiceNumbers: [] };
+    expect(await findPaidStages(db, keys)).toHaveLength(1);
+    expect(await findPaidStages(db, keys, { kind: "own-app", merchantId: "OWN1" })).toEqual([]);
+
+    // The same stage, now sent from the seller's own app (an earlier link to account OWN1).
+    await linkOwnApp(
+      db,
+      {
+        id: testId(90),
+        userId: seller.id,
+        clientId: "c1",
+        sealedSecret: "v1.x",
+        merchantId: "OWN1",
+        scopes: [],
+      },
+      at(0),
+    );
+    await db.query("UPDATE milestones SET seller_connection_id = $1 WHERE deal_id = $2", [
+      testId(90),
+      dealId,
+    ]);
+    expect(await findPaidStages(db, keys)).toEqual([]);
+    expect(await findPaidStages(db, keys, { kind: "own-app", merchantId: "OWN1" })).toHaveLength(1);
+    expect(await findPaidStages(db, keys, { kind: "own-app", merchantId: "OWN2" })).toEqual([]);
   });
 
   it("records each check and how it ended", async () => {

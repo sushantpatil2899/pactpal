@@ -16,6 +16,8 @@ import { formatErrors, loadConfig, type Config } from "../config.js";
 import type { LogSink } from "../payments/payment-sync.js";
 import { renderWorkflowChecker, type TaskStarter } from "./checker.js";
 import { syncDisputes, type DisputeReader } from "./dispute-sync.js";
+import { LinkedApps, linkedDisputeAccounts, type ConnectApp } from "../sellers/linked-apps.js";
+import { sellerKeyBox } from "../sellers/key-box.js";
 
 /** The Render Workflow task's name; the website and the cron start it as `<workflow>/<name>`. */
 export const DISPUTE_TASK_NAME = "check-disputes";
@@ -24,6 +26,8 @@ export const DISPUTE_TASK_NAME = "check-disputes";
 export interface TaskWiring {
   connect: (url: string) => Database;
   disputesFor: (seller: PayPalAppCredentials) => DisputeReader;
+  /** Builds a seller's own linked app's clients (6h-5); its disputes are checked too. */
+  connectApp?: ConnectApp;
   clock: () => Date;
   newId: () => string;
   log: LogSink;
@@ -44,8 +48,14 @@ export async function runDisputeTask(
   const source = z.enum(DISPUTE_CHECK_SOURCES).parse(input);
   const config = settings(env);
   const seller = config.paypal.apps.seller;
-  if (config.database === undefined || seller === undefined) {
-    throw new Error("Dispute checks need DATABASE_URL and the PayPal seller app's keys");
+  const box =
+    config.sellerKeys && wiring.connectApp
+      ? { box: sellerKeyBox(config.sellerKeys.encryptionKey), connect: wiring.connectApp }
+      : undefined;
+  if (config.database === undefined || (seller === undefined && box === undefined)) {
+    throw new Error(
+      "Dispute checks need DATABASE_URL and the PayPal seller app's keys or SELLER_KEYS_ENCRYPTION_KEY",
+    );
   }
   const notices =
     config.email && config.publicBaseUrl !== undefined && wiring.emailFor
@@ -56,7 +66,13 @@ export async function runDisputeTask(
     syncDisputes(
       {
         db,
-        disputes: wiring.disputesFor(seller),
+        ...(seller ? { disputes: wiring.disputesFor(seller) } : {}),
+        ...(box
+          ? {
+              linkedAccounts: () =>
+                linkedDisputeAccounts(db, new LinkedApps(db, box.box, box.connect)),
+            }
+          : {}),
         clock: wiring.clock,
         newId: wiring.newId,
         log: wiring.log,
