@@ -75,6 +75,15 @@ describe("the chat bus", () => {
 });
 
 describe("the live hub", () => {
+  /** The test deal and a hub on this copy ("here") with an in-memory bus. */
+  async function hubOnTestDeal() {
+    const deal = await createTestDeal(db);
+    const bus = memoryBus();
+    const warn = vi.fn();
+    const hub = new LiveHub({ db, bus, serverId: "here", clock: () => new Date(), log: { warn } });
+    return { deal, bus, warn, hub };
+  }
+
   function testPage(dealId: string, userId: string, role: "seller" | "buyer") {
     const frames: ServerFrame[] = [];
     const page: LivePage = { dealId, userId, role, send: (frame) => frames.push(frame) };
@@ -82,10 +91,7 @@ describe("the live hub", () => {
   }
 
   it("counts pages on other server copies as online, and re-sends after a resync", async () => {
-    const deal = await createTestDeal(db);
-    const bus = memoryBus();
-    const warn = vi.fn();
-    const hub = new LiveHub({ db, bus, serverId: "here", clock: () => new Date(), log: { warn } });
+    const { deal, bus, hub } = await hubOnTestDeal();
     const seller = testPage(deal.dealId, deal.seller.id, "seller");
     await hub.join(seller.page, 0);
 
@@ -117,10 +123,7 @@ describe("the live hub", () => {
   });
 
   it("logs a failed send instead of throwing", async () => {
-    const deal = await createTestDeal(db);
-    const bus = memoryBus();
-    const warn = vi.fn();
-    const hub = new LiveHub({ db, bus, serverId: "here", clock: () => new Date(), log: { warn } });
+    const { deal, bus, warn, hub } = await hubOnTestDeal();
     const broken: LivePage = {
       dealId: deal.dealId,
       userId: deal.seller.id,
