@@ -1,5 +1,5 @@
 import type { ScopeTerms } from "./api";
-import { dayWords, markWords } from "@pactpal/words";
+import { dayWords, markWords, stepLine } from "@pactpal/words";
 
 /** A date (YYYY-MM-DD) as people read it, e.g. "20 Nov 2026". */
 export const dateOf = dayWords;
@@ -46,6 +46,16 @@ export function ScopeDetails({ scope }: { scope: ScopeTerms }) {
                 {item.text}
                 {item.dueDate !== null && ` (by ${dateOf(item.dueDate)})`}
               </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {(scope.timeline ?? scope.steps) !== undefined && (
+        <>
+          <h4>Timeline (in this order)</h4>
+          <ul style={{ listStyle: "none", paddingLeft: 0 }}>
+            {(scope.timeline ?? scope.steps ?? []).map((step) => (
+              <li key={step.n}>{stepLine(step, scope.currency)}</li>
             ))}
           </ul>
         </>

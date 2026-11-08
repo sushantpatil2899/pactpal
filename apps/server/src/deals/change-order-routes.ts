@@ -18,6 +18,13 @@ import {
 } from "@pactpal/db";
 import type { EmailSender } from "@pactpal/email";
 import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply } from "fastify";
+import {
+  STEP_KIND_WORDS,
+  resolveTimeline,
+  syncTimeline,
+  timelineOf,
+  timelineStepSchema,
+} from "@pactpal/timeline";
 import { z } from "zod";
 import { ACCEPTANCE_NOTICE_VERSION, documentFor } from "../acceptance/document.js";
 import { emailReceiptQuietly } from "../acceptance/receipt-mail.js";
@@ -58,6 +65,8 @@ const proposeBody = z.object({
   addExclusions: z.array(exclusions.element).max(50).default([]),
   addBuyerProvides: z.array(buyerProvides.unwrap().element).max(20).default([]),
   addStages: z.array(typedStageSchema).max(20).default([]),
+  /** Timeline steps added after the signed ones (7f); new stages and items get theirs anyway. */
+  addSteps: z.array(timelineStepSchema).max(20).default([]),
   dueDate: z.iso.date().optional(),
   revisionsIncluded: z.number().int().min(0).max(20).optional(),
   message: z.string().trim().min(1).max(1000).optional(),
@@ -91,6 +100,16 @@ function proposedContent(signed: ScopeContent, body: ProposeBody, currency: stri
   ];
   const dueDate = body.dueDate ?? signed.dueDate;
   const revisions = body.revisionsIncluded ?? signed.revisionsIncluded;
+  const items = (signed.buyerProvides?.length ?? 0) + body.addBuyerProvides.length;
+  // A signed timeline keeps its steps; new steps, then new items' and stages' steps, follow.
+  const timeline =
+    signed.timeline === undefined && body.addSteps.length === 0
+      ? undefined
+      : syncTimeline(
+          [...timelineOf(signed), ...body.addSteps],
+          signed.milestones.length + stages.length,
+          items,
+        );
   const raw = {
     ...signed,
     deliverables: [...signed.deliverables, ...body.addLines.map((line) => line.text)],
@@ -100,6 +119,7 @@ function proposedContent(signed: ScopeContent, body: ProposeBody, currency: stri
     milestones: [...signed.milestones, ...stages],
     ...(dueDate === undefined ? {} : { dueDate }),
     ...(revisions === undefined ? {} : { revisionsIncluded: revisions }),
+    ...(timeline === undefined ? {} : { timeline }),
   };
   const checked = checkedContent(raw, fields);
   if (checked.ok) return checked;
@@ -131,8 +151,9 @@ function proposedContent(signed: ScopeContent, body: ProposeBody, currency: stri
 }
 
 /** What a change adds or changes, as the pages show it (amounts in minor units and as text). */
-function changeView(change: ScopeChange, from: ScopeVersion, currency: string) {
+function changeView(change: ScopeChange, from: ScopeVersion, to: ScopeVersion, currency: string) {
   const firstNew = from.content.milestones.length + 1;
+  const signedSteps = timelineOf(from.content).length;
   return {
     addedLines: change.addedLines,
     addedExclusions: change.addedExclusions,
@@ -152,6 +173,12 @@ function changeView(change: ScopeChange, from: ScopeVersion, currency: string) {
       from: money(change.totalMinor.from, currency),
       to: money(change.totalMinor.to, currency),
     },
+    addedSteps:
+      change.addedSteps.length === 0
+        ? []
+        : resolveTimeline(to.content)
+            .slice(signedSteps)
+            .map((step) => `${STEP_KIND_WORDS[step.kind]}: ${step.title}`),
   };
 }
 
@@ -192,7 +219,7 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
           proposedAt: order.createdAt.toISOString(),
           answeredAt: order.answeredAt?.toISOString() ?? null,
           acceptedBy: order.status === "accepted" ? signedBy(order.answeredSeq) : null,
-          change: changeView(change, from, deal.currency),
+          change: changeView(change, from, to, deal.currency),
           // Only the change waiting has a page to sign.
           ...(order.status === "proposed" ? await documentFor(db, deal, to) : {}),
         })),
@@ -236,7 +263,7 @@ export const changeOrderRoutes: FastifyPluginAsync<ChangeOrderRouteOptions> = (a
         version: proposed.scope.version,
         proposedAt: proposed.changeOrder.createdAt,
         message,
-        change: changeView(proposed.change, signed, found.deal.currency),
+        change: changeView(proposed.change, signed, proposed.scope, found.deal.currency),
         currency: found.deal.currency,
         stages: proposed.scope.content.milestones,
         link: link.link,

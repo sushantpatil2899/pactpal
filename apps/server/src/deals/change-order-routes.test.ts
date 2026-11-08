@@ -19,6 +19,7 @@ interface OrderView {
   message: string | null;
   reason: string | null;
   change: {
+    addedSteps: string[];
     addedLines: { text: string; mark: unknown }[];
     addedStages: { stage: number; title: string; amount: { text: string } }[];
     total: { from: { text: string }; to: { text: string } };
@@ -41,8 +42,8 @@ const ORDERING = {
 };
 
 /** A signed deal, the app, the seller and the buyer (by link). */
-async function signedDeal() {
-  const deal = await createSignedTestDeal(db);
+async function signedDeal(terms: Parameters<typeof createSignedTestDeal>[1] = {}) {
+  const deal = await createSignedTestDeal(db, terms);
   const env = dealTestApp(db, undefined, { trustProxyHops: 1 });
   const seller = await signedInAs(db, deal.seller.id);
   const [, buyer = ""] = await buyerVisitors(db, deal.dealId, deal.buyer.id);
@@ -59,6 +60,38 @@ async function signedDeal() {
   };
   return { ...deal, ...env, sellerId: deal.seller.id, seller, buyer, base, list, propose, sign };
 }
+
+describe("change orders on a signed timeline (7f)", () => {
+  it("keep the signed steps, then add new steps and the new stages' payments", async () => {
+    const env = await signedDeal({
+      timeline: [
+        { kind: "payment", stage: 1 },
+        { kind: "review", text: "Sketch" },
+        { kind: "payment", stage: 2 },
+      ],
+    });
+    const res = await env.propose({
+      ...ORDERING,
+      addSteps: [{ kind: "review", text: "Ordering page mock-up" }],
+    });
+    expect(res.statusCode).toBe(200);
+    const [order] = (await env.list(env.seller)).orders;
+    expect(order?.change.addedSteps).toEqual([
+      "Review (seller shares, buyer approves): Ordering page mock-up",
+      "Payment: Ordering",
+    ]);
+    expect((await env.sign()).statusCode).toBe(200);
+    await env.app.close();
+  });
+
+  it("add no steps when neither side lists its own", async () => {
+    const env = await signedDeal();
+    expect((await env.propose()).statusCode).toBe(200);
+    const [order] = (await env.list(env.seller)).orders;
+    expect(order?.change.addedSteps).toEqual([]);
+    await env.app.close();
+  });
+});
 
 describe("change orders", () => {
   it("are proposed by the seller and signed by the buyer, becoming the signed version", async () => {

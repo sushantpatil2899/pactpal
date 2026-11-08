@@ -12,3 +12,4 @@ export {
   disputeReasonWords,
   plainCode,
 } from "./disputes.js";
+export { stepLine, type StepFacts } from "./steps.js";

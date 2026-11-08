@@ -1,4 +1,5 @@
 import { canonicalJson, sha256Hex, type LedgerEntry } from "@pactpal/ledger";
+import { timelineProblems, timelineSchema } from "@pactpal/timeline";
 import { z } from "zod";
 import type { Database, Queryable } from "./database.js";
 import { DEAL_STATUSES } from "./deals.js";
@@ -61,6 +62,12 @@ export const scopeContentSchema = z.strictObject({
    * marked, for the same reason. The rules that compare fields are in `checkedScopeContentSchema`.
    */
   deliverableKinds: z.array(deliverableKindSchema).max(50).optional(),
+  /**
+   * The agreed steps in their agreed order (7f): what the buyer provides, reviews, payments,
+   * deliveries and other steps. Optional and never stored when absent, so earlier versions keep
+   * their fingerprints; readers use `timelineOf`, which implies one for versions without it.
+   */
+  timeline: timelineSchema.optional(),
 });
 export type ScopeContent = z.output<typeof scopeContentSchema>;
 export type ScopeContentInput = z.input<typeof scopeContentSchema>;
@@ -71,14 +78,17 @@ export type ScopeContentInput = z.input<typeof scopeContentSchema>;
  */
 export const checkedScopeContentSchema = scopeContentSchema.superRefine((content, context) => {
   const kinds = content.deliverableKinds;
-  if (kinds === undefined) return;
-  if (kinds.length !== content.deliverables.length) {
+  if (kinds !== undefined && kinds.length !== content.deliverables.length) {
     context.addIssue({
       code: "custom",
       path: ["deliverableKinds"],
       message: "one mark per delivered line",
     });
   }
+  for (const problem of timelineProblems(content)) {
+    context.addIssue({ code: "custom", path: problem.path, message: problem.message });
+  }
+  if (kinds === undefined) return;
   kinds.forEach((mark, n) => {
     if (mark?.kind === "subjective" && mark.approvalStage > content.milestones.length) {
       context.addIssue({

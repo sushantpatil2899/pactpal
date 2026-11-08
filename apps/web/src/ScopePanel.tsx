@@ -24,6 +24,8 @@ import {
 } from "./FormRows";
 import { draftHints } from "./mark-words";
 import { ScopeDetails } from "./ScopeDetails";
+import { TimelineEditor } from "./TimelineEditor";
+import { syncTimeline, type TimelineStep } from "@pactpal/timeline";
 import { FULL_WIDTH } from "./styles";
 
 /** Wide enough for the chat beside the form. */
@@ -73,6 +75,9 @@ function fieldLabel(field: string): string {
   }
   if (name === "buyerProvides" && index !== undefined) {
     return `the buyer provides, item ${String(Number(index) + 1)}${part === "dueDate" ? ": date" : ""}`;
+  }
+  if (name === "timeline") {
+    return index === undefined ? "the timeline" : `the timeline, step ${String(Number(index) + 1)}`;
   }
   if (name === "deliverableKinds") {
     return index === undefined
@@ -200,6 +205,12 @@ export function ScopePanel({
   const [stages, setStages] = useState<StageRow[]>([{ ...EMPTY_STAGE }]);
   const [provides, setProvides] = useState<ProvideRow[]>([]);
   const [lines, setLines] = useState<LineRow[]>([{ ...EMPTY_LINE }]);
+  const [steps, setSteps] = useState<TimelineStep[]>([]);
+  // The timeline follows the payment stages and buyer items: new ones are added at the end,
+  // removed ones leave it.
+  useEffect(() => {
+    setSteps((current) => syncTimeline(current, stages.length, provides.length));
+  }, [stages.length, provides.length]);
   const [problem, setProblem] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [lineRequest, setLineRequest] = useState<LineRequest | undefined>();
@@ -238,6 +249,7 @@ export function ScopePanel({
         setStages(stagesFrom(found));
         setProvides(providesFrom(found));
         setLines(linesFrom(found));
+        setSteps(found?.timelineSteps ?? []);
       },
       () => {
         setProblem("Could not load the agreed work.");
@@ -268,6 +280,7 @@ export function ScopePanel({
       ...(dueDate === "" ? {} : { dueDate }),
       milestones: stages.map(typedStage),
       buyerProvides: typedProvides(provides),
+      timeline: syncTimeline(steps, stages.length, typedProvides(provides).length),
     };
     setBusy(true);
     setProblem(undefined);
@@ -278,6 +291,7 @@ export function ScopePanel({
         setStages(stagesFrom(saved));
         setProvides(providesFrom(saved));
         setLines(linesFrom(saved));
+        setSteps(saved.timelineSteps);
         onSaved();
       },
       (error: unknown) => {
@@ -309,6 +323,7 @@ export function ScopePanel({
             setStages(stagesFrom(scope ?? null));
             setProvides(providesFrom(scope ?? null));
             setLines(linesFrom(scope ?? null));
+            setSteps(scope?.timelineSteps ?? []);
             onClearFill();
           }}
         />
@@ -448,6 +463,15 @@ export function ScopePanel({
           }}
         </EditableRows>
       </fieldset>
+      <TimelineEditor
+        steps={steps}
+        setSteps={setSteps}
+        targets={{
+          stages: stages.map((stage) => ({ title: stage.title, amount: stage.amount })),
+          items: provides,
+          currency,
+        }}
+      />
       <p>
         <button type="submit" disabled={busy}>
           {scope ? "Save as new version" : "Save version 1"}

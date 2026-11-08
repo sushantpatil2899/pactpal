@@ -1,4 +1,5 @@
 import type { LedgerEntry } from "@pactpal/ledger";
+import { addedSteps, type TimelineStep } from "@pactpal/timeline";
 import { z } from "zod";
 import {
   acceptTermsSchema,
@@ -61,6 +62,8 @@ export interface ScopeChange {
   addedExclusions: string[];
   addedBuyerProvides: { text: string; dueDate?: string }[];
   addedStages: { title: string; amountMinor: number; dueDate?: string }[];
+  /** Steps added after the signed timeline's (7f); empty when neither lists its own steps. */
+  addedSteps: TimelineStep[];
   dueDate?: { from: string | null; to: string | null };
   revisionsIncluded?: { from: number; to: number };
   totalMinor: { from: number; to: number };
@@ -77,7 +80,8 @@ function extension<T>(start: readonly T[], list: readonly T[]): T[] | undefined 
 
 /**
  * Compares a proposed version with the signed one: a change order may only add lines (with
- * marks), exclusions, buyer-provides items and payment stages after the signed ones, change the
+ * marks), exclusions, buyer-provides items, payment stages and timeline steps after the signed
+ * ones, change the
  * overall due date and raise the revisions included (only when the agreement states a number).
  * Everything signed stays exactly as it is, and something must change. Pure.
  */
@@ -97,6 +101,8 @@ export function changeOf(
   if (addedBuyerProvides === undefined) problems.push("buyerProvides");
   const addedStages = extension(signed.milestones, proposed.milestones);
   if (addedStages === undefined) problems.push("milestones");
+  const steps = addedSteps(signed, proposed);
+  if (steps === undefined) problems.push("timeline");
   const revisionsOk =
     signed.revisionsIncluded === undefined
       ? proposed.revisionsIncluded === undefined
@@ -108,6 +114,7 @@ export function changeOf(
     addedExclusions === undefined ||
     addedBuyerProvides === undefined ||
     addedStages === undefined ||
+    steps === undefined ||
     problems.length > 0
   ) {
     return { ok: false, problems };
@@ -117,6 +124,7 @@ export function changeOf(
     addedExclusions,
     addedBuyerProvides,
     addedStages,
+    addedSteps: steps,
     ...(proposed.dueDate === signed.dueDate
       ? {}
       : { dueDate: { from: signed.dueDate ?? null, to: proposed.dueDate ?? null } }),
@@ -128,7 +136,11 @@ export function changeOf(
     totalMinor: { from: scopeTotalMinor(signed), to: scopeTotalMinor(proposed) },
   };
   const nothing =
-    addedLines.length + addedExclusions.length + addedBuyerProvides.length + addedStages.length ===
+    addedLines.length +
+      addedExclusions.length +
+      addedBuyerProvides.length +
+      addedStages.length +
+      steps.length ===
       0 &&
     change.dueDate === undefined &&
     change.revisionsIncluded === undefined;

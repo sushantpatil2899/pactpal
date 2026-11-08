@@ -40,6 +40,7 @@
     "@pactpal/qa": "workspace:*",
     "@pactpal/scope-draft": "workspace:*",
     "@pactpal/score": "workspace:*",
+    "@pactpal/timeline": "workspace:*",
     "@pactpal/watcher": "workspace:*",
     "@pactpal/words": "workspace:*",
     "@renderinc/sdk": "1.7.0",

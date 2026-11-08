@@ -1,6 +1,7 @@
 import type { MessageReview } from "@pactpal/watcher";
 import type { ImageFacts, LineCodeResult, Look } from "@pactpal/delivery-check";
 import type { LineMark } from "@pactpal/words";
+import { timelineStepSchema, type TimelineStep } from "@pactpal/timeline";
 /** The one place the web app talks to the server. Answers are checked before use. */
 
 export interface Me {
@@ -251,11 +252,31 @@ export interface ScopeTerms {
   deliverableKinds?: DeliverableKind[];
   /** What the buyer provides; absent when the version lists nothing. */
   buyerProvides?: { text: string; dueDate: string | null }[];
+  /** The steps the buyer signs, in order; on signing pages, only for versions that list them. */
+  timeline?: StepView[];
+  /** Every step of the version (its own or the ones it implies); on the deal page. */
+  steps?: StepView[];
+}
+
+/** One timeline step as both sides read it (7f). */
+export interface StepView {
+  n: number;
+  kind: TimelineStep["kind"];
+  owner: "seller" | "buyer";
+  title: string;
+  dueDate: string | null;
+  stage: number | null;
+  amount: Money | null;
 }
 
 /** One saved version of a deal's agreed work: its terms and when it was saved. */
 export interface ScopeView extends ScopeTerms {
   savedAt: string;
+  steps: StepView[];
+  /** The steps as stored (or implied), for the editor. */
+  timelineSteps: TimelineStep[];
+  /** Whether the version lists its own steps. */
+  ownTimeline: boolean;
 }
 
 /** What the seller saves; each stage's amount as typed ("250.50"). */
@@ -272,6 +293,7 @@ export interface ScopeInput {
   milestones: { title: string; amount: string; dueDate?: string }[];
   buyerProvides?: { text: string; dueDate?: string }[];
   deliverableKinds?: DeliverableKind[];
+  timeline?: TimelineStep[];
 }
 
 /** The server refused some fields; `fields` names them, e.g. "milestones.0.amount". */
@@ -301,7 +323,12 @@ const isTerms = (value: unknown): value is ScopeTerms =>
       value.buyerProvides.every((item) => isObject(item) && typeof item.text === "string")));
 
 const isScope = (value: unknown): value is ScopeView =>
-  isTerms(value) && isObject(value) && typeof value.savedAt === "string";
+  isTerms(value) &&
+  isObject(value) &&
+  typeof value.savedAt === "string" &&
+  Array.isArray(value.steps) &&
+  Array.isArray(value.timelineSteps) &&
+  value.timelineSteps.every((step) => timelineStepSchema.safeParse(step).success);
 
 const hasScope = (body: unknown): body is { scope: ScopeView | null } =>
   isObject(body) && (body.scope === null || isScope(body.scope));

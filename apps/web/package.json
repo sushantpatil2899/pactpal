@@ -12,6 +12,7 @@
   "dependencies": {
     "@pactpal/delivery-check": "workspace:*",
     "@pactpal/live": "workspace:*",
+    "@pactpal/timeline": "workspace:*",
     "@pactpal/watcher": "workspace:*",
     "@pactpal/words": "workspace:*",
     "react": "^18.3.1",

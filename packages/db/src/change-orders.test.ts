@@ -58,6 +58,7 @@ describe("changeOf", () => {
         addedExclusions: ["Printing"],
         addedBuyerProvides: [{ text: "Menu text" }],
         addedStages: [{ title: "Ordering", amountMinor: 40_000 }],
+        addedSteps: [],
         dueDate: { from: "2026-11-27", to: "2026-12-10" },
         revisionsIncluded: { from: 2, to: 3 },
         totalMinor: { from: 25_000, to: 65_000 },
@@ -141,6 +142,43 @@ const signature = (deal: Awaited<ReturnType<typeof proposed>>) => ({
 
 const refusal = (reason: string) =>
   expect.objectContaining({ name: "ChangeOrderNotAllowedError", reason }) as unknown;
+
+describe("changeOf with a timeline (7f)", () => {
+  const signedSteps = [
+    { kind: "payment" as const, stage: 1 },
+    { kind: "review" as const, text: "Sketch" },
+    { kind: "payment" as const, stage: 2 },
+  ];
+  const signed = content({ timeline: signedSteps });
+
+  it("allows steps added after the signed ones", () => {
+    const proposed = content({
+      milestones: [...SIGNED.milestones, { title: "Extra", amountMinor: 1000 }],
+      timeline: [
+        ...signedSteps,
+        { kind: "review", text: "Colour proof" },
+        { kind: "payment", stage: 3 },
+      ],
+    });
+    const result = changeOf(signed, proposed);
+    expect(result.ok && result.change.addedSteps).toEqual([
+      { kind: "review", text: "Colour proof" },
+      { kind: "payment", stage: 3 },
+    ]);
+  });
+
+  it("allows a step added alone, and refuses signed steps reordered or removed", () => {
+    const added = changeOf(
+      signed,
+      content({ timeline: [...signedSteps, { kind: "review", text: "Proof" }] }),
+    );
+    expect(added.ok).toBe(true);
+    const reordered = content({
+      timeline: [signedSteps[2], signedSteps[1], signedSteps[0]] as typeof signedSteps,
+    });
+    expect(changeOf(signed, reordered)).toEqual({ ok: false, problems: ["timeline"] });
+  });
+});
 
 describe("change orders", () => {
   it("are proposed as the next version, logged, and wait for the buyer", async () => {

@@ -95,6 +95,9 @@ importers:
       '@pactpal/score':
         specifier: workspace:*
         version: link:../../packages/score
+      '@pactpal/timeline':
+        specifier: workspace:*
+        version: link:../../packages/timeline
       '@pactpal/watcher':
         specifier: workspace:*
         version: link:../../packages/watcher
@@ -138,6 +141,9 @@ importers:
       '@pactpal/live':
         specifier: workspace:*
         version: link:../../packages/live
+      '@pactpal/timeline':
+        specifier: workspace:*
+        version: link:../../packages/timeline
       '@pactpal/watcher':
         specifier: workspace:*
         version: link:../../packages/watcher
@@ -216,6 +222,9 @@ importers:
       '@pactpal/ledger':
         specifier: workspace:*
         version: link:../ledger
+      '@pactpal/timeline':
+        specifier: workspace:*
+        version: link:../timeline
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -362,6 +371,12 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.5
+
+  packages/timeline:
+    dependencies:
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
 
   packages/watcher:
     dependencies:

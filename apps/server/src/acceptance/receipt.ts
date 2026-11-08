@@ -1,7 +1,7 @@
 import type { Acceptance } from "@pactpal/db";
 import type { LedgerEntry } from "@pactpal/ledger";
 import { renderPdf, type Block } from "@pactpal/pdf";
-import { dayWords, markedLine } from "@pactpal/words";
+import { dayWords, markedLine, stepLine } from "@pactpal/words";
 import { z } from "zod";
 import { acceptanceDocumentSchema, type AcceptanceDocument } from "./document.js";
 
@@ -90,6 +90,12 @@ export function receiptBlocks(
               item.dueDate === null ? item.text : `${item.text} (by ${day(item.dueDate)})`,
             ),
           },
+        ] satisfies Block[])),
+    ...(terms.timeline === undefined
+      ? []
+      : ([
+          { kind: "paragraph", text: "Timeline (in this order)", style: "bold" },
+          { kind: "list", items: terms.timeline.map((step) => stepLine(step, terms.currency)) },
         ] satisfies Block[])),
     ...(extras.length === 0 ? [] : [{ kind: "fields", rows: extras } satisfies Block]),
     {

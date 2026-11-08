@@ -175,7 +175,7 @@ export type TestDealMaker = typeof createAwaitingTestDeal | typeof createSignedT
  */
 export async function createAwaitingTestDeal(
   db: Database,
-  terms: Pick<ScopeContentInput, "revisionsIncluded" | "deliverableKinds"> = {},
+  terms: Pick<ScopeContentInput, "revisionsIncluded" | "deliverableKinds" | "timeline"> = {},
 ) {
   const { seller, buyer, dealId } = await createTestDeal(db);
   const { scope } = await saveScopeVersion(
@@ -215,7 +215,7 @@ export async function createAwaitingTestDeal(
 /** The test deal of `createAwaitingTestDeal`, signed by its buyer at `TEST_NOW`. */
 export async function createSignedTestDeal(
   db: Database,
-  terms: Pick<ScopeContentInput, "revisionsIncluded" | "deliverableKinds"> = {},
+  terms: Pick<ScopeContentInput, "revisionsIncluded" | "deliverableKinds" | "timeline"> = {},
 ) {
   const { seller, buyer, dealId, scope, document } = await createAwaitingTestDeal(db, terms);
   const { acceptance } = await acceptTerms(

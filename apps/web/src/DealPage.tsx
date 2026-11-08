@@ -17,6 +17,7 @@ import { ScopePanel } from "./ScopePanel";
 import { ChatTab, type DealTab } from "./ChatTab";
 import { lastSeq, unreadCount } from "./chat-state";
 import { TabPanel, Tabs, useTabInAddress, type TabDefinition } from "./Tabs";
+import { TimelineTab } from "./TimelineTab";
 import { useLiveChat } from "./useLiveChat";
 import { NotificationsList } from "./NotificationsList";
 import { tabFromHash } from "./tab-address";
@@ -218,6 +219,11 @@ export function DealPage({ dealId }: { dealId: string }) {
         )}
       </TabPanel>
       <TabPanel id="timeline" current={tab}>
+        <TimelineTab
+          dealId={deal.id}
+          revision={revision}
+          signed={deal.status === "active" || deal.status === "completed"}
+        />
         <PaymentsPanel key={`payments-${String(revision)}`} deal={deal} onChange={refreshLog} />
         <DeliveriesPanel key={`deliveries-${String(revision)}`} deal={deal} onChange={refreshLog} />
       </TabPanel>

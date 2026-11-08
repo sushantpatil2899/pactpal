@@ -122,6 +122,43 @@ describe("buildReceipt", () => {
     expect(text).toMatch(/Game logo$/m);
   });
 
+  it("prints the agreed timeline in order, when the version has one (7f)", async () => {
+    const withSteps: AcceptanceDocument = {
+      ...document,
+      terms: {
+        ...document.terms,
+        timeline: [
+          {
+            n: 1,
+            kind: "payment",
+            owner: "buyer",
+            title: "Sketch",
+            dueDate: null,
+            stage: 1,
+            amount: { minor: 12_000, text: "120.00" },
+          },
+          {
+            n: 2,
+            kind: "review",
+            owner: "seller",
+            title: "Pencil sketch",
+            dueDate: "2026-11-12",
+            stage: null,
+            amount: null,
+          },
+        ],
+      },
+    };
+    const { acceptance, accepted } = signed(withSteps);
+    const text = pdfTextLines((await buildReceipt(acceptance, accepted)).bytes).join(" ");
+    expect(text).toContain("Timeline (in this order)");
+    expect(text).toContain("1. Payment: Sketch, 120.00 USD (by the buyer)");
+    expect(text).toContain("Pencil sketch (by the seller, due 12 Nov 2026)");
+    const { acceptance: plain, accepted: plainEntry } = signed();
+    const without = pdfTextLines((await buildReceipt(plain, plainEntry)).bytes).join(" ");
+    expect(without).not.toContain("Timeline");
+  });
+
   it("prints each delivered line with its mark", async () => {
     const marked: AcceptanceDocument = {
       ...document,

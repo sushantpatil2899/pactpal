@@ -21,6 +21,8 @@ export interface ChangeFacts {
   dueDate: { from: string | null; to: string | null } | null;
   revisionsIncluded: { from: number; to: number } | null;
   total: { from: { text: string }; to: { text: string } };
+  /** Timeline steps added after the signed ones (7f), each as words; absent before 7f. */
+  addedSteps?: readonly string[];
 }
 
 const dayOrNone = (isoDate: string | null) => (isoDate === null ? "none" : dayWords(isoDate));
@@ -48,6 +50,7 @@ export function changeLines(
       (stage) =>
         `Added payment stage ${String(stage.stage)}: ${stage.title}, ${stage.amount.text} ${currency}${stage.dueDate === null ? "" : ` (due ${dayWords(stage.dueDate)})`}`,
     ),
+    ...(change.addedSteps ?? []).map((step) => `Added to the timeline: ${step}`),
     ...(change.dueDate === null
       ? []
       : [`Due date: ${dayOrNone(change.dueDate.from)} → ${dayOrNone(change.dueDate.to)}`]),

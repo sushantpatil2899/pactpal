@@ -64,6 +64,32 @@ describe("agreed work", () => {
           },
         ],
         total: { minor: 25_050, text: "250.50" },
+        // Without steps of its own, the version implies one per payment stage (7f).
+        steps: [
+          {
+            n: 1,
+            kind: "payment",
+            owner: "buyer",
+            title: "Concepts",
+            dueDate: null,
+            stage: 1,
+            amount: { minor: 10_000, text: "100.00" },
+          },
+          {
+            n: 2,
+            kind: "payment",
+            owner: "buyer",
+            title: "Final files",
+            dueDate: "2026-11-20",
+            stage: 2,
+            amount: { minor: 15_050, text: "150.50" },
+          },
+        ],
+        timelineSteps: [
+          { kind: "payment", stage: 1 },
+          { kind: "payment", stage: 2 },
+        ],
+        ownTimeline: false,
       },
     });
 
@@ -390,5 +416,49 @@ describe("agreed work saved from an AI draft", () => {
       expect((await env.call("GET", env.url, env.token)).json()).toEqual({ scope: null });
       await env.app.close();
     });
+  });
+});
+
+describe("the agreed timeline (7f)", () => {
+  const timeline = [
+    { kind: "payment", stage: 1 },
+    { kind: "review", text: "Pencil sketches", dueDate: "2026-11-14" },
+    { kind: "delivery", stage: 2 },
+    { kind: "payment", stage: 2 },
+  ];
+
+  it("saves the steps in the order given and shows them read from the agreement", async () => {
+    const { app, call, url, token } = await sellerDeal();
+    const res = await call("POST", url, token, work({ timeline }));
+    expect(res.statusCode).toBe(201);
+    const { scope } = res.json<{
+      scope: { ownTimeline: boolean; steps: { kind: string; title: string; owner: string }[] };
+    }>();
+    expect(scope.ownTimeline).toBe(true);
+    expect(scope.steps.map((s) => [s.kind, s.title, s.owner])).toEqual([
+      ["payment", "Concepts", "buyer"],
+      ["review", "Pencil sketches", "seller"],
+      ["delivery", 'Delivery for "Final files"', "seller"],
+      ["payment", "Final files", "buyer"],
+    ]);
+    await app.close();
+  });
+
+  it("refuses a timeline that leaves out a payment stage or points at one that does not exist", async () => {
+    const { app, call, url, token } = await sellerDeal();
+    const res = await call(
+      "POST",
+      url,
+      token,
+      work({
+        timeline: [
+          { kind: "payment", stage: 1 },
+          { kind: "delivery", stage: 3 },
+        ],
+      }),
+    );
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: "invalid", fields: ["timeline.1.stage", "timeline"] });
+    await app.close();
   });
 });

@@ -62,6 +62,20 @@ export const acceptanceDocumentSchema = z.strictObject({
     buyerProvides: z
       .array(z.strictObject({ text: z.string(), dueDate: z.string().nullable() }))
       .optional(),
+    /** The agreed steps in order; absent for versions without their own timeline (before 7f). */
+    timeline: z
+      .array(
+        z.strictObject({
+          n: z.number().int(),
+          kind: z.string(),
+          owner: z.enum(["seller", "buyer"]),
+          title: z.string(),
+          dueDate: z.string().nullable(),
+          stage: z.number().int().nullable(),
+          amount: money.nullable(),
+        }),
+      )
+      .optional(),
   }),
   notice: z.strictObject({
     version: z.number().int(),
