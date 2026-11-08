@@ -15,7 +15,7 @@ export function SignOrDecline({
   onDecline,
 }: {
   busy: boolean;
-  words: { sign: string; reasonLabel: string; sendDecline: string };
+  words: { sign: string; decline?: string; reasonLabel: string; sendDecline: string };
   onSign: (typedName: string) => void;
   onDecline: (reason: string | undefined) => void;
 }) {
@@ -48,7 +48,7 @@ export function SignOrDecline({
             setDeclining(!declining);
           }}
         >
-          Decline
+          {words.decline ?? "Decline"}
         </button>
       </form>
       {declining && (

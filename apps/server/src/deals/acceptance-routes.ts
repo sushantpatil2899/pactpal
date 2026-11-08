@@ -11,9 +11,13 @@ import {
   typedNameSchema,
   withdrawAcceptance,
   type Database,
+  type ChatNotice,
   type Deal,
 } from "@pactpal/db";
 import type { EmailSender } from "@pactpal/email";
+import type { DealCards } from "../chat/cards.js";
+import { chatNames, type ChatNames } from "../chat/chat-routes.js";
+import type { PartyNotice } from "../chat/notifier.js";
 import type { LedgerEntry } from "@pactpal/ledger";
 import type { FastifyPluginAsync, FastifyReply } from "fastify";
 import { z } from "zod";
@@ -39,6 +43,8 @@ export interface AcceptanceRouteOptions {
   recordIp: boolean;
   /** Sends the receipt to both sides after signing; the stand-in when email is off. */
   email: EmailSender;
+  /** Cards in the deal's chat for each step of the review loop (7j); absent without a database. */
+  cards?: DealCards | undefined;
 }
 
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/);
@@ -127,7 +133,26 @@ async function acceptanceView(
  * or sends terms they did not see.
  */
 export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app, options) => {
-  const { visibleDeal, sellersDeal, buyersDeal, clock, recordIp, email } = options;
+  const { visibleDeal, sellersDeal, buyersDeal, clock, recordIp, email, cards } = options;
+
+  /** Posts a review-loop card about `version` once its step is saved (7j). */
+  const card = async (
+    found: FoundDeal,
+    to: "seller" | "buyer",
+    words: (names: ChatNames) => string,
+    details: { type: ChatNotice["type"]; version: number; ledgerSeq: number },
+    notification: Omit<PartyNotice, "text">,
+  ) => {
+    if (!cards) return;
+    const names = await chatNames(found.db, found.deal);
+    await cards.post(found.deal, {
+      to,
+      body: words(names),
+      notice: { type: details.type, version: details.version },
+      ledgerSeq: details.ledgerSeq,
+      notification,
+    });
+  };
 
   /** Answers with the deal's acceptance as it is now, for the person asking. */
   const answer = async (reply: FastifyReply, { db, deal, viewer }: FoundDeal) => {
@@ -240,7 +265,7 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
     const current = await checkedDocument(reply, found, "draft", body);
     if (!current) return reply;
     return step(reply, found, async () => {
-      await requestAcceptance(
+      const entry = await requestAcceptance(
         found.db,
         {
           dealId: found.deal.id,
@@ -252,6 +277,25 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
         clock(),
       );
       request.log.info({ dealId: found.deal.id }, "Acceptance requested");
+      const version = current.scope.version;
+      await card(
+        found,
+        "buyer",
+        (names) =>
+          `${names.seller} sent version ${String(version)} of the agreement for your review. Read it and sign, or ask for changes and talk it through here.`,
+        { type: "review-requested", version, ledgerSeq: entry.seq },
+        {
+          kind: "review-requested",
+          tab: "scope",
+          email: {
+            subject: `Please review: "${found.deal.title}" (version ${String(version)})`,
+            lines: [
+              `The agreement for "${found.deal.title}" is ready for your review, with every step of the timeline.`,
+              "Read it, then sign or ask for changes. You can talk it through with the seller in the deal's chat.",
+            ],
+          },
+        },
+      );
     });
   });
 
@@ -259,12 +303,22 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
     const found = await sellersDeal(request, reply);
     if (!found) return reply;
     return step(reply, found, async () => {
-      await withdrawAcceptance(
+      const entry = await withdrawAcceptance(
         found.db,
         { dealId: found.deal.id, sellerId: found.viewer.user.id },
         clock(),
       );
       request.log.info({ dealId: found.deal.id }, "Acceptance request withdrawn");
+      const version = z.object({ version: z.number().int() }).safeParse(entry.payload);
+      if (!version.success) return;
+      await card(
+        found,
+        "buyer",
+        (names) =>
+          `${names.seller} took version ${String(version.data.version)} back to change it; a new version will follow.`,
+        { type: "review-withdrawn", version: version.data.version, ledgerSeq: entry.seq },
+        { kind: "review-requested", tab: "scope" },
+      );
     });
   });
 
@@ -284,7 +338,8 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
         db: Database;
         access: "link" | "paypal";
       },
-    ) => Promise<unknown>,
+    ) => Promise<LedgerEntry>,
+    announce: (found: FoundDeal, version: number, entry: LedgerEntry, body: T) => Promise<void>,
   ) {
     app.post(`/api/deals/:id/acceptance/${name}`, async (request, reply) => {
       const found = await buyersDeal(request, reply);
@@ -300,9 +355,14 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
         ...requestOrigin(request, recordIp),
       };
       return step(reply, found, async () => {
-        await work(body, common, { current, db: found.db, access: found.viewer.access.method });
+        const entry = await work(body, common, {
+          current,
+          db: found.db,
+          access: found.viewer.access.method,
+        });
         // What the buyer typed (name, reason) stays out of the server's logs; the evidence log has it.
         request.log.info({ dealId: found.deal.id }, logLine);
+        await announce(found, current.scope.version, entry, body);
       });
     });
   }
@@ -312,7 +372,7 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
     acceptBody,
     "Terms accepted",
     async (body, common, { current, db, access }) => {
-      await acceptTerms(
+      const { entry } = await acceptTerms(
         db,
         {
           ...common,
@@ -325,19 +385,54 @@ export const acceptanceRoutes: FastifyPluginAsync<AcceptanceRouteOptions> = (app
         clock(),
       );
       await emailReceiptQuietly({ db, email, clock, log: app.log }, common.dealId);
+      return entry;
     },
+    // The receipt email goes to both sides already; the card and notification are in the app.
+    (found, version, entry) =>
+      card(
+        found,
+        "seller",
+        (names) =>
+          `${names.buyer} signed version ${String(version)}. The agreement and its timeline are now agreed.`,
+        { type: "signed", version, ledgerSeq: entry.seq },
+        { kind: "signed", tab: "timeline" },
+      ),
   );
 
-  buyerStep("decline", declineBody, "Terms declined", (body, common, { current, db }) =>
-    declineTerms(
-      db,
-      {
-        ...common,
-        documentSha256: current.documentSha256,
-        ...(body.reason === undefined ? {} : { reason: body.reason }),
-      },
-      clock(),
-    ),
+  buyerStep(
+    "decline",
+    declineBody,
+    "Terms declined",
+    (body, common, { current, db }) =>
+      declineTerms(
+        db,
+        {
+          ...common,
+          documentSha256: current.documentSha256,
+          ...(body.reason === undefined ? {} : { reason: body.reason }),
+        },
+        clock(),
+      ),
+    // The buyer's reason goes into the chat, where the two can talk it through (7j).
+    (found, version, entry, body) =>
+      card(
+        found,
+        "seller",
+        (names) =>
+          `${names.buyer} asked for changes to version ${String(version)}${body.reason === undefined ? "." : `: "${body.reason}"`}`,
+        { type: "changes-requested", version, ledgerSeq: entry.seq },
+        {
+          kind: "changes-requested",
+          tab: "chat",
+          email: {
+            subject: `Changes asked for: "${found.deal.title}"`,
+            lines: [
+              `The buyer asked for changes to version ${String(version)} of "${found.deal.title}".`,
+              'Read their reason in the deal\'s chat, agree the changes there, then use "Update from the latest chat" to draft the next version.',
+            ],
+          },
+        },
+      ),
   );
 
   return Promise.resolve();

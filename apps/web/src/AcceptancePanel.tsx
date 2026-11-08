@@ -159,8 +159,11 @@ export function AcceptancePanel({
           busy={busy}
           words={{
             sign: "I agree and sign",
-            reasonLabel: "Why are you declining? (optional; the seller sees this)",
-            sendDecline: "Send my decline",
+            // The review loop (7j): asking for changes sends this version back, and the reason
+            // goes into the deal's chat for both sides to talk through.
+            decline: "Ask for changes",
+            reasonLabel: "What should change? (optional; it goes into the chat with the seller)",
+            sendDecline: "Send back for changes",
           }}
           onSign={(typedName) => {
             run(acceptTerms(deal.id, { documentSha256, typedName }));

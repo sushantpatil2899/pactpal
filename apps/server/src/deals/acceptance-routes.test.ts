@@ -386,7 +386,10 @@ describe("the receipt email", () => {
     readLedger(db, dealId).then((entries) => entries.filter((e) => e.type === "RECEIPT_SENT"));
 
   it("goes to both sides after signing, with the downloadable PDF attached, and is logged", async () => {
-    const { app, call, receipt, token, buyerLink, dealId, sent, logs } = await signedDeal();
+    const { app, call, receipt, token, buyerLink, dealId, sent: all, logs } = await signedDeal();
+    // Sending for review emailed the buyer first (7j); the receipts follow the signature.
+    expect(all[0]?.kind).toBe("notice-review-requested");
+    const sent = all.filter((m) => m.kind === "receipt");
     expect(sent.map((m) => [m.kind, m.to, m.idempotencyKey])).toEqual([
       ["receipt", "chris@example.com", `receipt:${dealId}:v1:buyer:1`],
       ["receipt", "maya@example.com", `receipt:${dealId}:v1:seller:1`],
@@ -401,8 +404,8 @@ describe("the receipt email", () => {
 
     const entries = await RECEIPT_SENT(dealId);
     expect(entries.map((e) => e.payload)).toEqual([
-      expect.objectContaining({ to: "buyer", version: 1, providerMessageId: "msg_1" }),
-      expect.objectContaining({ to: "seller", version: 1, providerMessageId: "msg_2" }),
+      expect.objectContaining({ to: "buyer", version: 1, providerMessageId: "msg_2" }),
+      expect.objectContaining({ to: "seller", version: 1, providerMessageId: "msg_3" }),
     ]);
     expect(JSON.stringify(entries)).not.toContain("example.com");
     expect((await call("GET", `/api/deals/${dealId}/acceptance`, buyerLink)).json()).toMatchObject({
@@ -530,5 +533,75 @@ describe("the buyer link email", () => {
     });
     expect(off.logs.join("")).not.toContain("Buyer link email not sent");
     await off.app.close();
+  });
+});
+
+describe("the review loop in the chat (7j)", () => {
+  interface Card {
+    kind: string;
+    role: string;
+    body: string;
+    notice: { type: string; version?: number } | null;
+  }
+  const cardsOf = async (env: Awaited<ReturnType<typeof savedDeal>>) =>
+    (await env.call("GET", `/api/deals/${env.dealId}/chat`, env.buyerLink))
+      .json<{ messages: Card[] }>()
+      .messages.filter((m) => m.kind === "notice");
+  const notes = async (env: Awaited<ReturnType<typeof savedDeal>>, who: string) =>
+    (await env.call("GET", "/api/notifications", who)).json<{
+      notifications: { kind: string; tab: string }[];
+    }>().notifications;
+
+  it("posts a card for each step, notifies the other side, and emails only where nothing else does", async () => {
+    const env = await savedDeal();
+    let documentSha256 = await send(env);
+    expect(await cardsOf(env)).toEqual([
+      expect.objectContaining({
+        role: "system",
+        body: "Maya sent version 1 of the agreement for your review. Read it and sign, or ask for changes and talk it through here.",
+        notice: { type: "review-requested", version: 1 },
+      }),
+    ]);
+    expect(await notes(env, env.buyerLink)).toMatchObject([
+      { kind: "review-requested", tab: "scope" },
+    ]);
+    expect(env.sent.map((m) => [m.kind, m.to])).toEqual([
+      ["notice-review-requested", "chris@example.com"],
+    ]);
+
+    await env.call("POST", `${env.base}/decline`, env.buyerLink, {
+      documentSha256,
+      reason: "Please add a third concept",
+    });
+    const [, changes] = await cardsOf(env);
+    expect(changes).toMatchObject({
+      body: 'Buyer asked for changes to version 1: "Please add a third concept"',
+      notice: { type: "changes-requested", version: 1 },
+    });
+    expect(env.sent.at(-1)).toMatchObject({
+      kind: "notice-changes-requested",
+      to: "maya@example.com",
+    });
+    expect(env.sent.at(-1)?.text).not.toContain("third concept");
+
+    documentSha256 = await send(env);
+    expect((await env.call("POST", `${env.base}/withdraw`, env.token)).statusCode).toBe(200);
+    documentSha256 = await send(env);
+    await env.call("POST", `${env.base}/accept`, env.buyerLink, {
+      documentSha256,
+      typedName: "Chris",
+    });
+    expect((await cardsOf(env)).map((c) => c.notice?.type)).toEqual([
+      "review-requested",
+      "changes-requested",
+      "review-requested",
+      "review-withdrawn",
+      "review-requested",
+      "signed",
+    ]);
+    expect((await notes(env, env.token)).map((n) => n.kind)).toContain("signed");
+    // Signing sends the receipts, not another notice email.
+    expect(env.sent.filter((m) => m.kind === "notice-signed")).toEqual([]);
+    await env.app.close();
   });
 });

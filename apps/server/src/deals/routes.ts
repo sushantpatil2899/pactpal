@@ -50,6 +50,7 @@ import { LiveHub } from "../chat/live-hub.js";
 import { liveRoutes } from "../chat/live-routes.js";
 import { notificationRoutes } from "../chat/notification-routes.js";
 import { Notifier } from "../chat/notifier.js";
+import { DealCards } from "../chat/cards.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -148,6 +149,27 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   );
 
   const { visibleDeal, sellersDeal, buyersDeal } = dealAccess(database, clock);
+  // The chat (7b–7e): a live hub per server copy, notifications and PactPal's cards in the chat.
+  const { chatBus } = options;
+  const hub =
+    database &&
+    new LiveHub({ db: database, bus: chatBus, serverId: options.serverId, clock, log: app.log });
+  const notifier =
+    database &&
+    new Notifier({
+      db: database,
+      bus: chatBus,
+      email,
+      clock,
+      newId,
+      log: app.log,
+      publicBaseUrl,
+      isOnline: (dealId, role) => hub?.isOnline(dealId, role) ?? false,
+    });
+  const cards =
+    database &&
+    notifier &&
+    new DealCards({ db: database, bus: chatBus, notifier, clock, newId, log: app.log });
   void app.register(scopeRoutes, { visibleDeal, sellersDeal, clock });
   void app.register(acceptanceRoutes, {
     visibleDeal,
@@ -156,6 +178,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     clock,
     recordIp,
     email,
+    cards,
   });
   void app.register(milestoneRoutes, {
     visibleDeal,
@@ -213,22 +236,6 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   });
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
-  const { chatBus } = options;
-  const hub =
-    database &&
-    new LiveHub({ db: database, bus: chatBus, serverId: options.serverId, clock, log: app.log });
-  const notifier =
-    database &&
-    new Notifier({
-      db: database,
-      bus: chatBus,
-      email,
-      clock,
-      newId,
-      log: app.log,
-      publicBaseUrl,
-      isOnline: (dealId, role) => hub?.isOnline(dealId, role) ?? false,
-    });
   void app.register(chatRoutes, {
     visibleDeal,
     clock,

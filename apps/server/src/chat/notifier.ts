@@ -20,8 +20,8 @@ export interface PartyNotice {
   tab: DealTabName;
   /** Shown in the app's list. */
   text: string;
-  /** The email's subject and opening lines; never a chat message's words. */
-  email: { subject: string; lines: string[] };
+  /** The email's subject and opening lines; never a chat message's words. None: in the app only. */
+  email?: { subject: string; lines: string[] };
 }
 
 export interface NotifierOptions {
@@ -59,8 +59,8 @@ export class Notifier {
       );
       await bus.publish({ type: "notify", userId });
       const away = !this.options.isOnline(deal.id, to);
-      if (created && (notice.kind !== "message" || away)) {
-        await this.email(deal, to, notice, id);
+      if (created && notice.email && (notice.kind !== "message" || away)) {
+        await this.email(deal, to, notice.email, notice, id);
       }
     } catch (error) {
       log.error(
@@ -70,11 +70,17 @@ export class Notifier {
     }
   }
 
-  private async email(deal: Deal, to: Party, notice: PartyNotice, id: string): Promise<void> {
+  private async email(
+    deal: Deal,
+    to: Party,
+    words: { subject: string; lines: string[] },
+    notice: PartyNotice,
+    id: string,
+  ): Promise<void> {
     const { db, email, clock, log, publicBaseUrl } = this.options;
     if (publicBaseUrl === undefined) return;
     const mail = { db, deal, email, clock, log, what: `Notice email (${notice.kind})` };
-    const base = { kind: notice.kind, subject: notice.email.subject, lines: notice.email.lines };
+    const base = { kind: notice.kind, subject: words.subject, lines: words.lines };
     if (to === "buyer") {
       await emailBuyerWithLink(mail, publicBaseUrl, (link) =>
         notificationEmail({
