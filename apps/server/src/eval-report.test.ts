@@ -16,6 +16,7 @@ const score = (value: number, wrong: "price" | null = null): DraftScore => ({
   wrongValues: wrong === null ? 0 : 1,
   buyerProvides: { recall: 1, datesRight: value > 0.5 ? 1 : null, extras: 0 },
   marks: { right: 1, judged: 2 },
+  timeline: { recall: 0.5, inOrder: 0.25 },
 });
 
 const alone = (
@@ -103,10 +104,11 @@ describe("formatEvalReport", () => {
     expect(text).toMatch(/sunrise\s+drop\s+0\.90\s+fail\s+0\.90\s+b/);
   });
 
-  it("shows the buyer duties and line marks apart from the score", () => {
+  it("shows the buyer duties, line marks and timeline apart from the score", () => {
     expect(text).toContain(
-      "Buyer duties and line marks (prompt version 3; not in the score above)",
+      "Buyer duties, line marks and timeline (prompt versions 3 and 4; not in the score above)",
     );
+    expect(text).toContain("steps found");
     expect(text).toMatch(/council pick\s+\|?\s*\d+/);
     expect(text).toContain("of 2");
   });

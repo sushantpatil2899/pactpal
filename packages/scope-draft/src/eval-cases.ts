@@ -1,6 +1,8 @@
 import { GIFT_CARD_CHAT } from "./injection-cases.js";
 import { MAYA_CHAT, SUNRISE_CHAT } from "./maya-fixtures.js";
-import type { DeliverableMark } from "./schema.js";
+import type { DeliverableMark, DRAFT_STEP_KINDS } from "./schema.js";
+
+type DraftStepKind = (typeof DRAFT_STEP_KINDS)[number];
 
 /**
  * What a chat really says, written by hand. Line numbers count the non-blank lines of the chat,
@@ -26,6 +28,8 @@ export interface EvalGold {
   buyerProvides: readonly { lines: readonly number[]; dueDate: string | null }[];
   /** The mark each deliverable group should get, where the chat makes it clear (null: no answer). */
   marks: readonly (DeliverableMark | null)[];
+  /** The agreed steps in order (prompt version 4): each step's kind and its lines; absent if not judged. */
+  timeline?: readonly { kind: DraftStepKind; lines: readonly number[] }[];
 }
 
 /** A made-up chat with its right answer. */
@@ -56,6 +60,12 @@ export const EVAL_CASES: readonly EvalCase[] = [
       vague: [["clean, modern look"], ["quick turnaround"]],
       buyerProvides: [],
       marks: ["objective", "process"],
+      timeline: [
+        { kind: "payment", lines: [17, 18] },
+        { kind: "review", lines: [20] },
+        { kind: "delivery", lines: [18, 20] },
+        { kind: "payment", lines: [17, 18] },
+      ],
     },
   },
   {
@@ -73,6 +83,12 @@ export const EVAL_CASES: readonly EvalCase[] = [
       vague: [["fresh and professional"], ["fast with feedback"]],
       buyerProvides: [{ lines: [19, 20], dueDate: "2026-11-20" }],
       marks: ["objective", "objective"],
+      timeline: [
+        { kind: "payment", lines: [11] },
+        { kind: "buyer-provides", lines: [19, 20] },
+        { kind: "delivery", lines: [13] },
+        { kind: "payment", lines: [11] },
+      ],
     },
   },
   {

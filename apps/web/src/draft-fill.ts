@@ -1,5 +1,7 @@
 import type { LineMark } from "@pactpal/words";
+import type { TimelineStep } from "@pactpal/timeline";
 import type { ChatLine, Citation, DraftCandidate, DraftMark, DraftView } from "./api";
+import { planFromDraft } from "./timeline-fill";
 
 /** One wording suggestion from a draft: shown beside the form, never applied by itself. */
 export interface Suggestion {
@@ -21,6 +23,8 @@ export interface FillSources {
   deliverables: SourcedItem[];
   exclusions: SourcedItem[];
   buyerProvides: SourcedItem[];
+  /** Each drafted timeline step's words and chat lines, in order (7g). */
+  timeline: SourcedItem[];
   revisionsIncluded: number[];
   dueDate: number[];
   price: number[];
@@ -55,8 +59,12 @@ export interface DraftFill {
   buyerProvides: { text: string; dueDate?: string }[];
   revisionsIncluded?: number;
   dueDate?: string;
-  /** One payment stage for the whole price, to be split by the seller. */
+  /** One payment stage for the whole price, to be split by the seller (drafts without payments). */
   stage?: { title: string; amount: string };
+  /** One stage per drafted payment, when the draft's timeline has payments (7g). */
+  stages?: { title: string; amount: string; dueDate?: string }[];
+  /** The drafted steps as the form's timeline (7g); absent when the draft has none. */
+  timeline?: TimelineStep[];
   paymentTerms?: string;
   suggestions: Suggestion[];
   sources: FillSources;
@@ -88,6 +96,14 @@ export function suggestedMark(mark: DraftMark | undefined): LineMark {
 export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill | undefined {
   const draft = candidate?.draft ?? view.draft;
   if (draft === null) return undefined;
+  const plan = planFromDraft(
+    draft.timeline ?? [],
+    (draft.buyerProvides ?? []).map((item) => ({
+      text: item.text,
+      ...(item.dueDate === null ? {} : { dueDate: item.dueDate }),
+    })),
+    draft.price.status === "found" ? draft.price.amount : undefined,
+  );
   return {
     draftId: view.id,
     ...(candidate === undefined ? {} : { draftLabel: candidate.label }),
@@ -95,10 +111,9 @@ export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill
     deliverables: draft.deliverables.map((item) => item.text),
     marks: draft.deliverables.map((item) => suggestedMark(item.mark)),
     exclusions: draft.exclusions.map((item) => item.text),
-    buyerProvides: (draft.buyerProvides ?? []).map((item) => ({
-      text: item.text,
-      ...(item.dueDate === null ? {} : { dueDate: item.dueDate }),
-    })),
+    buyerProvides: plan.buyerProvides,
+    ...(plan.stages === undefined ? {} : { stages: plan.stages }),
+    ...(plan.timeline === undefined ? {} : { timeline: plan.timeline }),
     ...(draft.revisionsIncluded.status === "found"
       ? { revisionsIncluded: draft.revisionsIncluded.value }
       : {}),
@@ -125,6 +140,10 @@ export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill
       buyerProvides: (draft.buyerProvides ?? []).map((item) => ({
         text: item.text,
         lines: linesOf(item.citations),
+      })),
+      timeline: (draft.timeline ?? []).map((step) => ({
+        text: step.text,
+        lines: linesOf(step.citations),
       })),
       revisionsIncluded: statedLines(draft.revisionsIncluded),
       dueDate: statedLines(draft.dueDate),

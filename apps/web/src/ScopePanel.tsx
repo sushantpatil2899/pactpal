@@ -224,11 +224,17 @@ export function ScopePanel({
   // focus to this section so the seller lands on what to check.
   useEffect(() => {
     if (fill === undefined) return;
-    setStages([
-      fill.stage
-        ? { title: fill.stage.title, amount: fill.stage.amount, dueDate: "" }
-        : { ...EMPTY_STAGE },
-    ]);
+    setStages(
+      fill.stages
+        ? fill.stages.map((stage) => ({ ...stage, dueDate: stage.dueDate ?? "" }))
+        : [
+            fill.stage
+              ? { title: fill.stage.title, amount: fill.stage.amount, dueDate: "" }
+              : { ...EMPTY_STAGE },
+          ],
+    );
+    // The drafted timeline (7g); the form then adds steps for any stage or item it misses.
+    setSteps(fill.timeline ?? []);
     // What the buyer provides and the line marks are the draft's suggestions (4n), labelled so.
     setProvides(
       fill.buyerProvides.map((item) => ({ text: item.text, dueDate: item.dueDate ?? "" })),

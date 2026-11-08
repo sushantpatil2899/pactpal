@@ -140,7 +140,7 @@ describe("making a draft", () => {
       status: "ready",
       failureReason: null,
       needsReview: false,
-      draft: { format: 3, price: { status: "found", amount: "240.00", minor: 24_000 } },
+      draft: { format: 4, price: { status: "found", amount: "240.00", minor: 24_000 } },
       category: { fromChat: "art-and-design", verdict: "agrees" },
       council: {
         answers: [{ status: "valid" }, { status: "valid" }, { status: "valid" }],
@@ -159,7 +159,7 @@ describe("making a draft", () => {
       requestedBy: seller.id,
       sourceArtifactId: file.id,
       sourceSha256: file.sha256,
-      draftPromptVersion: 3,
+      draftPromptVersion: 4,
       rankPromptVersion: 1,
       models: ["test-model", "test-model", "test-model"].map(() => expect.any(String) as unknown),
       validDrafts: 3,

@@ -158,12 +158,15 @@ function newPartsRow(name: string, scores: readonly DraftScore[]): string[] {
   );
   const right = scores.reduce((sum, s) => sum + s.marks.right, 0);
   const judged = scores.reduce((sum, s) => sum + s.marks.judged, 0);
+  const steps = scores.flatMap((s) => (s.timeline === null ? [] : [s.timeline]));
   return [
     name,
     count(scores.length),
     fixed(mean(scores.map((s) => s.buyerProvides.recall))),
     fixed(mean(dates)),
     judged === 0 ? "-" : `${count(right)} of ${count(judged)}`,
+    fixed(mean(steps.map((t) => t.recall))),
+    fixed(mean(steps.map((t) => t.inOrder))),
   ];
 }
 
@@ -181,10 +184,22 @@ function newPartsSection(
     newPartsRow("council pick", scoresOf(council)),
   ];
   return (
-    "\nBuyer duties and line marks (prompt version 3; not in the score above)\n" +
-    table(["drafts of", "scored", "duties found", "dates right", "marks right"], rows) +
+    "\nBuyer duties, line marks and timeline (prompt versions 3 and 4; not in the score above)\n" +
+    table(
+      [
+        "drafts of",
+        "scored",
+        "duties found",
+        "dates right",
+        "marks right",
+        "steps found",
+        "in order",
+      ],
+      rows,
+    ) +
     "  duties found = share of the buyer duties the chats state; dates right = share of the found\n" +
-    "  ones with the right date; marks right = expected marks the drafts got right\n"
+    "  ones with the right date; marks right = expected marks the drafts got right; steps found =\n" +
+    "  share of the agreed timeline steps found; in order = share found in the agreed order\n"
   );
 }
 

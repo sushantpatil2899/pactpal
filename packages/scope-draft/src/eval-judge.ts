@@ -1,5 +1,5 @@
 import type { EvalGold } from "./eval-cases.js";
-import { buyerProvidesOf, deliverableMarksOf, type ScopeDraft } from "./schema.js";
+import { buyerProvidesOf, deliverableMarksOf, draftTimelineOf, type ScopeDraft } from "./schema.js";
 
 /**
  * How a draft's value compares with the right answer. `right`: the same value (or correctly left
@@ -29,6 +29,11 @@ export interface DraftScore {
    */
   buyerProvides: { recall: number; datesRight: number | null; extras: number };
   marks: { right: number; judged: number };
+  /**
+   * Prompt version 4's timeline, also apart: the share of expected steps found (right kind, citing
+   * one of its lines) and the share found in the agreed order; null when the case has no timeline.
+   */
+  timeline: { recall: number; inOrder: number } | null;
 }
 
 /** Compares a stated value with the right one; `statedValue` is undefined when the draft says missing. */
@@ -131,6 +136,32 @@ function marksScore(gold: EvalGold, draft: ScopeDraft) {
 }
 
 /**
+ * Expected steps found anywhere, and found in order: each expected step is matched to the
+ * first drafted step after the previous match with the same kind citing one of its lines.
+ */
+function timelineScore(gold: EvalGold, draft: ScopeDraft) {
+  const expected = gold.timeline;
+  if (expected === undefined) return null;
+  if (expected.length === 0) return { recall: 1, inOrder: 1 };
+  const steps = draftTimelineOf(draft);
+  const matches = (i: number, want: (typeof expected)[number]) => {
+    const step = steps[i];
+    return step?.kind === want.kind && cites(step, want.lines);
+  };
+  const found = expected.filter((want) => steps.some((_, i) => matches(i, want))).length;
+  let at = -1;
+  let ordered = 0;
+  for (const want of expected) {
+    const next = steps.findIndex((_, i) => i > at && matches(i, want));
+    if (next >= 0) {
+      ordered += 1;
+      at = next;
+    }
+  }
+  return { recall: found / expected.length, inOrder: ordered / expected.length };
+}
+
+/**
  * Scores a draft that passed the checker against the right answer. Plain code only (never an AI):
  * values are compared exactly, lists by the chat lines the draft cites, so it works in any language.
  */
@@ -174,5 +205,6 @@ export function scoreDraft(gold: EvalGold, draft: ScopeDraft): DraftScore {
     wrongValues: verdicts.filter((v) => v === "wrong").length,
     buyerProvides: buyerProvidesScore(gold, draft),
     marks: marksScore(gold, draft),
+    timeline: timelineScore(gold, draft),
   };
 }

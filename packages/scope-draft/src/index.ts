@@ -24,10 +24,15 @@ export {
   deliverableMarksOf,
   scopeDraftSchema,
   scopeDraftV3Schema,
+  scopeDraftV4Schema,
+  draftTimelineOf,
+  DRAFT_STEP_KINDS,
   type Citation,
   type DeliverableMark,
   type ScopeDraft,
   type ScopeDraftV3,
+  type ScopeDraftV4,
+  type DraftStep,
 } from "./schema.js";
 export { SCOPE_DRAFT_SCHEMA_NAME, scopeDraftWireSchema } from "./wire-schema.js";
 export {

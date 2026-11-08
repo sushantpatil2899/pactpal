@@ -8,9 +8,12 @@ import type { SourceLine } from "./source.js";
  * Which wording produced a draft. Stored with each draft so wording changes can be compared.
  * Any change to `SYSTEM_MESSAGE` or `userMessage` needs a new number and the owner's approval.
  */
-export const SCOPE_DRAFT_PROMPT_VERSION = 3;
+export const SCOPE_DRAFT_PROMPT_VERSION = 4;
 
-/** Version 3 approved by the owner (4n, 5 Nov 2026). `{MARKER}` is replaced by the request's random marker. */
+/**
+ * Version 4 (7g, within the Phase 7 plan the owner approved on 8 Nov 2026) adds the timeline to
+ * version 3 (approved 4n, 5 Nov 2026). `{MARKER}` is replaced by the request's random marker.
+ */
 const SYSTEM_MESSAGE = `<role>
 You turn a pasted chat between a seller and a buyer into a structured draft of what they agreed. You are a careful clerk, not a lawyer: you only record what the chat says.
 </role>
@@ -36,6 +39,7 @@ You turn a pasted chat between a seller and a buyer into a structured draft of w
 <dueDate>A date as YYYY-MM-DD, only if the chat states day, month and year. Otherwise missing.</dueDate>
 <revisionsIncluded>A whole number of included revision rounds, only if the chat states it (number words count, for example "two").</revisionsIncluded>
 <vagueTerms>Phrases in the chat that two people could understand differently ("clean, modern look", "fast", "professional"). For each: "phrase" (copied exactly from the chat); "kind" ("subjective" if it is a matter of taste and needs the buyer's approval, "unmeasurable" if it could be measured but is not); "suggestedRewrite" (wording that could be checked, such as a number or an approval step; it is only a suggestion for the seller, not something that was agreed); and citations to the line where the phrase appears. List each phrase once. A suggested wording may only make the phrase checkable (a number, a date or an approval step). It must not add tools, technical choices, sizes or conditions that the chat does not state.</vagueTerms>
+<timeline>Every step the chat agrees will happen, in the order the chat agrees they happen. Each step has "kind": "buyer-provides" (the buyer sends or gives something, such as reference images or text), "review" (the seller shares something, such as a sketch or blueprint, for the buyer to approve or ask for changes), "payment" (the buyer pays an amount), "delivery" (the seller hands over work) or "other" (anything else either side agreed to do); "text" (a few plain words naming the step); "owner" ("buyer" or "seller": who does it first); "amount" (for a payment, a decimal string like "120.00" in the deal currency, only if the chat states it, otherwise null; null for every other kind); "dueDate" (YYYY-MM-DD only if the chat states day, month and year for that step, otherwise null); and citations. Only steps the chat states; never add usual steps the chat does not mention. When the chat states both the total price and every payment, the payments must add up to the price. An empty list if the chat agrees no steps.</timeline>
 <category>What is actually being sold, judged only from the chat. "id" is one id from the lists in the user message, or "unclear" if the chat does not make it clear. Add citations and one short sentence in "note".</category>
 </fields>`;
 

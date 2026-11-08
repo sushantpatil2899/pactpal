@@ -29,8 +29,27 @@ describe("compareWithDraft", () => {
       deliverables: "unchanged",
       exclusions: "unchanged",
       deliverableMarks: "changed",
+      // The draft's four steps against the one payment the stored version implies.
+      timeline: "changed",
       totalPrice: "unchanged",
     });
+  });
+
+  it("calls the timeline unchanged when the seller kept the drafted steps in order (7g)", () => {
+    const kept: ScopeContent = {
+      ...same,
+      milestones: [
+        { title: "Half up front", amountMinor: 12_000 },
+        { title: "Half on delivery", amountMinor: 12_000 },
+      ],
+      timeline: [
+        { kind: "payment", stage: 1 },
+        { kind: "review", text: "Rough sketch to approve the pose" },
+        { kind: "delivery", stage: 2, text: "Final illustration" },
+        { kind: "payment", stage: 2 },
+      ],
+    };
+    expect(compare(MAYA_DRAFT, kept).timeline).toBe("unchanged");
   });
 
   it("compares what the buyer provides and the suggested marks, and skips marks for older drafts", () => {
@@ -40,7 +59,7 @@ describe("compareWithDraft", () => {
       buyerProvides: [{ text: "Reference board", dueDate: "2026-11-20" }],
     };
     const duty = withDraft((d) => {
-      if (d.format === 3)
+      if (d.format !== 2)
         d.buyerProvides = [{ text: "Reference board", dueDate: "2026-11-20", citations: [] }];
     });
     expect(compare(duty, marked)).toMatchObject({
@@ -52,12 +71,14 @@ describe("compareWithDraft", () => {
     ).toBe("changed");
     expect(compare(MAYA_DRAFT, marked).buyerProvides).toBe("added");
     const unsure = withDraft((d) => {
-      if (d.format === 3) d.deliverables.forEach((item) => (item.mark = "unsure"));
+      if (d.format !== 2) d.deliverables.forEach((item) => (item.mark = "unsure"));
     });
     expect(compare(unsure, same).deliverableMarks).toBe("unchanged");
     // An older draft (format 2): no buyer duties and no marks.
     const older = scopeDraftSchema.parse({
-      ...Object.fromEntries(Object.entries(MAYA_DRAFT).filter(([key]) => key !== "buyerProvides")),
+      ...Object.fromEntries(
+        Object.entries(MAYA_DRAFT).filter(([key]) => key !== "buyerProvides" && key !== "timeline"),
+      ),
       format: 2,
       deliverables: MAYA_DRAFT.deliverables.map(({ text, citations }) => ({ text, citations })),
     });

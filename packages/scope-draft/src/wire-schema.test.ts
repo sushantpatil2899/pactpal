@@ -28,7 +28,7 @@ describe("scopeDraftWireSchema", () => {
     const schema = scopeDraftWireSchema() as {
       properties: { format: unknown; dueDate: unknown };
     };
-    expect(schema.properties.format).toEqual({ type: "number", enum: [3] });
+    expect(schema.properties.format).toEqual({ type: "number", enum: [4] });
     expect(JSON.stringify(schema.properties.dueDate)).not.toContain('"format"');
   });
 

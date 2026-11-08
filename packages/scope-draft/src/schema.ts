@@ -78,6 +78,40 @@ export const scopeDraftV3Schema = z.strictObject({
     .max(20),
 });
 
+/** The kinds of step a drafted timeline may have (the same as the agreement's timeline). */
+export const DRAFT_STEP_KINDS = [
+  "buyer-provides",
+  "review",
+  "payment",
+  "delivery",
+  "other",
+] as const;
+
+/**
+ * An AI draft with the agreed timeline ("format 4", drafting prompt version 4, 7g): format 3 plus
+ * every step the chat agreed, in the agreed order, each quoting the chat. Payment steps carry
+ * their amount as a decimal string; other steps have none.
+ */
+export const scopeDraftV4Schema = scopeDraftV3Schema.extend({
+  format: z.literal(4),
+  timeline: z
+    .array(
+      z.strictObject({
+        kind: z.enum(DRAFT_STEP_KINDS),
+        text: z.string().trim().min(1).max(300),
+        owner: z.enum(["seller", "buyer"]),
+        amount: z
+          .string()
+          .regex(/^\d{1,8}(\.\d{1,2})?$/)
+          .nullable(),
+        /** Only when the chat states day, month and year for it. */
+        dueDate: z.iso.date().nullable(),
+        citations,
+      }),
+    )
+    .max(30),
+});
+
 /** A draft made before prompt version 3 ("format 2"): no marks and no buyer duties. */
 const scopeDraftV2Schema = z.strictObject({
   format: z.literal(2),
@@ -85,21 +119,28 @@ const scopeDraftV2Schema = z.strictObject({
   deliverables: z.array(listItem).max(30),
 });
 
-/** Any stored draft: format 2 (older drafts) or format 3. New drafts are checked as format 3. */
+/** Any stored draft: format 2 or 3 (older drafts) or format 4. New drafts are checked as format 4. */
 export const scopeDraftSchema = z.discriminatedUnion("format", [
   scopeDraftV2Schema,
   scopeDraftV3Schema,
+  scopeDraftV4Schema,
 ]);
 export type ScopeDraft = z.output<typeof scopeDraftSchema>;
 export type ScopeDraftV3 = z.output<typeof scopeDraftV3Schema>;
+export type ScopeDraftV4 = z.output<typeof scopeDraftV4Schema>;
+export type DraftStep = ScopeDraftV4["timeline"][number];
 export type Citation = z.output<typeof citation>;
 
 /** What the buyer provides, by the draft; none in a format 2 draft. */
 export const buyerProvidesOf = (draft: ScopeDraft) =>
-  draft.format === 3 ? draft.buyerProvides : [];
+  draft.format === 2 ? [] : draft.buyerProvides;
+
+/** The drafted timeline, in order; none before format 4. */
+export const draftTimelineOf = (draft: ScopeDraft): DraftStep[] =>
+  draft.format === 4 ? draft.timeline : [];
 
 /** The suggested mark of each delivered line, in order; none in a format 2 draft. */
 export const deliverableMarksOf = (draft: ScopeDraft): (DeliverableMark | undefined)[] =>
-  draft.format === 3
+  draft.format !== 2
     ? draft.deliverables.map((item) => item.mark)
     : draft.deliverables.map(() => undefined);

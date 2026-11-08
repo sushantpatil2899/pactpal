@@ -38,7 +38,7 @@ describe("scopeDraftCouncilTask", () => {
     const spec = testSpec();
     expect(task.check(okReply(spec, JSON.stringify(MAYA_DRAFT)))).toMatchObject({
       ok: true,
-      content: { format: 3 },
+      content: { format: 4 },
       validation: { valid: true, score: 1 },
     });
     const bad = {

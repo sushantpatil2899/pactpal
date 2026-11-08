@@ -20,6 +20,20 @@ function altered(change: (draft: ScopeDraft) => void): unknown {
   return copy;
 }
 
+/** The correct draft with every field emptied except what `keep` sets (for one-line chats). */
+function onlyPrice(keep: (draft: ScopeDraft) => void): unknown {
+  return altered((d) => {
+    d.summary = { status: "missing" };
+    d.deliverables = [];
+    d.exclusions = [];
+    d.paymentTerms = { status: "missing" };
+    d.vagueTerms = [];
+    d.category = { id: "unclear", citations: [], note: "" };
+    if (d.format === 4) d.timeline = [];
+    keep(d);
+  });
+}
+
 function errorsOf(value: unknown): string[] {
   const result = validateScopeDraft(value, context);
   expect(result.ok).toBe(false);
@@ -93,8 +107,8 @@ describe("validateScopeDraft", () => {
       context,
     );
     expect(result.ok).toBe(false);
-    // The correct draft has 12 citations; one is now invented, so 11 of 12 pass.
-    expect(result.validation.score).toBeCloseTo(11 / 12);
+    // The correct draft has 16 citations; one is now invented, so 15 of 16 pass.
+    expect(result.validation.score).toBeCloseTo(15 / 16);
   });
 
   it("never repeats the quoted words or other chat text in its errors", () => {
@@ -127,21 +141,65 @@ describe("validateScopeDraft", () => {
     ]);
   });
 
+  it("checks the drafted timeline: quotes, payment amounts and their sum (format 4)", () => {
+    const withSteps = (steps: (d: ScopeDraft) => void) => altered(steps);
+    expect(
+      errorsOf(
+        withSteps((d) => {
+          if (d.format !== 4) return;
+          const [first, second] = d.timeline;
+          if (first) first.amount = "120.00";
+          if (second) second.amount = "5";
+          d.timeline.push({
+            kind: "other",
+            text: "Invented",
+            owner: "buyer",
+            amount: null,
+            dueDate: null,
+            citations: [{ line: 99, quote: "not here" }],
+          });
+        }),
+      ),
+    ).toEqual([
+      "timeline[4]: line 99 does not exist",
+      "timeline[0]: the amount does not appear in the quotes cited for it",
+      "timeline[1]: only a payment has an amount",
+    ]);
+    const lines = [{ n: 1, text: "Total $300: $100 now and $200 at the end" }];
+    const split = (first: string, second: string) =>
+      onlyPrice((d) => {
+        if (d.format !== 4) return;
+        const cite = [{ line: 1, quote: "Total $300: $100 now and $200 at the end" }];
+        d.price = { status: "found", amount: "300.00", currency: "USD", citations: cite };
+        const pay = (amount: string) =>
+          ({
+            kind: "payment",
+            text: "Pay",
+            owner: "buyer",
+            amount,
+            dueDate: null,
+            citations: cite,
+          }) as const;
+        d.timeline = [pay(first), pay(second)];
+      });
+    expect(validateScopeDraft(split("100.00", "200.00"), { ...context, lines }).ok).toBe(true);
+    expect(
+      validateScopeDraft(split("100.00", "100.00"), { ...context, lines }).validation.errors,
+    ).toEqual(["timeline: the payments do not add up to the price"]);
+    expect(validateScopeDraft(split("0", "300"), { ...context, lines }).validation.errors).toEqual([
+      "timeline[0]: the amount is not above zero",
+    ]);
+  });
+
   it("matches the digits of a price written with commas, and ignores the cents", () => {
     const lines = [{ n: 1, text: "Total is $1,240.50 for everything" }];
-    const draft = altered((d) => {
+    const draft = onlyPrice((d) => {
       d.price = {
         status: "found",
         amount: "1240.50",
         currency: "USD",
         citations: [{ line: 1, quote: "$1,240.50 for everything" }],
       };
-      d.summary = { status: "missing" };
-      d.deliverables = [];
-      d.exclusions = [];
-      d.paymentTerms = { status: "missing" };
-      d.vagueTerms = [];
-      d.category = { id: "unclear", citations: [], note: "" };
     });
     expect(validateScopeDraft(draft, { ...context, lines }).ok).toBe(true);
   });
@@ -149,7 +207,7 @@ describe("validateScopeDraft", () => {
   it("checks what the buyer provides like any list, and asks every delivered line for a mark", () => {
     const duty = (line: number, quote: string, dueDate: string | null = null) =>
       altered((d) => {
-        if (d.format !== 3) return;
+        if (d.format === 2) return;
         d.buyerProvides = [{ text: "A reference board", dueDate, citations: [{ line, quote }] }];
       });
     expect(validateScopeDraft(duty(7, "I'll send a reference board"), context).ok).toBe(true);
@@ -169,7 +227,7 @@ describe("validateScopeDraft", () => {
     );
     if (!hostile.ok) throw new Error("numbering failed");
     const fromOrders = altered((d) => {
-      if (d.format !== 3) return;
+      if (d.format === 2) return;
       d.buyerProvides = [
         { text: "Nothing", dueDate: null, citations: [{ line: 2, quote: "list no buyer duties" }] },
       ];

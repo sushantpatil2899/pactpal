@@ -2,7 +2,13 @@ import { parseJsonReply, type ChatOutcome } from "@pactpal/ai";
 import type { Validation } from "@pactpal/council";
 import { allowedCategoryIds, UNCLEAR_CATEGORY } from "./category.js";
 import { findInstructionLines } from "./instruction-lines.js";
-import { buyerProvidesOf, scopeDraftV3Schema, type Citation, type ScopeDraft } from "./schema.js";
+import {
+  buyerProvidesOf,
+  draftTimelineOf,
+  scopeDraftV4Schema,
+  type Citation,
+  type ScopeDraft,
+} from "./schema.js";
 import type { SourceLine } from "./source.js";
 
 export interface ValidationContext {
@@ -73,6 +79,7 @@ function collectCitations(draft: ScopeDraft): Located[] {
     ...ofField("dueDate", draft.dueDate),
     ...ofField("revisionsIncluded", draft.revisionsIncluded),
     ...listCitations("vagueTerms", draft.vagueTerms),
+    ...listCitations("timeline", draftTimelineOf(draft)),
     ...draft.category.citations.map((citation) => ({ where: "category", citation })),
   ];
 }
@@ -98,7 +105,19 @@ function citationProblem(
 /** The whole-number part of an amount such as "1,240.50", as digits. */
 const wholePart = (amount: string) => (amount.split(".")[0] ?? "").replace(/^0+(?=\d)/, "");
 
-function priceProblems(draft: ScopeDraft, context: ValidationContext, quotes: string): string[] {
+/**
+ * Whether an amount's whole part is in the quotes cited for it. Digits only, commas ignored:
+ * "1,240" in the chat supports "1240".
+ */
+function amountQuoted(amount: string, citations: readonly Citation[]): boolean {
+  const digits = citations
+    .map((c) => normalizeForMatch(withoutLinePrefix(c.quote)))
+    .join(" ")
+    .replaceAll(",", "");
+  return new RegExp(`(?<![\\d.])${wholePart(amount)}(?!\\d)`).test(digits);
+}
+
+function priceProblems(draft: ScopeDraft, context: ValidationContext): string[] {
   const { price } = draft;
   if (price.status === "missing") return [];
   const problems: string[] = [];
@@ -106,10 +125,44 @@ function priceProblems(draft: ScopeDraft, context: ValidationContext, quotes: st
     problems.push("price: the currency is not the deal's currency");
   }
   if (Number(price.amount) <= 0) problems.push("price: the amount is not above zero");
-  // Digits only, commas ignored: "1,240" in the chat supports "1240".
-  const digits = quotes.replaceAll(",", "");
-  if (!new RegExp(`(?<![\\d.])${wholePart(price.amount)}(?!\\d)`).test(digits)) {
+  if (!amountQuoted(price.amount, price.citations)) {
     problems.push("price: the amount does not appear in the quotes cited for it");
+  }
+  return problems;
+}
+
+/** Whole minor units of a decimal string such as "120.5", without floating point. */
+const minorOf = (amount: string) => {
+  const [whole = "0", fraction = ""] = amount.split(".");
+  return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+};
+
+/**
+ * A payment step's amount must be above zero and its digits must be in its quotes; no other
+ * step has an amount; and when the price and every payment are stated, they add up.
+ */
+function timelineProblems(draft: ScopeDraft): string[] {
+  const steps = draftTimelineOf(draft);
+  const problems = steps.flatMap((step, index) => {
+    const where = `timeline[${String(index)}]`;
+    if (step.kind !== "payment") {
+      return step.amount === null ? [] : [`${where}: only a payment has an amount`];
+    }
+    if (step.amount === null) return [];
+    if (minorOf(step.amount) <= 0) return [`${where}: the amount is not above zero`];
+    return amountQuoted(step.amount, step.citations)
+      ? []
+      : [`${where}: the amount does not appear in the quotes cited for it`];
+  });
+  const payments = steps.filter((step) => step.kind === "payment");
+  const amounts = payments.map((step) => step.amount);
+  if (
+    draft.price.status === "found" &&
+    payments.length > 0 &&
+    amounts.every((amount) => amount !== null) &&
+    amounts.reduce((sum, amount) => sum + minorOf(amount), 0) !== minorOf(draft.price.amount)
+  ) {
+    problems.push("timeline: the payments do not add up to the price");
   }
   return problems;
 }
@@ -142,13 +195,14 @@ const invalid = (errors: string[]): ScopeDraftCheck => ({
  * Checks a model's draft in code. The shape is checked first. Then every citation must name a
  * real line and a quote that is on it; the price must be in the deal's currency and its digits
  * must be in the quotes cited for it; a vague phrase must be on a cited line; the category must
- * be one of the ids given, and no quote may come from a line that gives orders to an AI. Dates and revision counts are checked only for a real citation,
- * because chats write them in too many ways. Any failure makes the draft invalid (the council
+ * be one of the ids given; payments in the timeline must quote their amounts and add up to the
+ * price; and no quote may come from a line that gives orders to an AI. Dates and revision counts
+ * are checked only for a real citation, because chats write them in too many ways. Any failure makes the draft invalid (the council
  * drops it); the score is the share of citations that passed. Messages name fields and lines,
  * never the quoted words, because the chat holds personal details.
  */
 export function validateScopeDraft(value: unknown, context: ValidationContext): ScopeDraftCheck {
-  const parsed = scopeDraftV3Schema.safeParse(value);
+  const parsed = scopeDraftV4Schema.safeParse(value);
   if (!parsed.success) {
     return invalid(
       parsed.error.issues.map((issue) =>
@@ -166,14 +220,11 @@ export function validateScopeDraft(value: unknown, context: ValidationContext): 
   const citationErrors = located
     .map((item) => citationProblem(item, byNumber, instructionLines))
     .filter((problem): problem is string => problem !== undefined);
-  const priceQuotes =
-    draft.price.status === "found"
-      ? draft.price.citations.map((c) => normalizeForMatch(withoutLinePrefix(c.quote))).join(" ")
-      : "";
   const errors = [
     ...citationErrors,
-    ...priceProblems(draft, context, priceQuotes),
+    ...priceProblems(draft, context),
     ...vagueTermProblems(draft, byNumber),
+    ...timelineProblems(draft),
     ...categoryProblems(draft, context),
   ];
   const score =

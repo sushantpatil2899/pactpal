@@ -1,3 +1,4 @@
+import { STEP_KIND_WORDS } from "@pactpal/timeline";
 import { dayWords, markWords } from "@pactpal/words";
 import { suggestedMark } from "./draft-fill";
 import type { Citation, DraftCategory, DraftContent, DraftView } from "./api";
@@ -176,6 +177,23 @@ function DraftBody({ draft }: { draft: DraftContent }) {
               </li>
             ))}
           </ul>
+        </>
+      )}
+
+      {draft.timeline !== undefined && (
+        <>
+          <h4>Timeline (in the order agreed)</h4>
+          {draft.timeline.length === 0 && <p>{NOT_STATED}</p>}
+          <ol>
+            {draft.timeline.map((step, n) => (
+              <li key={n}>
+                {STEP_KIND_WORDS[step.kind]}: {step.text} (by the {step.owner}
+                {step.amount === null ? "" : `, ${step.amount}`}
+                {step.dueDate === null ? "" : `, due ${dayWords(step.dueDate)}`})
+                <Quotes citations={step.citations} />
+              </li>
+            ))}
+          </ol>
         </>
       )}
 

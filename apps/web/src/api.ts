@@ -2,6 +2,7 @@ import type { MessageReview } from "@pactpal/watcher";
 import type { ImageFacts, LineCodeResult, Look } from "@pactpal/delivery-check";
 import type { LineMark } from "@pactpal/words";
 import { timelineStepSchema, type TimelineStep } from "@pactpal/timeline";
+import type { DraftedStep } from "./timeline-fill";
 /** The one place the web app talks to the server. Answers are checked before use. */
 
 export interface Me {
@@ -1356,8 +1357,8 @@ type Stated<T> = ({ status: "found"; citations: Citation[] } & T) | { status: "m
 export type DraftMark = "objective" | "process" | "subjective" | "unsure";
 
 export interface DraftContent {
-  /** 2: older drafts, without marks or buyer duties; 3: drafting prompt version 3. */
-  format: 2 | 3;
+  /** 2: older drafts, without marks or buyer duties; 3: prompt version 3; 4: with a timeline. */
+  format: 2 | 3 | 4;
   summary: Stated<{ value: string }>;
   deliverables: { text: string; citations: Citation[]; mark?: DraftMark }[];
   exclusions: { text: string; citations: Citation[] }[];
@@ -1374,6 +1375,8 @@ export interface DraftContent {
     citations: Citation[];
   }[];
   category: { id: string; citations: Citation[]; note: string };
+  /** The agreed steps in order, by the chat (format 4, 7g). */
+  timeline?: (DraftedStep & { citations: Citation[] })[];
 }
 
 export type CategoryVerdict = "agrees" | "mismatch" | "blocked" | "unclear";
@@ -1458,7 +1461,8 @@ const isStated = (value: unknown): boolean =>
 
 const isDraftContent = (value: unknown): value is DraftContent =>
   isObject(value) &&
-  (value.format === 2 || value.format === 3) &&
+  (value.format === 2 || value.format === 3 || value.format === 4) &&
+  (value.timeline === undefined || Array.isArray(value.timeline)) &&
   isStated(value.summary) &&
   isStated(value.price) &&
   isStated(value.paymentTerms) &&

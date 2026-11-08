@@ -61,6 +61,7 @@ describe("draft fill", () => {
       ],
       exclusions: [],
       buyerProvides: [{ text: "A reference board", lines: [9] }],
+      timeline: [],
       revisionsIncluded: [40],
       dueDate: [],
       price: [31],

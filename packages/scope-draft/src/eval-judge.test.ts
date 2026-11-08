@@ -47,6 +47,26 @@ describe("the right answers", () => {
   );
 });
 
+describe("scoreDraft on the timeline (prompt version 4)", () => {
+  const maya = EVAL_CASES.find((c) => c.id === "maya")?.gold;
+  it("counts steps found and steps found in order, and skips cases without a timeline", () => {
+    if (!maya) throw new Error("no maya case");
+    const swapped = structuredClone(MAYA_DRAFT);
+    const [first, second] = swapped.timeline;
+    if (first && second) swapped.timeline.splice(0, 2, second, first);
+    expect(scoreDraft(maya, swapped).timeline).toEqual({ recall: 1, inOrder: 0.75 });
+    expect(scoreDraft(maya, { ...MAYA_DRAFT, timeline: [] }).timeline).toEqual({
+      recall: 0,
+      inOrder: 0,
+    });
+    expect(scoreDraft({ ...maya, timeline: [] }, MAYA_DRAFT).timeline).toEqual({
+      recall: 1,
+      inOrder: 1,
+    });
+    expect(scoreDraft({ ...maya, timeline: undefined }, MAYA_DRAFT).timeline).toBeNull();
+  });
+});
+
 describe("scoreDraft", () => {
   it("gives the known-good Maya draft a perfect score", () => {
     expect(scoreDraft(maya, MAYA_DRAFT)).toEqual({
@@ -57,6 +77,7 @@ describe("scoreDraft", () => {
       wrongValues: 0,
       buyerProvides: { recall: 1, datesRight: null, extras: 0 },
       marks: { right: 2, judged: 2 },
+      timeline: { recall: 1, inOrder: 1 },
     });
   });
 
@@ -78,7 +99,9 @@ describe("scoreDraft", () => {
     // An older draft: no buyer duties and no marks.
     const format2 = scopeDraftSchema.parse({
       ...Object.fromEntries(
-        Object.entries(ALL_MISSING_DRAFT).filter(([key]) => key !== "buyerProvides"),
+        Object.entries(ALL_MISSING_DRAFT).filter(
+          ([key]) => key !== "buyerProvides" && key !== "timeline",
+        ),
       ),
       format: 2,
     });

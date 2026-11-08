@@ -1,4 +1,4 @@
-import type { ScopeDraftV3 } from "./schema.js";
+import type { ScopeDraftV4 } from "./schema.js";
 
 /** A made-up Discord chat (the "Maya" story in docs/demo.md): price stated, no deadline, no revision limit. */
 export const MAYA_CHAT = `Chris: hey Maya! love your art, are you taking commissions right now?
@@ -34,8 +34,8 @@ export const TEST_CATEGORIES = [
 ] as const;
 
 /** A correct draft of `MAYA_CHAT`: cited where the chat says it, missing where it does not. */
-export const MAYA_DRAFT: ScopeDraftV3 = {
-  format: 3,
+export const MAYA_DRAFT: ScopeDraftV4 = {
+  format: 4,
   summary: {
     status: "found",
     value:
@@ -99,11 +99,45 @@ export const MAYA_DRAFT: ScopeDraftV3 = {
     citations: [{ line: 3, quote: "full-body character illustration" }],
     note: "A custom illustration commission.",
   },
+  timeline: [
+    {
+      kind: "payment",
+      text: "Half up front",
+      owner: "buyer",
+      amount: null,
+      dueDate: null,
+      citations: [{ line: 18, quote: "50% up front" }],
+    },
+    {
+      kind: "review",
+      text: "Rough sketch to approve the pose",
+      owner: "seller",
+      amount: null,
+      dueDate: null,
+      citations: [{ line: 20, quote: "send a rough sketch first so you can approve the pose" }],
+    },
+    {
+      kind: "delivery",
+      text: "Final illustration",
+      owner: "seller",
+      amount: null,
+      dueDate: null,
+      citations: [{ line: 20, quote: "before I do the final" }],
+    },
+    {
+      kind: "payment",
+      text: "Half on delivery",
+      owner: "buyer",
+      amount: null,
+      dueDate: null,
+      citations: [{ line: 18, quote: "50% on delivery" }],
+    },
+  ],
 };
 
 /** A draft in which the chat stated nothing: every field missing, every list empty. */
-export const ALL_MISSING_DRAFT: ScopeDraftV3 = {
-  format: 3,
+export const ALL_MISSING_DRAFT: ScopeDraftV4 = {
+  format: 4,
   summary: { status: "missing" },
   deliverables: [],
   exclusions: [],
@@ -114,6 +148,7 @@ export const ALL_MISSING_DRAFT: ScopeDraftV3 = {
   revisionsIncluded: { status: "missing" },
   vagueTerms: [],
   category: { id: "unclear", citations: [], note: "" },
+  timeline: [],
 };
 
 /** A second made-up chat (a bakery website), used to check that ordinary chats are left alone. */
