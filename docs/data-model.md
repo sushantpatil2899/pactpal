@@ -40,7 +40,7 @@ erDiagram
 - **Money** is whole minor units (cents) plus a currency code, never decimals. A deal has one currency; amounts live on the payment stages (milestones) of the agreed work.
 - **Times** are UTC and taken by the server.
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
-- **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 8.
+- **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 9.
 
 ## Built (sub-phases 2b to 6h-1)
 
@@ -143,7 +143,7 @@ A webhook is a message PayPal posts to our server when something happens (an inv
 | `resource_type`      | What it is about (for example `invoices`); may be empty                                                                                                                           |
 | `event_created_at`   | When PayPal says it happened; empty if PayPal's value was not a date                                                                                                              |
 | `received_at`        | When our server received it (UTC)                                                                                                                                                 |
-| `body`               | The whole event as received. Contains buyer details, so the retention rule (Phase 8) applies                                                                                      |
+| `body`               | The whole event as received. Contains buyer details, so the retention rule (Phase 9) applies                                                                                      |
 
 Unlike the ledger it can be changed and deleted: later phases will mark events as processed, and a retention purge may need to remove old ones.
 
@@ -211,7 +211,7 @@ The buyer's page is drawn only from an **acceptance document** (format 1), plain
 | `typed_name`                  | The name the buyer typed (2–200 characters). Not compared with anything; not proof of identity |
 | `created_at`                  | Server time                                                                                    |
 
-The `ACCEPTED` entry holds the version, the content and document fingerprints, the typed name, the notice version and how the buyer reached the page (`link` or `paypal`), plus the browser and, when known, the IP address. The typed name and the terms are personal data, so the retention rule (Phase 8) applies. Change orders (4j) will add further rows for later versions.
+The `ACCEPTED` entry holds the version, the content and document fingerprints, the typed name, the notice version and how the buyer reached the page (`link` or `paypal`), plus the browser and, when known, the IP address. The typed name and the terms are personal data, so the retention rule (Phase 9) applies. Change orders (4j) will add further rows for later versions.
 
 When the email service accepts a receipt email (4c), a **`RECEIPT_SENT`** entry (by the system) records the version, which side it went to (`buyer` or `seller`), the receipt's SHA-256, a SHA-256 of the lower-cased address (never the address) and Resend's message id. A failed send records nothing. At most 5 receipt emails are sent per signed version.
 
@@ -401,7 +401,7 @@ A draft is a proposal made by the council from a chat saved as a text source fil
 | `failure_reason`                              | Why it failed; never repeats the chat. Only on `failed`                                                                                                                                                    |
 | `ledger_seq`                                  | The `SCOPE_DRAFTED` entry (with `deal_id`). Only on `ready`                                                                                                                                                |
 
-Lines of the chat that look like orders to an AI are not stored anywhere; they are found again from the chat file whenever a finished draft is read (`source.hiddenLines`, line numbers only). A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so the retention rule (Phase 8) applies.
+Lines of the chat that look like orders to an AI are not stored anywhere; they are found again from the chat file whenever a finished draft is read (`source.hiddenLines`, line numbers only). A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so the retention rule (Phase 9) applies.
 
 Drafts made with drafting prompt version 3 (4n) are "format 3": each delivered line also has a suggested mark (`objective`, `process`, `subjective` or `unsure`) and the draft lists what the buyer provides (text, a date or none, citations). Older drafts stay "format 2" and are read as they are. When agreed work is saved from a draft, `SCOPE_CONFIRMED` also says for `buyerProvides` and `deliverableMarks` whether the seller kept the draft's suggestion.
 
@@ -420,7 +420,7 @@ Built in 5a (migration 0020). A Render Cron Job starts the Workflow task `check-
 | `seller_due_at`, `buyer_due_at`          | When each side must respond, as PayPal says                                                                                                              |
 | `allowed_actions`, `offer_types`         | What the seller may do right now, and the refund offers PayPal accepts (read again before any answer)                                                    |
 | `outcome`                                | PayPal's decision, once there is one                                                                                                                     |
-| `details`                                | PayPal's whole answer as read, including the buyer's messages: personal data, so the retention rule (Phase 8) applies                                    |
+| `details`                                | PayPal's whole answer as read, including the buyer's messages: personal data, so the retention rule (Phase 9) applies                                    |
 | `paypal_created_at`, `paypal_updated_at` | PayPal's own times                                                                                                                                       |
 | `first_seen_at`, `checked_at`            | When PactPal first saw it and last read it                                                                                                               |
 | `opened_seq`, `resolved_seq`             | The `DISPUTE_OPENED` and `DISPUTE_RESOLVED` entries; set once                                                                                            |
@@ -535,6 +535,20 @@ Built in 6c (migration 0029); own apps added in 6h-1 (migration 0030) and their 
 | `created_at`, `connected_at`, `disconnected_at` | Server times of each step                                                                                                                                                      |
 
 The database refuses a connected row without an account or time, a pending row with either, and a disconnected row without its time. A Partner Referrals row needs its tracking id and holds no app keys; an own-app row needs its client id, is never pending, holds its sealed secret while connected, and no row holds a secret once ended. At most one connected row per user and one per PayPal account (partial unique indexes), so a dispute can never be shown to the wrong seller.
+
+## Phase 7 (deal space)
+
+Being built in 7b–7m; each table is described in full once it exists.
+
+| Table or change              | Sub-phase | What it holds                                                                                                                                                                                                                               |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deal_messages`              | 7b        | The deal's chat: who wrote each message, its text and fingerprint, its position in the chat and the `MESSAGE_SENT` log entry. Append-only; PactPal's own cards (`notice`) are messages from `system`                                        |
+| `message_reads`              | 7c        | How far each person has read the chat. The log gets `MESSAGES_READ` when it moves, at most once a minute per person                                                                                                                         |
+| `notifications`              | 7e        | What each person has not seen yet (a message, a review request, a reminder) and when they saw it. Not evidence                                                                                                                              |
+| Agreement `timeline`         | 7f        | An ordered list of steps inside the agreed work (`scope_versions.content`), left out when absent so earlier fingerprints never change                                                                                                       |
+| `scope_drafts` source fields | 7h, 7i    | Which sources a draft read (in-app chat, pasted chats) and the last chat message it read, so an update reads only newer messages                                                                                                            |
+| `timeline_progress`          | 7k        | Each step's progress (submitted, approved, changes wanted, done), who did it, any files and the log entry. Append-only; the newest row of a step is its state. Payment and delivery steps are read from `milestones` and `delivery_answers` |
+| `timeline_reminders`         | 7l        | Which reminder was sent for which step and day, so it is never sent twice                                                                                                                                                                   |
 
 ## Planned
 
