@@ -7,5 +7,6 @@ const server = "http://localhost:3000";
 
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { "/api": server, "/auth": server } },
+  // `ws` also forwards the live chat's WebSocket (7c).
+  server: { proxy: { "/api": { target: server, ws: true }, "/auth": server } },
 });

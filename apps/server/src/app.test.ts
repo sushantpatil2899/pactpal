@@ -2,7 +2,7 @@ import { migrate, type Database, type Migration } from "@pactpal/db";
 import { useTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
 import { EventEmitter } from "node:events";
-import { buildApp, closeOnSignals } from "./app.js";
+import { buildApp, closeOnSignals, socketOrigin } from "./app.js";
 import type { ConfigReport } from "./config.js";
 
 const report: ConfigReport = {
@@ -124,5 +124,34 @@ describe("closeOnSignals", () => {
     signals.emit("SIGINT");
     await new Promise((resolve) => setImmediate(resolve));
     expect(exits).toEqual([1]);
+  });
+});
+
+describe("the live chat's address in the page rules", () => {
+  it("names the site's own wss (or ws) address", () => {
+    expect(socketOrigin("https://pactpal.test")).toEqual(["wss://pactpal.test"]);
+    expect(socketOrigin("http://localhost:3000/")).toEqual(["ws://localhost:3000"]);
+    expect(socketOrigin(undefined)).toEqual([]);
+  });
+
+  it("is allowed by the security header", async () => {
+    const app = buildApp(
+      { settings: [], features: [] },
+      {
+        logger: false,
+        signIn: {
+          login: undefined,
+          database: undefined,
+          publicBaseUrl: "https://pactpal.test",
+          clock: () => new Date(),
+          newId: () => "id",
+        },
+      },
+    );
+    const res = await app.inject({ method: "GET", url: "/health" });
+    expect(res.headers["content-security-policy"]).toContain(
+      "connect-src 'self' wss://pactpal.test",
+    );
+    await app.close();
   });
 });

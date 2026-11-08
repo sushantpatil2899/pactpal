@@ -257,3 +257,101 @@ function checkedMessage(row: unknown): ChatMessage {
   }
   return message;
 }
+
+/** How often, at most, a person's reading is written to the log while they keep reading. */
+export const READ_LOG_INTERVAL_MS = 60_000;
+
+const readRow = z.object({
+  read_seq: z.number().int(),
+  logged_seq: z.number().int(),
+  logged_at: z.date().nullable(),
+});
+const maxSeq = z.object({ last: z.coerce.number().int() });
+
+/**
+ * Records that the deal's seller or buyer has read the chat up to position `seq` (never past
+ * its last message, never backwards). The log gets a `MESSAGES_READ` entry when the position
+ * has moved past what was last logged, at most once per `READ_LOG_INTERVAL_MS`, or whenever
+ * `flush` is set (a page closing), so the last position read always reaches the log.
+ */
+export async function markRead(
+  db: Database,
+  input: { dealId: string; userId: string; seq: number; flush?: boolean },
+  now: Date,
+): Promise<{ readSeq: number; moved: boolean; entry?: LedgerEntry }> {
+  return db.transaction(async (tx) => {
+    const deal = await lockDeal(tx, input.dealId);
+    const role =
+      deal.seller_id === input.userId
+        ? "seller"
+        : deal.buyer_id === input.userId
+          ? "buyer"
+          : undefined;
+    if (role === undefined) throw new ChatNotAllowedError("not-your-deal");
+    const rows = await tx.query(
+      "SELECT read_seq, logged_seq, logged_at FROM message_reads WHERE deal_id = $1 AND user_id = $2",
+      [input.dealId, input.userId],
+    );
+    const before = rows[0] === undefined ? undefined : readRow.parse(rows[0]);
+    const { last } = maxSeq.parse(
+      (
+        await tx.query(
+          "SELECT COALESCE(MAX(seq), 0) AS last FROM deal_messages WHERE deal_id = $1",
+          [input.dealId],
+        )
+      )[0],
+    );
+    const readSeq = Math.max(before?.read_seq ?? 0, Math.min(Math.max(input.seq, 0), last));
+    const moved = readSeq > (before?.read_seq ?? 0);
+    const loggedSeq = before?.logged_seq ?? 0;
+    const due =
+      input.flush === true ||
+      !before?.logged_at ||
+      now.getTime() - before.logged_at.getTime() >= READ_LOG_INTERVAL_MS;
+    const entry =
+      readSeq > loggedSeq && due
+        ? await appendLedgerEvent(
+            tx,
+            {
+              dealId: input.dealId,
+              type: "MESSAGES_READ",
+              actor: role,
+              actorId: input.userId,
+              payload: { upToSeq: readSeq },
+            },
+            now,
+          )
+        : undefined;
+    await tx.query(
+      `INSERT INTO message_reads (deal_id, user_id, read_seq, logged_seq, logged_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (deal_id, user_id) DO UPDATE
+         SET read_seq = $3, logged_seq = $4, logged_at = $5, updated_at = $6`,
+      [
+        input.dealId,
+        input.userId,
+        readSeq,
+        entry ? readSeq : loggedSeq,
+        entry ? now : (before?.logged_at ?? null),
+        now,
+      ],
+    );
+    return { readSeq, moved, ...(entry ? { entry } : {}) };
+  });
+}
+
+/** How far each side has read the deal's chat, by role (0 before they read anything). */
+export async function readPositions(
+  q: Queryable,
+  deal: { id: string; sellerId: string; buyerId?: string | undefined },
+): Promise<{ seller: number; buyer: number }> {
+  const rows = await q.query("SELECT user_id, read_seq FROM message_reads WHERE deal_id = $1", [
+    deal.id,
+  ]);
+  const positions = z
+    .array(z.object({ user_id: z.string(), read_seq: z.number().int() }))
+    .parse(rows);
+  const of = (userId: string | undefined) =>
+    positions.find((row) => row.user_id === userId)?.read_seq ?? 0;
+  return { seller: of(deal.sellerId), buyer: of(deal.buyerId) };
+}

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import fastifyCookie from "@fastify/cookie";
 import fastifyHelmet from "@fastify/helmet";
+import fastifyWebsocket from "@fastify/websocket";
+import { MAX_CLIENT_FRAME_BYTES } from "@pactpal/live";
 import { MIGRATIONS, migrationStatus, type Database, type Migration } from "@pactpal/db";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { linkRoutes } from "./auth/links.js";
@@ -23,6 +25,7 @@ import {
 import { resendInboundRoutes, type ResendInboundOptions } from "./webhooks/resend-inbound.js";
 import { sellerAppRoutes, type SellerAppLinking } from "./sellers/app-link-routes.js";
 import { LinkedApps } from "./sellers/linked-apps.js";
+import { memoryBus, type ChatBus } from "./chat/bus.js";
 
 export interface AppOptions {
   /** Off, on (to standard output), or into a given stream (used by tests to read the logs). */
@@ -57,6 +60,20 @@ export interface AppOptions {
   disputeWriter?: DisputeWriter;
   /** Linking sellers' own PayPal apps (6h-2); off until the database and encryption key are set. */
   sellerApps?: SellerAppLinking;
+  /**
+   * Carries chat events between server copies (7c): Postgres notifications in the running server;
+   * one process only by default. Closed when the server stops.
+   */
+  chatBus?: ChatBus;
+  /** This copy's id for chat presence; random by default. */
+  serverId?: string;
+}
+
+/** The site's own WebSocket address (wss for https), for the pages' connection rule. */
+export function socketOrigin(publicBaseUrl: string | undefined): string[] {
+  if (publicBaseUrl === undefined) return [];
+  const url = new URL(publicBaseUrl);
+  return [`${url.protocol === "https:" ? "wss:" : "ws:"}//${url.host}`];
 }
 
 /**
@@ -86,10 +103,21 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
 
   // Security headers on every answer: scripts, styles and frames only from this site. Upgrading
   // http requests is left off so the app also works on http://localhost; Render serves only https.
+  // The live chat (7c) connects to this site's own wss: address, named because not every browser
+  // counts it as 'self'.
   void app.register(fastifyHelmet, {
-    contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
+    contentSecurityPolicy: {
+      directives: {
+        upgradeInsecureRequests: null,
+        connectSrc: ["'self'", ...socketOrigin(opts.signIn?.publicBaseUrl)],
+      },
+    },
   });
   void app.register(fastifyCookie);
+  // Pages send only small frames (typing, read, keep-alive); anything larger is refused.
+  void app.register(fastifyWebsocket, { options: { maxPayload: MAX_CLIENT_FRAME_BYTES } });
+  const chatBus = opts.chatBus ?? memoryBus();
+  app.addHook("onClose", () => chatBus.close());
 
   // Liveness only: it must stay green when the database is down, or the host would restart a
   // healthy server. /ready is the check that includes the database.
@@ -159,6 +187,8 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     disputes: opts.disputes,
     claims: opts.claims,
     disputeWriter: opts.disputeWriter,
+    chatBus,
+    serverId: opts.serverId ?? randomUUID(),
   });
   void app.register(resendInboundRoutes, {
     database: signIn.database,

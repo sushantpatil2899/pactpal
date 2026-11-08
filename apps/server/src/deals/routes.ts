@@ -45,6 +45,9 @@ import { claimRoutes } from "../disputes/claim-routes.js";
 import { packetRoutes } from "../disputes/packet-routes.js";
 import { disputeRoutes } from "../disputes/dispute-routes.js";
 import { chatRoutes } from "../chat/chat-routes.js";
+import type { ChatBus } from "../chat/bus.js";
+import { LiveHub } from "../chat/live-hub.js";
+import { liveRoutes } from "../chat/live-routes.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -72,6 +75,10 @@ export interface DealOptions {
   claims?: ClaimRunner | undefined;
   /** Escalates disputes and sends evidence (5g); undefined until the seller app is set. */
   disputeWriter?: DisputeWriter | undefined;
+  /** Chat events between server copies (7c). */
+  chatBus: ChatBus;
+  /** This server copy's id, for chat presence. */
+  serverId: string;
 }
 
 const newDealBody = newDealSchema.pick({ title: true, category: true, currency: true });
@@ -204,7 +211,28 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   });
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
-  void app.register(chatRoutes, { visibleDeal, clock, newId, recordIp });
+  const { chatBus } = options;
+  void app.register(chatRoutes, {
+    visibleDeal,
+    clock,
+    newId,
+    recordIp,
+    onPosted: (dealId) => chatBus.publish({ type: "messages", dealId }),
+  });
+  if (database) {
+    const hub = new LiveHub({
+      db: database,
+      bus: chatBus,
+      serverId: options.serverId,
+      clock,
+      log: app.log,
+    });
+    app.addHook("onClose", (_instance, done) => {
+      hub.close();
+      done();
+    });
+    void app.register(liveRoutes, { visibleDeal, hub, clock, publicBaseUrl });
+  }
   void app.register(changeOrderRoutes, {
     visibleDeal,
     sellersDeal,

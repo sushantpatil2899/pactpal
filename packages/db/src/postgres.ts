@@ -70,3 +70,109 @@ export function connectPostgres(options: PostgresOptions): Database {
   });
   return databaseFromPool(pool, options.onError);
 }
+
+/** The slice of a `pg` client that listening uses (lets tests supply a fake). */
+export interface PgListenClient {
+  connect(): Promise<unknown>;
+  query(sql: string): Promise<unknown>;
+  on(
+    event: "notification",
+    listener: (message: { channel: string; payload?: string }) => void,
+  ): unknown;
+  on(event: "error", listener: (error: Error) => void): unknown;
+  on(event: "end", listener: () => void): unknown;
+  end(): Promise<void>;
+}
+
+export interface ListenOptions {
+  /** Connection string. Never log it: it holds the password. */
+  url: string;
+  /** Lower-case letters and underscores only (it cannot be sent as a value). */
+  channel: string;
+  onNotification: (payload: string) => void;
+  /** Connection problems; the listener reconnects by itself. */
+  onError: (error: Error) => void;
+  /** Called each time listening starts, including after a reconnection (state may be stale). */
+  onListening?: () => void;
+  /** Makes a client; a real `pg` client by default. */
+  newClient?: (url: string) => PgListenClient;
+  /** Runs `work` after `ms`; `setTimeout` by default. Returns a way to cancel it. */
+  schedule?: (work: () => void, ms: number) => () => void;
+}
+
+/** Waits before each reconnection: 1 s, 2 s, 5 s, 10 s, then every 30 s. */
+const RECONNECT_DELAYS_MS = [1000, 2000, 5000, 10_000, 30_000];
+
+const defaultSchedule = (work: () => void, ms: number) => {
+  const timer = setTimeout(work, ms);
+  return () => {
+    clearTimeout(timer);
+  };
+};
+
+/**
+ * Listens on a Postgres notification channel over its own connection (a pooled one cannot
+ * listen), reconnecting with growing waits whenever the connection fails or ends. Notifications
+ * sent while it was disconnected are lost, so callers re-read state after `onError`.
+ */
+export function listenPostgres(options: ListenOptions): { close(): Promise<void> } {
+  if (!/^[a-z_]{1,63}$/.test(options.channel)) throw new Error("Invalid channel name");
+  const newClient =
+    options.newClient ??
+    ((url: string): PgListenClient => new pg.Client({ connectionString: url }));
+  const schedule = options.schedule ?? defaultSchedule;
+  let client: PgListenClient | undefined;
+  let closed = false;
+  let failures = 0;
+  let cancelRetry: (() => void) | undefined;
+
+  const retry = (error: Error) => {
+    options.onError(error);
+    const current = client;
+    client = undefined;
+    current?.end().catch(() => undefined);
+    if (closed || cancelRetry) return;
+    const delay = RECONNECT_DELAYS_MS[Math.min(failures, RECONNECT_DELAYS_MS.length - 1)] ?? 30_000;
+    failures += 1;
+    cancelRetry = schedule(() => {
+      cancelRetry = undefined;
+      void open();
+    }, delay);
+  };
+
+  async function open() {
+    if (closed) return;
+    const next = newClient(options.url);
+    client = next;
+    next.on("notification", (message) => {
+      if (message.channel === options.channel && message.payload !== undefined) {
+        options.onNotification(message.payload);
+      }
+    });
+    next.on("error", (error) => {
+      if (client === next) retry(error);
+    });
+    next.on("end", () => {
+      if (client === next && !closed) retry(new Error("The listening connection ended"));
+    });
+    try {
+      await next.connect();
+      await next.query(`LISTEN ${options.channel}`);
+      failures = 0;
+      options.onListening?.();
+    } catch (error) {
+      if (client === next) retry(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  void open();
+  return {
+    async close() {
+      closed = true;
+      cancelRetry?.();
+      const current = client;
+      client = undefined;
+      await current?.end();
+    },
+  };
+}

@@ -25,6 +25,7 @@
     "@fastify/cookie": "^11.1.5",
     "@fastify/helmet": "^13.2.0",
     "@fastify/static": "^10.1.8",
+    "@fastify/websocket": "^11.3.7",
     "@pactpal/ai": "workspace:*",
     "@pactpal/claims": "workspace:*",
     "@pactpal/council": "workspace:*",
@@ -32,6 +33,7 @@
     "@pactpal/delivery-check": "workspace:*",
     "@pactpal/email": "workspace:*",
     "@pactpal/ledger": "workspace:*",
+    "@pactpal/live": "workspace:*",
     "@pactpal/net": "workspace:*",
     "@pactpal/paypal": "workspace:*",
     "@pactpal/pdf": "workspace:*",
@@ -47,7 +49,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/ws": "^8.18.2",
     "esbuild": "~0.25.12",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "ws": "^8.22.2"
   }
 }

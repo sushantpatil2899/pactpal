@@ -536,9 +536,30 @@ Built in 6c (migration 0029); own apps added in 6h-1 (migration 0030) and their 
 
 The database refuses a connected row without an account or time, a pending row with either, and a disconnected row without its time. A Partner Referrals row needs its tracking id and holds no app keys; an own-app row needs its client id, is never pending, holds its sealed secret while connected, and no row holds a secret once ended. At most one connected row per user and one per PayPal account (partial unique indexes), so a dispute can never be shown to the wrong seller.
 
+### `deal_messages`: the deal's chat (7b)
+
+Messages from the deal's seller and buyer, and PactPal's own cards in the chat. Append-only: a message is never edited or removed.
+
+| Column                 | Meaning                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `deal_id`, `seq` | The message, its deal and its position in the chat (1, 2, 3, ...; chosen while the deal row is locked, so two posts never clash)                        |
+| `author_id`, `role`    | Who wrote it (`seller` or `buyer`), or `system` with no author for PactPal's cards                                                                      |
+| `kind`                 | `text` (a person's message) or `notice` (a PactPal card)                                                                                                |
+| `body`, `body_sha256`  | The words (1 to 4,000 characters) and their fingerprint; every read checks the words against it                                                         |
+| `notice`               | For cards: what it is about (`review-requested`, `review-withdrawn`, `changes-requested`, `signed`, `step`, `reminder`) and the version or step         |
+| `client_id`            | The page's own id for a message, so a retried post returns the same message instead of making a second                                                  |
+| `ledger_seq`           | For a message, its `MESSAGE_SENT` entry (the message id, position, fingerprint and length; never the words). For a card, the entry it announces, if any |
+| `created_at`           | Server time                                                                                                                                             |
+
+A deal holds at most 5,000 messages; a cancelled deal's chat is closed.
+
+### `message_reads`: how far each person has read (7c)
+
+One row per deal and person: `read_seq` (the last message they have read; it only moves forward), `logged_seq` and `logged_at` (what was last written to the log). It changes as they read, so it is not append-only; the evidence is the `MESSAGES_READ` entry (`upToSeq`), written when the position has moved, at most once a minute per person, and always when their page closes.
+
 ## Phase 7 (deal space)
 
-Being built in 7b–7m; each table is described in full once it exists.
+Being built in 7b–7m; each table is described in full above once it exists.
 
 | Table or change              | Sub-phase | What it holds                                                                                                                                                                                                                               |
 | ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

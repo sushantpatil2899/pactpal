@@ -1,7 +1,14 @@
 /** Database access for PactPal: the `Database` interface, the Postgres adapter and migrations. */
 export type { Database, Queryable, Row } from "./database.js";
-export { connectPostgres, databaseFromPool } from "./postgres.js";
-export type { PgClient, PgConnection, PgPool, PostgresOptions } from "./postgres.js";
+export { connectPostgres, databaseFromPool, listenPostgres } from "./postgres.js";
+export type {
+  ListenOptions,
+  PgClient,
+  PgConnection,
+  PgListenClient,
+  PgPool,
+  PostgresOptions,
+} from "./postgres.js";
 export { MigrationError, migrate, migrationStatus } from "./migrate.js";
 export type { Migration, MigrationStatus } from "./migrate.js";
 export { MIGRATIONS } from "./migrations.js";
@@ -364,3 +371,6 @@ export {
   postNotice,
 } from "./chat.js";
 export type { ChatMessage, ChatNotice, ChatRefusal, ChatRole, NewMessage } from "./chat.js";
+export { READ_LOG_INTERVAL_MS, markRead, readPositions } from "./chat.js";
+export { CHAT_CHANNEL, chatEventSchema, parseChatEvent, publishChatEvent } from "./chat-events.js";
+export type { ChatEvent } from "./chat-events.js";

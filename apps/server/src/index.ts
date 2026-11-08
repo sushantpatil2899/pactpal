@@ -7,6 +7,7 @@ import {
   failRunningDrafts,
   failRunningMessageReviews,
   forwardInterruptedQuestions,
+  listenPostgres,
   recordWebhookEvent,
 } from "@pactpal/db";
 import {
@@ -45,6 +46,7 @@ import {
 } from "./disputes/claim-job.js";
 import { syncDisputes } from "./disputes/dispute-sync.js";
 import { jsonLines } from "./disputes/task.js";
+import { postgresBus } from "./chat/bus.js";
 
 const result = loadConfig(process.env);
 if (!result.ok) {
@@ -146,8 +148,20 @@ const sellerApps =
         connect: connectOwnApp,
       }
     : undefined;
+// The live chat (7c): events between server copies and from the background worker go through
+// Postgres notifications, on a connection of their own.
+const databaseSettings = config.database;
+const chatBus =
+  database &&
+  databaseSettings &&
+  postgresBus(
+    database,
+    (handlers) => listenPostgres({ url: databaseSettings.url.reveal(), ...handlers }),
+    disputeLog,
+  );
 const app = buildApp(report, {
   ...(sellerApps ? { sellerApps } : {}),
+  ...(chatBus ? { chatBus } : {}),
   ...(disputes ? { disputes } : {}),
   ...(claims ? { claims } : {}),
   database,

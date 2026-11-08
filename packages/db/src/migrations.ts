@@ -1086,4 +1086,19 @@ CREATE TRIGGER deal_messages_append_only BEFORE UPDATE OR DELETE ON deal_message
 CREATE TRIGGER deal_messages_no_truncate BEFORE TRUNCATE ON deal_messages
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0034_message_reads",
+    // How far each person has read a deal's chat (7c). Changes as they read, so not append-only;
+    // the evidence is the MESSAGES_READ log entry, written when the position moves and at most
+    // once a minute per person (logged_seq and logged_at say what was last logged).
+    sql: `CREATE TABLE message_reads (
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  user_id uuid NOT NULL REFERENCES users (id),
+  read_seq integer NOT NULL CHECK (read_seq >= 0),
+  logged_seq integer NOT NULL DEFAULT 0 CHECK (logged_seq >= 0 AND logged_seq <= read_seq),
+  logged_at timestamptz,
+  updated_at timestamptz NOT NULL,
+  PRIMARY KEY (deal_id, user_id)
+)`,
+  },
 ];
