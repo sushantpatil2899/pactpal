@@ -65,3 +65,4 @@ export {
   transcriptText,
   type Transcript,
 } from "./screenshot.js";
+export { draftSourceText, type DraftSourceParts, type TranscriptMessage } from "./draft-source.js";

@@ -76,6 +76,9 @@ export function draftView(
       sha256: record.sourceSha256,
       lines,
       hiddenLines: lines === null ? null : findInstructionLines(lines),
+      // 7h, 7i: how far into the in-app chat it read, and the version an update started from.
+      chatThroughSeq: record.chatThroughSeq ?? null,
+      basedOnVersion: record.basedOnVersion ?? null,
     },
     promptVersions: { draft: record.draftPromptVersion, rank: record.rankPromptVersion },
     failureReason: record.failureReason ?? null,

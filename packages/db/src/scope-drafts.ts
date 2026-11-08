@@ -44,6 +44,8 @@ const draftRow = z
     council: z.json().nullable(),
     failure_reason: z.string().nullable(),
     ledger_seq: z.number().int().nullable(),
+    chat_through_seq: z.number().int().nullable(),
+    based_on_version: z.number().int().nullable(),
   })
   .transform((row) => ({
     id: row.id,
@@ -61,6 +63,10 @@ const draftRow = z
     council: row.council ?? undefined,
     failureReason: row.failure_reason ?? undefined,
     ledgerSeq: row.ledger_seq ?? undefined,
+    /** The last in-app chat message the draft read (7h); undefined when it read none. */
+    chatThroughSeq: row.chat_through_seq ?? undefined,
+    /** For an update (7i): the version it started from. */
+    basedOnVersion: row.based_on_version ?? undefined,
   }));
 
 /**
@@ -95,6 +101,8 @@ export const startDraftSchema = z.object({
   sourceSha256: z.string().regex(/^[0-9a-f]{64}$/),
   draftPromptVersion: z.number().int().min(1),
   rankPromptVersion: z.number().int().min(1),
+  chatThroughSeq: z.number().int().min(0).optional(),
+  basedOnVersion: z.number().int().min(1).optional(),
 });
 export type StartDraft = z.input<typeof startDraftSchema>;
 
@@ -128,8 +136,9 @@ export async function startDraft(db: Database, input: StartDraft, now: Date): Pr
 
     const rows = await tx.query(
       `INSERT INTO scope_drafts (id, deal_id, source_artifact_id, source_sha256, created_by, status,
-                                 created_at, draft_prompt_version, rank_prompt_version)
-       VALUES ($1, $2, $3, $4, $5, 'running', $6, $7, $8)
+                                 created_at, draft_prompt_version, rank_prompt_version,
+                                 chat_through_seq, based_on_version)
+       VALUES ($1, $2, $3, $4, $5, 'running', $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         draft.id,
@@ -140,6 +149,8 @@ export async function startDraft(db: Database, input: StartDraft, now: Date): Pr
         now,
         draft.draftPromptVersion,
         draft.rankPromptVersion,
+        draft.chatThroughSeq ?? null,
+        draft.basedOnVersion ?? null,
       ],
     );
     return checkedDraft(rows[0]);
@@ -269,4 +280,18 @@ export async function listDrafts(q: Queryable, dealId: string): Promise<DraftRec
     [dealId],
   );
   return rows.map(checkedDraft);
+}
+
+const lastRead = z.object({ last: z.number().int().nullable() });
+
+/**
+ * The last in-app chat message a finished draft of the deal read (7i), or 0 when none has read
+ * the chat: an update reads only the messages after it.
+ */
+export async function lastChatSeqDrafted(q: Queryable, dealId: string): Promise<number> {
+  const rows = await q.query(
+    `SELECT MAX(chat_through_seq) AS last FROM scope_drafts WHERE deal_id = $1 AND status = 'ready'`,
+    [dealId],
+  );
+  return lastRead.parse(rows[0]).last ?? 0;
 }

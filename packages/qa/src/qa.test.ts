@@ -46,6 +46,37 @@ describe("agreement lines", () => {
     ]);
   });
 
+  it("end with the signed timeline, step by step, when the version lists one", () => {
+    const lines = agreementLines({
+      ...MAYA,
+      terms: {
+        ...MAYA.terms,
+        timeline: [
+          {
+            n: 1,
+            kind: "payment",
+            owner: "buyer",
+            title: "Sketch",
+            dueDate: null,
+            amount: money("120.00"),
+          },
+          {
+            n: 2,
+            kind: "review",
+            owner: "seller",
+            title: "Pose sketch",
+            dueDate: null,
+            amount: null,
+          },
+        ],
+      },
+    });
+    expect(lines.slice(-2).map((line) => line.text)).toEqual([
+      "Timeline step 1. Payment: Sketch, 120.00 USD (by the buyer)",
+      "Timeline step 2. Review: the seller shares, the buyer approves: Pose sketch (by the seller)",
+    ]);
+  });
+
   it("include what the buyer provides, and leave out what the agreement does not state", () => {
     const lines = agreementLines({
       ...MAYA,

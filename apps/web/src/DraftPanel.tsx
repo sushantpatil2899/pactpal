@@ -2,13 +2,17 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   addPastedChat,
   getDraftById,
+  getScope,
   listDrafts,
   listFiles,
   startDraft,
   type DealFile,
   type DraftView,
+  type ScopeView,
 } from "./api";
+import { ChatDraftForm } from "./ChatDraftForm";
 import { CouncilPanel } from "./CouncilPanel";
+import { draftChanges } from "./draft-changes";
 import { DraftReview } from "./DraftReview";
 import type { DraftFill } from "./draft-fill";
 import { when } from "./format";
@@ -58,6 +62,16 @@ export function DraftPanel({
   // After screenshots were read: what the seller must check in the chat box.
   const [readNotice, setReadNotice] = useState<string | undefined>();
   const chatBox = useRef<HTMLTextAreaElement>(null);
+  // The newest agreement, for "Update from the latest chat" and an update's changes (7i).
+  const [scope, setScope] = useState<ScopeView | null>(null);
+  useEffect(() => {
+    getScope(dealId).then(setScope, () => undefined);
+  }, [dealId, detail?.status]);
+  const opened = (started: DraftView) => {
+    setDrafts((current) => [started, ...(current ?? [])]);
+    setOpenId(started.id);
+    setDetail(started);
+  };
 
   useEffect(() => {
     Promise.all([listDrafts(dealId), listFiles(dealId)]).then(
@@ -139,9 +153,7 @@ export function DraftPanel({
       .then(
         (started) => {
           setBusy(false);
-          setDrafts((current) => [started, ...(current ?? [])]);
-          setOpenId(started.id);
-          setDetail(started);
+          opened(started);
         },
         (error: unknown) => {
           setBusy(false);
@@ -161,7 +173,20 @@ export function DraftPanel({
         </p>
       )}
       {canDraft && (
+        <ChatDraftForm
+          dealId={dealId}
+          files={files}
+          hasAgreement={scope !== null}
+          disabled={busy || running}
+          onStarted={(started) => {
+            opened(started);
+            onLogChange();
+          }}
+        />
+      )}
+      {canDraft && (
         <form onSubmit={onStart}>
+          <h4>From a chat elsewhere</h4>
           <p>
             Paste a chat between you and the buyer. Several AI models read it, check each other and
             draft the agreed work, quoting the chat for every line.{" "}
@@ -265,6 +290,25 @@ export function DraftPanel({
           {detail.council !== null && <CouncilPanel council={detail.council} />}
         </>
       )}
+      {detail?.status === "ready" &&
+        detail.draft !== null &&
+        typeof detail.source.basedOnVersion === "number" &&
+        scope !== null && (
+          <section aria-labelledby="draft-changes">
+            <h4 id="draft-changes">
+              What this update changes from version {detail.source.basedOnVersion}
+            </h4>
+            {draftChanges(detail.draft, scope).length === 0 ? (
+              <p>Nothing that the draft states is different.</p>
+            ) : (
+              <ul>
+                {draftChanges(detail.draft, scope).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       {detail?.status === "ready" && (
         <DraftReview view={detail} dealCategory={dealCategory} canUse={canDraft} onUse={onUse} />
       )}

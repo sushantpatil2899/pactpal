@@ -47,6 +47,29 @@ describe("a drafted timeline in the form", () => {
     });
   });
 
+  it("points one buyer step at every item quoting the same chat line, adding none", () => {
+    const plan = planFromDraft(
+      [
+        step("buyer-provides", "Brand colours and two reference logos", { lines: [5] }),
+        step("payment", "Deposit"),
+      ],
+      [
+        { text: "Brand colours", lines: [5] },
+        { text: "Two reference logos", lines: [5] },
+      ],
+      undefined,
+    );
+    expect(plan.buyerProvides).toEqual([
+      { text: "Brand colours" },
+      { text: "Two reference logos" },
+    ]);
+    expect(plan.timeline).toEqual([
+      { kind: "buyer-provides", item: 1 },
+      { kind: "buyer-provides", item: 2 },
+      { kind: "payment", stage: 1 },
+    ]);
+  });
+
   it("gives a single payment the price, and a delivery after the last payment that stage", () => {
     const plan = planFromDraft(
       [step("payment", "Full price"), step("delivery", "Files")],

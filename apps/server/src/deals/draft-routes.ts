@@ -1,6 +1,11 @@
 import {
   ArtifactIntegrityError,
   ArtifactNotFoundError,
+  MESSAGE_PAGE_SIZE,
+  addArtifact,
+  lastChatSeqDrafted,
+  listMessages,
+  type ChatMessage,
   DealNotFoundError,
   DraftNotAllowedError,
   getArtifact,
@@ -8,17 +13,22 @@ import {
   listDrafts,
   postgresContentStore,
   startDraft,
+  type Artifact,
   type ContentStore,
   type Database,
   type DraftRecord,
 } from "@pactpal/db";
-import { numberSourceLines, type SourceLine } from "@pactpal/scope-draft";
-import type { FastifyPluginAsync } from "fastify";
+import { agreementLines } from "@pactpal/qa";
+import { draftSourceText, numberSourceLines, type SourceLine } from "@pactpal/scope-draft";
+import { currentDocument } from "../acceptance/document.js";
+import { CHAT_TRANSCRIPT_PREFIX, chatNames } from "../chat/chat-routes.js";
+import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { PROMPT_VERSIONS, runDraftJob } from "../drafting/draft-job.js";
 import { draftView } from "../drafting/draft-view.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
-import { readBody, type DealLookup, sendRefusal } from "./access.js";
+import { type DealLookup, type FoundDeal, sendRefusal } from "./access.js";
+import { sellerModelStep } from "./model-step.js";
 
 export interface DraftRouteOptions {
   database: Database | undefined;
@@ -30,6 +40,21 @@ export interface DraftRouteOptions {
 }
 
 const startBody = z.object({ sourceFileId: z.uuid() });
+
+/**
+ * A draft from the deal's own conversation (7h): the in-app chat, pasted chats, or both. With
+ * `update` (7i), the agreement as it stands plus only the chat messages since the last draft.
+ */
+const fromChatBody = z
+  .object({
+    chat: z.boolean().default(true),
+    pastedFileIds: z.array(z.uuid()).max(10).default([]),
+    update: z.boolean().default(false),
+  })
+  .refine((body) => body.chat || body.update || body.pastedFileIds.length > 0, {
+    message: "choose at least one source",
+    path: ["chat"],
+  });
 const draftParams = z.object({ draftId: z.uuid() });
 
 const REFUSALS: Record<DraftNotAllowedError["reason"], { status: number; error: string }> = {
@@ -47,6 +72,17 @@ function textOf(bytes: Uint8Array): string | undefined {
     return decoder.decode(bytes);
   } catch {
     return undefined;
+  }
+}
+
+/** Every chat message after position `after`, oldest first, read a page at a time. */
+async function allMessagesAfter(db: Database, dealId: string, after: number) {
+  const all: ChatMessage[] = [];
+  for (let from = after; ;) {
+    const page = await listMessages(db, dealId, from);
+    all.push(...page);
+    if (page.length < MESSAGE_PAGE_SIZE) return all;
+    from = page.at(-1)?.seq ?? from;
   }
 }
 
@@ -108,34 +144,23 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
     return reply.send({ draft: draftView(draft, found.deal, lines) });
   });
 
-  app.post("/api/deals/:id/drafts", async (request, reply) => {
-    const found = await sellersDeal(request, reply);
-    if (!found || !store) return reply;
-    const body = await readBody(startBody, request, reply);
-    if (!body) return reply;
+  /**
+   * Starts a draft from a text source file of the deal (already read and fingerprint-checked):
+   * numbers its lines, records the draft as running and runs the council in the background.
+   * `from` says how far into the in-app chat the file reads and, for an update, which version
+   * it starts from (7h, 7i).
+   */
+  async function beginDraft(
+    found: FoundDeal,
+    file: { artifact: Artifact; bytes: Uint8Array },
+    from: { chatThroughSeq?: number; basedOnVersion?: number },
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ) {
     if (!drafting || drafting.clients.length === 0) {
       return reply.code(503).send({ error: "no AI model is configured" });
     }
     const { deal, db, viewer } = found;
-
-    // The chat must be a text source file of this deal; reading it checks its fingerprint.
-    let file;
-    try {
-      file = await getArtifact(db, store, body.sourceFileId, deal.id);
-    } catch (error) {
-      if (error instanceof ArtifactNotFoundError) {
-        return reply.code(404).send({ error: "no such file on this deal" });
-      }
-      if (!(error instanceof ArtifactIntegrityError)) throw error;
-      request.log.error(
-        { dealId: deal.id, fileId: body.sourceFileId },
-        "Chat file failed its check",
-      );
-      return reply.code(409).send({ error: "this file failed its check and was not used" });
-    }
-    if (file.artifact.kind !== "source" || file.artifact.mediaType !== "text/plain") {
-      return reply.code(404).send({ error: "no such text source file on this deal" });
-    }
     const text = textOf(file.bytes);
     if (text === undefined) return reply.code(422).send({ error: "the file is not plain text" });
     const numbered = numberSourceLines(text);
@@ -154,6 +179,7 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
           sourceSha256: file.artifact.sha256,
           draftPromptVersion: PROMPT_VERSIONS.draft,
           rankPromptVersion: PROMPT_VERSIONS.rank,
+          ...from,
         },
         clock(),
       );
@@ -187,6 +213,125 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
       if (!(error instanceof DraftNotAllowedError)) throw error;
       return sendRefusal(reply, REFUSALS[error.reason]);
     }
+  }
+
+  /** A text source file of the deal, checked against its fingerprint; or undefined after answering. */
+  async function sourceFile(
+    found: FoundDeal,
+    fileId: string,
+    reply: FastifyReply,
+    log: FastifyBaseLogger,
+  ) {
+    if (!store) return undefined;
+    try {
+      const file = await getArtifact(found.db, store, fileId, found.deal.id);
+      if (file.artifact.kind !== "source" || file.artifact.mediaType !== "text/plain") {
+        await reply.code(404).send({ error: "no such text source file on this deal" });
+        return undefined;
+      }
+      return file;
+    } catch (error) {
+      if (error instanceof ArtifactNotFoundError) {
+        await reply.code(404).send({ error: "no such file on this deal" });
+        return undefined;
+      }
+      if (!(error instanceof ArtifactIntegrityError)) throw error;
+      log.error({ dealId: found.deal.id, fileId }, "Chat file failed its check");
+      await reply.code(409).send({ error: "this file failed its check and was not used" });
+      return undefined;
+    }
+  }
+
+  app.post("/api/deals/:id/drafts", async (request, reply) => {
+    const step = await sellerModelStep(sellersDeal, startBody, drafting, request, reply);
+    if (!step || !store) return reply;
+    const { found, body } = step;
+    // The chat must be a text source file of this deal; reading it checks its fingerprint.
+    const file = await sourceFile(found, body.sourceFileId, reply, request.log);
+    return file ? beginDraft(found, file, {}, request, reply) : reply;
+  });
+
+  app.post("/api/deals/:id/drafts/from-chat", async (request, reply) => {
+    const step = await sellerModelStep(sellersDeal, fromChatBody, drafting, request, reply);
+    if (!step || !store) return reply;
+    const { found, body } = step;
+    const { db, deal, viewer } = found;
+
+    // For an update: the agreement as the buyer last saw it, and the chat since the last draft.
+    const current = body.update ? await currentDocument(db, deal) : undefined;
+    if (body.update && !current) {
+      return reply.code(409).send({ error: "there is no agreement to update yet" });
+    }
+    const after = body.update ? await lastChatSeqDrafted(db, deal.id) : 0;
+    const messages = body.chat || body.update ? await allMessagesAfter(db, deal.id, after) : [];
+    const pasted = [];
+    for (const id of body.pastedFileIds) {
+      const file = await sourceFile(found, id, reply, request.log);
+      if (!file) return reply;
+      const text = textOf(file.bytes);
+      if (text === undefined || file.artifact.filename.startsWith(CHAT_TRANSCRIPT_PREFIX)) {
+        return reply.code(422).send({ error: "only pasted chats can be added" });
+      }
+      pasted.push({ filename: file.artifact.filename, text });
+    }
+    if (!current && pasted.length === 0 && messages.length === 0) {
+      return reply.code(422).send({ error: "the chat has no messages yet" });
+    }
+
+    const names = await chatNames(db, deal);
+    const text = draftSourceText({
+      ...(current
+        ? {
+            current: {
+              version: current.scope.version,
+              lines: agreementLines(current.document).map((line) => line.text),
+            },
+          }
+        : {}),
+      ...(body.chat || body.update
+        ? {
+            chat: messages.map((message) => ({
+              seq: message.seq,
+              at: message.createdAt.toISOString(),
+              name: names[message.role],
+              role: message.role,
+              body: message.body,
+            })),
+          }
+        : {}),
+      pasted,
+    });
+    const numbered = numberSourceLines(text);
+    if (!numbered.ok) {
+      return reply.code(422).send({
+        error: `${numbered.message} Try "Update from the latest chat", which reads only new messages.`,
+      });
+    }
+    // The exact text the models read is kept as a source file of the deal, with its fingerprint.
+    const artifact = await addArtifact(
+      db,
+      store,
+      {
+        id: newId(),
+        dealId: deal.id,
+        kind: "source",
+        filename: `${CHAT_TRANSCRIPT_PREFIX}${clock().toISOString().replace(/[:.]/g, "-")}.txt`,
+        bytes: new TextEncoder().encode(text),
+        addedBy: { actor: "seller", actorId: viewer.user.id },
+      },
+      clock(),
+    );
+    const lastSeq = messages.at(-1)?.seq ?? after;
+    return beginDraft(
+      found,
+      { artifact, bytes: new TextEncoder().encode(text) },
+      {
+        ...(body.chat || body.update ? { chatThroughSeq: lastSeq } : {}),
+        ...(current ? { basedOnVersion: current.scope.version } : {}),
+      },
+      request,
+      reply,
+    );
   });
 
   return Promise.resolve();

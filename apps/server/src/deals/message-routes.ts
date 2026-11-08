@@ -21,7 +21,8 @@ import { documentFor } from "../acceptance/document.js";
 import { MESSAGE_PROMPT_VERSIONS, runMessageJob } from "../drafting/message-job.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { signedRecord } from "../payments/signed-record.js";
-import { featureAnswers, readBody, type DealLookup, sendRefusal } from "./access.js";
+import { featureAnswers, type DealLookup, sendRefusal } from "./access.js";
+import { sellerModelStep } from "./model-step.js";
 
 export interface MessageRouteOptions {
   sellersDeal: DealLookup;
@@ -117,13 +118,9 @@ export const messageRoutes: FastifyPluginAsync<MessageRouteOptions> = (app, opti
   });
 
   app.post("/api/deals/:id/messages", async (request, reply) => {
-    const found = await sellersDeal(request, reply);
-    if (!found) return reply;
-    const body = await readBody(messageBody, request, reply);
-    if (!body) return reply;
-    if (!drafting || drafting.clients.length === 0) {
-      return reply.code(503).send({ error: "no AI model is configured" });
-    }
+    const step = await sellerModelStep(sellersDeal, messageBody, drafting, request, reply);
+    if (!step) return reply;
+    const { found, body, drafting: runtime } = step;
     const { db, deal, viewer } = found;
     const record = await signedRecord(db, deal);
     if (!record) return reply.code(409).send({ error: REFUSALS["not-signed"].error });
@@ -134,7 +131,7 @@ export const messageRoutes: FastifyPluginAsync<MessageRouteOptions> = (app, opti
     if (earlier.some((r) => r.status === "running")) {
       return reply.code(409).send({ error: REFUSALS["already-running"].error });
     }
-    const release = drafting.acquire();
+    const release = runtime.acquire();
     if (!release) return reply.code(429).send({ error: "busy, try again in a minute" });
     try {
       const file = await addArtifact(
@@ -174,9 +171,9 @@ export const messageRoutes: FastifyPluginAsync<MessageRouteOptions> = (app, opti
       };
       // The message's text stays out of the server's logs; the deal's files have it.
       request.log.info({ dealId: deal.id, reviewId: review.id }, "Message review started");
-      drafting.run(async () => {
+      runtime.run(async () => {
         try {
-          await runMessageJob(db, drafting, job, clock, request.log);
+          await runMessageJob(db, runtime, job, clock, request.log);
         } finally {
           release();
         }

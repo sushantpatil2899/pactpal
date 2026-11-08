@@ -127,6 +127,7 @@ export {
   getDraft,
   listDrafts,
   startDraft,
+  lastChatSeqDrafted,
   startDraftSchema,
 } from "./scope-drafts.js";
 export type { DraftRecord, DraftRefusal, FinishDraft, StartDraft } from "./scope-drafts.js";

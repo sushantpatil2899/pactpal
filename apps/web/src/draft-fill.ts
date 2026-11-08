@@ -97,9 +97,10 @@ export function fillFrom(view: DraftView, candidate?: DraftCandidate): DraftFill
   const draft = candidate?.draft ?? view.draft;
   if (draft === null) return undefined;
   const plan = planFromDraft(
-    draft.timeline ?? [],
+    (draft.timeline ?? []).map((step) => ({ ...step, lines: linesOf(step.citations) })),
     (draft.buyerProvides ?? []).map((item) => ({
       text: item.text,
+      lines: linesOf(item.citations),
       ...(item.dueDate === null ? {} : { dueDate: item.dueDate }),
     })),
     draft.price.status === "found" ? draft.price.amount : undefined,

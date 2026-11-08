@@ -1443,6 +1443,10 @@ export interface DraftView {
     sha256: string;
     lines: ChatLine[] | null;
     hiddenLines: number[] | null;
+    /** The last in-app chat message it read (7h), or null. */
+    chatThroughSeq?: number | null;
+    /** For an update (7i): the version it started from, or null. */
+    basedOnVersion?: number | null;
   };
   failureReason: string | null;
   draft: DraftContent | null;
@@ -1534,6 +1538,33 @@ export async function getDraftById(dealId: string, draftId: string): Promise<Dra
 }
 
 /** Starts a draft from a text file on the deal; it comes back `running`. */
+/**
+ * Starts a draft from the deal's own conversation (7h): the in-app chat and/or pasted chats; with
+ * `update` (7i), from the agreement as it stands plus the chat messages since the last draft.
+ */
+export async function startDraftFromChat(
+  dealId: string,
+  input: { chat: boolean; pastedFileIds: string[]; update: boolean },
+): Promise<DraftView> {
+  const response = await fetch(`${draftsUrl(dealId)}/from-chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(await errorMessage(response, "Could not start the draft"));
+  return draftFrom(response);
+}
+
+/** The started draft in an answer. */
+async function draftFrom(response: Response): Promise<DraftView> {
+  const body = await readChecked(
+    response,
+    (b): b is { draft: DraftView } => isObject(b) && isDraftView(b.draft),
+    "start the draft",
+  );
+  return body.draft;
+}
+
 export async function startDraft(dealId: string, sourceFileId: string): Promise<DraftView> {
   const response = await fetch(draftsUrl(dealId), {
     method: "POST",
@@ -1541,12 +1572,7 @@ export async function startDraft(dealId: string, sourceFileId: string): Promise<
     body: JSON.stringify({ sourceFileId }),
   });
   if (!response.ok) throw new Error(await errorMessage(response, "Could not start the draft"));
-  const body = await readChecked(
-    response,
-    (b): b is { draft: DraftView } => isObject(b) && isDraftView(b.draft),
-    "start the draft",
-  );
-  return body.draft;
+  return draftFrom(response);
 }
 
 /** Saves pasted text as a text source file on the deal (the same upload as any other file). */

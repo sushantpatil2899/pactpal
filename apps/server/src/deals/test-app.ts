@@ -1,7 +1,9 @@
 import { createDealLink, createSession, redeemDealLink, type Database } from "@pactpal/db";
 import { TEST_NOW, testId } from "@pactpal/db/testing";
 import { buildApp, type AppOptions } from "../app.js";
-import type { ChatClient } from "@pactpal/ai";
+import type { ChatClient, ChatOutcome, ChatRequest } from "@pactpal/ai";
+import { FakeChatClient, testSpec } from "@pactpal/ai/testing";
+import { MAYA_DRAFT } from "@pactpal/scope-draft/testing";
 import { createDraftingRuntime, type DraftingRuntime } from "../drafting/runtime.js";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
@@ -167,4 +169,22 @@ export async function signThroughRoutes(
     typedName: "Chris Buyer",
   });
   return documentSha256;
+}
+
+const isRanking = (request: ChatRequest) =>
+  request.messages[0]?.content.includes("careful reviewer") === true;
+
+/** A model that drafts as `draft` (JSON text or a failure) and ranks the drafts in the order shown. */
+export function standInMember(name: string, draft: object | string | ChatOutcome = MAYA_DRAFT) {
+  const spec = testSpec({ name });
+  return new FakeChatClient(spec, (request) => {
+    if (isRanking(request)) {
+      const user = request.messages[1]?.content ?? "";
+      const labels = [...user.matchAll(/label="(\w+)"/g)].map((m) => m[1]);
+      return JSON.stringify({ ranking: labels });
+    }
+    if (typeof draft === "string") return draft;
+    if ("ok" in draft) return draft;
+    return JSON.stringify(draft);
+  });
 }

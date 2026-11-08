@@ -1122,4 +1122,13 @@ CREATE INDEX notifications_by_user ON notifications (user_id, created_at DESC);
 CREATE UNIQUE INDEX notifications_one_unread_message ON notifications (user_id, deal_id)
   WHERE kind = 'message' AND read_at IS NULL`,
   },
+  {
+    id: "0036_draft_sources",
+    // Drafts from the deal's chat (7h, 7i): the last chat message a draft read (empty when it did
+    // not read the in-app chat), and for an update, the version it started from (empty for a draft
+    // from the whole conversation).
+    sql: `ALTER TABLE scope_drafts
+  ADD COLUMN chat_through_seq integer CHECK (chat_through_seq >= 0),
+  ADD COLUMN based_on_version integer CHECK (based_on_version >= 1)`,
+  },
 ];

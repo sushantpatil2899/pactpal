@@ -1,4 +1,4 @@
-import { dayWords, markedLine, type LineMark } from "@pactpal/words";
+import { dayWords, markedLine, stepLine, type LineMark, type StepFacts } from "@pactpal/words";
 
 /** The page the buyer signs, as far as its lines go (the acceptance document's shape). */
 export interface AgreementPage {
@@ -15,6 +15,8 @@ export interface AgreementPage {
     dueDate: string | null;
     milestones: readonly { title: string; amount: { text: string }; dueDate: string | null }[];
     total: { text: string };
+    /** The signed steps in order, when the version lists them (7f). */
+    timeline?: readonly StepFacts[];
   };
 }
 
@@ -27,7 +29,7 @@ export interface AgreementLine {
 /**
  * The agreement as numbered lines, built from exactly the page the buyer sees: title, seller,
  * summary, each delivered line with its mark, what is not included, what the buyer provides,
- * revisions, due date, each payment stage and the total.
+ * revisions, due date, each payment stage, the total and the timeline (when it lists one).
  */
 export function agreementLines(page: AgreementPage): AgreementLine[] {
   const { terms } = page;
@@ -52,6 +54,7 @@ export function agreementLines(page: AgreementPage): AgreementLine[] {
         `Payment stage ${String(n + 1)}: ${stage.title}, ${stage.amount.text} ${terms.currency}${stage.dueDate === null ? "" : ` (due ${dayWords(stage.dueDate)})`}`,
     ),
     `Total: ${terms.total.text} ${terms.currency}`,
+    ...(terms.timeline ?? []).map((step) => `Timeline step ${stepLine(step, terms.currency)}`),
   ];
   return texts.map((text, i) => ({ n: i + 1, text }));
 }

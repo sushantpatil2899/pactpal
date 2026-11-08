@@ -1,5 +1,5 @@
 import { FakeChatClient, testSpec } from "@pactpal/ai/testing";
-import type { ChatOutcome, ChatRequest } from "@pactpal/ai";
+import type { ChatOutcome } from "@pactpal/ai";
 import {
   addArtifact,
   createDeal,
@@ -20,28 +20,16 @@ import { MAYA_CHAT, MAYA_DRAFT } from "@pactpal/scope-draft/testing";
 import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
 import { PROMPT_VERSIONS } from "../drafting/draft-job.js";
-import { buyerVisitors, dealTestApp, signedInAs, queuedDrafting } from "./test-app.js";
+import {
+  buyerVisitors,
+  dealTestApp,
+  signedInAs,
+  queuedDrafting,
+  standInMember as member,
+} from "./test-app.js";
 
 const db = useMigratedTestDatabase();
 const store = postgresContentStore(db, () => TEST_NOW);
-
-const isRanking = (request: ChatRequest) =>
-  request.messages[0]?.content.includes("careful reviewer") === true;
-
-/** A model that drafts as `draft` (JSON text or a failure) and ranks the drafts in the order shown. */
-function member(name: string, draft: object | string | ChatOutcome = MAYA_DRAFT) {
-  const spec = testSpec({ name });
-  return new FakeChatClient(spec, (request) => {
-    if (isRanking(request)) {
-      const user = request.messages[1]?.content ?? "";
-      const labels = [...user.matchAll(/label="(\w+)"/g)].map((m) => m[1]);
-      return JSON.stringify({ ranking: labels });
-    }
-    if (typeof draft === "string") return draft;
-    if ("ok" in draft) return draft;
-    return JSON.stringify(draft);
-  });
-}
 
 /** A draft as the pages read it back, as far as these tests look at it. */
 interface View {
