@@ -1914,3 +1914,88 @@ export const makeIntakeSecret = (kind: IntakeKind, defaults: IntakeDefaults) =>
 
 export const turnOffIntakeSecret = (kind: IntakeKind) =>
   postStep(`/api/intake/${kind}/off`, undefined, `turn the ${kind} off`, isIntakeKey);
+
+// --- Your PayPal app (6h-2) ----------------------------------------------------------------------
+
+/** A seller's own linked PayPal app; the secret is never sent back. */
+export interface SellerAppLink {
+  merchantId: string;
+  clientId: string;
+  linkedAt: string;
+}
+
+export interface SellerAppState {
+  /** Whether this server can link apps at all (database and encryption key set). */
+  available: boolean;
+  link: SellerAppLink | null;
+}
+
+/** Why linking did not work, as the server names it; `other` for anything unexpected. */
+export type SellerAppProblem =
+  | "login-failed"
+  | "missing-features"
+  | "account-unreadable"
+  | "account-taken"
+  | "paypal-unavailable"
+  | "unavailable"
+  | "invalid"
+  | "other";
+
+const SELLER_APP_PROBLEMS: readonly SellerAppProblem[] = [
+  "login-failed",
+  "missing-features",
+  "account-unreadable",
+  "account-taken",
+  "paypal-unavailable",
+  "unavailable",
+  "invalid",
+];
+
+const isSellerAppLink = (value: unknown): value is SellerAppLink =>
+  isObject(value) &&
+  typeof value.merchantId === "string" &&
+  typeof value.clientId === "string" &&
+  typeof value.linkedAt === "string";
+
+const isSellerAppState = (value: unknown): value is SellerAppState =>
+  isObject(value) &&
+  typeof value.available === "boolean" &&
+  (value.link === null || isSellerAppLink(value.link));
+
+const SELLER_APP_URL = "/api/seller-app";
+
+export async function getSellerApp(): Promise<SellerAppState> {
+  return readChecked(await fetch(SELLER_APP_URL), isSellerAppState, "load your PayPal app");
+}
+
+/** Links the seller's own app; the secret goes to the server once and is never shown again. */
+export async function linkSellerApp(input: {
+  clientId: string;
+  clientSecret: string;
+}): Promise<
+  { ok: true; link: SellerAppLink } | { ok: false; problem: SellerAppProblem; missing: string[] }
+> {
+  const response = await fetch(SELLER_APP_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body: unknown = await response.json().catch(() => null);
+  if (response.ok && isObject(body) && isSellerAppLink(body.link)) {
+    return { ok: true, link: body.link };
+  }
+  const error = isObject(body) ? body.error : undefined;
+  const missing = isObject(body) && Array.isArray(body.missing) ? body.missing : [];
+  return {
+    ok: false,
+    problem: SELLER_APP_PROBLEMS.find((problem) => problem === error) ?? "other",
+    missing: missing.filter((name): name is string => typeof name === "string"),
+  };
+}
+
+/** Unlinks the seller's own app; the server deletes the stored secret. */
+export async function unlinkSellerApp(): Promise<void> {
+  const response = await fetch(SELLER_APP_URL, { method: "DELETE" });
+  if (!response.ok)
+    throw new Error(`Could not unlink your PayPal app (${String(response.status)})`);
+}

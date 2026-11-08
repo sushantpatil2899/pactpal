@@ -4,6 +4,7 @@ import { DisputePage } from "./DisputePage";
 import { DealPage } from "./DealPage";
 import { DealsHome } from "./DealsHome";
 import { LinkPage } from "./LinkPage";
+import { SellerAppPanel } from "./SellerAppPanel";
 
 /** Messages for the reasons the server gives when a sign-in did not finish (`?signin=`). */
 const SIGN_IN_PROBLEMS: Record<string, string> = {
@@ -119,6 +120,7 @@ function Home() {
         </section>
       )}
       {view.kind === "signed-in" && <DealsHome />}
+      {view.kind === "signed-in" && view.me.access === "full" && <SellerAppPanel />}
     </>
   );
 }

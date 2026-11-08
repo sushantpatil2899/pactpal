@@ -26,6 +26,7 @@ export function dealTestApp(
     disputes?: AppOptions["disputes"];
     claims?: AppOptions["claims"];
     disputeWriter?: AppOptions["disputeWriter"];
+    sellerApps?: AppOptions["sellerApps"];
   } = {},
 ) {
   let ids = 200;
@@ -52,7 +53,7 @@ export function dealTestApp(
     },
   );
   const call = (
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "DELETE",
     url: string,
     token?: string,
     payload?: object,

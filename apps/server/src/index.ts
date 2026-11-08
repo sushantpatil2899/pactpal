@@ -17,7 +17,10 @@ import {
   PayPalLogin,
   PayPalRestClient,
   PayPalWebhooks,
+  checkSellerApp,
+  type PayPalAppCredentials,
 } from "@pactpal/paypal";
+import { SecretBox } from "@pactpal/net";
 import { ResendEmailSender, ResendReceivedEmails } from "@pactpal/email";
 import { Render } from "@renderinc/sdk";
 import { buildApp, closeOnSignals } from "./app.js";
@@ -126,7 +129,16 @@ const claims = config.render
         ),
       )
     : undefined;
+// Sellers' own PayPal apps (6h): their secrets are encrypted with this key before storing.
+const sellerApps =
+  database && config.sellerKeys
+    ? {
+        box: new SecretBox(Buffer.from(config.sellerKeys.encryptionKey.reveal(), "base64")),
+        check: (credentials: PayPalAppCredentials) => checkSellerApp(credentials),
+      }
+    : undefined;
 const app = buildApp(report, {
+  ...(sellerApps ? { sellerApps } : {}),
   ...(disputes ? { disputes } : {}),
   ...(claims ? { claims } : {}),
   database,

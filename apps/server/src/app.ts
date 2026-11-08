@@ -17,6 +17,7 @@ import { disputeNotifications } from "./disputes/notifications.js";
 import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
 import { resendInboundRoutes, type ResendInboundOptions } from "./webhooks/resend-inbound.js";
+import { sellerAppRoutes, type SellerAppLinking } from "./sellers/app-link-routes.js";
 
 export interface AppOptions {
   /** Off, on (to standard output), or into a given stream (used by tests to read the logs). */
@@ -49,6 +50,8 @@ export interface AppOptions {
   claims?: ClaimRunner;
   /** Escalates disputes and sends evidence to PayPal (5g); off until the seller app is set. */
   disputeWriter?: DisputeWriter;
+  /** Linking sellers' own PayPal apps (6h-2); off until the database and encryption key are set. */
+  sellerApps?: SellerAppLinking;
 }
 
 /**
@@ -123,6 +126,12 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
   };
   void app.register(signInRoutes, signIn);
   void app.register(linkRoutes, { database: signIn.database, clock: signIn.clock });
+  void app.register(sellerAppRoutes, {
+    database: signIn.database,
+    clock: signIn.clock,
+    newId: signIn.newId,
+    sellerApps: opts.sellerApps,
+  });
   const email = opts.email ?? new StandInEmailSender(app.log);
   void app.register(dealRoutes, {
     database: signIn.database,
