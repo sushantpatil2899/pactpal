@@ -117,6 +117,7 @@ describe("the live chat", () => {
     expect(await seller.next("typing")).toEqual({ type: "typing", role: "buyer", typing: true });
     buyer.send({ type: "read", seq: 1 });
     expect(await seller.next("read")).toEqual({ type: "read", role: "buyer", seq: 1 });
+    expect(await buyer.next("read")).toEqual({ type: "read", role: "buyer", seq: 1 });
     buyer.send({ type: "ping" });
     expect(await buyer.next("pong")).toEqual({ type: "pong" });
 

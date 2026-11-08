@@ -41,8 +41,8 @@ type Online = Record<Party, boolean>;
 
 /**
  * The open chat pages on this server copy. It sends each page the messages it has not had yet
- * whenever the bus says a deal's chat changed, and passes typing, presence and read changes to
- * the other side's pages. Presence counts pages here and remembers which other copies have the
+ * whenever the bus says a deal's chat changed, passes typing and presence to the other side's
+ * pages and read changes to every page of the deal. Presence counts pages here and remembers which other copies have the
  * deal open, so a person counts as online while any page of theirs is open anywhere.
  */
 export class LiveHub {
@@ -156,11 +156,10 @@ export class LiveHub {
         });
         return;
       case "read":
-        this.toOtherSide(signal.dealId, signal.role, {
-          type: "read",
-          role: signal.role,
-          seq: signal.seq,
-        });
+        // Both sides: the reader's own pages (other tabs) count what is still new from it.
+        for (const state of this.pages.get(signal.dealId) ?? []) {
+          state.page.send({ type: "read", role: signal.role, seq: signal.seq });
+        }
         return;
       case "presence":
         this.onPresence(signal.dealId, signal.role, signal.online, signal.server);

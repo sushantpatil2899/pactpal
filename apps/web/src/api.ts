@@ -114,7 +114,7 @@ export type LedgerCheck =
   | { status: "unchanged"; entries: number; latestFingerprint: string }
   | { status: "changed"; atEntry: number; reason: string };
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
+export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 const isDeal = (value: unknown): value is DealSummary =>
@@ -136,7 +136,7 @@ const isEntry = (value: unknown): value is LedgerEntryView =>
   (value.actorName === null || typeof value.actorName === "string");
 
 /** Reads a JSON answer and checks it; any other answer becomes an error with a plain message. */
-async function readChecked<T>(
+export async function readChecked<T>(
   response: Response,
   check: (body: unknown) => body is T,
   what: string,
@@ -1171,7 +1171,7 @@ export async function getDeliveries(dealId: string): Promise<DeliveriesView> {
  * Posts one step and reads the checked answer. A refusal naming fields becomes
  * `InvalidFieldsError`; any other refusal an error with the server's plain message.
  */
-async function postStep<T>(
+export async function postStep<T>(
   url: string,
   body: object | undefined,
   what: string,
