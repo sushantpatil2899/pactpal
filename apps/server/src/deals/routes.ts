@@ -44,6 +44,7 @@ import type { DisputeWriter } from "../disputes/action-service.js";
 import { claimRoutes } from "../disputes/claim-routes.js";
 import { packetRoutes } from "../disputes/packet-routes.js";
 import { disputeRoutes } from "../disputes/dispute-routes.js";
+import { chatRoutes } from "../chat/chat-routes.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -203,6 +204,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   });
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
+  void app.register(chatRoutes, { visibleDeal, clock, newId, recordIp });
   void app.register(changeOrderRoutes, {
     visibleDeal,
     sellersDeal,

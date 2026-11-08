@@ -46,6 +46,13 @@ const EVENT_LABELS: Record<string, string> = {
   APPEAL_DRAFTED: "Appeal statement drafted (AI draft, fingerprint only)",
   APPEAL_SUBMITTED: "Appeal sent to PayPal (seller confirmed)",
   NOTE_ADDED: "Note added",
+  MESSAGE_SENT: "Chat message sent",
+  MESSAGES_READ: "Chat read",
+  STEP_SUBMITTED: "Timeline step shared for review",
+  STEP_APPROVED: "Timeline step approved",
+  STEP_CHANGES_REQUESTED: "Changes asked for on a timeline step",
+  STEP_DONE: "Timeline step done",
+  REMINDER_SENT: "Reminder sent",
 };
 
 /** An entry's details, read defensively: the payload's shape depends on the type. */

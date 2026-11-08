@@ -57,6 +57,13 @@ export const EVENT_TYPES = [
   "APPEAL_SUBMITTED",
   "RECORD_EXPORTED",
   "NOTE_ADDED",
+  "MESSAGE_SENT",
+  "MESSAGES_READ",
+  "STEP_SUBMITTED",
+  "STEP_APPROVED",
+  "STEP_CHANGES_REQUESTED",
+  "STEP_DONE",
+  "REMINDER_SENT",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

@@ -351,3 +351,16 @@ export type {
   NewDisputeNotice,
   NoticeKind,
 } from "./dispute-notices.js";
+export {
+  ChatIntegrityError,
+  ChatNotAllowedError,
+  MAX_MESSAGES_PER_DEAL,
+  MAX_MESSAGE_CHARS,
+  MESSAGE_PAGE_SIZE,
+  chatNoticeSchema,
+  listMessages,
+  newMessageSchema,
+  postMessage,
+  postNotice,
+} from "./chat.js";
+export type { ChatMessage, ChatNotice, ChatRefusal, ChatRole, NewMessage } from "./chat.js";

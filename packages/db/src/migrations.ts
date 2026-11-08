@@ -1053,4 +1053,37 @@ ALTER TABLE seller_connections
   ADD COLUMN webhook_id text CHECK (webhook_id ~ '^[A-Za-z0-9-]{1,64}$'),
   ADD CONSTRAINT seller_connections_webhook_own_app CHECK (method = 'own_app' OR webhook_id IS NULL)`,
   },
+  {
+    id: "0033_deal_messages",
+    // The deal's chat (7b): messages from the seller and the buyer, each recorded by a
+    // MESSAGE_SENT log entry holding its fingerprint, and PactPal's own cards (notices) from
+    // "system", which point at the log entry they announce. Append-only: a message is never
+    // edited or removed. client_id lets a page retry a post without making a second message.
+    sql: `CREATE TABLE deal_messages (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  seq integer NOT NULL CHECK (seq >= 1),
+  author_id uuid REFERENCES users (id),
+  role text NOT NULL CHECK (role IN ('seller', 'buyer', 'system')),
+  kind text NOT NULL CHECK (kind IN ('text', 'notice')),
+  body text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
+  body_sha256 text NOT NULL CHECK (body_sha256 ~ '^[0-9a-f]{64}$'),
+  notice jsonb,
+  client_id text CHECK (client_id ~ '^[A-Za-z0-9_-]{8,64}$'),
+  ledger_seq integer,
+  created_at timestamptz NOT NULL,
+  UNIQUE (deal_id, seq),
+  UNIQUE (deal_id, author_id, client_id),
+  FOREIGN KEY (deal_id, ledger_seq) REFERENCES ledger_entries (deal_id, seq),
+  CONSTRAINT deal_messages_author CHECK ((role = 'system') = (author_id IS NULL)),
+  CONSTRAINT deal_messages_text CHECK (
+    kind <> 'text' OR (role <> 'system' AND notice IS NULL AND ledger_seq IS NOT NULL)),
+  CONSTRAINT deal_messages_notice CHECK (
+    kind <> 'notice' OR (role = 'system' AND notice IS NOT NULL AND client_id IS NULL))
+);
+CREATE TRIGGER deal_messages_append_only BEFORE UPDATE OR DELETE ON deal_messages
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER deal_messages_no_truncate BEFORE TRUNCATE ON deal_messages
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];
