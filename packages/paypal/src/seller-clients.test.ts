@@ -1,10 +1,10 @@
 import { DEFAULT_RETRY_POLICY, Secret, type HttpDeps } from "@pactpal/net";
 import { describe, expect, it } from "vitest";
-import { PlatformSellerClients } from "./seller-clients.js";
+import { PlatformSellerClients, ownAppClients } from "./seller-clients.js";
 
 const BASE = "https://paypal.test";
 
-function setup() {
+function setup(credentials = { clientId: "client-id", clientSecret: new Secret("secret") }) {
   const calls: { url: string; headers: Headers }[] = [];
   const deps: HttpDeps = {
     fetch: (input: string | URL | Request, init: RequestInit = {}) => {
@@ -19,13 +19,12 @@ function setup() {
     sleep: () => Promise.resolve(),
     random: () => 0.5,
   };
-  const platform = new PlatformSellerClients(
-    { clientId: "client-id", clientSecret: new Secret("secret") },
-    { baseUrl: BASE, deps, policy: { ...DEFAULT_RETRY_POLICY, timeoutMs: 1000 } },
-  );
+  const options = { baseUrl: BASE, deps, policy: { ...DEFAULT_RETRY_POLICY, timeoutMs: 1000 } };
+  const platform = new PlatformSellerClients(credentials, options);
+  const own = () => ownAppClients(credentials, options);
   const api = () => calls.filter((call) => !call.url.endsWith("/v1/oauth2/token"));
   const logins = () => calls.filter((call) => call.url.endsWith("/v1/oauth2/token"));
-  return { platform, api, logins };
+  return { platform, own, api, logins, calls };
 }
 
 const sellerIn = (headers: Headers): unknown => {
@@ -52,5 +51,17 @@ describe("PlatformSellerClients", () => {
     expect(platform.for("SELLER_A")).toBe(a);
     expect(platform.for("SELLER_B")).not.toBe(a);
     expect((await a.disputes.list()).transport).toBe("rest");
+  });
+});
+
+describe("ownAppClients", () => {
+  it("logs in as the seller's own app and acts as it, with no seller header, over REST", async () => {
+    const { own, api, calls } = setup({ clientId: "seller-app", clientSecret: new Secret("s") });
+    const clients = own();
+    expect((await clients.disputes.list()).transport).toBe("rest");
+    expect(api()).toHaveLength(1);
+    expect(api()[0]?.headers.get("PayPal-Auth-Assertion")).toBeNull();
+    const login = calls.find((call) => call.url.endsWith("/v1/oauth2/token"));
+    expect(login?.headers.get("Authorization")).toBe(`Basic ${btoa("seller-app:s")}`);
   });
 });

@@ -27,6 +27,7 @@ import { changeOrderRoutes } from "./change-order-routes.js";
 import { completenessRoutes } from "./completeness-routes.js";
 import { questionRoutes } from "./question-routes.js";
 import type { InvoiceSender } from "../payments/invoice-sender.js";
+import type { LinkedApps } from "../sellers/linked-apps.js";
 import { deliveryCheckRoutes } from "./delivery-check-routes.js";
 import { deliveryRoutes } from "./delivery-routes.js";
 import { messageRoutes } from "./message-routes.js";
@@ -60,6 +61,8 @@ export interface DealOptions {
   recordIp?: boolean;
   /** PayPal invoices from the seller app; undefined until its keys are set. */
   invoices?: InvoiceSender | undefined;
+  /** Sellers' own linked apps (6h-3); absent until the database and encryption key are set. */
+  linked?: LinkedApps | undefined;
   /** The forwarding domain (4p-2), e.g. in.pact-pal.app; undefined while forwarding is off. */
   inboundDomain?: string | undefined;
   /** Starts dispute checks; undefined until the database and the seller app's keys are set. */
@@ -122,6 +125,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     drafting,
     recordIp = false,
     invoices,
+    linked,
     disputes,
     claims,
     disputeWriter,
@@ -143,7 +147,14 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     recordIp,
     email,
   });
-  void app.register(milestoneRoutes, { visibleDeal, sellersDeal, clock, invoices, email });
+  void app.register(milestoneRoutes, {
+    visibleDeal,
+    sellersDeal,
+    clock,
+    invoices,
+    linked,
+    email,
+  });
   void app.register(disputeRoutes, { sellersDeal, clock, disputes });
   void app.register(claimRoutes, { sellersDeal, clock, newId, claims });
   void app.register(packetRoutes, { sellersDeal, clock, newId });

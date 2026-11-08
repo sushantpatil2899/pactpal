@@ -10,6 +10,7 @@ import { SecretBox } from "@pactpal/net";
 import { PayPalApiError, type PayPalAppCredentials, type SellerAppCheck } from "@pactpal/paypal";
 import { describe, expect, it } from "vitest";
 import { buyerVisitors, dealTestApp, signedInAs } from "../deals/test-app.js";
+import { fakePayPal } from "../payments/paypal-test-support.js";
 import { SELLER_APP_PATH, sellerAppView } from "./app-link-routes.js";
 
 const db = useMigratedTestDatabase();
@@ -27,7 +28,8 @@ function setup(
     checked.push(credentials);
     return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
   };
-  return { ...dealTestApp(db, undefined, { sellerApps: { box, check } }), checked };
+  const connect = () => ({ invoices: fakePayPal().invoices });
+  return { ...dealTestApp(db, undefined, { sellerApps: { box, check, connect } }), checked };
 }
 
 /** Everything the server said or logged, to show the secret never appears. */

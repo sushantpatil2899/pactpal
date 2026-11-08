@@ -237,6 +237,8 @@ Built in 4d (migration 0010). One row per payment stage of the **signed** versio
 
 Since 5a (migration 0020) a paid stage also keeps `invoice_number`, PayPal's own number for the invoice (not its id), read from PayPal's answer when the payment is recorded, so a dispute can be matched by it.
 
+Since 6h-3 (migration 0031) a stage also keeps `seller_connection_id`: the seller's own linked app its invoice is sent from (a `seller_connections` row), or empty for PactPal's own sandbox seller app. It is set when the stage is reserved and never changes, so retries, payment checks and disputes always use the account that made the invoice. The `INVOICE_SENT` entry of such an invoice also carries `paypalAccount`, the seller's PayPal account id.
+
 `INVOICE_SENT` (by the seller) holds the version, stage, PayPal invoice id, amount and currency, the fingerprints of the agreed work and of the invoice text, a SHA-256 of the buyer's lower-cased address (never the address) and the route PayPal answered by (`rest`).
 
 ### `deliveries` and `delivery_files`: delivered work

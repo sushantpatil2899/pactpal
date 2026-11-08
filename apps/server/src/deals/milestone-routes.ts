@@ -1,5 +1,6 @@
 import {
   MilestoneNotAllowedError,
+  activeConnection,
   dropFailedInvoice,
   getUser,
   listMilestones,
@@ -24,6 +25,7 @@ import type { InvoiceSender } from "../payments/invoice-sender.js";
 import { invoiceFor, stageFacts, type StageInvoice } from "../payments/invoice-text.js";
 import { checkInvoicePaid } from "../payments/payment-sync.js";
 import { signedRecord } from "../payments/signed-record.js";
+import { invoicesFor, type LinkedApps } from "../sellers/linked-apps.js";
 import { nameOf } from "./parties.js";
 import { readBody, type DealLookup, type FoundDeal } from "./access.js";
 import { roleIn } from "./visibility.js";
@@ -32,8 +34,10 @@ export interface MilestoneRouteOptions {
   visibleDeal: DealLookup;
   sellersDeal: DealLookup;
   clock: () => Date;
-  /** Absent until the seller app's PayPal keys are set. */
+  /** PactPal's own seller app; absent until its PayPal keys are set. */
   invoices: InvoiceSender | undefined;
+  /** Sellers' own linked apps (6h-3); absent until the database and encryption key are set. */
+  linked?: LinkedApps | undefined;
   /** Emails the buyer each invoice's link, and both sides each payment. */
   email: EmailSender;
 }
@@ -48,7 +52,7 @@ const sendBody = z.object({ invoiceSha256: z.string().regex(/^[0-9a-f]{64}$/) })
 function stageView(
   invoice: StageInvoice,
   row: Milestone | undefined,
-  preview: { to: string } | undefined,
+  preview: { to: string; fromAccount: string | null } | undefined,
 ) {
   return {
     stage: invoice.stage,
@@ -64,6 +68,8 @@ function stageView(
       ? {
           invoice: {
             to: preview.to,
+            /** The seller's own PayPal account it will be sent from, or null for PactPal's. */
+            fromAccount: preview.fromAccount,
             itemName: invoice.itemName,
             description: invoice.description,
             note: invoice.note,
@@ -102,7 +108,16 @@ function paypalProblem(error: unknown): { message: string; keepReservation: bool
  * Every send of a stage reaches PayPal with the same request id, so it is never invoiced twice.
  */
 export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, options) => {
-  const { visibleDeal, sellersDeal, clock, invoices, email } = options;
+  const { visibleDeal, sellersDeal, clock, invoices, linked, email } = options;
+
+  /** The seller's live linked app, which new invoices are sent from (6h-3), if any. */
+  async function sellerApp(db: Database, sellerId: string) {
+    if (!linked) return undefined;
+    const connection = await activeConnection(db, sellerId);
+    return connection?.method === "own_app" && connection.merchantId !== undefined
+      ? { connectionId: connection.id, merchantId: connection.merchantId }
+      : undefined;
+  }
   /** When each deal was last checked with PayPal (this server only; enough for one instance). */
   const lastChecked = new Map<string, number>();
 
@@ -142,10 +157,14 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
 
   async function answer(reply: FastifyReply, { db, deal, viewer }: FoundDeal) {
     const record = await signedRecord(db, deal);
-    if (!record)
-      return reply.send({ signed: false, invoicing: invoices !== undefined, stages: [] });
+    const app = await sellerApp(db, deal.sellerId);
+    const invoicing = invoices !== undefined || app !== undefined;
+    if (!record) return reply.send({ signed: false, invoicing, stages: [] });
     const rows = await listMilestones(db, deal.id);
-    const preview = roleIn(viewer, deal) === "seller" ? { to: record.buyer.email } : undefined;
+    const preview =
+      roleIn(viewer, deal) === "seller"
+        ? { to: record.buyer.email, fromAccount: app?.merchantId ?? null }
+        : undefined;
     const stages = record.scope.content.milestones.flatMap((_, n) => {
       const invoice = invoiceFor({ deal, ...record, stage: n + 1 });
       // A stage is the same stage in every version (change orders only add): its invoice may
@@ -153,7 +172,7 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
       const row = rows.find((r) => r.stage === n + 1);
       return invoice ? [stageView(invoice, row, preview)] : [];
     });
-    return reply.send({ signed: true, invoicing: invoices !== undefined, stages });
+    return reply.send({ signed: true, invoicing, stages });
   }
 
   app.get("/api/deals/:id/milestones", async (request, reply) => {
@@ -168,8 +187,9 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
     if (!params.success) return reply.code(404).send({ error: "not found" });
     const body = await readBody(sendBody, request, reply);
     if (!body) return reply;
-    if (!invoices) return reply.code(503).send({ error: "PayPal invoicing is not set up" });
     const { db, deal, viewer } = found;
+    const app = await sellerApp(db, deal.sellerId);
+    if (!invoices && !app) return reply.code(503).send({ error: "PayPal invoicing is not set up" });
     const record = await signedRecord(db, deal);
     if (!record) return reply.code(409).send({ error: "the deal is not signed yet" });
     const invoice = invoiceFor({ deal, ...record, stage: params.data.stage });
@@ -189,6 +209,7 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
           currency: invoice.amount.currency,
           requestId: invoice.requestId,
           invoiceSha256: invoice.invoiceSha256,
+          ...(app ? { sellerConnectionId: app.connectionId } : {}),
         },
         clock(),
       );
@@ -199,10 +220,31 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
       return reply.code(409).send({ error: "the deal is not signed yet" });
     }
 
+    // A retry goes to the account the reservation was made for, never another one.
+    const access = await invoicesFor({ invoices, linked }, reservation.sellerConnectionId);
+    if (!access.ok) {
+      // Nothing was created at PayPal yet: drop the reservation so the next press starts afresh.
+      if (reservation.invoiceId === null) await dropFailedInvoice(db, key);
+      return access.reason === "not-set-up"
+        ? reply.code(503).send({ error: "PayPal invoicing is not set up" })
+        : reply.code(409).send({
+            error:
+              reservation.invoiceId === null
+                ? "your PayPal app is no longer linked; reload the page and send again"
+                : "this invoice was started from a PayPal app that is no longer linked; link it again to finish sending",
+          });
+    }
+    const { account } = access;
     // A retry reaches PayPal with the reservation's own request id, even if it was made under an
     // earlier signed version, so PayPal never creates a second invoice for the stage.
     const sending = { ...invoice, requestId: reservation.requestId };
-    const sent = await sendToPayPal(invoices, sending, record.buyer.email, request.log, key);
+    const sent = await sendToPayPal(
+      account.invoices,
+      sending,
+      record.buyer.email,
+      request.log,
+      key,
+    );
     if (!sent.ok) {
       if (!sent.keepReservation) await dropFailedInvoice(db, key);
       else if (sent.invoiceId !== undefined) await recordInvoiceId(db, key, sent.invoiceId);
@@ -218,11 +260,12 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
         transport: sent.transport,
         recipientEmail: record.buyer.email,
         contentSha256: record.scope.contentSha256,
+        ...(account.kind === "own-app" ? { paypalAccount: account.merchantId } : {}),
       },
       clock(),
     );
     request.log.info(
-      { dealId: deal.id, stage: invoice.stage, invoiceId: sent.invoiceId },
+      { dealId: deal.id, stage: invoice.stage, invoiceId: sent.invoiceId, from: account.kind },
       "Invoice sent",
     );
     await emailInvoice(db, deal, invoice, record.buyer.email, sent.payUrl, request.log);
@@ -233,7 +276,9 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
   app.post("/api/deals/:id/milestones/check", async (request, reply) => {
     const found = await visibleDeal(request, reply);
     if (!found) return reply;
-    if (!invoices) return reply.code(503).send({ error: "PayPal invoicing is not set up" });
+    if (!invoices && !linked) {
+      return reply.code(503).send({ error: "PayPal invoicing is not set up" });
+    }
     const { db, deal } = found;
     const now = clock().getTime();
     const last = lastChecked.get(deal.id);
@@ -247,11 +292,13 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
         ? [{ stage: row.stage, invoiceId: row.invoiceId }]
         : [],
     );
-    const deps = { db, invoices, email, clock, log: request.log };
+    const deps = { db, invoices, linked, email, clock, log: request.log };
     let failed = false;
+    const unlinked: number[] = [];
     for (const row of waiting) {
       try {
-        await checkInvoicePaid(deps, row.invoiceId, { kind: "status-check" });
+        const result = await checkInvoicePaid(deps, row.invoiceId, { kind: "status-check" });
+        if (result === "account-unlinked") unlinked.push(row.stage);
       } catch (error) {
         if (!paypalProblem(error)) throw error;
         request.log.warn({ dealId: deal.id, stage: row.stage }, "Payment status not checked");
@@ -259,6 +306,12 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
       }
     }
     if (failed) return reply.code(502).send({ error: "PayPal did not answer; try again" });
+    if (unlinked.length > 0) {
+      const stages = unlinked.map(String).join(", ");
+      return reply.code(409).send({
+        error: `the invoice for stage ${stages} was sent from a PayPal app that is no longer linked; link it again to check its payment`,
+      });
+    }
     return answer(reply, found);
   });
 

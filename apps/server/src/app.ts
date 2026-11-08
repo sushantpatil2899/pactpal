@@ -18,6 +18,7 @@ import { registerWebPages } from "./web-pages.js";
 import { paypalWebhookRoutes, type PayPalWebhookOptions } from "./webhooks/paypal-webhook.js";
 import { resendInboundRoutes, type ResendInboundOptions } from "./webhooks/resend-inbound.js";
 import { sellerAppRoutes, type SellerAppLinking } from "./sellers/app-link-routes.js";
+import { LinkedApps } from "./sellers/linked-apps.js";
 
 export interface AppOptions {
   /** Off, on (to standard output), or into a given stream (used by tests to read the logs). */
@@ -125,6 +126,11 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     newId: randomUUID,
   };
   void app.register(signInRoutes, signIn);
+  // Sellers' own linked apps (6h-3): invoices, payment checks and (6h-5) disputes go through them.
+  const linked =
+    signIn.database && opts.sellerApps
+      ? new LinkedApps(signIn.database, opts.sellerApps.box, opts.sellerApps.connect)
+      : undefined;
   void app.register(linkRoutes, { database: signIn.database, clock: signIn.clock });
   void app.register(sellerAppRoutes, {
     database: signIn.database,
@@ -142,6 +148,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     drafting: opts.drafting,
     recordIp: trustProxyHops !== undefined,
     invoices: opts.invoices,
+    linked,
     inboundDomain: opts.inbound?.domain,
     disputes: opts.disputes,
     claims: opts.claims,
@@ -165,10 +172,11 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
   };
   // A dispute notification (PayPal has sent none so far) starts a dispute check.
   const handlers = [
-    database && opts.invoices
+    database && (opts.invoices || linked)
       ? paymentNotifications({
           db: database,
           invoices: opts.invoices,
+          linked,
           email,
           clock: signIn.clock,
           log: app.log,

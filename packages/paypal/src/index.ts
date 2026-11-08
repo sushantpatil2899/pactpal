@@ -25,6 +25,7 @@ export {
 export { authAssertion } from "./assertion.js";
 export {
   PlatformSellerClients,
+  ownAppClients,
   type PlatformSellerOptions,
   type SellerClients,
 } from "./seller-clients.js";

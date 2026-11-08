@@ -11,9 +11,9 @@ export type FakePayPalMode = "ok" | "refuse" | "unsent" | "down" | "no-link";
 
 /**
  * Test code only: a stand-in for PayPal's invoices. One invoice id per request id, as PayPal
- * does; `mode` makes calls fail; invoices in `paid` read back as PAID with one PayPal payment.
+ * does (`idPrefix` keeps two fakes' ids apart); `mode` makes calls fail; invoices in `paid` read back as PAID with one PayPal payment.
  */
-export function fakePayPal() {
+export function fakePayPal(idPrefix = "INV2-TEST") {
   const drafts: InvoiceDraft[] = [];
   const ids = new Map<string, string>();
   const paid = new Set<string>();
@@ -21,7 +21,7 @@ export function fakePayPal() {
   const invoices: InvoiceSender = {
     createAndSend: (draft) => {
       drafts.push(draft);
-      const invoiceId = ids.get(draft.requestId) ?? `INV2-TEST-${String(ids.size + 1)}`;
+      const invoiceId = ids.get(draft.requestId) ?? `${idPrefix}-${String(ids.size + 1)}`;
       ids.set(draft.requestId, invoiceId);
       switch (state.mode) {
         case "refuse":

@@ -448,6 +448,8 @@ export interface StageView {
   /** Seller only, before sending: exactly what PayPal will show the buyer. */
   invoice?: {
     to: string;
+    /** The seller's own PayPal account it will be sent from (6h-3), or null for PactPal's. */
+    fromAccount: string | null;
     itemName: string;
     description: string;
     note: string;

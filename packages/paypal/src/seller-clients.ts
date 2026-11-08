@@ -14,6 +14,27 @@ export interface SellerClients {
   disputes: PayPalDisputes;
 }
 
+/** Invoices and disputes over one REST client; no MCP client, so every call goes over REST. */
+function clientsOver(rest: PayPalRestClient): SellerClients {
+  const fallback = new McpFallback();
+  return {
+    rest,
+    invoices: new PayPalInvoices(rest, undefined, fallback),
+    disputes: new PayPalDisputes(rest, undefined, fallback),
+  };
+}
+
+/**
+ * PayPal access through a seller's own sandbox app (6h): it logs in with the seller's keys and acts
+ * as their account directly, with no seller header. REST only, like the platform path.
+ */
+export function ownAppClients(
+  credentials: PayPalAppCredentials,
+  options: PlatformSellerOptions = {},
+): SellerClients {
+  return clientsOver(new PayPalRestClient(new AccessTokenProvider(credentials, options), options));
+}
+
 export interface PlatformSellerOptions {
   baseUrl?: string;
   deps?: HttpDeps;
@@ -42,16 +63,12 @@ export class PlatformSellerClients {
   for(merchantId: string): SellerClients {
     const known = this.#sellers.get(merchantId);
     if (known !== undefined) return known;
-    const rest = new PayPalRestClient(this.#tokens, {
-      ...this.#options,
-      authAssertion: authAssertion(this.#clientId, merchantId),
-    });
-    const fallback = new McpFallback();
-    const clients = {
-      rest,
-      invoices: new PayPalInvoices(rest, undefined, fallback),
-      disputes: new PayPalDisputes(rest, undefined, fallback),
-    };
+    const clients = clientsOver(
+      new PayPalRestClient(this.#tokens, {
+        ...this.#options,
+        authAssertion: authAssertion(this.#clientId, merchantId),
+      }),
+    );
     this.#sellers.set(merchantId, clients);
     return clients;
   }

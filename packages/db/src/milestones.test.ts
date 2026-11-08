@@ -5,6 +5,7 @@ import {
   createDeal,
   dropFailedInvoice,
   findMilestoneByInvoice,
+  linkOwnApp,
   listMilestones,
   markInvoicePaid,
   markInvoiceSent,
@@ -102,6 +103,38 @@ describe("milestone invoices", () => {
     await expect(startInvoice(db, start, at(5))).rejects.toEqual(refusal("already-sent"));
     expect((await readLedger(db, dealId)).filter((e) => e.type === "INVOICE_SENT")).toHaveLength(1);
     expect(await listMilestones(db, dealId)).toEqual([milestone]);
+    expect((await verifyStoredLedger(db, dealId)).valid).toBe(true);
+  });
+
+  it("keeps the account a stage is sent from, and logs it only for a seller's own app (6h-3)", async () => {
+    const { dealId, seller, start, sent } = await signed();
+    const link = (id: number, merchantId: string) =>
+      linkOwnApp(
+        db,
+        {
+          id: testId(id),
+          userId: seller.id,
+          clientId: `c${merchantId}`,
+          sealedSecret: "v1.x",
+          merchantId,
+          scopes: [],
+        },
+        at(0),
+      );
+    await link(70, "OWN1");
+    const reserved = await startInvoice(db, { ...start, sellerConnectionId: testId(70) }, at(1));
+    expect(reserved.sellerConnectionId).toBe(testId(70));
+    // A retry after the seller linked another app still goes to the first account.
+    await link(71, "OWN2");
+    const retry = await startInvoice(db, { ...start, sellerConnectionId: testId(71) }, at(2));
+    expect(retry.sellerConnectionId).toBe(testId(70));
+    const { entry } = await markInvoiceSent(db, { ...sent, paypalAccount: "OWN1" }, at(3));
+    expect(entry?.payload).toMatchObject({ paypalAccount: "OWN1" });
+
+    const other = await startInvoice(db, { ...start, stage: 2, requestId: "r2" }, at(4));
+    expect(other.sellerConnectionId).toBeNull();
+    const plain = await markInvoiceSent(db, { ...sent, stage: 2, invoiceId: "INV2-2" }, at(5));
+    expect(plain.entry?.payload).not.toHaveProperty("paypalAccount");
     expect((await verifyStoredLedger(db, dealId)).valid).toBe(true);
   });
 

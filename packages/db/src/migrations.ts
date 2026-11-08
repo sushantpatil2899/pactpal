@@ -1037,4 +1037,12 @@ ALTER TABLE seller_connections
   ADD CONSTRAINT seller_connections_no_secret_once_ended CHECK (
     status <> 'disconnected' OR client_secret_sealed IS NULL)`,
   },
+  {
+    id: "0031_milestone_paypal_account",
+    // Which PayPal account a stage's invoice is sent from (6h-3): a seller's own linked app, or
+    // empty for PactPal's own sandbox seller app. Fixed at the reservation, so every retry, payment
+    // check and dispute for that invoice uses the same account.
+    sql: `ALTER TABLE milestones
+  ADD COLUMN seller_connection_id uuid REFERENCES seller_connections (id)`,
+  },
 ];

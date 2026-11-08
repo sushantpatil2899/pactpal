@@ -9,7 +9,7 @@ import {
 import type { EmailSender } from "@pactpal/email";
 import type { JsonValue } from "@pactpal/ledger";
 import { z } from "zod";
-import type { InvoiceSender } from "./invoice-sender.js";
+import { invoicesFor, type InvoiceAccounts } from "../sellers/linked-apps.js";
 import { paymentEmail } from "../email/payment-email.js";
 import { invoiceFor, stageFacts } from "./invoice-text.js";
 import { signedRecord } from "./signed-record.js";
@@ -21,9 +21,9 @@ export interface LogSink {
   error(details: object, message: string): void;
 }
 
-export interface PaymentSyncDeps {
+/** `invoices` is PactPal's own seller app; `linked` reaches sellers' own apps (6h-3). */
+export interface PaymentSyncDeps extends InvoiceAccounts {
   db: Database;
-  invoices: InvoiceSender;
   email: EmailSender;
   clock: () => Date;
   log: LogSink;
@@ -32,11 +32,14 @@ export interface PaymentSyncDeps {
 /** How PactPal came to check: PayPal's notification (with its id), or someone pressing "check". */
 export type CheckSource = { kind: "notification"; eventId: string } | { kind: "status-check" };
 
-/** What a check found. */
-export type PaymentCheck = "unknown" | "not-paid" | "already-paid" | "paid";
+/**
+ * What a check found. `account-unlinked`: the invoice was sent from a seller's own app that is no
+ * longer linked (or from PactPal's app, now without keys), so PayPal cannot be asked.
+ */
+export type PaymentCheck = "unknown" | "not-paid" | "already-paid" | "paid" | "account-unlinked";
 
 /**
- * Asks PayPal whether one of PactPal's invoices is fully paid and, if it is, records the payment
+ * Asks PayPal, from the account that sent it, whether one of PactPal's invoices is fully paid and, if it is, records the payment
  * (once) and emails both sides. A notification or a button only starts the check: the facts come
  * from PayPal's own answer, and only status PAID counts (partial and pending payments do not).
  * PayPal and database failures are thrown, so a notification is answered 500 and sent again.
@@ -50,7 +53,10 @@ export async function checkInvoicePaid(
   if (!row) return "unknown";
   if (row.status === "paid") return "already-paid";
   if (row.status !== "sent") return "not-paid";
-  const { data: invoice } = await deps.invoices.get(invoiceId);
+  // Always the account that sent it: another account could not see the invoice.
+  const access = await invoicesFor(deps, row.sellerConnectionId);
+  if (!access.ok) return "account-unlinked";
+  const { data: invoice } = await access.account.invoices.get(invoiceId);
   if (invoice.status !== "PAID") return "not-paid";
   const { milestone, entry } = await markInvoicePaid(
     deps.db,

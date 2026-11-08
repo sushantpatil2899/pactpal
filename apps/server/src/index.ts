@@ -18,6 +18,7 @@ import {
   PayPalRestClient,
   PayPalWebhooks,
   checkSellerApp,
+  ownAppClients,
   type PayPalAppCredentials,
 } from "@pactpal/paypal";
 import { SecretBox } from "@pactpal/net";
@@ -135,6 +136,8 @@ const sellerApps =
     ? {
         box: new SecretBox(Buffer.from(config.sellerKeys.encryptionKey.reveal(), "base64")),
         check: (credentials: PayPalAppCredentials) => checkSellerApp(credentials),
+        // Invoices go over REST only, as for PactPal's own app (docs/decisions.md, 4d).
+        connect: (credentials: PayPalAppCredentials) => ownAppClients(credentials),
       }
     : undefined;
 const app = buildApp(report, {

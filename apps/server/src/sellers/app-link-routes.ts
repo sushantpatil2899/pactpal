@@ -17,6 +17,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { currentSession } from "../auth/sign-in.js";
 import { readBody } from "../deals/access.js";
+import type { ConnectApp } from "./linked-apps.js";
 
 export const SELLER_APP_PATH = "/api/seller-app";
 
@@ -26,6 +27,8 @@ export interface SellerAppLinking {
   box: SecretBox;
   /** Checks the keys with PayPal and names the account (`checkSellerApp`; a stand-in in tests). */
   check: (credentials: PayPalAppCredentials) => Promise<SellerAppCheck>;
+  /** Builds a linked app's clients (`ownAppClients`; stand-ins in tests). */
+  connect: ConnectApp;
 }
 
 export interface SellerAppRouteOptions {

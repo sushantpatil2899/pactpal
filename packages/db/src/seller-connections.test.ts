@@ -213,6 +213,7 @@ describe("seller connections", () => {
       expect(await ownAppKeys(db, id)).toEqual({
         clientId: "client-M1",
         sealedSecret: "v1.sealed-M1",
+        merchantId: "M1",
       });
       expect(await activeConnection(db, seller.id)).toMatchObject({ method: "own_app" });
     });

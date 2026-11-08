@@ -188,8 +188,8 @@ export function SellerAppPanel() {
         from your own PayPal account. Sandbox keys only: never enter live keys.
       </p>
       <p style={{ color: "#555" }}>
-        Not in use yet: until the next update, invoices still come from PactPal's own sandbox seller
-        account.
+        Invoices for stages you send after linking come from your app's account. Invoices already
+        sent stay with the account that sent them.
       </p>
       {problem && (
         <p role="alert" style={{ color: "#8a1c1c" }}>

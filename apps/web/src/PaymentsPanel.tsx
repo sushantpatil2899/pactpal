@@ -45,8 +45,14 @@ function Preview({
         <li>Note: {invoice.note}</li>
       </ul>
       <p>
-        Invoices are sent from PactPal's sandbox seller account. The buyer will also get this link
-        by email from PactPal.
+        {invoice.fromAccount === null ? (
+          <>It will be sent from PactPal's sandbox seller account.</>
+        ) : (
+          <>
+            It will be sent from your PayPal account <strong>{invoice.fromAccount}</strong>.
+          </>
+        )}{" "}
+        The buyer will also get this link by email from PactPal.
       </p>
       <button type="button" disabled={busy} onClick={onSend}>
         Send to PayPal

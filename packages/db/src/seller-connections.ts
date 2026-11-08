@@ -211,24 +211,32 @@ export function disconnectSeller(q: Queryable, userId: string, now: Date): Promi
   return endConnection(q, userId, now);
 }
 
-const keysRow = z.object({ client_id: z.string(), client_secret_sealed: z.string() });
+const keysRow = z.object({
+  client_id: z.string(),
+  client_secret_sealed: z.string(),
+  merchant_id: z.string(),
+});
 
 /**
- * The client id and sealed secret of a live own-app connection, or undefined once it has ended
+ * The client id, sealed secret and PayPal account of a live own-app connection, or undefined once it has ended
  * (the secret is gone) or for a Partner Referrals connection.
  */
 export async function ownAppKeys(
   q: Queryable,
   connectionId: string,
-): Promise<{ clientId: string; sealedSecret: string } | undefined> {
+): Promise<{ clientId: string; sealedSecret: string; merchantId: string } | undefined> {
   const rows = await q.query(
-    `SELECT client_id, client_secret_sealed FROM seller_connections
+    `SELECT client_id, client_secret_sealed, merchant_id FROM seller_connections
      WHERE id = $1 AND method = 'own_app' AND status = 'connected'`,
     [connectionId],
   );
   if (rows[0] === undefined) return undefined;
   const row = keysRow.parse(rows[0]);
-  return { clientId: row.client_id, sealedSecret: row.client_secret_sealed };
+  return {
+    clientId: row.client_id,
+    sealedSecret: row.client_secret_sealed,
+    merchantId: row.merchant_id,
+  };
 }
 
 /** The seller's live connection, or undefined (they then use PactPal's own seller app). */

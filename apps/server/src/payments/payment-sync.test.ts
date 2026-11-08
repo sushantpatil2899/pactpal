@@ -117,6 +117,20 @@ describe("checkInvoicePaid", () => {
     expect(await checkInvoicePaid(deps, "INV2-1", { kind: "status-check" })).toBe("not-paid");
   });
 
+  it("says when the account that sent the invoice can no longer be asked, without asking another", async () => {
+    const { deps, paypal } = await sentStage();
+    const handle = paymentNotifications({ ...deps, invoices: undefined });
+    await handle({
+      eventId: "WH-U",
+      eventType: "INVOICING.INVOICE.PAID",
+      body: { resource: { invoice: { id: "INV2-1" } } },
+    });
+    expect(paypal.state.reads).toBe(0);
+    expect(
+      await checkInvoicePaid({ ...deps, invoices: undefined }, "INV2-1", { kind: "status-check" }),
+    ).toBe("account-unlinked");
+  });
+
   it("passes PayPal failures on, so a notification is tried again", async () => {
     const { deps, paypal } = await sentStage();
     paypal.state.mode = "down";

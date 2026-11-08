@@ -33,7 +33,7 @@ const COLUMNS = `deal_id AS "dealId", version, stage, amount_minor AS "amountMin
   request_id AS "requestId", invoice_sha256 AS "invoiceSha256", invoice_id AS "invoiceId",
   pay_url AS "payUrl", ledger_seq AS "ledgerSeq", created_at AS "createdAt", sent_at AS "sentAt",
   paid_at AS "paidAt", payment_ledger_seq AS "paymentLedgerSeq", transaction_id AS "transactionId",
-  invoice_number AS "invoiceNumber"`;
+  invoice_number AS "invoiceNumber", seller_connection_id AS "sellerConnectionId"`;
 
 const milestoneRow = z.object({
   dealId: z.string(),
@@ -54,6 +54,8 @@ const milestoneRow = z.object({
   transactionId: z.string().nullable(),
   /** PayPal's own number for the invoice (not its id), kept from 5a so disputes can be matched by it. */
   invoiceNumber: z.string().nullable(),
+  /** The seller's own linked app the invoice is sent from (6h-3), or null for PactPal's own app. */
+  sellerConnectionId: z.string().nullable(),
 });
 export type Milestone = z.output<typeof milestoneRow>;
 
@@ -73,6 +75,8 @@ export const startInvoiceSchema = z.object({
   requestId: z.string().min(1).max(100),
   /** Fingerprint of the invoice text the seller confirmed. */
   invoiceSha256: sha256,
+  /** The seller's own linked app to send from (6h-3); absent for PactPal's own seller app. */
+  sellerConnectionId: z.uuid().optional(),
 });
 export type StartInvoice = z.input<typeof startInvoiceSchema>;
 
@@ -87,6 +91,11 @@ export const invoiceSentSchema = z.object({
   recipientEmail: z.email(),
   /** Fingerprint of the signed version's content. */
   contentSha256: sha256,
+  /** The seller's own PayPal account id when sent from their linked app (6h-3); logged as is. */
+  paypalAccount: z
+    .string()
+    .regex(/^[A-Za-z0-9]{1,64}$/)
+    .optional(),
 });
 export type InvoiceSent = z.input<typeof invoiceSentSchema>;
 
@@ -122,8 +131,8 @@ export async function startInvoice(
     }
     const rows = await tx.query(
       `INSERT INTO milestones (deal_id, version, stage, amount_minor, currency, status, request_id,
-                               invoice_sha256, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'sending', $6, $7, $8)
+                               invoice_sha256, created_at, seller_connection_id)
+       VALUES ($1, $2, $3, $4, $5, 'sending', $6, $7, $8, $9)
        RETURNING ${COLUMNS}`,
       [
         request.dealId,
@@ -134,6 +143,7 @@ export async function startInvoice(
         request.requestId,
         request.invoiceSha256,
         now,
+        request.sellerConnectionId ?? null,
       ],
     );
     return milestoneRow.parse(rows[0]);
@@ -199,6 +209,7 @@ export async function markInvoiceSent(
           invoiceSha256: row.invoiceSha256,
           recipientEmailSha256: sha256Hex(sent.recipientEmail.toLowerCase()),
           transport: sent.transport,
+          ...(sent.paypalAccount === undefined ? {} : { paypalAccount: sent.paypalAccount }),
         },
       },
       now,
