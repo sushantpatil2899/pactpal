@@ -60,6 +60,8 @@ What worked on 29–30 October 2026 (`pnpm sandbox:respond`, each step a dry run
 - **The sandbox website does not list the connection**: logged in as the connected seller, there is no "connected apps" entry. PayPal's merchant-integration record is the proof.
 - **A dispute on a payment the platform had no part in stays hidden from it** (6b, 7 Nov 2026): the connected seller invoiced by hand on sandbox.paypal.com and a personal buyer paid and disputed it; reading `PP-R-MIB-10197036` for the seller answered 403 `ACTION_NOT_ALLOWED` for 12 minutes, the seller's list stayed empty, and the platform app got no notification at all. Likely a platform sees only disputes on payments it made, so the seller's invoices must come from PactPal.
 - With a seller's assertion, PayPal answers for a connected seller and refuses one who did not connect (400 `invalid_request`), so the header is really used. Without the invoice permission, creating an invoice for the seller answers 403 `NOT_AUTHORIZED`.
+- **A seller's own sandbox app (6h-6, 8 Nov 2026):** a Merchant app made for Test Store needs only Invoicing, Disputes and Transaction search; no "Log in with PayPal" or hand-made webhook. PayPal accepted the alert address PactPal registered on it, sent the invoice-paid alert, and let the app see and answer a dispute Chris opened by hand on the website, unlike the platform app in 6b. The hand-opened dispute again started at the chargeback stage (accept or evidence only).
+- The email service refuses `example.com` addresses (a reserved domain), so a PactPal seller signed in with such an email gets none of PactPal's emails.
 
 ## MCP and REST
 
