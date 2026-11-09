@@ -5,6 +5,10 @@ import { DealPage } from "./DealPage";
 import { DealsHome } from "./DealsHome";
 import { LinkPage } from "./LinkPage";
 import { SellerAppPanel } from "./SellerAppPanel";
+import { Alert, ButtonLink } from "./design/parts";
+import type { Route } from "./router/routes";
+import { navigate, useRoute } from "./router/useRoute";
+import { AppLayout, BuyerLayout, PublicLayout, Splash } from "./shell/layouts";
 
 /** Messages for the reasons the server gives when a sign-in did not finish (`?signin=`). */
 const SIGN_IN_PROBLEMS: Record<string, string> = {
@@ -19,7 +23,7 @@ const SIGN_IN_PROBLEMS: Record<string, string> = {
     "You signed in with a PayPal account that is not the one invited to that deal. Sign in with the PayPal account that uses the invited email, or open your link again to continue without an account.",
 };
 
-type View = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };
+type Session = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };
 
 /** Reads and removes the sign-in problem from the address, so a reload does not repeat it. */
 function takeSignInProblem(): string | undefined {
@@ -34,60 +38,39 @@ function takeSignInProblem(): string | undefined {
 // Read once when the page loads (React may run state set-up twice in development).
 const initialProblem = takeSignInProblem();
 
-/** The page shell: the buyer link page at /link, the home page everywhere else. */
-export function App() {
-  const path = window.location.pathname;
-  const dealId = /^\/deals\/([0-9a-f-]{36})$/.exec(path)?.[1];
-  const disputeMatch = /^\/deals\/([0-9a-f-]{36})\/disputes\/([A-Za-z0-9-]{1,100})$/.exec(path);
-  return (
-    <main
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        maxWidth: 640,
-        margin: "4rem auto",
-        padding: "0 1rem",
-      }}
-    >
-      <h1>PactPal</h1>
-      <p>AI that seals the deal.</p>
-      {path === "/link" ? (
-        <LinkPage />
-      ) : disputeMatch?.[1] !== undefined && disputeMatch[2] !== undefined ? (
-        <DisputePage dealId={disputeMatch[1]} disputeId={disputeMatch[2]} />
-      ) : dealId !== undefined ? (
-        <DealPage dealId={dealId} />
-      ) : (
-        <Home />
-      )}
-      <p style={{ color: "#555", fontSize: 14 }}>
-        Sandbox only. Not legal advice. PactPal records what was agreed and delivered; it does not
-        guarantee any dispute outcome. Signing in with PayPal shows control of a PayPal account, not
-        legal identity.
-      </p>
-    </main>
+/** The deal pages; `key` gives each deal a fresh page when the person moves between deals. */
+function dealPage(route: Extract<Route, { page: "deal" | "dispute" }>) {
+  return route.page === "dispute" ? (
+    <DisputePage key={route.disputeId} dealId={route.dealId} disputeId={route.disputeId} />
+  ) : (
+    <DealPage key={route.dealId} dealId={route.dealId} />
   );
 }
 
-function Home() {
-  const [view, setView] = useState<View>({ kind: "loading" });
+/** The whole app: finds out who is signed in, then shows the address's page in its layout. */
+export function App() {
+  const route = useRoute();
+  const [session, setSession] = useState<Session>({ kind: "loading" });
   const [problem, setProblem] = useState<string | undefined>(initialProblem);
 
+  // Asked again on each page: a buyer link signs the person in while the app is open.
   useEffect(() => {
     getMe().then(
       (me) => {
-        setView(me ? { kind: "signed-in", me } : { kind: "signed-out" });
+        setSession(me ? { kind: "signed-in", me } : { kind: "signed-out" });
       },
       (error: unknown) => {
-        setView({ kind: "signed-out" });
+        setSession({ kind: "signed-out" });
         setProblem(error instanceof Error ? error.message : "Something went wrong.");
       },
     );
-  }, []);
+  }, [route.page]);
 
   const onSignOut = () => {
     signOut().then(
       () => {
-        setView({ kind: "signed-out" });
+        setSession({ kind: "signed-out" });
+        navigate("/");
       },
       (error: unknown) => {
         setProblem(error instanceof Error ? error.message : "Could not sign out.");
@@ -95,32 +78,55 @@ function Home() {
     );
   };
 
-  return (
-    <>
-      {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
-          {problem}
-        </p>
-      )}
-      {view.kind === "loading" && <p aria-busy="true">Checking whether you are signed in…</p>}
-      {view.kind === "signed-out" && (
+  if (route.page === "link") {
+    return (
+      <BuyerLayout>
+        <LinkPage />
+      </BuyerLayout>
+    );
+  }
+  if (session.kind === "loading") {
+    return (
+      <Splash>
+        <p aria-busy="true">Checking whether you are signed in…</p>
+      </Splash>
+    );
+  }
+  const alert = problem !== undefined && <Alert problem>{problem}</Alert>;
+  if (session.kind === "signed-out") {
+    if (route.page !== "home") return <BuyerLayout>{dealPage(route)}</BuyerLayout>;
+    return (
+      <PublicLayout>
+        {alert}
+        <h1>AI that seals the deal.</h1>
         <p>
-          <a href={SIGN_IN_PATH}>Sign in with PayPal</a>
+          <ButtonLink look="primary" large href={SIGN_IN_PATH}>
+            Sign in with PayPal
+          </ButtonLink>
         </p>
+      </PublicLayout>
+    );
+  }
+  const signedIn = { me: session.me, onSignOut };
+  if (session.me.access !== "full") {
+    return (
+      <BuyerLayout {...signedIn}>
+        {alert}
+        {route.page === "home" ? <DealsHome /> : dealPage(route)}
+      </BuyerLayout>
+    );
+  }
+  return (
+    <AppLayout {...signedIn}>
+      {alert}
+      {route.page === "home" ? (
+        <>
+          <DealsHome />
+          <SellerAppPanel />
+        </>
+      ) : (
+        dealPage(route)
       )}
-      {view.kind === "signed-in" && (
-        <section aria-label="Your account">
-          <p>
-            Signed in as <strong>{view.me.displayName ?? view.me.email}</strong> ({view.me.email})
-            {view.me.access !== "full" && " with a link to one deal"}
-          </p>
-          <button type="button" onClick={onSignOut}>
-            Sign out
-          </button>
-        </section>
-      )}
-      {view.kind === "signed-in" && <DealsHome />}
-      {view.kind === "signed-in" && view.me.access === "full" && <SellerAppPanel />}
-    </>
+    </AppLayout>
   );
 }

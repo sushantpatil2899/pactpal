@@ -2,3 +2,9 @@ pnpm-lock.yaml
 dist
 coverage
 graphify-out
+
+# Impeccable design tool working files
+.impeccable/
+
+# Browser check working files
+.playwright-mcp/
