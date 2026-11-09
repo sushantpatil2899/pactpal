@@ -4,14 +4,18 @@ import { Logo } from "../design/Logo";
 import { Button } from "../design/parts";
 import "./shell.css";
 
-/** What every page says about PactPal's limits. */
-function Footer() {
+/**
+ * What every page says about PactPal's limits. `brief` leaves out what the page itself already
+ * says beside its action (the sign-in page states the test mode and what signing in shows).
+ */
+function Footer({ brief = false }: { brief?: boolean }) {
   return (
     <footer className="pp-footer">
       <p>
-        PactPal currently runs in test mode. No real money moves. Not legal advice. PactPal records
-        what was agreed and delivered; it does not guarantee any dispute outcome. Signing in with
-        PayPal shows control of a PayPal account, not legal identity.
+        {!brief && "PactPal currently runs in test mode. No real money moves. "}
+        Not legal advice. PactPal records what was agreed and delivered; it does not guarantee any
+        dispute outcome.
+        {!brief && " Signing in with PayPal shows control of a PayPal account, not legal identity."}
       </p>
     </footer>
   );
@@ -42,7 +46,13 @@ interface SignedIn {
 }
 
 /** Pages anyone can open: the kraft ground, the logo, the content. */
-export function PublicLayout({ children }: { children: ReactNode }) {
+export function PublicLayout({
+  briefFooter,
+  children,
+}: {
+  briefFooter?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div className="pp-public">
       <SkipLink />
@@ -52,7 +62,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       <main id="content" className="pp-public-main">
         {children}
       </main>
-      <Footer />
+      <Footer brief={briefFooter} />
     </div>
   );
 }

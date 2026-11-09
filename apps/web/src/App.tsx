@@ -6,37 +6,18 @@ import { DealsHome } from "./DealsHome";
 import { LinkPage } from "./LinkPage";
 import { SellerAppPanel } from "./SellerAppPanel";
 import { Alert, ButtonLink } from "./design/parts";
-import type { Route } from "./router/routes";
+import { SIGN_IN_PAGE, type Route } from "./router/routes";
+import { SignInPage } from "./SignInPage";
+import { signInReturn } from "./sign-in-words";
 import { navigate, useRoute } from "./router/useRoute";
 import { AppLayout, BuyerLayout, PublicLayout, Splash } from "./shell/layouts";
 
-/** Messages for the reasons the server gives when a sign-in did not finish (`?signin=`). */
-const SIGN_IN_PROBLEMS: Record<string, string> = {
-  unavailable: "Signing in is not available right now.",
-  cancelled: "Sign-in was cancelled on PayPal.",
-  expired: "That sign-in took too long or was not started here. Please try again.",
-  failed: "PayPal could not confirm who you are. Please try again.",
-  "email-taken":
-    "Your PayPal email already belongs to another PactPal account. Open the link we emailed you first.",
-  "no-email": "PayPal did not share an email address, which PactPal needs.",
-  "other-account":
-    "You signed in with a PayPal account that is not the one invited to that deal. Sign in with the PayPal account that uses the invited email, or open your link again to continue without an account.",
-};
-
 type Session = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };
 
-/** Reads and removes the sign-in problem from the address, so a reload does not repeat it. */
-function takeSignInProblem(): string | undefined {
-  const url = new URL(window.location.href);
-  const code = url.searchParams.get("signin");
-  if (code === null) return undefined;
-  url.searchParams.delete("signin");
-  window.history.replaceState(null, "", url.toString());
-  return SIGN_IN_PROBLEMS[code] ?? SIGN_IN_PROBLEMS.failed;
-}
-
-// Read once when the page loads (React may run state set-up twice in development).
-const initialProblem = takeSignInProblem();
+// Read once when the page loads (React may run state set-up twice in development): a sign-in
+// that did not finish comes back as `/?signin=reason` and is shown on the sign-in page.
+const signInBack = signInReturn(window.location.href, SIGN_IN_PAGE);
+if (signInBack) window.history.replaceState(null, "", signInBack.address);
 
 /** The deal pages; `key` gives each deal a fresh page when the person moves between deals. */
 function dealPage(route: Extract<Route, { page: "deal" | "dispute" }>) {
@@ -51,7 +32,7 @@ function dealPage(route: Extract<Route, { page: "deal" | "dispute" }>) {
 export function App() {
   const route = useRoute();
   const [session, setSession] = useState<Session>({ kind: "loading" });
-  const [problem, setProblem] = useState<string | undefined>(initialProblem);
+  const [problem, setProblem] = useState<string | undefined>();
 
   // Asked again on each page: a buyer link signs the person in while the app is open.
   useEffect(() => {
@@ -65,6 +46,12 @@ export function App() {
       },
     );
   }, [route.page]);
+
+  // Someone already signed in has no use for the sign-in page.
+  const signedIn = session.kind === "signed-in";
+  useEffect(() => {
+    if (route.page === "sign-in" && signedIn) navigate("/");
+  }, [route.page, signedIn]);
 
   const onSignOut = () => {
     signOut().then(
@@ -83,6 +70,13 @@ export function App() {
       <BuyerLayout>
         <LinkPage />
       </BuyerLayout>
+    );
+  }
+  if (route.page === "sign-in") {
+    return (
+      <PublicLayout briefFooter>
+        <SignInPage problem={signInBack?.problem ?? problem} />
+      </PublicLayout>
     );
   }
   if (session.kind === "loading") {
@@ -107,17 +101,17 @@ export function App() {
       </PublicLayout>
     );
   }
-  const signedIn = { me: session.me, onSignOut };
+  const account = { me: session.me, onSignOut };
   if (session.me.access !== "full") {
     return (
-      <BuyerLayout {...signedIn}>
+      <BuyerLayout {...account}>
         {alert}
         {route.page === "home" ? <DealsHome /> : dealPage(route)}
       </BuyerLayout>
     );
   }
   return (
-    <AppLayout {...signedIn}>
+    <AppLayout {...account}>
       {alert}
       {route.page === "home" ? (
         <>

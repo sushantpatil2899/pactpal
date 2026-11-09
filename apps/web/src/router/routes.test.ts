@@ -7,6 +7,7 @@ describe("routes", () => {
   it("finds the page for a path", () => {
     expect(matchRoute("/")).toEqual({ page: "home" });
     expect(matchRoute("/link")).toEqual({ page: "link" });
+    expect(matchRoute("/sign-in")).toEqual({ page: "sign-in" });
     expect(matchRoute(`/deals/${DEAL_ID}`)).toEqual({ page: "deal", dealId: DEAL_ID });
     expect(matchRoute(`/deals/${DEAL_ID}/disputes/PP-R-ABC-123`)).toEqual({
       page: "dispute",

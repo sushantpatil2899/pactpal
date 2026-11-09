@@ -1,9 +1,13 @@
 /** The pages of the web app, worked out from the address alone. */
 export type Route =
   | { page: "home" }
+  | { page: "sign-in" }
   | { page: "link" }
   | { page: "deal"; dealId: string }
   | { page: "dispute"; dealId: string; disputeId: string };
+
+/** The page that asks a seller to sign in (the sign-in itself starts on the server). */
+export const SIGN_IN_PAGE = "/sign-in";
 
 const DEAL = /^\/deals\/([0-9a-f-]{36})$/;
 const DISPUTE = /^\/deals\/([0-9a-f-]{36})\/disputes\/([A-Za-z0-9-]{1,100})$/;
@@ -11,6 +15,7 @@ const DISPUTE = /^\/deals\/([0-9a-f-]{36})\/disputes\/([A-Za-z0-9-]{1,100})$/;
 /** The page a path shows. Paths that name no page show the home page, as they always have. */
 export function matchRoute(path: string): Route {
   if (path === "/link") return { page: "link" };
+  if (path === SIGN_IN_PAGE) return { page: "sign-in" };
   const dispute = DISPUTE.exec(path);
   if (dispute?.[1] !== undefined && dispute[2] !== undefined) {
     return { page: "dispute", dealId: dispute[1], disputeId: dispute[2] };

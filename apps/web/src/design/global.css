@@ -374,6 +374,48 @@ th {
   border-color: var(--color-rule);
 }
 
+/* Public and buyer headlines: condensed and heavy, like a label's contents line. */
+.pp-display {
+  margin-bottom: var(--space-24);
+  font-size: clamp(2.75rem, 9vw, 4rem);
+  font-stretch: 75%;
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+/* Security tape across a label: carries the one action. Text on tape is ink. */
+.pp-label > .pp-tape {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-24);
+  margin: 0 -0.75rem;
+  padding: var(--space-16) clamp(1.5rem, 5vw, 3rem);
+  border: 0;
+  background: var(--color-tape);
+  color: var(--color-ink);
+  overflow: hidden;
+  transform: rotate(-1deg);
+  white-space: nowrap;
+}
+
+/* The action sits level on the tilted tape. */
+.pp-tape > :first-child {
+  flex: none;
+  transform: rotate(1deg);
+}
+
+/* The tape's own print, repeated along its length. */
+.pp-tape > span {
+  color: color-mix(in srgb, var(--color-ink) 40%, var(--color-tape));
+  font-stretch: 75%;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
 .pp-badge {
   display: inline-flex;
   align-items: center;
