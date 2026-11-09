@@ -1,7 +1,7 @@
 import { createDealLink, getUser, type Database, type Deal } from "@pactpal/db";
 import type { EmailMessage, EmailSender } from "@pactpal/email";
 import { sha256Hex } from "@pactpal/ledger";
-import type { FastifyBaseLogger } from "fastify";
+import type { LogSink } from "../log-sink.js";
 import { nameOf } from "../deals/parties.js";
 import { dealLinkUrl } from "./deal-link-email.js";
 
@@ -11,7 +11,7 @@ export interface DealMail {
   deal: Deal;
   email: EmailSender;
   clock: () => Date;
-  log: FastifyBaseLogger;
+  log: LogSink;
   what: string;
 }
 

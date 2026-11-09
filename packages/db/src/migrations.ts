@@ -1159,4 +1159,22 @@ CREATE TRIGGER timeline_progress_append_only BEFORE UPDATE OR DELETE ON timeline
 CREATE TRIGGER timeline_progress_no_truncate BEFORE TRUNCATE ON timeline_progress
   FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0038_timeline_reminders",
+    // Reminders sent about timeline steps (7l): at most one per step and day, each recorded by a
+    // REMINDER_SENT log entry (from the system) and posted as a card in the deal's chat.
+    sql: `CREATE TABLE timeline_reminders (
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  step integer NOT NULL CHECK (step >= 1),
+  day date NOT NULL,
+  recipient text NOT NULL CHECK (recipient IN ('seller', 'buyer')),
+  kind text NOT NULL CHECK (kind IN ('soon', 'overdue')),
+  ledger_seq integer NOT NULL,
+  sent_at timestamptz NOT NULL,
+  PRIMARY KEY (deal_id, step, day),
+  FOREIGN KEY (deal_id, ledger_seq) REFERENCES ledger_entries (deal_id, seq)
+);
+CREATE TRIGGER timeline_reminders_append_only BEFORE UPDATE OR DELETE ON timeline_reminders
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

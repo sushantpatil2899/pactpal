@@ -1,6 +1,14 @@
 import { sha256Hex } from "@pactpal/ledger";
 import { describe, expect, it } from "vitest";
-import { listStepUpdates, readLedger, recordStepUpdate, verifyStoredLedger } from "./index.js";
+import {
+  listMessages,
+  listStepUpdates,
+  readLedger,
+  recordReminder,
+  recordStepUpdate,
+  runningDealIds,
+  verifyStoredLedger,
+} from "./index.js";
 import {
   TEST_NOW,
   addTestFile,
@@ -123,5 +131,40 @@ describe("timeline step updates", () => {
         TEST_NOW,
       ),
     ).rejects.toEqual(refusal("not-running"));
+  });
+});
+
+describe("timeline reminders", () => {
+  it("are recorded once per step and day, logged from the system, with a card in the chat", async () => {
+    const deal = await runningDeal();
+    const remind = (day: string, cardId: number) =>
+      recordReminder(
+        db,
+        {
+          dealId: deal.dealId,
+          step: 2,
+          to: "seller",
+          kind: "soon",
+          dueDate: "2026-10-03",
+          day,
+          cardId: testId(cardId),
+          words: "Reminder: step 2 is due on 3 Oct 2026.",
+        },
+        TEST_NOW,
+      );
+    expect(await remind("2026-10-02", 950)).toEqual({ created: true });
+    expect(await remind("2026-10-02", 951)).toEqual({ created: false });
+    expect(await remind("2026-10-03", 952)).toEqual({ created: true });
+    const entries = (await readLedger(db, deal.dealId)).filter((e) => e.type === "REMINDER_SENT");
+    expect(entries.map((e) => [e.actor, e.payload])).toEqual([
+      ["system", { step: 2, to: "seller", kind: "soon", dueDate: "2026-10-03", day: "2026-10-02" }],
+      ["system", { step: 2, to: "seller", kind: "soon", dueDate: "2026-10-03", day: "2026-10-03" }],
+    ]);
+    const cards = await listMessages(db, deal.dealId);
+    expect(cards.map((m) => [m.role, m.notice])).toEqual([
+      ["system", { type: "reminder", step: 2 }],
+      ["system", { type: "reminder", step: 2 }],
+    ]);
+    expect(await runningDealIds(db)).toEqual([deal.dealId]);
   });
 });

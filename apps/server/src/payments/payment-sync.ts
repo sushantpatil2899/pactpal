@@ -1,3 +1,4 @@
+import type { LogSink } from "../log-sink.js";
 import {
   findMilestoneByInvoice,
   getDeal,
@@ -15,11 +16,7 @@ import { invoiceFor, stageFacts } from "./invoice-text.js";
 import { signedRecord } from "./signed-record.js";
 
 /** Where these steps write their log lines (the server's logger fits). */
-export interface LogSink {
-  info(details: object, message: string): void;
-  warn(details: object, message: string): void;
-  error(details: object, message: string): void;
-}
+export type { LogSink } from "../log-sink.js";
 
 /** `invoices` is PactPal's own seller app; `linked` reaches sellers' own apps (6h-3). */
 export interface PaymentSyncDeps extends InvoiceAccounts {

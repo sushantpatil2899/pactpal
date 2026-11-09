@@ -7,7 +7,7 @@ import {
 } from "@pactpal/db";
 import type { EmailSender } from "@pactpal/email";
 import type { Party } from "@pactpal/live";
-import type { FastifyBaseLogger } from "fastify";
+import type { LogSink } from "../log-sink.js";
 import { utcDateTime } from "../email/common.js";
 import { emailBuyerWithLink, emailSellerQuietly } from "../email/deal-mail.js";
 import { notificationEmail } from "../email/notification-email.js";
@@ -30,7 +30,7 @@ export interface NotifierOptions {
   email: EmailSender;
   clock: () => Date;
   newId: () => string;
-  log: FastifyBaseLogger;
+  log: LogSink;
   publicBaseUrl: string | undefined;
   /** Whether that side has the deal open now (a message to them is then not emailed). */
   isOnline: (dealId: string, role: Party) => boolean;

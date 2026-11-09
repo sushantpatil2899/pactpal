@@ -27,3 +27,5 @@ export type {
   StepUpdate,
   StepUpdateStatus,
 } from "./progress.js";
+export { REMIND_DAYS_BEFORE, dueReminders } from "./reminders.js";
+export type { DueReminder } from "./reminders.js";

@@ -394,7 +394,15 @@ export {
   StepNotAllowedError,
   asStepUpdates,
   listStepUpdates,
+  recordReminder,
   recordStepUpdate,
+  reminderSchema,
+  runningDealIds,
   stepUpdateSchema,
 } from "./timeline-progress.js";
-export type { NewStepUpdate, StepRefusal, StepUpdateRecord } from "./timeline-progress.js";
+export type {
+  NewReminder,
+  NewStepUpdate,
+  StepRefusal,
+  StepUpdateRecord,
+} from "./timeline-progress.js";

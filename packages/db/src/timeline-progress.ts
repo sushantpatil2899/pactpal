@@ -11,6 +11,7 @@ import { originOf } from "./acceptance.js";
 import type { Database, Queryable } from "./database.js";
 import { lockDeal } from "./deal-lock.js";
 import { appendLedgerEvent } from "./ledger-store.js";
+import { postNotice } from "./chat.js";
 import { getScopeVersion } from "./scope.js";
 import { signedVersionOf } from "./signed.js";
 
@@ -183,4 +184,80 @@ async function filesOf(tx: Queryable, dealId: string, ids: readonly string[]) {
     files.push(file.data);
   }
   return files;
+}
+
+const dealIdRow = z.object({ id: z.string() });
+
+/** The ids of deals whose timeline is running (signed and not finished), for reminders (7l). */
+export async function runningDealIds(q: Queryable): Promise<string[]> {
+  const rows = await q.query("SELECT id FROM deals WHERE status = 'active' ORDER BY created_at");
+  return rows.map((row) => dealIdRow.parse(row).id);
+}
+
+export const reminderSchema = z.object({
+  dealId: z.uuid(),
+  step: z.number().int().min(1),
+  to: z.enum(["seller", "buyer"]),
+  kind: z.enum(["soon", "overdue"]),
+  dueDate: z.iso.date(),
+  day: z.iso.date(),
+  /** The card's id and words in the deal's chat. */
+  cardId: z.uuid(),
+  words: z.string().trim().min(1).max(500),
+});
+export type NewReminder = z.input<typeof reminderSchema>;
+
+/**
+ * Records a reminder about a step, once per step and day (7l): the row, a `REMINDER_SENT` log
+ * entry from the system (step, who it went to, the kind, the due date and the day) and a card in
+ * the deal's chat, all in one transaction. A second reminder for the same step and day records
+ * nothing and returns `created: false`.
+ */
+export async function recordReminder(
+  db: Database,
+  input: NewReminder,
+  now: Date,
+): Promise<{ created: boolean }> {
+  const reminder = reminderSchema.parse(input);
+  return db.transaction(async (tx) => {
+    await lockDeal(tx, reminder.dealId);
+    const taken = await tx.query(
+      "SELECT 1 FROM timeline_reminders WHERE deal_id = $1 AND step = $2 AND day = $3",
+      [reminder.dealId, reminder.step, reminder.day],
+    );
+    if (taken.length > 0) return { created: false };
+    const entry = await appendLedgerEvent(
+      tx,
+      {
+        dealId: reminder.dealId,
+        type: "REMINDER_SENT",
+        actor: "system",
+        payload: {
+          step: reminder.step,
+          to: reminder.to,
+          kind: reminder.kind,
+          dueDate: reminder.dueDate,
+          day: reminder.day,
+        },
+      },
+      now,
+    );
+    await tx.query(
+      `INSERT INTO timeline_reminders (deal_id, step, day, recipient, kind, ledger_seq, sent_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [reminder.dealId, reminder.step, reminder.day, reminder.to, reminder.kind, entry.seq, now],
+    );
+    await postNotice(
+      tx,
+      {
+        id: reminder.cardId,
+        dealId: reminder.dealId,
+        body: reminder.words,
+        notice: { type: "reminder", step: reminder.step },
+        ledgerSeq: entry.seq,
+      },
+      now,
+    );
+    return { created: true };
+  });
 }

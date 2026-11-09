@@ -6,7 +6,7 @@ import {
   type DisputeCheckResult,
 } from "@pactpal/db";
 import type { ChatClient } from "@pactpal/ai";
-import type { EmailSender } from "@pactpal/email";
+import { StandInEmailSender, type EmailSender } from "@pactpal/email";
 import type { PayPalAppCredentials } from "@pactpal/paypal";
 import type { Secret } from "@pactpal/net";
 import { cryptoCouncilDeps } from "../drafting/runtime.js";
@@ -18,6 +18,8 @@ import { renderWorkflowChecker, type TaskStarter } from "./checker.js";
 import { syncDisputes, type DisputeReader } from "./dispute-sync.js";
 import { LinkedApps, linkedDisputeAccounts, type ConnectApp } from "../sellers/linked-apps.js";
 import { sellerKeyBox } from "../sellers/key-box.js";
+import { publishingBus } from "../chat/bus.js";
+import { sendTimelineReminders } from "../chat/reminders.js";
 
 /** The Render Workflow task's name; the website and the cron start it as `<workflow>/<name>`. */
 export const DISPUTE_TASK_NAME = "check-disputes";
@@ -62,8 +64,8 @@ export async function runDisputeTask(
       ? { email: wiring.emailFor(config.email), publicBaseUrl: config.publicBaseUrl }
       : undefined;
   if (!notices) wiring.log.info({}, "Dispute emails are off (no email settings or site address)");
-  return withDatabase(config.database.url, wiring, (db) =>
-    syncDisputes(
+  return withDatabase(config.database.url, wiring, async (db) => {
+    const result = await syncDisputes(
       {
         db,
         ...(seller ? { disputes: wiring.disputesFor(seller) } : {}),
@@ -79,8 +81,24 @@ export async function runDisputeTask(
         ...(notices ? { notices } : {}),
       },
       source,
-    ),
-  );
+    );
+    // Timeline reminders (7l) ride on the same 5-minute run; they never fail the dispute check.
+    await sendTimelineReminders({
+      db,
+      bus: publishingBus(db),
+      email: notices?.email ?? new StandInEmailSender(wiring.log),
+      publicBaseUrl: config.publicBaseUrl,
+      clock: wiring.clock,
+      newId: wiring.newId,
+      log: wiring.log,
+    }).catch((error: unknown) => {
+      wiring.log.error(
+        { err: error instanceof Error ? error.name : "unknown" },
+        "Timeline reminders failed",
+      );
+    });
+    return result;
+  });
 }
 
 /** The settings, or an error naming the wrong ones (never their values). */

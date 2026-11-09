@@ -21,7 +21,7 @@ import {
   checkSellerApp,
   type PayPalAppCredentials,
 } from "@pactpal/paypal";
-import { ResendEmailSender, ResendReceivedEmails } from "@pactpal/email";
+import { ResendEmailSender, ResendReceivedEmails, StandInEmailSender } from "@pactpal/email";
 import { Render } from "@renderinc/sdk";
 import { buildApp, closeOnSignals } from "./app.js";
 import { connectOwnApp } from "./sellers/connect-app.js";
@@ -46,7 +46,8 @@ import {
 } from "./disputes/claim-job.js";
 import { syncDisputes } from "./disputes/dispute-sync.js";
 import { jsonLines } from "./disputes/task.js";
-import { postgresBus } from "./chat/bus.js";
+import { postgresBus, publishingBus } from "./chat/bus.js";
+import { sendTimelineReminders } from "./chat/reminders.js";
 
 const result = loadConfig(process.env);
 if (!result.ok) {
@@ -88,8 +89,8 @@ const disputes = config.render
       disputeLog,
     )
   : database && (sellerDisputes || localLinked)
-    ? inProcessChecker((source) =>
-        syncDisputes(
+    ? inProcessChecker(async (source) => {
+        const result = await syncDisputes(
           {
             db: database,
             disputes: sellerDisputes,
@@ -105,8 +106,19 @@ const disputes = config.render
               : {}),
           },
           source,
-        ),
-      )
+        );
+        // A local copy sends timeline reminders (7l) with each check, as the background task does.
+        await sendTimelineReminders({
+          db: database,
+          bus: publishingBus(database),
+          email: email ?? new StandInEmailSender(disputeLog),
+          publicBaseUrl: config.publicBaseUrl,
+          clock,
+          newId: randomUUID,
+          log: disputeLog,
+        });
+        return result;
+      })
     : undefined;
 // Every model whose key is set takes part in the council; with none, drafting answers "unavailable".
 const members = councilClients(config.ai.keys);

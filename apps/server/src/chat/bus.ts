@@ -51,6 +51,18 @@ export function memoryBus(): ChatBus {
   };
 }
 
+/**
+ * Sends only, through Postgres notifications: for the background worker, which has no pages
+ * of its own to tell but must reach the website's.
+ */
+export function publishingBus(db: Database): ChatBus {
+  return {
+    publish: (event) => publishChatEvent(db, event),
+    subscribe: () => () => undefined,
+    close: () => Promise.resolve(),
+  };
+}
+
 /** Starts listening on a channel; given by the caller so tests need no Postgres server. */
 export type Listen = (handlers: {
   channel: string;
