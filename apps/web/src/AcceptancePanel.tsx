@@ -241,8 +241,8 @@ export function AcceptancePanel({
         <>
           <p>
             This is exactly what the buyer will see. After you send it, the agreed work is locked
-            until the buyer answers or you withdraw. Send the buyer their link from the Buyer
-            section.
+            until the buyer answers or you withdraw. PactPal emails the buyer a private link and
+            posts a card in the deal&apos;s chat.
           </p>
           {shown}
           <button

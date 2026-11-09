@@ -44,6 +44,7 @@ export function DraftPanel({
   dealCategory,
   onUse,
   onLogChange,
+  revision,
 }: {
   dealId: string;
   /** The seller of a deal that is still a draft may start new drafts. */
@@ -51,6 +52,8 @@ export function DraftPanel({
   dealCategory: string;
   onUse: (fill: DraftFill) => void;
   onLogChange: () => void;
+  /** Changes whenever the agreed work changes, so "Update from the latest chat" knows of it. */
+  revision: number;
 }) {
   const [drafts, setDrafts] = useState<DraftView[] | undefined>();
   const [files, setFiles] = useState<DealFile[]>([]);
@@ -66,7 +69,7 @@ export function DraftPanel({
   const [scope, setScope] = useState<ScopeView | null>(null);
   useEffect(() => {
     getScope(dealId).then(setScope, () => undefined);
-  }, [dealId, detail?.status]);
+  }, [dealId, detail?.status, revision]);
   const opened = (started: DraftView) => {
     setDrafts((current) => [started, ...(current ?? [])]);
     setOpenId(started.id);

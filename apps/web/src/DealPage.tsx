@@ -85,6 +85,14 @@ export function DealPage({ dealId }: { dealId: string }) {
   useEffect(() => {
     if (newestMessage > 0) refreshLog();
   }, [newestMessage, refreshLog]);
+  // A PactPal card means the deal moved on (sent for review, changes asked, signed, a step): the
+  // deal and its agreement are read again, so the other side's page shows the new state at once.
+  const newestCard = chat.state.messages.filter((m) => m.kind === "notice").at(-1)?.seq ?? 0;
+  useEffect(() => {
+    if (newestCard === 0) return;
+    setRevision((n) => n + 1);
+    getDeal(dealId).then(setDeal, () => undefined);
+  }, [newestCard, dealId]);
   /** The deal's status and the log, after a step that changes them. */
   /** After a change order is answered: the signed agreement and everything made from it. */
   const refreshAgreement = () => {
@@ -181,6 +189,7 @@ export function DealPage({ dealId }: { dealId: string }) {
             dealCategory={deal.categoryLabel}
             onUse={setFill}
             onLogChange={refreshLog}
+            revision={revision}
           />
         )}
         {/* While the buyer is asked to sign, the acceptance page above is their one view of the terms. */}

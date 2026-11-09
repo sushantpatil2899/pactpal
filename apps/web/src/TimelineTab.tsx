@@ -123,7 +123,13 @@ export function TimelineTab({
     getScope(dealId).then(setScope, () => {
       setScope(null);
     });
-    listFiles(dealId).then(setFiles, () => undefined);
+    // PactPal's own copies of the chat (what a draft read) are not offered as attachments.
+    listFiles(dealId).then(
+      (all) => {
+        setFiles(all.filter((file) => !file.filename.startsWith("pactpal-chat-")));
+      },
+      () => undefined,
+    );
   }, [dealId, refreshKey]);
 
   if (timeline === undefined || scope === undefined) {
