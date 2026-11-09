@@ -1,11 +1,9 @@
 import {
   ArtifactIntegrityError,
   ArtifactNotFoundError,
-  MESSAGE_PAGE_SIZE,
   addArtifact,
   lastChatSeqDrafted,
-  listMessages,
-  type ChatMessage,
+  listAllMessages,
   DealNotFoundError,
   DraftNotAllowedError,
   getArtifact,
@@ -72,17 +70,6 @@ function textOf(bytes: Uint8Array): string | undefined {
     return decoder.decode(bytes);
   } catch {
     return undefined;
-  }
-}
-
-/** Every chat message after position `after`, oldest first, read a page at a time. */
-async function allMessagesAfter(db: Database, dealId: string, after: number) {
-  const all: ChatMessage[] = [];
-  for (let from = after; ;) {
-    const page = await listMessages(db, dealId, from);
-    all.push(...page);
-    if (page.length < MESSAGE_PAGE_SIZE) return all;
-    from = page.at(-1)?.seq ?? from;
   }
 }
 
@@ -263,7 +250,7 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
       return reply.code(409).send({ error: "there is no agreement to update yet" });
     }
     const after = body.update ? await lastChatSeqDrafted(db, deal.id) : 0;
-    const messages = body.chat || body.update ? await allMessagesAfter(db, deal.id, after) : [];
+    const messages = body.chat || body.update ? await listAllMessages(db, deal.id, after) : [];
     const pasted = [];
     for (const id of body.pastedFileIds) {
       const file = await sourceFile(found, id, reply, request.log);

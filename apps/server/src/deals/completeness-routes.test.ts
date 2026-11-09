@@ -23,7 +23,8 @@ describe("evidence completeness route", () => {
     const res = await call("GET", url, seller);
     expect(res.statusCode).toBe(200);
     const result = res.json<Completeness>();
-    expect(result).toMatchObject({ score: 10, measurable: 93 });
+    // Signed without receipt (10) and a timeline with no steps to record (4).
+    expect(result).toMatchObject({ score: 14, measurable: 93 });
     expect(item(result, "checkable-lines")?.detail).toBe("0 of 1 line marked");
     expect(item(result, "acceptance")).toMatchObject({
       earned: 10,

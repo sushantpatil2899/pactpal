@@ -27,7 +27,6 @@ import {
   getDispute,
   listClaimAnalyses,
   postgresContentStore,
-  readLedger,
   type Database,
   type StoredDispute,
 } from "@pactpal/db";
@@ -42,6 +41,7 @@ import { disputedAmountWords, messagesOf, requestedEvidenceOf } from "./dispute-
 import { ADDED_BY, exhibitWhat } from "./packet.js";
 import { appealFacts } from "./appeal-items.js";
 import { packetChoices } from "./packet-service.js";
+import { recordEntries } from "./record-entries.js";
 
 /** What one comparison needs: the database, the models with keys and the council's effects. */
 export interface ClaimJobDeps {
@@ -121,7 +121,7 @@ async function prepareClaim(
     buyerMessages,
     ...(pasted === undefined ? {} : { pasted }),
   });
-  const record = recordLines(await readLedger(db, deal.id));
+  const record = recordLines(await recordEntries(db, deal.id));
   return {
     made: claimCouncilTask({
       claim,
@@ -152,7 +152,7 @@ async function prepareSummary(
   marker: string,
 ): Promise<Prepared<PacketSummary>> {
   const { deal } = await dealOf(db, analysis);
-  const record = recordLines(await readLedger(db, deal.id));
+  const record = recordLines(await recordEntries(db, deal.id));
   const recordText = new Map(record.lines.map(({ n, text }) => [n, text]));
   const rows =
     analysis.basedOn === undefined
@@ -215,7 +215,7 @@ async function prepareResponse(
   marker: string,
 ): Promise<Prepared<ResponseDraft>> {
   const { dispute, deal } = await dealOf(db, analysis);
-  const record = recordLines(await readLedger(db, deal.id));
+  const record = recordLines(await recordEntries(db, deal.id));
   const recordText = new Map(record.lines.map(({ n, text }) => [n, text]));
   const comparison = (await comparisonRowsOf(db, dispute.disputeId, recordText)) ?? [];
   const claim = buyersClaim(dispute);
@@ -253,7 +253,7 @@ async function prepareAppeal(
   const { dispute, deal } = await dealOf(db, analysis);
   const facts = await appealFacts(db, postgresContentStore(db, clock), deal, dispute);
   if (facts.items.length === 0) throw new NotBuilt("nothing new to check");
-  const record = recordLines(await readLedger(db, deal.id));
+  const record = recordLines(await recordEntries(db, deal.id));
   const claim = buyersClaim(dispute);
   return {
     made: appealCouncilTask({
@@ -297,7 +297,7 @@ async function prepareStatement(
       : [{ id: item.id, words: `${item.words}. Why it speaks to the claim: ${why}` }];
   });
   if (items.length === 0) throw new NotBuilt("no new item speaks to the claim");
-  const record = recordLines(await readLedger(db, deal.id));
+  const record = recordLines(await recordEntries(db, deal.id));
   const claim = buyersClaim(dispute);
   return {
     made: statementCouncilTask({

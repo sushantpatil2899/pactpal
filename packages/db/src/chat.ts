@@ -243,6 +243,21 @@ export async function listMessages(
   return rows.map((row) => checkedMessage(row));
 }
 
+/** Every message of a deal after position `after`, oldest first, read a page at a time. */
+export async function listAllMessages(
+  q: Queryable,
+  dealId: string,
+  after = 0,
+): Promise<ChatMessage[]> {
+  const all: ChatMessage[] = [];
+  for (let from = after; ;) {
+    const page = await listMessages(q, dealId, from);
+    all.push(...page);
+    if (page.length < MESSAGE_PAGE_SIZE) return all;
+    from = page.at(-1)?.seq ?? from;
+  }
+}
+
 /** A stored message no longer matches its fingerprint. */
 export class ChatIntegrityError extends Error {
   override readonly name = "ChatIntegrityError";

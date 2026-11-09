@@ -74,6 +74,13 @@ const LABELS: Record<string, string> = {
   CLAIM_ACCEPTED: "accepted the claim (full refund through PayPal)",
   DISPUTE_RESOLVED: "saw PayPal decide the dispute",
   NOTE_ADDED: "added a note",
+  MESSAGE_SENT: "wrote in the deal's chat",
+  MESSAGES_READ: "read the deal's chat",
+  STEP_SUBMITTED: "shared a timeline step for review",
+  STEP_APPROVED: "approved a timeline step",
+  STEP_CHANGES_REQUESTED: "asked for changes to a timeline step",
+  STEP_DONE: "marked a timeline step done",
+  REMINDER_SENT: "sent a reminder about a timeline step",
 };
 
 const WHO: Record<string, string> = { seller: "seller", buyer: "buyer", system: "PactPal" };
@@ -115,12 +122,20 @@ function detailsOf(type: string, payload: unknown): string {
   if (stage !== undefined && !type.startsWith("DISPUTE_")) parts.push(`stage ${stage}`);
   const version = count(fields.version);
   if (version !== undefined) parts.push(`agreement version ${version}`);
+  const step = count(fields.step);
+  if (step !== undefined && (type.startsWith("STEP_") || type === "REMINDER_SENT")) {
+    parts.push(`timeline step ${step}`);
+  }
+  const reminded = text(fields.to);
+  if (type === "REMINDER_SENT" && reminded !== undefined) parts.push(`to the ${reminded}`);
+  const readTo = count(fields.upToSeq);
+  if (type === "MESSAGES_READ" && readTo !== undefined) parts.push(`up to message ${readTo}`);
   const files = filesOf(fields);
   if (files.length > 0) parts.push(files.join(", "));
   if (type === "CHANGE_REQUESTED" && fields.beyondIncluded === true) {
     parts.push("beyond the included revisions");
   }
-  for (const key of ["request", "reason", "question", "answer", "message"] as const) {
+  for (const key of ["request", "reason", "question", "answer", "message", "note"] as const) {
     const words = text(fields[key]);
     if (words !== undefined && !type.startsWith("DISPUTE_")) parts.push(`"${words}"`);
   }

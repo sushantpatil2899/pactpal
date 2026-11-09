@@ -366,6 +366,7 @@ export {
   MAX_MESSAGE_CHARS,
   MESSAGE_PAGE_SIZE,
   chatNoticeSchema,
+  listAllMessages,
   listMessages,
   newMessageSchema,
   postMessage,

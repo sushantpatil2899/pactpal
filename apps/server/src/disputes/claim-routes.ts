@@ -20,7 +20,6 @@ import {
   failStaleClaimAnalyses,
   listClaimAnalyses,
   postgresContentStore,
-  readLedger,
   startClaimAnalysis,
   type AnalysisKind,
   type ClaimAnalysisRecord,
@@ -34,6 +33,7 @@ import { appealApplies, appealFacts } from "./appeal-items.js";
 import { RunnerBusyError, type ClaimRunner } from "./checker.js";
 import { sellersDispute } from "./dispute-lookup.js";
 import { disputedAmountWords, messagesOf } from "./dispute-view.js";
+import { recordEntries } from "./record-entries.js";
 
 export interface ClaimRouteOptions {
   sellersDeal: DealLookup;
@@ -222,7 +222,7 @@ export const claimRoutes: FastifyPluginAsync<ClaimRouteOptions> = (app, options)
     await failStaleClaimAnalyses(found.db, clock());
     const [jobs, ledger, comparisons] = await Promise.all([
       listClaimAnalyses(found.db, stored.disputeId, kind),
-      readLedger(found.db, found.deal.id),
+      recordEntries(found.db, found.deal.id),
       listClaimAnalyses(found.db, stored.disputeId, "claim"),
     ]);
     const recordText = new Map(recordLines(ledger).lines.map(({ n, text }) => [n, text]));

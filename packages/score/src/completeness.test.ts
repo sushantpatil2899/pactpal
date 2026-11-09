@@ -37,7 +37,14 @@ const stageDone = (stage: number, id: string, version = 1): LedgerEntry[] => [
   entry("DELIVERY_DOWNLOADED", { deliveryId: id, sha256: FILE }),
   entry("MILESTONE_APPROVED", { deliveryId: id, version, stage }),
 ];
+/** A chat message from one side (7m). */
+const said = (actor: "seller" | "buyer"): LedgerEntry => ({
+  ...entry("MESSAGE_SENT", { seq: 1 }),
+  actor,
+});
 const agreed = (version = 1): LedgerEntry[] => [
+  said("seller"),
+  said("buyer"),
   entry("SCOPE_CONFIRMED", { version }),
   entry("ACCEPTED", { version }),
   entry("RECEIPT_SENT", { version, to: "seller" }),
@@ -59,7 +66,7 @@ describe("evidence completeness score", () => {
     expect(result.items.filter((i) => i.status === "not-measured").map((i) => i.points)).toEqual([
       3, 4,
     ]);
-    expect(byId(result).approvals).toMatchObject({ earned: 12, detail: "2 of 2 stages" });
+    expect(byId(result).approvals).toMatchObject({ earned: 8, detail: "2 of 2 stages" });
   });
 
   it("earns stage items in proportion, rounded down, and names the missing stages", () => {
@@ -70,7 +77,7 @@ describe("evidence completeness score", () => {
     });
     const items = byId(result);
     expect(items.approvals).toMatchObject({
-      earned: 4,
+      earned: 2,
       status: "missing",
       detail: "1 of 3 stages",
       fix: "Ask the buyer to approve the delivery for stages 2 and 3.",
@@ -79,7 +86,9 @@ describe("evidence completeness score", () => {
     expect(items["delivery-access"]?.fix).toBe(
       "Ask the buyer to download the delivery for stages 2 and 3.",
     );
-    expect(result.score).toBe(10 + 8 + 12 + 15 + 3 + 3 + 4 + 4 + 4);
+    // Confirmed, exclusions, lines, chat, signed, payment, emailed, downloads, approvals, email
+    // match, timeline (no steps to record).
+    expect(result.score).toBe(10 + 8 + 8 + 4 + 15 + 3 + 3 + 4 + 2 + 4 + 4);
   });
 
   it("matches the Maya story: the final delivery downloaded but not approved", () => {
@@ -87,7 +96,7 @@ describe("evidence completeness score", () => {
       (e) => !(e.type === "MILESTONE_APPROVED" && JSON.stringify(e.payload).includes('"d2"')),
     );
     const result = completenessScore({ entries, agreement: signed });
-    expect(result.score).toBe(87);
+    expect(result.score).toBe(89);
     expect(byId(result).approvals?.fix).toBe("Ask the buyer to approve the delivery for stage 2.");
   });
 
@@ -117,7 +126,7 @@ describe("evidence completeness score", () => {
     const four = { ...signed, lines: 4, markedLines: 3 };
     const partly = byId(completenessScore({ entries: [], agreement: four }))["checkable-lines"];
     expect(partly).toMatchObject({
-      earned: 9,
+      earned: 6,
       status: "missing",
       detail: "3 of 4 lines marked",
       fix: expect.stringContaining("only a new signed version") as unknown,
@@ -210,7 +219,7 @@ describe("evidence completeness score", () => {
     );
     expect(result["scope-citations"]?.earned).toBe(10);
     expect(result.acceptance?.earned).toBe(15);
-    expect(result.approvals).toMatchObject({ detail: "2 of 3 stages", earned: 8 });
+    expect(result.approvals).toMatchObject({ detail: "2 of 3 stages", earned: 5 });
     expect(result.payment?.earned).toBe(6);
   });
 
@@ -235,5 +244,47 @@ describe("evidence completeness score", () => {
     expect(items["delivery-emailed"]?.earned).toBe(5);
     expect(items["email-match"]?.earned).toBe(0);
     expect(items.acceptance?.earned).toBe(0);
+  });
+});
+
+describe("the deal space items (7m)", () => {
+  it("count the chat only when both sides wrote before signing", () => {
+    const sellerOnly = completenessScore({
+      entries: [said("seller"), entry("ACCEPTED", { version: 1 }), said("buyer")],
+      agreement: signed,
+    });
+    expect(byId(sellerOnly)["chat-agreement"]).toMatchObject({
+      earned: 0,
+      detail: "only one side wrote in the chat before signing",
+      fix: expect.stringContaining("signed terms cannot change") as unknown,
+    });
+    const none = completenessScore({ entries: [], agreement: { ...signed, signed: false } });
+    expect(byId(none)["chat-agreement"]).toMatchObject({
+      detail: "no chat before signing",
+      fix: expect.stringContaining("before the buyer signs") as unknown,
+    });
+  });
+
+  it("count timeline steps recorded, in proportion, once signed", () => {
+    const steps = { ...signed, manualSteps: [2, 3, 5] };
+    const recorded = completenessScore({
+      entries: [...agreed(), entry("STEP_DONE", { step: 2 }), entry("STEP_APPROVED", { step: 3 })],
+      agreement: steps,
+    });
+    expect(byId(recorded)["timeline-steps"]).toMatchObject({
+      earned: 2,
+      detail: "2 of 3 steps recorded",
+      fix: "Record each timeline step in the Timeline tab as it happens.",
+    });
+    const all = completenessScore({
+      entries: [entry("STEP_DONE", { step: 1 })],
+      agreement: { ...signed, manualSteps: [1] },
+    });
+    expect(byId(all)["timeline-steps"]).toMatchObject({
+      earned: 4,
+      detail: "1 of 1 step recorded",
+    });
+    const before = completenessScore({ entries: [], agreement: { ...steps, signed: false } });
+    expect(byId(before)["timeline-steps"]).toMatchObject({ earned: 0, detail: "not signed yet" });
   });
 });

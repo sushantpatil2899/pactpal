@@ -1,3 +1,4 @@
+import { timelineOf } from "@pactpal/timeline";
 import { getLatestScope, readLedger } from "@pactpal/db";
 import { completenessScore } from "@pactpal/score";
 import type { FastifyPluginAsync } from "fastify";
@@ -33,6 +34,10 @@ export const completenessRoutes: FastifyPluginAsync<CompletenessRouteOptions> = 
           markedLines: (scope.content.deliverableKinds ?? []).filter((mark) => mark !== null)
             .length,
           signed: record !== undefined,
+          // Steps people record (7k); payments and deliveries have items of their own.
+          manualSteps: timelineOf(scope.content).flatMap((step, i) =>
+            step.kind === "payment" || step.kind === "delivery" ? [] : [i + 1],
+          ),
         },
       }),
     );

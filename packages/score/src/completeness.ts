@@ -14,6 +14,11 @@ export interface ScoredAgreement {
   lines: number;
   markedLines: number;
   signed: boolean;
+  /**
+   * The numbers of the timeline's steps that people record (7f, 7k): what the buyer provides,
+   * reviews and other steps (payments and deliveries are scored by their own items).
+   */
+  manualSteps?: readonly number[];
 }
 
 export interface CompletenessInput {
@@ -59,6 +64,10 @@ interface Facts {
   approved: ReadonlySet<number>;
   invoiceEmails: ReadonlySet<string>;
   deliveryEmails: ReadonlySet<string>;
+  /** Which sides wrote in the deal's chat before the buyer first signed (7m). */
+  chatBeforeSigning: ReadonlySet<string>;
+  /** Timeline steps finished and logged (done or approved). */
+  stepsFinished: ReadonlySet<number>;
 }
 
 /** A payload's field, read defensively: payloads are JSON whose shape depends on the type. */
@@ -115,6 +124,8 @@ function readFacts({ entries, agreement }: CompletenessInput): Facts {
     approved: new Set<number>(),
     invoiceEmails: new Set<string>(),
     deliveryEmails: new Set<string>(),
+    chatBeforeSigning: new Set<string>(),
+    stepsFinished: new Set<number>(),
   };
   /** The stage an entry is about (a stage is the same stage in every version up to this one). */
   const stage = (entry: LedgerEntry) => (upToVersion(entry) ? stageOf(entry) : undefined);
@@ -125,6 +136,17 @@ function readFacts({ entries, agreement }: CompletenessInput): Facts {
   // Only the entry types the score reads; every other type is ignored.
   const readers: Partial<Record<EventType, (entry: LedgerEntry) => void>> = {
     // Confirmed from the chat: this version, or an earlier one a change order added to.
+    MESSAGE_SENT: (entry) => {
+      if (firstSigned === undefined || entry.seq < firstSigned.seq) {
+        facts.chatBeforeSigning.add(entry.actor);
+      }
+    },
+    STEP_DONE: (entry) => {
+      addTo(facts.stepsFinished, numberField(entry, "step"));
+    },
+    STEP_APPROVED: (entry) => {
+      addTo(facts.stepsFinished, numberField(entry, "step"));
+    },
     SCOPE_CONFIRMED: (entry) => {
       facts.confirmedFromDraft ||= upToVersion(entry);
     },
@@ -237,13 +259,13 @@ const MEASURED: { id: string; label: string; points: number; measure: Measure }[
   {
     id: "checkable-lines",
     label: "Each delivered line is checkable",
-    points: 12,
+    points: 8,
     measure: (f) => {
       if (f.agreement === undefined) {
         return { earned: 0, detail: "no agreed work yet", fix: "Save the agreed work first." };
       }
       const { lines, markedLines, signed } = f.agreement;
-      const earned = lines === 0 ? 0 : Math.floor((12 * markedLines) / lines);
+      const earned = lines === 0 ? 0 : Math.floor((8 * markedLines) / lines);
       const detail = `${String(markedLines)} of ${String(lines)} ${lines === 1 ? "line" : "lines"} marked`;
       if (markedLines >= lines) return { earned, detail };
       return {
@@ -253,6 +275,47 @@ const MEASURED: { id: string; label: string; points: number; measure: Measure }[
           ? SIGNED_ONLY
           : "Mark each delivered line: can be checked, a step in the work, or a matter of taste settled by a stage approval.",
       };
+    },
+  },
+  {
+    id: "chat-agreement",
+    label: "Terms agreed in the deal's chat, in both sides' own words",
+    points: 4,
+    measure: (f) => {
+      const both = f.chatBeforeSigning.has("seller") && f.chatBeforeSigning.has("buyer");
+      if (both) return { earned: 4, detail: "both sides wrote in the chat before signing" };
+      return {
+        earned: 0,
+        detail:
+          f.chatBeforeSigning.size === 0
+            ? "no chat before signing"
+            : "only one side wrote in the chat before signing",
+        fix: f.accepted
+          ? "Keep agreeing changes in the deal's chat; the signed terms cannot change."
+          : "Agree the work, stages and payments in the deal's chat before the buyer signs.",
+      };
+    },
+  },
+  {
+    id: "timeline-steps",
+    label: "Timeline steps recorded as they happened",
+    points: 4,
+    measure: (f) => {
+      const steps = f.agreement?.manualSteps ?? [];
+      if (f.agreement?.signed !== true) {
+        return {
+          earned: 0,
+          detail: "not signed yet",
+          fix: "The timeline runs once the buyer signs.",
+        };
+      }
+      if (steps.length === 0) return { earned: 4, detail: "no steps to record" };
+      const done = steps.filter((n) => f.stepsFinished.has(n)).length;
+      const earned = Math.floor((4 * done) / steps.length);
+      const detail = `${String(done)} of ${String(steps.length)} ${steps.length === 1 ? "step" : "steps"} recorded`;
+      return done === steps.length
+        ? { earned, detail }
+        : { earned, detail, fix: "Record each timeline step in the Timeline tab as it happens." };
     },
   },
   {
@@ -311,9 +374,9 @@ const MEASURED: { id: string; label: string; points: number; measure: Measure }[
   {
     id: "approvals",
     label: "Stages approved by the buyer",
-    points: 12,
+    points: 8,
     measure: perStage(
-      12,
+      8,
       (f) => f.approved,
       (stages) => `Ask the buyer to approve the delivery for ${stages}.`,
     ),

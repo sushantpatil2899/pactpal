@@ -107,6 +107,29 @@ const MAYA = {
   },
 };
 
+describe("recordLines for the deal space (7m)", () => {
+  it("quotes chat messages and step notes, and names steps, reminders and reading", () => {
+    const { lines } = recordLines([
+      entry(0, "MESSAGE_SENT", "buyer", { seq: 3, message: "Yes, three concepts for $300" }),
+      entry(1, "MESSAGES_READ", "seller", { upToSeq: 3 }),
+      entry(2, "STEP_SUBMITTED", "seller", {
+        step: 2,
+        note: "Two poses",
+        files: [{ id: "f", filename: "sketch.png" }],
+      }),
+      entry(3, "STEP_APPROVED", "buyer", { step: 2 }),
+      entry(4, "REMINDER_SENT", "system", { step: 4, to: "buyer", kind: "soon" }),
+    ]);
+    expect(lines.map((line) => line.text)).toEqual([
+      '#1 2 Nov 2026 14:03 UTC, buyer: wrote in the deal\'s chat ("Yes, three concepts for $300")',
+      "#2 2 Nov 2026 14:03 UTC, seller: read the deal's chat (up to message 3)",
+      '#3 2 Nov 2026 14:03 UTC, seller: shared a timeline step for review (timeline step 2; sketch.png; "Two poses")',
+      "#4 2 Nov 2026 14:03 UTC, buyer: approved a timeline step (timeline step 2)",
+      "#5 2 Nov 2026 14:03 UTC, PactPal: sent a reminder about a timeline step (timeline step 4; to the buyer)",
+    ]);
+  });
+});
+
 describe("recordLines", () => {
   it("writes each evidence entry as a numbered line and leaves out AI output", () => {
     expect(RECORD.cut).toBe(false);

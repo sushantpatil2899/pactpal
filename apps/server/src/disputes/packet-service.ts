@@ -44,6 +44,7 @@ import {
   type ExhibitSource,
   type SentExhibit,
 } from "./packet.js";
+import { recordEntries } from "./record-entries.js";
 
 /** The packet cannot be built: the log failed its check, or the files are over PayPal's total. */
 export class PacketBuildError extends Error {
@@ -332,7 +333,8 @@ export async function buildPacket(
     deal.buyerId === undefined ? undefined : getUser(db, deal.buyerId),
   ]);
   const builtAt = clock();
-  const record = recordLines(docs.ledger);
+  // The chain is checked on the log as stored; the record shows the chat's and notes' words (7m).
+  const record = recordLines(await recordEntries(db, deal.id));
   const ai =
     input.includeAi === undefined ? undefined : await aiSections(db, input.includeAi, record);
   const packet = await renderPacket(

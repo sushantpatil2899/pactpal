@@ -92,14 +92,16 @@ A 0–100 measure of how complete a deal's records are, with "what is helping" a
 | -------------------------------------------------------------------------- | ------ |
 | Scope confirmed with citations                                             | 10     |
 | Exclusions listed                                                          | 8      |
-| Checkable lines (objective or process; subjective lines tied to approvals) | 12     |
+| Checkable lines (objective or process; subjective lines tied to approvals) | 8      |
+| Terms agreed in the deal's chat by both sides before signing (Phase 7)     | 4      |
 | Buyer acceptance recorded, receipt sent                                    | 15     |
 | Payment through a PayPal invoice                                           | 10     |
 | Coverage notice shown                                                      | 3      |
 | Delivery sent to the buyer's recorded email                                | 10     |
 | Delivery access logged with file hash                                      | 12     |
-| Milestone approvals                                                        | 12     |
+| Milestone approvals                                                        | 8      |
 | Delivery email matches the PayPal transaction email                        | 4      |
+| Timeline steps recorded as they happened (Phase 7)                         | 4      |
 | Retention settings in place                                                | 4      |
 
 Built in 4h for the seller's deal page. Checkable lines are measured since 4i-2 (the seller marks each delivered line; earned in proportion to the lines marked), so PactPal measures 93 of the 100 points: the coverage notice and retention settings are listed as "not measured yet" and count 0 until they are built. The email item compares the PayPal invoice's address with the delivery email's address, because the paying account's email is not recorded.
