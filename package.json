@@ -21,6 +21,7 @@
     "dup": "jscpd apps packages",
     "deps:check": "depcruise apps packages",
     "audit:prod": "pnpm audit --prod",
+    "graph": "GRAPHIFY_BACKEND=none graphify update . --force",
     "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test:coverage && pnpm build && pnpm dup && pnpm deps:check && pnpm audit:prod",
     "env:check": "pnpm --filter @pactpal/server env:check",
     "ai:check": "pnpm --filter @pactpal/server ai:check",
