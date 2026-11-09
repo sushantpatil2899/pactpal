@@ -390,3 +390,11 @@ export type {
   Notification,
   NotificationKind,
 } from "./notifications.js";
+export {
+  StepNotAllowedError,
+  asStepUpdates,
+  listStepUpdates,
+  recordStepUpdate,
+  stepUpdateSchema,
+} from "./timeline-progress.js";
+export type { NewStepUpdate, StepRefusal, StepUpdateRecord } from "./timeline-progress.js";

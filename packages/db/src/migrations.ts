@@ -1131,4 +1131,32 @@ CREATE UNIQUE INDEX notifications_one_unread_message ON notifications (user_id, 
   ADD COLUMN chat_through_seq integer CHECK (chat_through_seq >= 0),
   ADD COLUMN based_on_version integer CHECK (based_on_version >= 1)`,
   },
+  {
+    id: "0037_timeline_progress",
+    // Updates to the signed timeline's manual steps (7k): the buyer provided something, the seller
+    // shared a review, the buyer approved it or asked for changes, a step was done. Each update is
+    // recorded by its own log entry (STEP_SUBMITTED, STEP_APPROVED, STEP_CHANGES_REQUESTED or
+    // STEP_DONE); the newest update of a step is its state. Payments and deliveries are not here:
+    // their own tables are their record. Append-only.
+    sql: `CREATE TABLE timeline_progress (
+  id uuid PRIMARY KEY,
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  version integer NOT NULL CHECK (version >= 1),
+  step integer NOT NULL CHECK (step >= 1),
+  status text NOT NULL CHECK (status IN ('submitted', 'approved', 'changes', 'done')),
+  actor text NOT NULL CHECK (actor IN ('seller', 'buyer')),
+  actor_id uuid NOT NULL REFERENCES users (id),
+  note text CHECK (char_length(note) BETWEEN 1 AND 1000),
+  files jsonb NOT NULL DEFAULT '[]',
+  ledger_seq integer NOT NULL,
+  created_at timestamptz NOT NULL,
+  FOREIGN KEY (deal_id, ledger_seq) REFERENCES ledger_entries (deal_id, seq),
+  FOREIGN KEY (deal_id, version) REFERENCES scope_versions (deal_id, version)
+);
+CREATE INDEX timeline_progress_by_deal ON timeline_progress (deal_id, version, created_at);
+CREATE TRIGGER timeline_progress_append_only BEFORE UPDATE OR DELETE ON timeline_progress
+  FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change();
+CREATE TRIGGER timeline_progress_no_truncate BEFORE TRUNCATE ON timeline_progress
+  FOR EACH STATEMENT EXECUTE FUNCTION pactpal_forbid_change()`,
+  },
 ];

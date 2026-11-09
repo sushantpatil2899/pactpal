@@ -221,8 +221,8 @@ export function DealPage({ dealId }: { dealId: string }) {
       <TabPanel id="timeline" current={tab}>
         <TimelineTab
           dealId={deal.id}
-          revision={revision}
-          signed={deal.status === "active" || deal.status === "completed"}
+          role={deal.role}
+          refreshKey={revision * 100_000 + newestMessage}
         />
         <PaymentsPanel key={`payments-${String(revision)}`} deal={deal} onChange={refreshLog} />
         <DeliveriesPanel key={`deliveries-${String(revision)}`} deal={deal} onChange={refreshLog} />

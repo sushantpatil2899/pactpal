@@ -1,5 +1,6 @@
 import { chatMessageSchema, type ChatMessageView } from "@pactpal/live";
-import { isObject, postStep, readChecked } from "./api";
+import type { StepUpdateStatus } from "@pactpal/timeline";
+import { isObject, postStep, readChecked, type StepView } from "./api";
 
 /** The deal's chat as the server answers it: whose page this is, whether it is open, messages. */
 export interface ChatView {
@@ -116,4 +117,66 @@ export async function markNotificationsRead(
     "mark notifications read",
     (b): b is { changed: number } => isObject(b) && typeof b.changed === "number",
   );
+}
+
+/** A file recorded with a timeline update. */
+export interface StepFileView {
+  id: string;
+  filename: string;
+  sha256: string;
+}
+
+/** One step of the running timeline (7k), as the server answers it. */
+export interface RunningStepView extends StepView {
+  state: "open" | "submitted" | "changes" | "done";
+  waitingOn: "seller" | "buyer" | null;
+  next: string;
+  /** The updates this person may record now. */
+  canDo: StepUpdateStatus[];
+  updates: {
+    status: StepUpdateStatus;
+    actor: "seller" | "buyer";
+    at: string;
+    note: string | null;
+    files: StepFileView[];
+  }[];
+}
+
+export interface TimelineView {
+  signed: boolean;
+  version: number | null;
+  currency: string;
+  steps: RunningStepView[];
+}
+
+const isRunningStep = (value: unknown): value is RunningStepView =>
+  isObject(value) &&
+  typeof value.n === "number" &&
+  typeof value.kind === "string" &&
+  typeof value.title === "string" &&
+  typeof value.state === "string" &&
+  typeof value.next === "string" &&
+  Array.isArray(value.canDo) &&
+  Array.isArray(value.updates);
+
+const isTimeline = (value: unknown): value is TimelineView =>
+  isObject(value) &&
+  typeof value.signed === "boolean" &&
+  typeof value.currency === "string" &&
+  Array.isArray(value.steps) &&
+  value.steps.every(isRunningStep);
+
+const timelineUrl = (dealId: string) => `/api/deals/${encodeURIComponent(dealId)}/timeline`;
+
+export async function getTimeline(dealId: string): Promise<TimelineView> {
+  return readChecked(await fetch(timelineUrl(dealId)), isTimeline, "load the timeline");
+}
+
+/** Records an update of a step (7k) and returns the timeline as it now stands. */
+export async function updateStep(
+  dealId: string,
+  step: number,
+  input: { status: StepUpdateStatus; note?: string; fileIds?: string[] },
+): Promise<TimelineView> {
+  return postStep(`${timelineUrl(dealId)}/${String(step)}`, input, "update the step", isTimeline);
 }

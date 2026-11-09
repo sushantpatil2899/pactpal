@@ -51,6 +51,7 @@ import { liveRoutes } from "../chat/live-routes.js";
 import { notificationRoutes } from "../chat/notification-routes.js";
 import { Notifier } from "../chat/notifier.js";
 import { DealCards } from "../chat/cards.js";
+import { timelineRoutes } from "./timeline-routes.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -171,6 +172,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     notifier &&
     new DealCards({ db: database, bus: chatBus, notifier, clock, newId, log: app.log });
   void app.register(scopeRoutes, { visibleDeal, sellersDeal, clock });
+  void app.register(timelineRoutes, { visibleDeal, clock, newId, recordIp, cards });
   void app.register(acceptanceRoutes, {
     visibleDeal,
     sellersDeal,

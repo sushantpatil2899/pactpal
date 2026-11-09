@@ -242,8 +242,9 @@ export async function createSignedTestDeal(
 export async function createPaidTestDeal(
   db: Database,
   payment: { transactionId?: string; invoiceNumber?: string } = {},
+  terms: Parameters<typeof createSignedTestDeal>[1] = {},
 ) {
-  const deal = await createSignedTestDeal(db);
+  const deal = await createSignedTestDeal(db, terms);
   const stage = { dealId: deal.dealId, version: 1, stage: 1 };
   const invoiceId = "INV2-TEST-PAID";
   await startInvoice(

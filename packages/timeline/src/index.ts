@@ -19,3 +19,11 @@ export type {
   TimelineStep,
   TimelineStepKind,
 } from "./timeline.js";
+export { allowedUpdates, timelineProgress } from "./progress.js";
+export type {
+  StageFacts,
+  StepProgress,
+  StepState,
+  StepUpdate,
+  StepUpdateStatus,
+} from "./progress.js";
