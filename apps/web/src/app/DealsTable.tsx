@@ -1,18 +1,20 @@
 import {
-  AllCommunityModule,
   ModuleRegistry,
   themeQuartz,
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community";
+import { AllEnterpriseModule } from "ag-grid-enterprise";
 import { AgGridReact } from "ag-grid-react";
 import { dayWords } from "@pactpal/words";
 import type { DealOverview } from "../overview-api";
 import { navigate } from "../router/useRoute";
+import { giveAgLicence } from "./ag-licence";
 import { STAGES, otherName, waitingWords } from "./overview-words";
 import { Records, StageBadge, Unread } from "./parts";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+giveAgLicence();
+ModuleRegistry.registerModules([AllEnterpriseModule]);
 
 // The grid takes its look from the design tokens, so it follows the light and dark themes.
 const theme = themeQuartz.withParams({
@@ -30,6 +32,13 @@ const theme = themeQuartz.withParams({
   wrapperBorderRadius: 16,
   browserColorScheme: "inherit",
 });
+
+// The licensed extras: choose and group columns, filter by value, count what is shown, export.
+const SIDE_BAR = { toolPanels: ["columns", "filters"], defaultToolPanel: "" };
+const STATUS_BAR = {
+  statusPanels: [{ statusPanel: "agTotalAndFilteredRowCountComponent", align: "left" as const }],
+};
+const EXPORT = { fileName: "pactpal-deals" };
 
 type Cell = ICellRendererParams<DealOverview>;
 
@@ -54,12 +63,16 @@ const COLUMNS: ColDef<DealOverview>[] = [
     headerName: "Stage",
     valueGetter: ({ data }) => (data ? STAGES[data.stage].word : ""),
     cellRenderer: ({ data }: Cell) => data && <StageBadge stage={data.stage} />,
-    width: 160,
+    filter: "agSetColumnFilter",
+    enableRowGroup: true,
+    width: 170,
   },
   {
     headerName: "Next",
     valueGetter: ({ data }) => (data ? waitingWords(data) : ""),
     tooltipValueGetter: ({ data }) => data?.next?.text ?? "",
+    filter: "agSetColumnFilter",
+    enableRowGroup: true,
     flex: 1,
     minWidth: 130,
   },
@@ -107,6 +120,13 @@ export function DealsTable({ deals, search }: { deals: DealOverview[]; search: s
       getRowId={({ data }) => data.id}
       domLayout="autoHeight"
       suppressCellFocus={false}
+      sideBar={SIDE_BAR}
+      statusBar={STATUS_BAR}
+      rowGroupPanelShow="onlyWhenGrouping"
+      groupDisplayType="groupRows"
+      groupDefaultExpanded={1}
+      defaultExcelExportParams={EXPORT}
+      defaultCsvExportParams={EXPORT}
       rowClass="pp-grid-row"
       overlayNoRowsTemplate="No deals match."
       onRowClicked={({ data }) => {

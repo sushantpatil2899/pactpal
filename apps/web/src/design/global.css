@@ -310,9 +310,9 @@
 
   /* Messages. Pages mark them with roles; the look follows the role. */
 
-  /* AG Studio marks its own overlays as statuses; those keep AG's look. */
-  [role="alert"]:not(.pp-insights *),
-  [role="status"]:not(.pp-insights *) {
+  /* AG and Bryntum mark parts of their own interface as statuses; those keep their look. */
+  [role="alert"]:not(.pp-vendor *),
+  [role="status"]:not(.pp-vendor *) {
     padding: var(--space-12) var(--space-16);
     border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
     border-radius: var(--radius-box);

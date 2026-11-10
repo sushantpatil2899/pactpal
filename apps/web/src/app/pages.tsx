@@ -91,7 +91,9 @@ export function DealsPage({ overview }: { overview: Overview }) {
       )}
       {deals !== undefined && overview.deals?.length !== 0 && (
         <Suspense fallback={<Skeleton label="Loading the table…" lines={5} />}>
-          <DealsTable deals={deals} search={search} />
+          <div className="pp-vendor">
+            <DealsTable deals={deals} search={search} />
+          </div>
         </Suspense>
       )}
     </Page>

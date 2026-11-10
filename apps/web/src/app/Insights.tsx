@@ -1,20 +1,15 @@
-import {
-  AgStudioLicenseManager,
-  studioTheme,
-  type AgReportState,
-  type AgStudioProperties,
-} from "ag-studio";
+import { studioTheme, type AgReportState, type AgStudioProperties } from "ag-studio";
 import { AgStudio } from "ag-studio-react";
 import { useMemo, useRef } from "react";
 import { Button } from "../design/parts";
 import { DARK, LIGHT, SHARED } from "../design/tokens";
 import { useDark } from "../design/useDark";
 import type { DealOverview } from "../overview-api";
+import { giveAgLicence } from "./ag-licence";
 import { STARTING_REPORT, dealsSource } from "./insight-report";
 import { insightRows } from "./insight-rows";
 
-const key = import.meta.env.VITE_AG_LICENCE_KEY;
-if (key !== undefined && key !== "") AgStudioLicenseManager.setLicenseKey(key);
+giveAgLicence();
 
 const SAVED = "pactpal-insights-1";
 const NARROW = 900;
@@ -130,7 +125,7 @@ export function Insights({ deals, editing }: { deals: DealOverview[]; editing: b
           </Button>
         </p>
       )}
-      <div className="pp-insights">
+      <div className="pp-insights pp-vendor">
         <AgStudio
           ref={studio}
           style={{ height: "100%" }}
