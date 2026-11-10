@@ -52,6 +52,8 @@ import { notificationRoutes } from "../chat/notification-routes.js";
 import { Notifier } from "../chat/notifier.js";
 import type { ProductLookup } from "@pactpal/products";
 import { listingRoutes } from "./listing-routes.js";
+import type { SharedStore } from "../keyvalue.js";
+import type { DraftStarter } from "../disputes/checker.js";
 import { mcpRoutes } from "../agents/mcp-routes.js";
 import { agentRequestRoutes } from "../agents/request-routes.js";
 import { DealCards } from "../chat/cards.js";
@@ -85,6 +87,10 @@ export interface DealOptions {
   disputeWriter?: DisputeWriter | undefined;
   /** Reads product listing pages (8e); undefined until `CHANNEL3_API_KEY` is set. */
   products?: ProductLookup | undefined;
+  /** Starts scope drafts as Render Workflow runs (9R-1); undefined: they run in this server. */
+  remoteDrafts?: DraftStarter | undefined;
+  /** Counters and cached values shared by every server copy (9R-2). */
+  store: SharedStore;
   /** Chat events between server copies (7c). */
   chatBus: ChatBus;
   /** This server copy's id, for chat presence. */
@@ -218,7 +224,14 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     recordIp,
   });
   void app.register(fileRoutes, { database, visibleDeal, clock, newId, recordIp, email });
-  void app.register(draftRoutes, { database, drafting, sellersDeal, clock, newId });
+  void app.register(draftRoutes, {
+    database,
+    drafting,
+    sellersDeal,
+    clock,
+    newId,
+    remoteDrafts: options.remoteDrafts,
+  });
   void app.register(completenessRoutes, { sellersDeal });
   // One record of recent model outcomes for every feature that chooses a model.
   const models = modelMemory(clock);
@@ -243,7 +256,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     inboundDomain: options.inboundDomain,
   });
   // The MCP server for agents (8a-8c) and the seller's answers to what an agent asks.
-  void app.register(mcpRoutes, { database, clock, newId, notifier });
+  void app.register(mcpRoutes, { database, clock, newId, notifier, store: options.store });
   void app.register(agentRequestRoutes, { database, clock });
   void app.register(listingRoutes, {
     sellersDeal,
@@ -251,6 +264,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     newId,
     recordIp,
     products: options.products,
+    store: options.store,
   });
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });

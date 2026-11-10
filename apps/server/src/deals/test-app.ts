@@ -31,6 +31,8 @@ export function dealTestApp(
     sellerApps?: AppOptions["sellerApps"];
     webhooks?: AppOptions["webhooks"];
     products?: AppOptions["products"];
+    remoteDrafts?: AppOptions["remoteDrafts"];
+    store?: AppOptions["store"];
     /** The site's address; https by default. */
     publicBaseUrl?: string;
   } = {},

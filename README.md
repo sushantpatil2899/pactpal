@@ -60,7 +60,16 @@ For goods and digital products, paste the product's listing link on the deal's A
 
 ## Deploying to Render
 
-The server is described in [`render.yaml`](render.yaml) (a Render Blueprint).
+Everything is described in [`render.yaml`](render.yaml) (a Render Blueprint), in Virginia:
+
+| Render service         | Name                    | What it does                                                                                           |
+| ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| Web Service (2 copies) | `pactpal-server`        | The website, API, live chat and MCP server; runs migrations before each deploy                         |
+| Workflows              | `pactpal-workflows`     | Dispute checks, scope drafts and the dispute councils; each AI model call is its own run (`ask-model`) |
+| Cron Job               | `pactpal-dispute-check` | Starts a dispute check every 5 minutes                                                                 |
+| Postgres 16            | `pactpal-db`            | Deals, the evidence log, files, chat and jobs                                                          |
+| Key Value              | `pactpal-kv`            | Agent call counts and cached product listings, shared by both copies                                   |
+| Static Site            | `pactpal-docs`          | These docs as a website                                                                                |
 
 1. In Render, choose **New → Blueprint**, pick this repository and the `dev` branch.
 2. Enter the values Render asks for: `PAYPAL_SELLER_CLIENT_ID` and `PAYPAL_SELLER_CLIENT_SECRET` (leave `PAYPAL_WEBHOOK_ID` empty at first).

@@ -142,6 +142,23 @@ describe("what's being sold, from a listing link (8e)", () => {
     await env.app.close();
   });
 
+  it("answers a page looked up again within the hour from the shared store (9R-2)", async () => {
+    let lookups = 0;
+    const counting: ProductLookup = {
+      lookup: () => {
+        lookups += 1;
+        return Promise.resolve({ ok: true, listing: TEST_LISTING });
+      },
+      photo: () => Promise.resolve(WEBP),
+    };
+    const env = await goodsDeal(counting);
+    const look = () => env.call("POST", `${env.base}/lookup`, env.token, { url: TEST_LISTING.url });
+    expect((await look()).statusCode).toBe(200);
+    expect((await look()).json()).toMatchObject({ listing: { title: TEST_LISTING.title } });
+    expect(lookups).toBe(1);
+    await env.app.close();
+  });
+
   it("refuses listings whose facts or photos were changed", async () => {
     const env = await goodsDeal();
     const preview = (

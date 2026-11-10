@@ -1,4 +1,5 @@
 import {
+  failDraft,
   ArtifactIntegrityError,
   ArtifactNotFoundError,
   addArtifact,
@@ -12,18 +13,18 @@ import {
   postgresContentStore,
   startDraft,
   type Artifact,
-  type ContentStore,
   type Database,
-  type DraftRecord,
 } from "@pactpal/db";
 import { agreementLines } from "@pactpal/qa";
-import { draftSourceText, numberSourceLines, type SourceLine } from "@pactpal/scope-draft";
+import { draftSourceText, numberSourceLines } from "@pactpal/scope-draft";
 import { currentDocument } from "../acceptance/document.js";
 import { CHAT_TRANSCRIPT_PREFIX, chatNames } from "../chat/chat-routes.js";
 import type { FastifyBaseLogger, FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { PROMPT_VERSIONS, runDraftJob } from "../drafting/draft-job.js";
 import { draftView } from "../drafting/draft-view.js";
+import { numberedChat, textOf } from "../drafting/draft-source.js";
+import type { DraftStarter } from "../disputes/checker.js";
 import type { DraftingRuntime } from "../drafting/runtime.js";
 import { type DealLookup, type FoundDeal, sendRefusal } from "./access.js";
 import { sellerModelStep } from "./model-step.js";
@@ -35,6 +36,8 @@ export interface DraftRouteOptions {
   sellersDeal: DealLookup;
   clock: () => Date;
   newId: () => string;
+  /** Starts each draft as a Render Workflow run (9R-1); undefined: drafts run in this server. */
+  remoteDrafts?: DraftStarter | undefined;
 }
 
 const startBody = z.object({ sourceFileId: z.uuid() });
@@ -62,50 +65,13 @@ const REFUSALS: Record<DraftNotAllowedError["reason"], { status: number; error: 
   "too-many": { status: 409, error: "this deal already has the most drafts it can have" },
 };
 
-const decoder = new TextDecoder("utf-8", { fatal: true });
-
-/** The file's text, or undefined when it is not valid UTF-8. */
-function textOf(bytes: Uint8Array): string | undefined {
-  try {
-    return decoder.decode(bytes);
-  } catch {
-    return undefined;
-  }
-}
-
-/** The numbered chat a draft was made from, read again from the stored file; null if it cannot be. */
-async function numberedChat(
-  found: { db: Database; deal: { id: string } },
-  draft: DraftRecord,
-  store: ContentStore,
-  log: { error(fields: object, message: string): void },
-): Promise<SourceLine[] | null> {
-  try {
-    const file = await getArtifact(found.db, store, draft.sourceArtifactId, found.deal.id);
-    const text = textOf(file.bytes);
-    const numbered = text === undefined ? undefined : numberSourceLines(text);
-    return numbered?.ok ? numbered.lines : null;
-  } catch (error) {
-    // The draft is still shown; only the chat beside it is missing.
-    log.error(
-      {
-        dealId: found.deal.id,
-        draftId: draft.id,
-        err: error instanceof Error ? error.name : "unknown",
-      },
-      "The chat of a draft could not be read",
-    );
-    return null;
-  }
-}
-
 /**
  * Drafts of a deal's agreed work, made by the council from a chat saved as a text source file.
  * Only the seller can start, list or read drafts. A draft starts at once as `running`; the page
  * reads it again until it is `ready` or `failed`. A draft is a proposal, never agreed work.
  */
 export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options) => {
-  const { database, drafting, sellersDeal, clock, newId } = options;
+  const { database, drafting, sellersDeal, clock, newId, remoteDrafts } = options;
   const store = database && postgresContentStore(database, clock);
 
   app.get("/api/deals/:id/drafts", async (request, reply) => {
@@ -153,7 +119,8 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
     const numbered = numberSourceLines(text);
     if (!numbered.ok) return reply.code(422).send({ error: numbered.message });
 
-    const release = drafting.acquire();
+    // A draft run on Render takes no place in this server's council limit.
+    const release = remoteDrafts ? () => undefined : drafting.acquire();
     if (!release) return reply.code(429).send({ error: "busy, try again in a minute" });
     try {
       const record = await startDraft(
@@ -171,6 +138,27 @@ export const draftRoutes: FastifyPluginAsync<DraftRouteOptions> = (app, options)
         clock(),
       );
       request.log.info({ dealId: deal.id, draftId: record.id }, "Draft started");
+      if (remoteDrafts) {
+        try {
+          await remoteDrafts({ dealId: deal.id, draftId: record.id });
+        } catch (error) {
+          await failDraft(
+            db,
+            { draftId: record.id, reason: "the draft could not be started" },
+            clock(),
+          );
+          request.log.error(
+            {
+              dealId: deal.id,
+              draftId: record.id,
+              err: error instanceof Error ? error.name : "unknown",
+            },
+            "Draft not started on Render",
+          );
+          return await reply.code(502).send({ error: "the draft could not be started; try again" });
+        }
+        return await reply.code(202).send({ draft: draftView(record, deal) });
+      }
       drafting.run(async () => {
         try {
           await runDraftJob(

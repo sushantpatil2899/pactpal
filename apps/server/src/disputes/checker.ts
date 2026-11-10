@@ -86,6 +86,19 @@ export class RunnerBusyError extends Error {
   override readonly name = "RunnerBusyError";
 }
 
+/**
+ * Starts one run of a Workflow task for a job, once per job (`key`), and logs its run id with the
+ * job's ids (never its contents).
+ */
+async function startRun(
+  starter: TaskStarter,
+  log: LogSink,
+  run: { taskSlug: string; input: unknown; key: string; ids: object; what: string },
+): Promise<void> {
+  const started = await starter.startTask(run.taskSlug, [run.input], { idempotencyKey: run.key });
+  log.info({ ...run.ids, taskRunId: started.taskRunId }, `${run.what} started on Render`);
+}
+
 /** Starts each job as a run of its kind's Workflow task (`taskSlugs`), once per job. */
 export function renderClaimRunner(
   starter: TaskStarter,
@@ -93,17 +106,30 @@ export function renderClaimRunner(
   log: LogSink,
 ): ClaimRunner {
   return {
-    async start(analysisId, kind) {
-      const run = await starter.startTask(taskSlugs[kind], [analysisId], {
-        idempotencyKey: `${kind}:${analysisId}`,
-      });
-      log.info(
-        { analysisId, kind, taskRunId: run.taskRunId },
-        "Dispute council job started on Render",
-      );
-    },
+    start: (analysisId, kind) =>
+      startRun(starter, log, {
+        taskSlug: taskSlugs[kind],
+        input: analysisId,
+        key: `${kind}:${analysisId}`,
+        ids: { analysisId, kind },
+        what: "Dispute council job",
+      }),
   };
 }
+
+/** A scope draft's run on Render (9R-1): the draft task, once per draft. */
+export type DraftStarter = (ids: { dealId: string; draftId: string }) => Promise<void>;
+
+export const renderDraftStarter =
+  (starter: TaskStarter, taskSlug: string, log: LogSink): DraftStarter =>
+  (ids) =>
+    startRun(starter, log, {
+      taskSlug,
+      input: ids,
+      key: `draft:${ids.draftId}`,
+      ids,
+      what: "Scope draft",
+    });
 
 /**
  * Runs the comparison in this server's background, within its limit of councils at once (a local

@@ -11,10 +11,14 @@ const ciWorkflow = readFileSync(
   "utf8",
 );
 const [servicesSection = "", databaseSection = ""] = blueprint.split(/^databases:$/m);
-// The website comes first; the Workflow service and its Cron Job (5a) follow it.
-const [serviceSection = "", workflowSection = "", cronSection = ""] = servicesSection
-  .split(/^ {2}- type: /m)
-  .slice(1);
+// Each service by its name: the website, the Workflow service and its Cron Job (5a), Key Value
+// (9R-2) and the docs site (9R-4).
+const sections = servicesSection.split(/^ {2}- type: /m).slice(1);
+const named = (name: string) =>
+  sections.find((section) => new RegExp(`^ {4}name: ${name}$`, "m").test(section)) ?? "";
+const serviceSection = named("pactpal-server");
+const workflowSection = named("pactpal-workflows");
+const cronSection = named("pactpal-dispute-check");
 const serverPackage = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { name: string; scripts: { start: string } };
@@ -124,6 +128,23 @@ describe("render.yaml", () => {
       RESEND_WEBHOOK_SECRET: "whsec_dGVzdA==",
     });
     expect(loaded.ok && loaded.config.inbound?.domain).toBe("in.pact-pal.app");
+  });
+
+  it("adds Key Value, the docs site and a second website copy (9R-2, 9R-4, 9R-5)", () => {
+    const keyValue = named("pactpal-kv");
+    expect(keyValue.startsWith("keyvalue\n")).toBe(true);
+    expect(field("plan", keyValue)).toBe("free");
+    expect(field("region", keyValue)).toBe(field("region", serviceSection));
+    expect(field("ipAllowList", keyValue)).toBe("[]");
+    expect(serviceSection).toMatch(
+      /- key: KEY_VALUE_URL\n\s+fromService:\n\s+type: keyvalue\n\s+name: pactpal-kv/,
+    );
+    expect(field("numInstances", serviceSection)).toBe("2");
+    const docs = named("pactpal-docs");
+    expect(field("runtime", docs)).toBe("static");
+    expect(field("buildCommand", docs)).toContain("pnpm --filter @pactpal/docs build");
+    expect(field("staticPublishPath", docs)).toBe("apps/docs/dist");
+    expect(docs).toContain("X-Frame-Options");
   });
 
   it("knows no settings for an unknown feature", () => {

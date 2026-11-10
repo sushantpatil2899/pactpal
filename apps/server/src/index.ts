@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { connectKeyValue } from "./keyvalue.js";
 import { defaultHttpDeps } from "@pactpal/net";
 import { Channel3Lookup } from "@pactpal/products";
 import { existsSync } from "node:fs";
@@ -36,6 +37,7 @@ import {
   inProcessClaimRunner,
   renderClaimRunner,
   renderWorkflowChecker,
+  renderDraftStarter,
   sameWorkflowTask,
 } from "./disputes/checker.js";
 import {
@@ -47,7 +49,7 @@ import {
   runDisputeJob,
 } from "./disputes/claim-job.js";
 import { syncDisputes } from "./disputes/dispute-sync.js";
-import { jsonLines } from "./disputes/task.js";
+import { DRAFT_TASK_NAME, jsonLines } from "./disputes/task.js";
 import { postgresBus, publishingBus } from "./chat/bus.js";
 import { sendTimelineReminders } from "./chat/reminders.js";
 
@@ -187,6 +189,20 @@ const app = buildApp(report, {
   // Escalations and evidence (5g) go from this server over REST, after the seller confirms.
   ...(sellerDisputes ? { disputeWriter: sellerDisputes } : {}),
   ...(email ? { email } : {}),
+  // Scope drafts (9R-1) run as Render Workflow runs when Render is set up, like dispute jobs.
+  ...(config.render
+    ? {
+        remoteDrafts: renderDraftStarter(
+          new Render({ token: config.render.apiKey.reveal() }).workflows,
+          sameWorkflowTask(config.render.taskSlug, DRAFT_TASK_NAME),
+          disputeLog,
+        ),
+      }
+    : {}),
+  // Counters and cached listings shared by every server copy (9R-2), when Key Value is set.
+  ...(config.keyValue
+    ? { store: await connectKeyValue(config.keyValue.url.reveal(), disputeLog) }
+    : {}),
   // Product listings (8e) through Channel3, when its key is set.
   ...(config.channel3
     ? { products: new Channel3Lookup(config.channel3.apiKey, defaultHttpDeps, () => new Date()) }

@@ -6,6 +6,9 @@ services:
     runtime: node
     # Starter: always on (0.5 CPU, 512 MB), so PayPal notifications never wait for a cold start.
     plan: starter
+    # Two copies behind Render's load balancer (9R-5): chat between copies goes through Postgres and
+    # the agent call limit through Key Value, so either copy can answer any request.
+    numInstances: 2
     region: virginia
     branch: dev
     autoDeployTrigger: commit
@@ -75,10 +78,48 @@ services:
       # Product listings (8e): Channel3's API key. Without it, "Look up" says it is not set up.
       - key: CHANNEL3_API_KEY
         sync: false
+      # The store shared by both copies (9R-2): agent call counts and cached listings.
+      - key: KEY_VALUE_URL
+        fromService:
+          type: keyvalue
+          name: pactpal-kv
+          property: connectionString
+
+  # Render Key Value (Redis-compatible, 9R-2): counters and short-lived values shared by both copies
+  # of the website. Nothing in it is evidence; losing it only resets limits and cached listings.
+  - type: keyvalue
+    name: pactpal-kv
+    region: virginia
+    plan: free
+    # Oldest keys make room first when it is full.
+    maxmemoryPolicy: allkeys-lru
+    # No outside connections: only services on Render's private network can reach it.
+    ipAllowList: []
+
+  # The docs site (9R-4): the project's documents as web pages, rebuilt on every push and served
+  # from Render's global network. Free.
+  - type: web
+    name: pactpal-docs
+    runtime: static
+    branch: dev
+    autoDeployTrigger: commit
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/docs build
+    staticPublishPath: apps/docs/dist
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
 
   # Render Workflows: PactPal's background tasks, run on Render outside the website: check-disputes,
-  # which reads the seller's PayPal disputes and logs them on their deals, and analyze-claim, which
-  # runs the council comparing a dispute claim with the record (5d). Workflows
+  # which reads the seller's PayPal disputes and logs them on their deals; the dispute council jobs
+  # (5d-5i); draft-scope (9R-1); and ask-model, one model call of any council, so a council shows
+  # as a tree of runs, its models side by side. Workflows
   # set their compute per task in code, so there is no plan here, and no pre-deploy step: the task
   # waits for the website's deploy to run the migrations.
   - type: workflow

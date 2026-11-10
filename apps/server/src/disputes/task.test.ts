@@ -1,14 +1,31 @@
 import {
   createTestDatabase,
   createPaidTestDeal,
+  createTestDeal,
+  testId,
   useMigratedTestDatabase,
 } from "@pactpal/db/testing";
-import { getClaimAnalysis, readLedger, startClaimAnalysis, type Database } from "@pactpal/db";
+import {
+  addArtifact,
+  getClaimAnalysis,
+  getDraft,
+  postgresContentStore,
+  readLedger,
+  startClaimAnalysis,
+  startDraft,
+  type Database,
+} from "@pactpal/db";
+import { MAYA_CHAT } from "@pactpal/scope-draft/testing";
+import { PROMPT_VERSIONS } from "../drafting/draft-job.js";
+import { askModel, subtaskClients } from "../drafting/subtask-clients.js";
+import { standInMember } from "../deals/test-app.js";
 import { describe, expect, it } from "vitest";
 import type { TaskStarter } from "./checker.js";
 import {
   jsonLines,
+  runAskModel,
   runClaimTask,
+  runDraftTask,
   runDisputeTask,
   startScheduledCheck,
   type TaskWiring,
@@ -147,5 +164,97 @@ describe("jsonLines", () => {
       { level: 50, msg: "bad" },
     ]);
     expect(lines.every((line) => line.endsWith("\n"))).toBe(true);
+  });
+});
+
+describe("the scope draft task (9R-1)", () => {
+  const NOW = new Date("2026-11-05T17:00:00.000Z");
+
+  /** The test deal with a chat file (`bytes`) and a draft of it waiting. */
+  async function waitingDraft(bytes: Uint8Array = new TextEncoder().encode(MAYA_CHAT)) {
+    const deal = await createTestDeal(db);
+    const file = await addArtifact(
+      db,
+      postgresContentStore(db, () => NOW),
+      {
+        id: testId(500),
+        dealId: deal.dealId,
+        kind: "source",
+        filename: "chat.txt",
+        bytes,
+        addedBy: { actor: "seller", actorId: deal.seller.id },
+      },
+      NOW,
+    );
+    const draft = await startDraft(
+      db,
+      {
+        id: testId(501),
+        dealId: deal.dealId,
+        sellerId: deal.seller.id,
+        sourceArtifactId: file.id,
+        sourceSha256: file.sha256,
+        draftPromptVersion: PROMPT_VERSIONS.draft,
+        rankPromptVersion: PROMPT_VERSIONS.rank,
+      },
+      NOW,
+    );
+    return { ids: { dealId: deal.dealId, draftId: draft.id } };
+  }
+
+  /** Two stand-in members whose every call goes through a recorded "task run". */
+  function treeOfRuns() {
+    const members = [standInMember("m1"), standInMember("m2")];
+    const runs: string[] = [];
+    const clientsFor = () =>
+      subtaskClients(
+        members.map((m) => m.spec),
+        (name, request) => {
+          runs.push(name);
+          return askModel(members, name, request);
+        },
+      );
+    return { runs, clientsFor };
+  }
+
+  it("runs the drafting council with one model run per member and round", async () => {
+    const { ids } = await waitingDraft();
+    const { runs, clientsFor } = treeOfRuns();
+    await runDraftTask(env, ids, { ...wiring().wired, clientsFor });
+    expect(await getDraft(db, ids.dealId, ids.draftId)).toMatchObject({ status: "ready" });
+    // Each member drafts once and ranks once: four runs.
+    expect(runs.sort()).toEqual(["m1", "m1", "m2", "m2"]);
+    // Asked again (a retried run), a finished draft is left alone.
+    await runDraftTask(env, ids, { ...wiring().wired, clientsFor });
+    expect(runs).toHaveLength(4);
+  });
+
+  it("fails a draft whose chat cannot be read, and refuses bad input", async () => {
+    const { ids } = await waitingDraft(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]));
+    const { clientsFor } = treeOfRuns();
+    await runDraftTask(env, ids, { ...wiring().wired, clientsFor });
+    expect(await getDraft(db, ids.dealId, ids.draftId)).toMatchObject({
+      status: "failed",
+      failureReason: "the chat could not be read",
+    });
+    await expect(
+      runDraftTask(env, { dealId: "x" }, { ...wiring().wired, clientsFor }),
+    ).rejects.toThrow();
+    await expect(runDraftTask({}, ids, { ...wiring().wired, clientsFor })).rejects.toThrow(
+      /DATABASE_URL/,
+    );
+  });
+
+  it("answers one model call with the members whose keys are set", async () => {
+    const outcome = await runAskModel(
+      { GROQ_API_KEY: "gsk_test" },
+      "nobody",
+      { messages: [{ role: "user", content: "hi" }] },
+      (keys) => {
+        expect(Object.keys(keys)).toEqual(["GROQ_API_KEY"]);
+        return [];
+      },
+    );
+    expect(outcome).toMatchObject({ ok: false, kind: "rejected" });
   });
 });

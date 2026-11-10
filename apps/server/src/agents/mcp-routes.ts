@@ -11,7 +11,7 @@ import {
 import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from "fastify";
 import { SESSION_COOKIE } from "../auth/sign-in.js";
 import type { Notifier } from "../chat/notifier.js";
-import { CallLimiter } from "./limiter.js";
+import type { SharedStore } from "../keyvalue.js";
 import { AGENT_TOOLS, sellersDealOf, type AgentContext, type RouteCaller } from "./tools.js";
 
 export interface McpRouteOptions {
@@ -19,6 +19,8 @@ export interface McpRouteOptions {
   clock: () => Date;
   newId: () => string;
   notifier: Notifier | undefined;
+  /** Where calls are counted, shared by every server copy (9R-2). */
+  store: SharedStore;
 }
 
 /** Calls a minute allowed per agent key, on each server copy. */
@@ -87,8 +89,7 @@ function mcpServer(context: AgentContext): McpServer {
  * tool call's key ending, never the key, the inputs or the answers.
  */
 export const mcpRoutes: FastifyPluginAsync<McpRouteOptions> = (app, options) => {
-  const { database, clock, newId, notifier } = options;
-  const limiter = new CallLimiter(AGENT_CALLS_PER_MINUTE, 60_000);
+  const { database, clock, newId, notifier, store } = options;
 
   app.post("/mcp", { bodyLimit: MCP_BODY_LIMIT }, async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });
@@ -101,7 +102,9 @@ export const mcpRoutes: FastifyPluginAsync<McpRouteOptions> = (app, options) => 
         .header("www-authenticate", 'Bearer realm="pactpal"')
         .send({ error: "a valid PactPal agent key is needed" });
     }
-    if (!limiter.allow(record.id, clock().getTime())) {
+    // One count per key and minute, in the shared store, so every server copy sees the same.
+    const minute = Math.floor(clock().getTime() / 60_000);
+    if ((await store.hit(`agent:${record.id}:${String(minute)}`, 60)) > AGENT_CALLS_PER_MINUTE) {
       return reply.code(429).send({ error: "too many calls; wait a minute" });
     }
     const { token } = await createSession(database, record.sellerId, clock());

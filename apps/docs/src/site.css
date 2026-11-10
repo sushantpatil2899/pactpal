@@ -1,0 +1,126 @@
+:root {
+  --bg: #f7f8fa;
+  --panel: #ffffff;
+  --fg: #1b2230;
+  --muted: #5b6575;
+  --line: #d6dbe3;
+  --accent: #4b3fc4;
+  font:
+    16px/1.6 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11141a;
+    --panel: #1a1f28;
+    --fg: #e6e9ef;
+    --muted: #9aa4b4;
+    --line: #343c4a;
+    --accent: #a59bff;
+    color-scheme: dark;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+header {
+  padding: 14px max(16px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.brand {
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 32px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 4px;
+}
+nav a {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+}
+nav a:hover,
+nav a[aria-current="page"] {
+  background: var(--panel);
+  color: var(--fg);
+}
+main {
+  min-width: 0;
+  max-width: 78ch;
+}
+main h1,
+main h2,
+main h3 {
+  line-height: 1.25;
+  text-wrap: balance;
+}
+a {
+  color: var(--accent);
+}
+code {
+  font:
+    0.9em ui-monospace,
+    Menlo,
+    monospace;
+  background: var(--panel);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+pre {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+pre code {
+  padding: 0;
+}
+table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+th,
+td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  vertical-align: top;
+  text-align: left;
+}
+th {
+  background: var(--panel);
+}
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  nav ul {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+  }
+}

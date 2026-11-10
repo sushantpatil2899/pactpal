@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { memoryStore, type SharedStore } from "./keyvalue.js";
+import type { DraftStarter } from "./disputes/checker.js";
 import type { ProductLookup } from "@pactpal/products";
 import fastifyCookie from "@fastify/cookie";
 import fastifyHelmet from "@fastify/helmet";
@@ -61,6 +63,10 @@ export interface AppOptions {
   disputeWriter?: DisputeWriter;
   /** Reads product listing pages (8e); off until `CHANNEL3_API_KEY` is set. */
   products?: ProductLookup;
+  /** Counters and short-lived values shared by every server copy (9R-2); memory by default. */
+  store?: SharedStore;
+  /** Starts scope drafts as Render Workflow runs (9R-1); off: drafts run in this server. */
+  remoteDrafts?: DraftStarter;
   /** Linking sellers' own PayPal apps (6h-2); off until the database and encryption key are set. */
   sellerApps?: SellerAppLinking;
   /**
@@ -152,6 +158,8 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     return reply.send({ status: "ready", database: "ok", migrations: status.applied });
   });
   if (database) app.addHook("onClose", () => database.close());
+  const store = opts.store ?? memoryStore();
+  app.addHook("onClose", () => store.close());
 
   const signIn = opts.signIn ?? {
     login: undefined,
@@ -191,6 +199,8 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     claims: opts.claims,
     disputeWriter: opts.disputeWriter,
     products: opts.products,
+    remoteDrafts: opts.remoteDrafts,
+    store,
     chatBus,
     serverId: opts.serverId ?? randomUUID(),
   });
