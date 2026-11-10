@@ -14,16 +14,16 @@ import { useCouncilJobs } from "./useCouncilJobs";
 /** What the record shows about one statement: the agreement lines and log entries cited. */
 function Statement({ statement }: { statement: ClaimStatement }) {
   return (
-    <li>
+    <li data-finding={statement.finding}>
       <blockquote>The buyer said: “{statement.quote}”</blockquote>
       {statement.finding === "not-covered" ? (
-        <p>
+        <p className="pp-gap">
           <strong>No record covers this.</strong>
         </p>
       ) : (
         <>
           <p>What the record shows: {statement.relation}</p>
-          <ul>
+          <ul className="pp-cites">
             {statement.agreement.map((citation) => (
               <li key={`a${String(citation.line)}`}>
                 Agreement line {citation.line}: “{citation.quote}”
@@ -46,12 +46,12 @@ function Analysis({ view }: { view: ClaimAnalysisView }) {
   return (
     <>
       <ReviewFlag council={view.council} />
-      <ol>
+      <ol className="pp-findings">
         {statements.map((statement, i) => (
           <Statement key={i} statement={statement} />
         ))}
       </ol>
-      <p>
+      <p className="pp-ai-note">
         <strong>AI suggestion (check it against PayPal&apos;s page):</strong>{" "}
         {suggestion.action === null
           ? "nothing to do right now."
@@ -113,7 +113,7 @@ export function ClaimPanel({
   const latest = view.analyses[0];
   const running = latest?.status === "running";
   return (
-    <section aria-labelledby="claim-record">
+    <section aria-labelledby="claim-record" className="pp-ai-panel">
       <h3 id="claim-record">The claim against the record (AI draft)</h3>
       <p>
         AI models compare the buyer&apos;s claim with the signed agreement and this deal&apos;s
@@ -144,7 +144,6 @@ export function ClaimPanel({
                   }}
                   rows={4}
                   maxLength={20_000}
-                  style={{ width: "100%", boxSizing: "border-box" }}
                 />
               </label>
             </p>

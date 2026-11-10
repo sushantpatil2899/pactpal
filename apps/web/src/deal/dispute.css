@@ -101,6 +101,237 @@
     width: 100%;
   }
 
+  /* Inside the panels: what the AI drafted is marked violet and kept apart from the record. */
+
+  .pp-ai-panel > h3::after,
+  .pp-dispute h4[data-ai]::after {
+    display: inline-block;
+    margin-left: var(--space-8);
+    padding: 1px var(--space-8);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--color-ai) 14%, transparent);
+    color: var(--color-ai-ink);
+    font-size: var(--text-12);
+    font-weight: 600;
+    vertical-align: middle;
+    content: "Check every line";
+  }
+
+  .pp-dispute .pp-panel > section > p:first-of-type {
+    max-width: 75ch;
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-dispute [role="note"] {
+    padding: var(--space-12) var(--space-16);
+    border: 1px solid color-mix(in srgb, var(--color-wait) 40%, transparent);
+    border-radius: var(--radius-box);
+    background: color-mix(in srgb, var(--color-wait) 10%, transparent);
+    color: var(--color-wait-ink);
+  }
+
+  .pp-findings,
+  .pp-docs,
+  .pp-built,
+  .pp-cited {
+    display: grid;
+    gap: var(--space-8);
+    margin: var(--space-12) 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pp-findings > li,
+  .pp-built > li,
+  .pp-cited > li {
+    padding: var(--space-12) var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+    background: var(--color-surface-2);
+  }
+
+  .pp-findings > li > :last-child,
+  .pp-cited > li > :last-child {
+    margin-bottom: 0;
+  }
+
+  .pp-findings > li[data-finding="not-covered"] {
+    border-color: color-mix(in srgb, var(--color-wait) 40%, transparent);
+    background: color-mix(in srgb, var(--color-wait) 7%, var(--color-surface));
+  }
+
+  .pp-findings blockquote {
+    margin-top: 0;
+    background: var(--color-surface);
+  }
+
+  .pp-findings p {
+    margin: var(--space-8) 0 var(--space-4);
+  }
+
+  .pp-gap {
+    color: var(--color-wait-ink);
+  }
+
+  .pp-cites {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    padding-left: var(--space-16);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-ai-line {
+    display: block;
+    margin-top: var(--space-4);
+    color: var(--color-ai-ink);
+    font-size: var(--text-13);
+    font-weight: 500;
+  }
+
+  .pp-ai-note {
+    padding: var(--space-12) var(--space-16);
+    border: 1px solid color-mix(in srgb, var(--color-ai) 30%, transparent);
+    border-radius: var(--radius-box);
+    background: color-mix(in srgb, var(--color-ai) 7%, var(--color-surface));
+  }
+
+  .pp-ai-note strong {
+    color: var(--color-ai-ink);
+  }
+
+  .pp-cited {
+    counter-reset: cited;
+  }
+
+  .pp-cited > li {
+    counter-increment: cited;
+  }
+
+  .pp-cited > li::before {
+    margin-right: var(--space-8);
+    color: var(--color-ink-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-12);
+    content: counter(cited);
+  }
+
+  .pp-cited small,
+  .pp-findings small {
+    display: block;
+    margin-top: var(--space-4);
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  /* The packet's documents: one row each, with what the AI suggests beneath. */
+
+  .pp-docs {
+    gap: 0;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+  }
+
+  .pp-docs > li {
+    padding: var(--space-8) var(--space-12);
+  }
+
+  .pp-docs > li + li {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .pp-docs label {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-8);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-docs b {
+    color: var(--color-ink);
+    font-size: var(--text-15);
+    font-weight: 550;
+  }
+
+  .pp-docs > li[data-left-out="true"] b {
+    color: var(--color-ink-3);
+    font-weight: 400;
+  }
+
+  .pp-ai-pick {
+    display: block;
+    margin-left: 1.6rem;
+    color: var(--color-ai-ink);
+    font-size: var(--text-12);
+  }
+
+  .pp-size-bar {
+    height: 0.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-bg-sunk);
+    overflow: hidden;
+  }
+
+  .pp-size-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--color-accent), var(--color-accent-2));
+  }
+
+  .pp-size-bar[data-over="true"] i {
+    background: var(--color-alert);
+  }
+
+  .pp-size-words {
+    margin: var(--space-8) 0 var(--space-16);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-size-words[data-over="true"] {
+    color: var(--color-alert-ink);
+    font-weight: 600;
+  }
+
+  .pp-built ul {
+    margin: var(--space-4) 0 0;
+    padding-left: var(--space-16);
+    font-size: var(--text-13);
+  }
+
+  /* How the models voted, folded away until asked for. */
+
+  .pp-council {
+    margin-top: var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+    font-size: var(--text-13);
+  }
+
+  .pp-council > summary {
+    padding: var(--space-8) var(--space-16);
+    color: var(--color-ink-2);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .pp-council[open] > summary {
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .pp-council > :not(summary) {
+    margin: var(--space-12) var(--space-16);
+  }
+
+  .pp-dispute button + button,
+  .pp-dispute .pp-docs + button {
+    margin-left: var(--space-8);
+  }
+
   @media (max-width: 72rem) {
     .pp-dispute-work {
       grid-template-columns: minmax(0, 1fr);

@@ -36,7 +36,7 @@ function howSent(choice: PacketChoice): string {
 function AiPick({ pick }: { pick: { use: boolean; why: string } | undefined }) {
   if (pick === undefined) return null;
   return (
-    <small style={{ display: "block", marginLeft: "1.6em" }}>
+    <small className="pp-ai-pick">
       AI: {pick.use ? "send" : "leave out"}
       {pick.why === "" ? "" : ` (${pick.why})`}
     </small>
@@ -176,9 +176,9 @@ export function PacketPanel({
           Use the AI&apos;s picks
         </button>
       )}
-      <ul style={{ listStyle: "none", paddingLeft: 0 }}>
+      <ul className="pp-docs">
         {view.exhibits.map((choice) => (
-          <li key={choice.id}>
+          <li key={choice.id} data-left-out={choice.send === "left-out"}>
             <label>
               <input
                 type="checkbox"
@@ -188,7 +188,9 @@ export function PacketPanel({
                   toggle(choice.id);
                 }}
               />{" "}
-              {choice.filename} ({ADDED_BY[choice.addedBy]}; {howSent(choice)})
+              <span>
+                <b>{choice.filename}</b> ({ADDED_BY[choice.addedBy]}; {howSent(choice)})
+              </span>
               {choice.pastedClaim === true && (
                 <small> The buyer&apos;s claim you pasted; left out unless you tick it.</small>
               )}
@@ -197,7 +199,17 @@ export function PacketPanel({
           </li>
         ))}
       </ul>
-      <p style={over ? { color: "var(--color-alert-ink)", fontWeight: 600 } : undefined}>
+      <div
+        className="pp-size-bar"
+        data-over={over}
+        role="img"
+        aria-label={`${sizeWords(total)} of ${sizeWords(view.meter.maxTotalBytes)} used`}
+      >
+        <i
+          style={{ width: `${String(Math.min(100, (total / view.meter.maxTotalBytes) * 100))}%` }}
+        />
+      </div>
+      <p className="pp-size-words" data-over={over}>
         {sizeWords(total)} of {sizeWords(view.meter.maxTotalBytes)} in total; largest file{" "}
         {sizeWords(largest)} of {sizeWords(view.meter.maxFileBytes)}. The packet PDF itself is added
         on top (usually well under 1 MB).
@@ -222,7 +234,7 @@ export function PacketPanel({
       {view.packets.length > 0 && (
         <>
           <h4>Packets built</h4>
-          <ul>
+          <ul className="pp-built">
             {view.packets.map((packet) => (
               <li key={packet.id}>
                 {when(packet.createdAt)}:{" "}

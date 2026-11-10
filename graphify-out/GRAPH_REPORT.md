@@ -1,7 +1,7 @@
 # Graph Report - paypal-hackathon  (2026-11-10)
 
 ## Corpus Check
-- 690 files · ~448,453 words
+- 690 files · ~448,553 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 14 file(s) not represented in the graph (top: .css 8, (none) 5, .example 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4fd1383f`
+- Built from commit: `1136cafb`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -830,7 +830,7 @@ Nodes (4): Explicitly out of scope, Roadmap (not built now), Scope, Who can use 
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `vitest` connect `vitest` to `appeal-items.ts`, `net/src/index.ts`, `useRoute.ts`, `question-routes.ts`, `.query`, `Secret`, `DraftReview.tsx`, `sellers/disputes.test.ts`, `isObject`, `ledger/src/index.ts`, `scope-draft/src/index.ts`, `ai/src/index.ts`, `email/src/index.ts`, `paypal/src/index.ts`, `ScopePanel.tsx`, `mcp.ts`, `review.ts`, `PayPalResult`, `DraftReview.tsx`, `council/src/index.ts`, `db/src/migrate.ts`, `DealPage.tsx`, `db/src/testing.ts`, `web/src/format.ts`, `scope-draft/src/testing.ts`, `eval-runner.ts`, `delivery-routes.ts`, `DealsTable.tsx`, `checker.ts`, `packet-service.ts`, `agent-requests.ts`, `products/src/index.ts`, `eval-report.ts`, `log-labels.test.ts`, `receipt.ts`, `validate.ts`, `config.ts`, `app-link-routes.ts`, `sign-in-words.ts`, `dispute-actions.ts`, `buildApp`, `dispute-sync.ts`, `claims.test.ts`, `disputes/test-support.ts`, `Deadlines.tsx`, `action-routes.ts`, `delivery-check/src/index.ts`, `timeline/src/index.ts`, `ref_zod`, `completeness.ts`, `layouts.tsx`, `scope-drafts.ts`, `paypal-webhook.ts`, `postgres.ts`, `deliveries.ts`, `sandbox-respond-report.ts`, `claims/src/index.ts`, `receipt.test.ts`, `draft-source.ts`, `db/src/index.ts`, `chat.ts`, `sandbox-webhook-report.ts`, `testSpec`, `render.ts`, `live-hub.ts`, `api.ts`, `council-record.ts`, `when`, `package.json`, `Insights.tsx`?**
-  _High betweenness centrality (0.206) - this node is a cross-community bridge._
+  _High betweenness centrality (0.208) - this node is a cross-community bridge._
 - **What connects `@modelcontextprotocol/sdk`, `@pactpal/ai`, `@pactpal/claims` to the rest of the system?**
   _120 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `appeal-items.ts` be split into smaller, more focused modules?**
