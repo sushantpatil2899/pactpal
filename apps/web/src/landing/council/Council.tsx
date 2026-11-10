@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { useActiveStep } from "../useActiveStep";
 
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
 
@@ -150,22 +151,7 @@ const VISUALS: readonly ReactNode[] = [
  * each one plays out on the right. The visuals run only while their step is the active one.
  */
 export function Council() {
-  const [active, setActive] = useState(0);
-  const panels = useRef<(HTMLDivElement | null)[]>([]);
-  useEffect(() => {
-    const watch = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) setActive(Number((entry.target as HTMLElement).dataset.step));
-        }
-      },
-      { rootMargin: "-45% 0px -45% 0px" },
-    );
-    for (const panel of panels.current) if (panel) watch.observe(panel);
-    return () => {
-      watch.disconnect();
-    };
-  }, []);
+  const { active, track } = useActiveStep(STEPS.length);
   return (
     <section id="council" className="pp-lp-council pp-scope-dark" aria-labelledby="pp-lp-council">
       <div className="pp-lp-council-side">
@@ -198,9 +184,7 @@ export function Council() {
         {VISUALS.map((visual, i) => (
           <div
             key={STEPS[i]?.title}
-            ref={(el) => {
-              panels.current[i] = el;
-            }}
+            ref={track(i)}
             data-step={i}
             data-active={i === active}
             className="pp-lp-council-panel"

@@ -7,3 +7,9 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** An image the build copies into the output; importing it gives its address. */
+declare module "*.webp" {
+  const src: string;
+  export default src;
+}

@@ -251,3 +251,189 @@ export const TICKER: readonly { event: string; detail: string; hash: string }[] 
   { event: "REMINDER_SENT", detail: "Wedding favours · balance due tomorrow", hash: "3c91…b40f" },
   { event: "STEP_APPROVED", detail: "Pricing review · session 1", hash: "b40f…68ea" },
 ];
+
+/** How money and proof move between PayPal and PactPal, node by node. */
+export const RAILS = [
+  {
+    step: "Sign in",
+    title: "Sign in with PayPal",
+    body: "PayPal shares your name, email and account id. Your password stays with PayPal.",
+  },
+  {
+    step: "Invoice",
+    title: "An invoice for each milestone",
+    body: "Amounts and due days come from the signed agreement, sent through PayPal Invoicing.",
+  },
+  {
+    step: "Pay",
+    title: "Your buyer pays on PayPal",
+    body: "Straight into your own PayPal account. PactPal never holds the money.",
+  },
+  {
+    step: "Verify",
+    title: "PayPal tells PactPal",
+    body: "A webhook, its signature checked, says the payment arrived.",
+  },
+  {
+    step: "Seal",
+    title: "Sealed in the log",
+    body: "PAYMENT_RECEIVED is written to the chain, fingerprinted with everything before it.",
+  },
+  {
+    step: "Dispute",
+    title: "Disputes, through PayPal",
+    body: "Seen the moment they open. Evidence, offers and appeals go back through PayPal, after you confirm.",
+  },
+] as const;
+
+/** A buyer's claim, and what the record says about each part of it. */
+export const CLAIM = {
+  text: "The cover is the wrong size, you promised a matching bookmark, and it arrived late.",
+  /** Word positions (from 0) of the three statements PactPal matches. */
+  parts: [
+    {
+      words: [3, 4, 5],
+      said: "the wrong size",
+      found: ["Agreement line 4 · 6 × 9 in at 300 dpi", "Log #0419 · Chris approved the proof"],
+    },
+    { words: [7, 8, 9, 10], said: "promised a matching bookmark", found: [] },
+    { words: [13, 14], said: "arrived late", found: ["Log #0421 · delivered 27 Nov, due 28 Nov"] },
+  ],
+} as const;
+
+/** The app's main screens, in the order the tour shows them. */
+export const TOUR = [
+  {
+    id: "dashboard",
+    title: "Dashboard",
+    body: "What needs you, what is overdue and what you are waiting on, across every deal.",
+    url: "pact-pal.app",
+    notes: [
+      { x: 30, y: 21, text: "Needs you, first" },
+      { x: 72, y: 47, text: "Overdue, in red" },
+      { x: 88, y: 5, text: "Start a deal from a chat" },
+    ],
+  },
+  {
+    id: "deal",
+    title: "Deal space",
+    body: "The live chat pinned beside the agreement, the timeline, files and the evidence log.",
+    url: "pact-pal.app/deals/book-cover",
+    notes: [
+      { x: 34, y: 17, text: "Every step at a glance" },
+      { x: 30, y: 58, text: "Live chat, every message kept" },
+      { x: 76, y: 50, text: "Timeline chart" },
+    ],
+  },
+  {
+    id: "reminders",
+    title: "Reminders",
+    body: "Payments due, approvals waiting, dispute deadlines: they come to you, in the app and by email.",
+    url: "pact-pal.app/notifications",
+    notes: [
+      { x: 82, y: 9, text: "Overdue deposit" },
+      { x: 80, y: 36, text: "Dispute deadline in 24 hours" },
+    ],
+  },
+  {
+    id: "deadlines",
+    title: "Deadlines",
+    body: "Every dated step and dispute deadline on one calendar. A dispute with no evidence yet turns red.",
+    url: "pact-pal.app/deadlines",
+    notes: [
+      { x: 64, y: 22, text: "Late steps" },
+      { x: 76, y: 44, text: "Today" },
+    ],
+  },
+  {
+    id: "dispute",
+    title: "Disputes window",
+    body: "The time left to respond, the claim against the record, the packet and what PayPal allows now.",
+    url: "pact-pal.app/deals/podcast/disputes",
+    notes: [
+      { x: 74, y: 24, text: "Time left to respond" },
+      { x: 34, y: 66, text: "Claim against the record" },
+      { x: 84, y: 48, text: "What PayPal allows now" },
+    ],
+  },
+  {
+    id: "deals",
+    title: "Deals table",
+    body: "Search, filter, group and export every deal you have.",
+    url: "pact-pal.app/deals",
+    notes: [
+      { x: 52, y: 13, text: "Search and filter" },
+      { x: 72, y: 31, text: "Records complete, per deal" },
+    ],
+  },
+  {
+    id: "insights",
+    title: "Insights",
+    body: "Charts of your own deals: by stage, by amount, by who they are waiting on.",
+    url: "pact-pal.app/insights",
+    notes: [
+      { x: 28, y: 50, text: "Deals by stage" },
+      { x: 68, y: 50, text: "Amounts per currency" },
+    ],
+  },
+] as const;
+
+/** What the buyer does, with no account. */
+export const BUYER_STEPS = [
+  "Open the link in their email",
+  "Read every term on one page",
+  "Ask questions, answered from the agreement",
+  "Type their name and sign",
+  "Pay each PayPal invoice",
+  "Approve the work or ask for changes",
+] as const;
+
+/** Everything else in the box, one tile each. */
+export const FEATURES = [
+  {
+    id: "chat",
+    title: "Live chat",
+    body: "Typing, online and seen marks. Every message is kept as evidence.",
+  },
+  {
+    id: "remind",
+    title: "Reminders",
+    body: "Before payments, approvals and dispute deadlines: 72, 24 and 6 hours.",
+  },
+  { id: "switch", title: "Jump to any deal", body: "Press ⌘K, type a name, land in the deal." },
+  {
+    id: "screenshot",
+    title: "Screenshot reader",
+    body: "Drop in a screenshot of a chat; PactPal reads the lines.",
+  },
+  {
+    id: "forward",
+    title: "Email forwarding",
+    body: "Forward an email thread to the deal's own address.",
+  },
+  {
+    id: "check",
+    title: "Pre-delivery check",
+    body: "Before you send, your files are checked against the agreed lines.",
+  },
+  {
+    id: "change",
+    title: "Change orders",
+    body: "New terms, agreed by both, with every version kept.",
+  },
+  {
+    id: "qa",
+    title: "Buyer questions",
+    body: "Answered from the agreement, with the line cited, or passed to you.",
+  },
+  {
+    id: "agents",
+    title: "AI agents",
+    body: "Connect your own agent. Anything it sends waits for a code only you can give it.",
+  },
+  {
+    id: "score",
+    title: "Completeness score",
+    body: "How complete each deal's records are, and what would make them more so.",
+  },
+] as const;

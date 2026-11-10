@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SIGN_IN_PATH } from "../api";
 import { ButtonLink } from "../design/parts";
-import { Logo } from "../design/Logo";
+import { Logo, LogoMark } from "../design/Logo";
 import { Footer } from "../shell/layouts";
 import { Council } from "./council/Council";
+import { Dispute } from "./dispute/Dispute";
+import { Features } from "./features/Features";
+import { Rails } from "./paypal/Rails";
+import { Tour } from "./tour/Tour";
 import { Hero } from "./hero/Hero";
 import { FAQ, LIMITS, TAGLINE, revealWords } from "./landing-words";
 import { Ledger } from "./ledger/Ledger";
@@ -17,11 +21,13 @@ import "@fontsource/instrument-serif/400-italic.css";
 import "./landing.css";
 import "./slice.css";
 import "./slice2.css";
+import "./slice3.css";
 
 const NAV = [
   { href: "#get", label: "What you get" },
   { href: "#how", label: "How it works" },
   { href: "#council", label: "AI council" },
+  { href: "#paypal", label: "PayPal" },
   { href: "#trust", label: "Trust" },
   { href: "#faq", label: "FAQ" },
 ];
@@ -131,7 +137,11 @@ export function Landing({ problem }: { problem?: string }) {
         <Audience />
         <Moves />
         <Council />
+        <Rails />
         <Ledger />
+        <Dispute />
+        <Tour />
+        <Features />
 
         <Tagline />
 
@@ -164,6 +174,10 @@ export function Landing({ problem }: { problem?: string }) {
           <p>Sign in with the PayPal account you are paid through. Your buyers need no account.</p>
           {signIn(true)}
         </section>
+        <p className="pp-lp-wordmark" aria-hidden="true">
+          <LogoMark className="pp-lp-wordmark-mark" />
+          PactPal
+        </p>
       </main>
       <Footer links />
     </div>
