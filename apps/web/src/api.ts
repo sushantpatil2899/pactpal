@@ -1940,6 +1940,8 @@ export interface IntakeSecretView {
 export interface IntakeKeyView {
   key: IntakeSecretView | null;
   address: IntakeSecretView | null;
+  /** The agent key for the MCP server (8a). */
+  agent: IntakeSecretView | null;
   /** Whether email forwarding is set up on the server. */
   forwarding: boolean;
   /** The only sender whose forwarded emails are accepted. */
@@ -1955,6 +1957,7 @@ const isIntakeKey = (value: unknown): value is IntakeKeyView =>
   isObject(value) &&
   isSecretView(value.key) &&
   isSecretView(value.address) &&
+  isSecretView(value.agent) &&
   typeof value.forwarding === "boolean" &&
   typeof value.sellerEmail === "string" &&
   (value.secret === undefined || typeof value.secret === "string");
@@ -1963,7 +1966,7 @@ export async function getIntakeKey(): Promise<IntakeKeyView> {
   return readChecked(await fetch("/api/intake/key"), isIntakeKey, "load the intake key");
 }
 
-export type IntakeKind = "key" | "address";
+export type IntakeKind = "key" | "address" | "agent";
 interface IntakeDefaults {
   defaultCategory: string;
   defaultCurrency: string;
@@ -1975,6 +1978,49 @@ export const makeIntakeSecret = (kind: IntakeKind, defaults: IntakeDefaults) =>
 
 export const turnOffIntakeSecret = (kind: IntakeKind) =>
   postStep(`/api/intake/${kind}/off`, undefined, `turn the ${kind} off`, isIntakeKey);
+
+// --- Agent requests (8c) -----------------------------------------------------------------------
+
+/** Something the seller's agent asks to do, as the seller reads it before approving. */
+export interface AgentRequestView {
+  id: string;
+  dealId: string;
+  kind: "send-invoice" | "send-evidence";
+  status: "waiting" | "approved" | "declined" | "done" | "failed" | "expired";
+  summary: string;
+  keyEnding: string;
+  createdAt: string;
+  codeExpiresAt: string | null;
+}
+
+const isAgentRequest = (value: unknown): value is AgentRequestView =>
+  isObject(value) &&
+  typeof value.id === "string" &&
+  typeof value.summary === "string" &&
+  typeof value.status === "string" &&
+  typeof value.keyEnding === "string";
+
+/** The open requests of the seller's agent on one deal. */
+export async function getAgentRequests(dealId: string): Promise<AgentRequestView[]> {
+  const body = await readChecked(
+    await fetch(`/api/agent-requests?dealId=${encodeURIComponent(dealId)}`),
+    (b): b is { requests: unknown[] } => isObject(b) && Array.isArray(b.requests),
+    "load your agent's requests",
+  );
+  return body.requests.filter(isAgentRequest);
+}
+
+/** Approves (giving the one-time code, shown once) or declines a request. */
+export const answerAgentRequest = (id: string, answer: "approve" | "decline") =>
+  postStep(
+    `/api/agent-requests/${encodeURIComponent(id)}/${answer}`,
+    undefined,
+    `${answer} the request`,
+    (b): b is { request: AgentRequestView; code?: string } =>
+      isObject(b) &&
+      isAgentRequest(b.request) &&
+      (b.code === undefined || typeof b.code === "string"),
+  );
 
 // --- Your PayPal app (6h-2) ----------------------------------------------------------------------
 

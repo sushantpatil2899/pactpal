@@ -53,6 +53,9 @@ const EVENT_LABELS: Record<string, string> = {
   STEP_CHANGES_REQUESTED: "Changes asked for on a timeline step",
   STEP_DONE: "Timeline step done",
   REMINDER_SENT: "Reminder sent",
+  AGENT_REQUESTED: "Your agent asked to act",
+  AGENT_REQUEST_ANSWERED: "You answered your agent",
+  AGENT_ACTED: "Your agent acted with your approval",
 };
 
 /** An entry's details, read defensively: the payload's shape depends on the type. */

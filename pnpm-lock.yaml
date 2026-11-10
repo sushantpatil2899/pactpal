@@ -53,6 +53,9 @@ importers:
       '@fastify/websocket':
         specifier: ^11.3.7
         version: 11.3.7
+      '@modelcontextprotocol/sdk':
+        specifier: 1.32.1
+        version: 1.32.1(zod@4.6.7)
       '@pactpal/ai':
         specifier: workspace:*
         version: link:../../packages/ai

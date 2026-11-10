@@ -20,6 +20,7 @@ import { TabPanel, Tabs, useTabInAddress, type TabDefinition } from "./Tabs";
 import { TimelineTab } from "./TimelineTab";
 import { useLiveChat } from "./useLiveChat";
 import { NotificationsList } from "./NotificationsList";
+import { AgentRequestsPanel } from "./AgentRequestsPanel";
 import { markNotificationsRead } from "./chat-api";
 import { tabFromHash } from "./tab-address";
 import {
@@ -168,6 +169,7 @@ export function DealPage({ dealId }: { dealId: string }) {
           openTab(tabFromHash(`#${note.tab}`, DEAL_TABS, "chat"));
         }}
       />
+      {deal.role === "seller" && <AgentRequestsPanel dealId={deal.id} refreshKey={notesKey} />}
       <Tabs tabs={tabs} current={tab} onChange={openTab} label="Deal space" />
       <TabPanel id="chat" current={tab}>
         <ChatTab dealId={deal.id} chat={chat} otherName={otherName} onOpenTab={openTab} />

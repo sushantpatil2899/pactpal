@@ -123,6 +123,17 @@ All done in 7o (10 Nov 2026). Phase 7 stays open until the owner's live run on t
 | "Needs you" keeps informational notices (a step approved, a signature) until opened                 | ✅ 7o: news is marked read when its tab is opened; what asks for action stays               |
 | Drafting prompt version 4 has had real council runs locally (about 6), not an eval or injection run | ✅ 7o: `pnpm eval:scope` and `pnpm eval:injection --council` run; see spike-results         |
 
+## Phase 8 sub-phases
+
+Agreed with the owner on 10 November 2026: of the sponsors' tools, the MCP server for agents first (for "Best Use of Agentic Commerce"), then Bryntum and Channel3; AG Grid, APIMatic, Postman, Zapier, Astropods and Elastic dropped. Deadline: 12 Nov 2026, 12:00 PST, submitting a day early.
+
+| Sub-phase | What                                                      | Status                                                                                                                    |
+| --------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 8a        | Agent keys and `POST /mcp` with the read tools            | ✅ built (10 Nov 2026)                                                                                                    |
+| 8b        | Prepare tools: a deal from text, a draft evidence packet  | ✅ built (10 Nov 2026)                                                                                                    |
+| 8c        | Approve-and-code flow; `send_invoice` and `send_evidence` | ✅ built (10 Nov 2026): a real sandbox invoice sent locally through the official MCP client after approval in the browser |
+| 8d        | Live run on the site with Claude Code or Desktop          | The owner's (README "Connect your agent")                                                                                 |
+
 ## Where things stand (5 November 2026)
 
 Phase 4 is built except the items below. Phase 5 is closed (owner, 7 Nov 2026); its remaining live checks are listed below.

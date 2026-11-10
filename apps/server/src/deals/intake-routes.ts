@@ -69,13 +69,15 @@ export const intakeRoutes: FastifyPluginAsync<IntakeRouteOptions> = (app, option
 
   /** The seller's key and forwarding address, whether forwarding is on, and their own email. */
   async function settingsView(db: Database, seller: { id: string; email: string }) {
-    const [key, address] = await Promise.all([
+    const [key, address, agent] = await Promise.all([
       currentIntakeKey(db, seller.id),
       currentIntakeKey(db, seller.id, "address"),
+      currentIntakeKey(db, seller.id, "agent"),
     ]);
     return {
       key: secretView(key),
       address: secretView(address),
+      agent: secretView(agent),
       forwarding: inboundDomain !== undefined,
       sellerEmail: seller.email,
     };
@@ -98,7 +100,8 @@ export const intakeRoutes: FastifyPluginAsync<IntakeRouteOptions> = (app, option
     return reply.send(await settingsView(database, viewer.user));
   });
 
-  for (const kind of ["key", "address"] as const) {
+  // An agent key (8a) is made and turned off like the other secrets; it is used at `/mcp`.
+  for (const kind of ["key", "address", "agent"] as const) {
     app.post(`/api/intake/${kind}`, async (request, reply) => {
       if (!database) return reply.code(503).send({ error: "unavailable" });
       const viewer = await payPalSeller(request, reply, database);
@@ -116,7 +119,7 @@ export const intakeRoutes: FastifyPluginAsync<IntakeRouteOptions> = (app, option
       );
       request.log.info({ keyId: record.id, kind }, "Intake secret made");
       // The only time the secret itself is sent: the page shows it once.
-      const secret = kind === "key" ? key : `deals+${key}@${inboundDomain ?? ""}`;
+      const secret = kind === "address" ? `deals+${key}@${inboundDomain ?? ""}` : key;
       return reply.code(201).send({ ...(await settingsView(database, viewer.user)), secret });
     });
 

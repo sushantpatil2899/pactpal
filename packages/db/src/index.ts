@@ -271,6 +271,24 @@ export {
   type IntakeRefusal,
 } from "./intake.js";
 export {
+  AGENT_CODE_LIFETIME_MS,
+  AGENT_REQUEST_KINDS,
+  AGENT_REQUEST_STATUSES,
+  MAX_WRONG_CODES,
+  agentBodySha256,
+  answerAgentRequest,
+  claimAgentRequest,
+  createAgentRequest,
+  finishAgentRequest,
+  getAgentRequest,
+  listOpenAgentRequests,
+  type AgentRequest,
+  type AgentRequestKind,
+  type AgentRequestRefusal,
+  type AgentRequestStatus,
+  type NewAgentRequest,
+} from "./agent-requests.js";
+export {
   DISPUTE_CHECK_SOURCES,
   DISPUTE_MATCHES,
   disputeChanges,

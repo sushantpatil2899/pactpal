@@ -42,6 +42,18 @@ pnpm dev               # server on :3000, web on Vite's default port
 
 `GET /health` reports which environment variables are still missing.
 
+## Connect your agent (MCP)
+
+PactPal is also an MCP server, so an AI assistant can work with your deals. On the home page, under "Connect your AI agent", make an agent key, then add the server:
+
+```bash
+claude mcp add --transport http pactpal https://<your site>/mcp --header "Authorization: Bearer ppk_..."
+```
+
+For Claude Desktop or Cursor, add a remote server with the URL `https://<your site>/mcp` and the header `Authorization: Bearer ppk_...`. To try it by hand, run `npx @modelcontextprotocol/inspector` and connect with "Streamable HTTP" to the same URL and header.
+
+The agent can read deals and disputes, create draft deals and build evidence packets. To send an invoice or evidence to PayPal it only asks: approve the request on the deal page, then give the agent the one-time code shown there. See [docs/product.md](docs/product.md#mcp-server-for-agents).
+
 ## Deploying to Render
 
 The server is described in [`render.yaml`](render.yaml) (a Render Blueprint).

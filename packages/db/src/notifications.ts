@@ -9,6 +9,7 @@ export const NOTIFICATION_KINDS = [
   "step",
   "step-news",
   "reminder",
+  "agent-request",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 

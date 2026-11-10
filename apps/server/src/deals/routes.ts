@@ -50,6 +50,8 @@ import { LiveHub } from "../chat/live-hub.js";
 import { liveRoutes } from "../chat/live-routes.js";
 import { notificationRoutes } from "../chat/notification-routes.js";
 import { Notifier } from "../chat/notifier.js";
+import { mcpRoutes } from "../agents/mcp-routes.js";
+import { agentRequestRoutes } from "../agents/request-routes.js";
 import { DealCards } from "../chat/cards.js";
 import { timelineRoutes } from "./timeline-routes.js";
 
@@ -236,6 +238,9 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     publicBaseUrl,
     inboundDomain: options.inboundDomain,
   });
+  // The MCP server for agents (8a-8c) and the seller's answers to what an agent asks.
+  void app.register(mcpRoutes, { database, clock, newId, notifier });
+  void app.register(agentRequestRoutes, { database, clock });
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
   void app.register(chatRoutes, {

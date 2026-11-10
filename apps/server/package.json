@@ -35,6 +35,7 @@
     "@pactpal/ledger": "workspace:*",
     "@pactpal/live": "workspace:*",
     "@pactpal/net": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@pactpal/paypal": "workspace:*",
     "@pactpal/pdf": "workspace:*",
     "@pactpal/qa": "workspace:*",

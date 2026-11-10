@@ -384,6 +384,22 @@ Since 4p-2 (migration 0019) a row is one of two kinds: a `key` for other tools, 
 
 A key keeps its owner, kind, hash and defaults, is turned off once, and is never removed.
 
+### `agent_requests`: what an agent asks the seller to let it do (8c)
+
+Built in 0040, which also lets `intake_keys.kind` be `agent` (the key an MCP client sends) and `notifications.kind` be `agent-request`. One row per request; status moves `waiting` → `approved` or `declined`, then `done`, `failed` or `expired`.
+
+| Column                                        | Meaning                                                                                |
+| --------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `id`, `seller_id`, `deal_id`, `key_ending`    | The request, its seller and deal, and the agent key's last 4 characters                |
+| `kind`                                        | `send-invoice` or `send-evidence`                                                      |
+| `path`, `body`, `body_sha256`                 | The exact PactPal request to run once approved, and its fingerprint                    |
+| `summary`                                     | What the seller reads before approving                                                 |
+| `code_hash`, `code_expires_at`, `wrong_codes` | The one-time code's hash (never the code), its 10-minute end, wrong tries (5 spend it) |
+| `created_at`, `answered_at`, `used_at`        | Server times                                                                           |
+| `result_status`, `result_error`               | How running it ended                                                                   |
+
+Log entries: `AGENT_REQUESTED` (kind, key ending, body fingerprint), `AGENT_REQUEST_ANSWERED` (approved or declined), `AGENT_ACTED` (result); the action itself is logged by its own step (such as `INVOICE_SENT`). Deals an agent makes from text record `via: "agent"`.
+
 ### `scope_drafts`: AI drafts of the agreed work
 
 A draft is a proposal made by the council from a chat saved as a text source file. It is not evidence and not an agreement, so it lives in its own table and is not append-only: a row starts as `running` and moves once to `ready` or `failed`. Only a `ready` draft is recorded in the ledger (`SCOPE_DRAFTED`, by fingerprint, never with text). Nothing becomes agreed work until the seller confirms it (3e).

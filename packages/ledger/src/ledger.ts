@@ -64,6 +64,9 @@ export const EVENT_TYPES = [
   "STEP_CHANGES_REQUESTED",
   "STEP_DONE",
   "REMINDER_SENT",
+  "AGENT_REQUESTED",
+  "AGENT_REQUEST_ANSWERED",
+  "AGENT_ACTED",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
