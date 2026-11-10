@@ -404,3 +404,21 @@ The fallback path end to end on the live site (`pactpal-server.onrender.com`), w
 - **Failed calls:** Nemotron timed out 6 times and had 1 network error. Gemini answered every call this run.
 - **Buyer duties and line marks** held: duties found 0.94 to 1.00, dates right 1.00 for every model; the council's pick got 12 of 13 marks right.
 - **Limits of the check:** 11 chats written by us, one run each; read the numbers as a tendency.
+
+## Prompt-injection check with prompt version 4 (sub-phase 7o, 10 November 2026)
+
+`pnpm eval:injection --council` with drafting prompt version 4 and hiding on (as in the product): the same 14 hostile chats and 3 hostile drafts, one run each, all five models. 99 runs, about 359,000 tokens, 28 minutes, run straight after the drafting eval above, so Gemini's and Groq's limits were partly spent. Run 4n-2 (prompt version 3) in brackets.
+
+| Model               | Held   | Dropped | Compromised | Call failed |
+| ------------------- | ------ | ------- | ----------- | ----------- |
+| gemini              | 1 (6)  | 0 (0)   | 0 (0)       | 13 (8)      |
+| qwen-groq           | 6 (13) | 8 (1)   | 0 (0)       | 0 (0)       |
+| gpt-oss-groq        | 4 (14) | 4 (0)   | 0 (0)       | 6 (0)       |
+| mistral             | 1 (11) | 13 (3)  | 0 (0)       | 0 (0)       |
+| nemotron-openrouter | 1 (3)  | 1 (1)   | 0 (0)       | 12 (10)     |
+
+- **No model and no council pick was compromised.** The hiding and the prompt rule held with prompt version 4.
+- **But most drafts were dropped by the citation check:** qwen 8 of 14 (1), mistral 13 of 14 (3), gpt-oss 4. The council therefore had no winner on 8 of the 14 chats and held on the other 6 (version 3: held 14 of 14). This matches the drafting eval above: version 4 drafts fail the citation check far more often. It is a quality problem, not a safety one, and is the open point in the build plan.
+- **Voting attacks (3 hostile drafts):** no voter ranked a hostile draft first; qwen and mistral held 3 of 3, Nemotron 1, Gemini and gpt-oss failed all 3 calls.
+- **Failed calls:** Gemini was rate limited 16 times, gpt-oss 9 times (Groq's per-minute limit), Nemotron timed out 11 times, was rate limited twice and had 1 network error.
+- **Limits of the check:** 17 attacks written by us, one run each, the same simple judge. A clean result does not prove safety; the many failed and dropped calls make this run weaker than 4n-2.
