@@ -1,6 +1,11 @@
 import { useState, type ReactNode } from "react";
 import type { Me } from "../api";
+import { CommandPalette } from "../app/CommandPalette";
+import { byUrgency, isOpen, otherName } from "../app/overview-words";
+import { Avatar, Unread } from "../app/parts";
+import { Icon, type IconName } from "../design/icons";
 import { Logo } from "../design/Logo";
+import type { DealOverview } from "../overview-api";
 import { Button } from "../design/parts";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../design/theme";
 import "./shell.css";
@@ -92,18 +97,71 @@ export function PublicLayout({
   );
 }
 
-/** The seller's app: a rail of sections beside the page. */
-export function AppLayout({ me, onSignOut, children }: SignedIn & { children: ReactNode }) {
+const SECTIONS: { path: string; page: string; title: string; icon: IconName }[] = [
+  { path: "/", page: "home", title: "Dashboard", icon: "home" },
+  { path: "/deals", page: "deals", title: "Deals", icon: "deals" },
+  { path: "/notifications", page: "notifications", title: "Needs you", icon: "bell" },
+  { path: "/disputes", page: "disputes", title: "Disputes", icon: "dispute" },
+  { path: "/settings", page: "settings", title: "Settings", icon: "settings" },
+];
+
+/** How many open deals the rail lists; the quick switcher reaches the rest. */
+const RAIL_DEALS = 8;
+
+interface AppLayoutProps extends SignedIn {
+  /** The page being shown, to mark its section. */
+  page: string;
+  /** The open deal, to mark it in the list. */
+  dealId?: string | undefined;
+  deals: readonly DealOverview[] | undefined;
+  children: ReactNode;
+}
+
+/** The seller's app: a rail of sections and open deals beside the page. */
+export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppLayoutProps) {
+  const open = (deals ?? []).filter(isOpen).sort(byUrgency);
+  const unread = (deals ?? []).reduce((sum, deal) => sum + deal.unreadNotifications, 0);
+  const disputes = open.filter((deal) => deal.dispute !== null).length;
+  const counts: Record<string, number> = { notifications: unread, disputes };
+  // A deal page belongs to the Deals section.
+  const section = page === "deal" || page === "dispute" || page === "new-deal" ? "deals" : page;
   return (
     <div className="pp-app">
       <SkipLink />
       <header className="pp-rail">
         <Logo />
+        <CommandPalette deals={deals ?? []} />
         <nav aria-label="Sections">
-          <a href="/" aria-current={window.location.pathname === "/" ? "page" : undefined}>
-            Deals
-          </a>
+          {SECTIONS.map((item) => (
+            <a
+              key={item.path}
+              href={item.path}
+              aria-current={item.page === section ? "page" : undefined}
+            >
+              <Icon name={item.icon} />
+              {item.title}
+              {(counts[item.page] ?? 0) > 0 && (
+                <span className="pp-count">{counts[item.page]}</span>
+              )}
+            </a>
+          ))}
         </nav>
+        {open.length > 0 && (
+          <nav aria-label="Open deals" className="pp-rail-deals">
+            <span className="pp-caption">Open deals</span>
+            {open.slice(0, RAIL_DEALS).map((deal) => (
+              <a
+                key={deal.id}
+                href={`/deals/${deal.id}`}
+                aria-current={deal.id === dealId ? "page" : undefined}
+              >
+                <Avatar name={otherName(deal)} />
+                <span>{deal.title}</span>
+                <Unread deal={deal} />
+              </a>
+            ))}
+          </nav>
+        )}
         <Account me={me} onSignOut={onSignOut} />
       </header>
       <div className="pp-app-body">

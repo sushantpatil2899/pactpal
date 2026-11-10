@@ -4,7 +4,10 @@ import { DisputePage } from "./DisputePage";
 import { DealPage } from "./DealPage";
 import { DealsHome } from "./DealsHome";
 import { LinkPage } from "./LinkPage";
-import { SellerAppPanel } from "./SellerAppPanel";
+import { Dashboard } from "./app/Dashboard";
+import { NewDealPage } from "./app/NewDealPage";
+import { DealsPage, DisputesPage, NotificationsPage, SettingsPage } from "./app/pages";
+import { useOverview, type Overview } from "./app/useOverview";
 import { Alert, ButtonLink } from "./design/parts";
 import { SIGN_IN_PAGE, type Route } from "./router/routes";
 import { SignInPage } from "./SignInPage";
@@ -19,13 +22,40 @@ type Session = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in
 const signInBack = signInReturn(window.location.href, SIGN_IN_PAGE);
 if (signInBack) window.history.replaceState(null, "", signInBack.address);
 
+type DealRoute = Extract<Route, { page: "deal" | "dispute" }>;
+const isDealRoute = (route: Route): route is DealRoute =>
+  route.page === "deal" || route.page === "dispute";
+
 /** The deal pages; `key` gives each deal a fresh page when the person moves between deals. */
-function dealPage(route: Extract<Route, { page: "deal" | "dispute" }>) {
+function dealPage(route: DealRoute) {
   return route.page === "dispute" ? (
     <DisputePage key={route.disputeId} dealId={route.dealId} disputeId={route.disputeId} />
   ) : (
     <DealPage key={route.dealId} dealId={route.dealId} />
   );
+}
+
+/** The page a signed-in seller sees at this address. */
+function sellerPage(route: Route, overview: Overview) {
+  switch (route.page) {
+    case "deal":
+    case "dispute":
+      return dealPage(route);
+    case "deals":
+      return <DealsPage overview={overview} />;
+    case "new-deal":
+      return <NewDealPage />;
+    case "notifications":
+      return <NotificationsPage />;
+    case "disputes":
+      return <DisputesPage overview={overview} />;
+    case "settings":
+      return <SettingsPage />;
+    case "home":
+    case "sign-in":
+    case "link":
+      return <Dashboard overview={overview} />;
+  }
 }
 
 /** The whole app: finds out who is signed in, then shows the address's page in its layout. */
@@ -52,6 +82,10 @@ export function App() {
   useEffect(() => {
     if (route.page === "sign-in" && signedIn) navigate("/");
   }, [route.page, signedIn]);
+
+  // The seller's deals, for the rail and the list pages; read again as the address changes.
+  const fullAccess = session.kind === "signed-in" && session.me.access === "full";
+  const overview = useOverview(fullAccess, window.location.pathname);
 
   const onSignOut = () => {
     signOut().then(
@@ -88,7 +122,7 @@ export function App() {
   }
   const alert = problem !== undefined && <Alert problem>{problem}</Alert>;
   if (session.kind === "signed-out") {
-    if (route.page !== "home") return <BuyerLayout>{dealPage(route)}</BuyerLayout>;
+    if (isDealRoute(route)) return <BuyerLayout>{dealPage(route)}</BuyerLayout>;
     return (
       <PublicLayout>
         {alert}
@@ -106,21 +140,19 @@ export function App() {
     return (
       <BuyerLayout {...account}>
         {alert}
-        {route.page === "home" ? <DealsHome /> : dealPage(route)}
+        {isDealRoute(route) ? dealPage(route) : <DealsHome />}
       </BuyerLayout>
     );
   }
   return (
-    <AppLayout {...account}>
+    <AppLayout
+      {...account}
+      page={route.page}
+      dealId={"dealId" in route ? route.dealId : undefined}
+      deals={overview.deals}
+    >
       {alert}
-      {route.page === "home" ? (
-        <>
-          <DealsHome />
-          <SellerAppPanel />
-        </>
-      ) : (
-        dealPage(route)
-      )}
+      {sellerPage(route, overview)}
     </AppLayout>
   );
 }

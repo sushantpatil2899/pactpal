@@ -8,6 +8,11 @@ describe("routes", () => {
     expect(matchRoute("/")).toEqual({ page: "home" });
     expect(matchRoute("/link")).toEqual({ page: "link" });
     expect(matchRoute("/sign-in")).toEqual({ page: "sign-in" });
+    expect(matchRoute("/deals")).toEqual({ page: "deals" });
+    expect(matchRoute("/new")).toEqual({ page: "new-deal" });
+    expect(matchRoute("/notifications")).toEqual({ page: "notifications" });
+    expect(matchRoute("/disputes")).toEqual({ page: "disputes" });
+    expect(matchRoute("/settings")).toEqual({ page: "settings" });
     expect(matchRoute(`/deals/${DEAL_ID}`)).toEqual({ page: "deal", dealId: DEAL_ID });
     expect(matchRoute(`/deals/${DEAL_ID}/disputes/PP-R-ABC-123`)).toEqual({
       page: "dispute",

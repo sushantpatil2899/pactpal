@@ -2,9 +2,20 @@
 export type Route =
   | { page: "home" }
   | { page: "sign-in" }
+  | { page: AppSection }
   | { page: "link" }
   | { page: "deal"; dealId: string }
   | { page: "dispute"; dealId: string; disputeId: string };
+
+/** The seller's sections beside the dashboard, by address. */
+export const APP_SECTIONS = {
+  "/deals": "deals",
+  "/new": "new-deal",
+  "/notifications": "notifications",
+  "/disputes": "disputes",
+  "/settings": "settings",
+} as const;
+export type AppSection = (typeof APP_SECTIONS)[keyof typeof APP_SECTIONS];
 
 /** The page that asks a seller to sign in (the sign-in itself starts on the server). */
 export const SIGN_IN_PAGE = "/sign-in";
@@ -16,6 +27,8 @@ const DISPUTE = /^\/deals\/([0-9a-f-]{36})\/disputes\/([A-Za-z0-9-]{1,100})$/;
 export function matchRoute(path: string): Route {
   if (path === "/link") return { page: "link" };
   if (path === SIGN_IN_PAGE) return { page: "sign-in" };
+  const section = (APP_SECTIONS as Record<string, AppSection | undefined>)[path];
+  if (section !== undefined) return { page: section };
   const dispute = DISPUTE.exec(path);
   if (dispute?.[1] !== undefined && dispute[2] !== undefined) {
     return { page: "dispute", dealId: dispute[1], disputeId: dispute[2] };

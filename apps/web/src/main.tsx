@@ -4,6 +4,7 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 import "./design/global.css";
 import "./design/records.css";
+import "./app/app.css";
 import { App } from "./App";
 import { applyTheme, savedTheme } from "./design/theme";
 import { applyTokens } from "./design/tokens";
