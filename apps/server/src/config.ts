@@ -86,6 +86,21 @@ function partVars(part: Part): string[] {
 /** Every PayPal app PactPal uses, in report order. */
 export const APP_KEYS = Object.keys(PAYPAL_APPS) as PayPalApp[];
 
+/**
+ * The settings kept once in the Render Environment Group `pactpal-shared` (9R-3), because the
+ * website, Workflows and the Cron Job all need them; `render.yaml` points those services at it.
+ */
+export const SHARED_SETTINGS: readonly string[] = [
+  "PAYPAL_SELLER_CLIENT_ID",
+  "PAYPAL_SELLER_CLIENT_SECRET",
+  ...AI_KEYS,
+  RESEND_API_KEY,
+  EMAIL_FROM,
+  PUBLIC_BASE_URL,
+  SELLER_KEYS_ENCRYPTION_KEY,
+  RENDER_API_KEY,
+];
+
 /** Every setting in report order. */
 export const SETTING_NAMES: readonly string[] = [
   ...APP_KEYS,

@@ -70,9 +70,10 @@ Everything is described in [`render.yaml`](render.yaml) (a Render Blueprint), in
 | Postgres 16            | `pactpal-db`            | Deals, the evidence log, files, chat and jobs                                                          |
 | Key Value              | `pactpal-kv`            | Agent call counts and cached product listings, shared by both copies                                   |
 | Static Site            | `pactpal-docs`          | These docs as a website                                                                                |
+| Environment Group      | `pactpal-shared`        | Keys the website, Workflows and the Cron Job all need, kept once                                       |
 
-1. In Render, choose **New → Blueprint**, pick this repository and the `dev` branch.
-2. Enter the values Render asks for: `PAYPAL_SELLER_CLIENT_ID` and `PAYPAL_SELLER_CLIENT_SECRET` (leave `PAYPAL_WEBHOOK_ID` empty at first).
+1. In Render, create the Environment Group `pactpal-shared` (**Environment Groups → New**) with `PAYPAL_SELLER_CLIENT_ID`, `PAYPAL_SELLER_CLIENT_SECRET`, the AI keys (`GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY`), `RESEND_API_KEY`, `EMAIL_FROM`, `PUBLIC_BASE_URL`, `SELLER_KEYS_ENCRYPTION_KEY` and `RENDER_API_KEY`. Secrets cannot be written in `render.yaml`, so the group is made by hand.
+2. Choose **New → Blueprint**, pick this repository and the `dev` branch, and enter the values Render asks for (leave `PAYPAL_WEBHOOK_ID` empty at first).
 3. Register the service's notification address with PayPal, then set the printed id as `PAYPAL_WEBHOOK_ID` in Render:
 
 ```bash

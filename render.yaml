@@ -21,9 +21,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # The site's own address, from which PayPal's return address is built. Not a secret.
-      - key: PUBLIC_BASE_URL
-        value: https://pactpal-server.onrender.com
       # Proxies in front of the server, so visitors' IP addresses can be recorded. Measured on 1 Nov 2026:
       # Cloudflare, then Render's front server, which adds the visitor's address to X-Forwarded-For.
       # Re-measure if Render's setup changes (docs/decisions.md). Not a secret.
@@ -33,29 +30,14 @@ services:
         fromDatabase:
           name: pactpal-db
           property: connectionString
-      - key: PAYPAL_SELLER_CLIENT_ID
-        sync: false
-      - key: PAYPAL_SELLER_CLIENT_SECRET
-        sync: false
+      # Keys this service shares with Workflows and the Cron Job (9R-3) come from the Environment
+      # Group pactpal-shared, made in Render's dashboard (secrets cannot be written here):
+      # PAYPAL_SELLER_CLIENT_ID and _SECRET, the four AI keys, RESEND_API_KEY, EMAIL_FROM,
+      # PUBLIC_BASE_URL, SELLER_KEYS_ENCRYPTION_KEY and RENDER_API_KEY. A value set on the service
+      # itself wins over the group's.
+      - fromGroup: pactpal-shared
       - key: PAYPAL_WEBHOOK_ID
         sync: false
-      # AI model hosts. Not used by the running server until the scope drafting step; set them now so
-      # they are in place. Each model takes part only when its key is set.
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: MISTRAL_API_KEY
-        sync: false
-      - key: OPENROUTER_API_KEY
-        sync: false
-      # Email through Resend: a key with sending access only, for the sending domain
-      # updates.pact-pal.app (verified 2 Nov 2026; click and open tracking off). The sender address
-      # is not secret; "PactPal" is added as its name. Without both, the server sends no email.
-      - key: RESEND_API_KEY
-        sync: false
-      - key: EMAIL_FROM
-        value: receipts@updates.pact-pal.app
       # Email forwarding through Resend Inbound on in.pact-pal.app: the webhook's signing secret and
       # a key that can read received emails. Without all three, forwarding stays off.
       - key: RESEND_INBOUND_API_KEY
@@ -64,17 +46,10 @@ services:
         sync: false
       - key: INBOUND_DOMAIN
         value: in.pact-pal.app
-      # Dispute checks (5a): "Check now" starts a run of the Workflow task below. A Render API key
-      # (it can act on the whole Render account, so it is a secret) and the task's name.
-      - key: RENDER_API_KEY
-        sync: false
+      # Dispute checks (5a): "Check now" starts a run of the Workflow task below (the Render API key
+      # comes from the group).
       - key: DISPUTE_TASK_SLUG
         value: pactpal-workflows/check-disputes
-      # Sellers' own PayPal apps (6h): the key that encrypts their app secrets in the database.
-      # 32 random bytes in base64; the same value on pactpal-workflows. Losing it means every
-      # seller must link again.
-      - key: SELLER_KEYS_ENCRYPTION_KEY
-        sync: false
       # Product listings (8e): Channel3's API key. Without it, "Look up" says it is not set up.
       - key: CHANNEL3_API_KEY
         sync: false
@@ -103,8 +78,13 @@ services:
     runtime: static
     branch: dev
     autoDeployTrigger: commit
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/docs build
+    # Static sites build on a read-only image whose own pnpm cannot be replaced (corepack enable
+    # fails there), so the repository's pnpm version runs through npx; Node 22 as everywhere else.
+    buildCommand: npx --yes pnpm@10.28.0 install --frozen-lockfile && npx --yes pnpm@10.28.0 --filter @pactpal/docs build
     staticPublishPath: apps/docs/dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
     headers:
       - path: /*
         name: X-Frame-Options
@@ -137,32 +117,8 @@ services:
         fromDatabase:
           name: pactpal-db
           property: connectionString
-      - key: PAYPAL_SELLER_CLIENT_ID
-        sync: false
-      - key: PAYPAL_SELLER_CLIENT_SECRET
-        sync: false
-      # AI model hosts for the claim comparison council (5d, analyze-claim). Each model takes part
-      # only when its key is set; same values as on pactpal-server.
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GROQ_API_KEY
-        sync: false
-      - key: MISTRAL_API_KEY
-        sync: false
-      - key: OPENROUTER_API_KEY
-        sync: false
-      # The seller's dispute emails and deadline reminders (5j), sent after each check; same values
-      # as on pactpal-server. Without them the checks run and send no email.
-      - key: RESEND_API_KEY
-        sync: false
-      - key: EMAIL_FROM
-        sync: false
-      - key: PUBLIC_BASE_URL
-        sync: false
-      # Sellers' own PayPal apps (6h): the dispute checks act through them; same value as on
-      # pactpal-server.
-      - key: SELLER_KEYS_ENCRYPTION_KEY
-        sync: false
+      # PayPal, the AI keys, email and the seller-app key, shared with the website (9R-3).
+      - fromGroup: pactpal-shared
 
   # Render Workflows has no schedule of its own, so this Cron Job starts check-disputes every
   # 5 minutes and exits (a few seconds a run). PayPal sends no dispute notifications to the app.
@@ -179,8 +135,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: RENDER_API_KEY
-        sync: false
+      # The Render API key, shared with the website (9R-3).
+      - fromGroup: pactpal-shared
       - key: DISPUTE_TASK_SLUG
         value: pactpal-workflows/check-disputes
 
