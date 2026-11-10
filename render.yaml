@@ -98,8 +98,8 @@ services:
 
   # Render Workflows: PactPal's background tasks, run on Render outside the website: check-disputes,
   # which reads the seller's PayPal disputes and logs them on their deals; the dispute council jobs
-  # (5d-5i); draft-scope (9R-1); and ask-model, one model call of any council, so a council shows
-  # as a tree of runs, its models side by side. Workflows
+  # (5d-5i); draft-scope (9R-1); retention-sweep (9c); and ask-model, one model call of any
+  # council, so a council shows as a tree of runs, its models side by side. Workflows
   # set their compute per task in code, so there is no plan here, and no pre-deploy step: the task
   # waits for the website's deploy to run the migrations.
   - type: workflow
@@ -139,6 +139,27 @@ services:
       - fromGroup: pactpal-shared
       - key: DISPUTE_TASK_SLUG
         value: pactpal-workflows/check-disputes
+
+  # The retention clean-up (9c, docs/privacy.md): once a day this Cron Job starts the
+  # retention-sweep Workflow task, which removes deals 210 days after their last activity and raw
+  # notifications and AI drafts after 60 days, then exits.
+  - type: cron
+    name: pactpal-retention
+    runtime: node
+    region: virginia
+    plan: starter
+    schedule: "17 3 * * *"
+    branch: dev
+    autoDeployTrigger: commit
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @pactpal/server build
+    startCommand: node apps/server/dist/retention-cron.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # The Render API key, shared with the website (9R-3).
+      - fromGroup: pactpal-shared
+      - key: RETENTION_TASK_SLUG
+        value: pactpal-workflows/retention-sweep
 
 databases:
   - name: pactpal-db

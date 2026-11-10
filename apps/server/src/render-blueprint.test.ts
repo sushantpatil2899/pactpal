@@ -11,8 +11,8 @@ const ciWorkflow = readFileSync(
   "utf8",
 );
 const [servicesSection = "", databaseSection = ""] = blueprint.split(/^databases:$/m);
-// Each service by its name: the website, the Workflow service and its Cron Job (5a), Key Value
-// (9R-2) and the docs site (9R-4).
+// Each service by its name: the website, the Workflow service and its Cron Jobs (5a, 9c), Key
+// Value (9R-2) and the docs site (9R-4).
 const sections = servicesSection.split(/^ {2}- type: /m).slice(1);
 const named = (name: string) =>
   sections.find((section) => new RegExp(`^ {4}name: ${name}$`, "m").test(section)) ?? "";
@@ -188,5 +188,22 @@ describe("render.yaml", () => {
     expect(slug(serviceSection)).toBe(slug(cronSection));
     const loaded = loadConfig({ RENDER_API_KEY: "rnd_test", DISPUTE_TASK_SLUG: slug(cronSection) });
     expect(loaded.ok && loaded.config.render?.taskSlug).toBe("pactpal-workflows/check-disputes");
+  });
+
+  it("runs the retention clean-up once a day as a Workflow task, from its own Cron Job (9c)", () => {
+    const retention = named("pactpal-retention");
+    expect(retention.startsWith("cron\n")).toBe(true);
+    expect(field("schedule", retention)).toBe('"17 3 * * *"');
+    expect(field("region", retention)).toBe("virginia");
+    expect(field("startCommand", retention)).toBe("node apps/server/dist/retention-cron.js");
+    expect(readFileSync(new URL("../build.js", import.meta.url), "utf8")).toContain(
+      "src/retention-cron.ts",
+    );
+    expect(retention).toContain("- fromGroup: pactpal-shared");
+    expect(retention).not.toMatch(/sync: false/);
+    const slug = /- key: RETENTION_TASK_SLUG\n\s+value: (\S+)\n/.exec(retention)?.[1];
+    expect(slug).toBe(`${field("name", workflowSection) ?? "missing"}/retention-sweep`);
+    const loaded = loadConfig({ RENDER_API_KEY: "rnd_test", RETENTION_TASK_SLUG: slug });
+    expect(loaded.ok && loaded.config.retention?.taskSlug).toBe(slug);
   });
 });

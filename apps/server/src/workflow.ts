@@ -23,11 +23,13 @@ import {
   ASK_MODEL_TASK_NAME,
   DISPUTE_TASK_NAME,
   DRAFT_TASK_NAME,
+  RETENTION_TASK_NAME,
   jsonLines,
   runAskModel,
   runClaimTask,
   runDisputeTask,
   runDraftTask,
+  runRetentionTask,
 } from "./disputes/task.js";
 import { councilClients } from "./drafting/runtime.js";
 import { subtaskClients } from "./drafting/subtask-clients.js";
@@ -132,3 +134,20 @@ for (const name of [
       }),
   );
 }
+
+task(
+  // The daily retention clean-up (9c): up to 200 deals a run, each in seconds. One retry, a
+  // minute later, if the database was down; a deal that fails is tried again the next day.
+  {
+    name: RETENTION_TASK_NAME,
+    timeoutSeconds: 600,
+    retry: { maxRetries: 1, waitDurationMs: 60_000, backoffScaling: 1 },
+  },
+  (_context, input: unknown) =>
+    runRetentionTask(process.env, input, {
+      connect,
+      clock: () => new Date(),
+      newId: randomUUID,
+      log,
+    }),
+);

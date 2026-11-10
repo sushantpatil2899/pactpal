@@ -6,6 +6,7 @@ import {
   getDraft,
   migrationStatus,
   postgresContentStore,
+  runRetentionSweep,
   type Database,
   type DisputeCheckResult,
 } from "@pactpal/db";
@@ -21,7 +22,7 @@ import { runDisputeJob } from "./claim-job.js";
 import { z } from "zod";
 import { formatErrors, loadConfig, type Config } from "../config.js";
 import type { LogSink } from "../payments/payment-sync.js";
-import { renderWorkflowChecker, type TaskStarter } from "./checker.js";
+import { renderWorkflowChecker, startRun, type TaskStarter } from "./checker.js";
 import { syncDisputes, type DisputeReader } from "./dispute-sync.js";
 import { LinkedApps, linkedDisputeAccounts, type ConnectApp } from "../sellers/linked-apps.js";
 import { sellerKeyBox } from "../sellers/key-box.js";
@@ -30,6 +31,9 @@ import { sendTimelineReminders } from "../chat/reminders.js";
 
 /** The Render Workflow task's name; the website and the cron start it as `<workflow>/<name>`. */
 export const DISPUTE_TASK_NAME = "check-disputes";
+
+/** The retention clean-up's Workflow task (9c), started once a day by its Cron Job. */
+export const RETENTION_TASK_NAME = "retention-sweep";
 
 /** Where the task and the cron get their outside connections; real ones in the entry files. */
 export interface TaskWiring {
@@ -257,4 +261,54 @@ export function jsonLines(write: (line: string) => void): LogSink {
     write(`${JSON.stringify({ level, time: Date.now(), ...details, msg })}\n`);
   };
   return { info: line(30), warn: line(40), error: line(50) };
+}
+
+/**
+ * One run of the retention clean-up (9c): removes what is past its keeping time (docs/privacy.md)
+ * and logs the counts and the ids of deals that could not be removed (never their contents).
+ * `{ dryRun: true }` only counts.
+ */
+export async function runRetentionTask(
+  env: NodeJS.ProcessEnv,
+  input: unknown,
+  wiring: Pick<TaskWiring, "connect" | "clock" | "newId" | "log">,
+) {
+  const { dryRun } = z.object({ dryRun: z.boolean().default(false) }).parse(input ?? {});
+  const config = settings(env);
+  if (config.database === undefined) throw new Error("The retention clean-up needs DATABASE_URL");
+  return withDatabase(config.database.url, wiring, async (db) => {
+    const { counts, failedDeals } = await runRetentionSweep(db, {
+      now: wiring.clock(),
+      runId: wiring.newId(),
+      dryRun,
+    });
+    // A deal that failed stays whole and is tried again tomorrow; a retry now would redo the rest.
+    if (failedDeals.length > 0) {
+      wiring.log.error({ failedDeals }, "Some deals could not be removed");
+    }
+    wiring.log.info({ ...counts, dryRun }, "Retention clean-up finished");
+    return counts;
+  });
+}
+
+/** The daily Cron Job: starts one retention clean-up run, at most once a day. */
+export async function startScheduledRetention(
+  env: NodeJS.ProcessEnv,
+  starterFor: (apiKey: string) => TaskStarter,
+  wiring: Pick<TaskWiring, "clock" | "log">,
+): Promise<boolean> {
+  const retention = settings(env).retention;
+  if (retention === undefined) {
+    wiring.log.error({}, "The retention clean-up needs RENDER_API_KEY and RETENTION_TASK_SLUG");
+    return false;
+  }
+  const day = wiring.clock().toISOString().slice(0, 10);
+  await startRun(starterFor(retention.apiKey.reveal()), wiring.log, {
+    taskSlug: retention.taskSlug,
+    input: { dryRun: false },
+    key: `retention:${day}`,
+    ids: { day },
+    what: "Retention clean-up",
+  });
+  return true;
 }

@@ -350,7 +350,7 @@ describe("getArtifact", () => {
   it("reports bytes that are missing", async () => {
     const { seller } = await createTestDeal(db);
     await addArtifact(db, store, file(seller.id), at(1));
-    await db.query("ALTER TABLE file_contents DISABLE TRIGGER file_contents_append_only");
+    await db.query("ALTER TABLE file_contents DISABLE TRIGGER file_contents_no_delete");
     await db.query("DELETE FROM file_contents");
     await expect(getArtifact(db, store, testId(500))).rejects.toThrow(/missing/);
   });

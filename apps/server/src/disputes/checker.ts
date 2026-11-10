@@ -90,7 +90,7 @@ export class RunnerBusyError extends Error {
  * Starts one run of a Workflow task for a job, once per job (`key`), and logs its run id with the
  * job's ids (never its contents).
  */
-async function startRun(
+export async function startRun(
   starter: TaskStarter,
   log: LogSink,
   run: { taskSlug: string; input: unknown; key: string; ids: object; what: string },

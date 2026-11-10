@@ -19,6 +19,7 @@ const fullEnv: Record<string, string> = {
   EMAIL_FROM: "receipts@send.pactpal.example.com",
   INBOUND_DOMAIN: "in.pactpal.example.com",
   DISPUTE_TASK_SLUG: "pactpal-workflows/check-disputes",
+  RETENTION_TASK_SLUG: "pactpal-workflows/retention-sweep",
   SELLER_KEYS_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64"),
   KEY_VALUE_URL: "redis://red-pactpal:6379",
 };
@@ -93,6 +94,7 @@ describe("loadConfig", () => {
         "DATABASE_URL",
       ],
       "Dispute checks (Render Workflows)": ["RENDER_API_KEY", "DISPUTE_TASK_SLUG"],
+      "Retention clean-up (Render Workflows)": ["RENDER_API_KEY", "RETENTION_TASK_SLUG"],
       "Linked seller apps": ["SELLER_KEYS_ENCRYPTION_KEY", "DATABASE_URL"],
       "Product listings (Channel3)": ["CHANNEL3_API_KEY"],
       "Shared store (Render Key Value)": ["KEY_VALUE_URL"],
@@ -222,6 +224,15 @@ describe("loadConfig", () => {
       "DISPUTE_TASK_SLUG must be a workflow and task name such as pactpal-workflows/check-disputes",
     ]);
     expect(JSON.stringify(expectLoaded(render).config)).not.toContain("rnd_key");
+    // The retention clean-up's Cron Job (9c) starts its own task with the same key.
+    const retention = {
+      RENDER_API_KEY: "rnd_key",
+      RETENTION_TASK_SLUG: "pactpal-workflows/retention-sweep",
+    };
+    expect(expectLoaded(retention).config.retention?.taskSlug).toBe(
+      "pactpal-workflows/retention-sweep",
+    );
+    expect(expectLoaded(retention).config.render).toBeUndefined();
   });
 
   it("reads the key for sellers' app secrets only when it is 32 bytes in base64, never echoing it", () => {

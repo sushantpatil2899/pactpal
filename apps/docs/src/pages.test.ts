@@ -19,5 +19,7 @@ describe("the docs site (9R-4)", () => {
     expect(html).toContain('<a href="scope.html" aria-current="page">Scope</a>');
     expect(html).toContain("<main><p>Body</p></main>");
     expect(new Set(PAGES.map((p) => p.slug)).size).toBe(PAGES.length);
+    // The privacy statement (9c) is published with the rest.
+    expect(PAGES.map((p) => p.slug)).toContain("privacy");
   });
 });

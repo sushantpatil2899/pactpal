@@ -40,7 +40,7 @@ erDiagram
 - **Money** is whole minor units (cents) plus a currency code, never decimals. A deal has one currency; amounts live on the payment stages (milestones) of the agreed work.
 - **Times** are UTC and taken by the server.
 - **Changes** to the structure are numbered, forward-only migrations. The database refuses edits and deletes on evidence tables.
-- **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. The retention policy is written in Phase 9.
+- **Personal data** is kept to the minimum: email, one display name, PayPal ids. The evidence log refers to people by user id, so a user row can later be anonymised without touching the log. How long each kind is kept is in [privacy.md](privacy.md): a deal's whole record 210 days after its last activity (held while a PayPal dispute is open), raw notifications and AI drafts 60 days (9c).
 
 ## Built (sub-phases 2b to 6h-1)
 
@@ -143,9 +143,9 @@ A webhook is a message PayPal posts to our server when something happens (an inv
 | `resource_type`      | What it is about (for example `invoices`); may be empty                                                                                                                           |
 | `event_created_at`   | When PayPal says it happened; empty if PayPal's value was not a date                                                                                                              |
 | `received_at`        | When our server received it (UTC)                                                                                                                                                 |
-| `body`               | The whole event as received. Contains buyer details, so the retention rule (Phase 9) applies                                                                                      |
+| `body`               | The whole event as received. Contains buyer details, so it is removed 60 days after it arrives (9c)                                                                               |
 
-Unlike the ledger it can be changed and deleted: later phases will mark events as processed, and a retention purge may need to remove old ones.
+Unlike the ledger it can be changed and deleted: the daily retention clean-up (9c) removes events 60 days after they arrive.
 
 ### `sessions`: who is signed in
 
@@ -211,7 +211,7 @@ The buyer's page is drawn only from an **acceptance document** (format 1), plain
 | `typed_name`                  | The name the buyer typed (2–200 characters). Not compared with anything; not proof of identity |
 | `created_at`                  | Server time                                                                                    |
 
-The `ACCEPTED` entry holds the version, the content and document fingerprints, the typed name, the notice version and how the buyer reached the page (`link` or `paypal`), plus the browser and, when known, the IP address. The typed name and the terms are personal data, so the retention rule (Phase 9) applies. Change orders (4j) will add further rows for later versions.
+The `ACCEPTED` entry holds the version, the content and document fingerprints, the typed name, the notice version and how the buyer reached the page (`link` or `paypal`), plus the browser and, when known, the IP address. The typed name and the terms are personal data, so they go with the deal, 210 days after its last activity (9c). Change orders (4j) will add further rows for later versions.
 
 When the email service accepts a receipt email (4c), a **`RECEIPT_SENT`** entry (by the system) records the version, which side it went to (`buyer` or `seller`), the receipt's SHA-256, a SHA-256 of the lower-cased address (never the address) and Resend's message id. A failed send records nothing. At most 5 receipt emails are sent per signed version.
 
@@ -417,7 +417,7 @@ A draft is a proposal made by the council from a chat saved as a text source fil
 | `failure_reason`                              | Why it failed; never repeats the chat. Only on `failed`                                                                                                                                                    |
 | `ledger_seq`                                  | The `SCOPE_DRAFTED` entry (with `deal_id`). Only on `ready`                                                                                                                                                |
 
-Lines of the chat that look like orders to an AI are not stored anywhere; they are found again from the chat file whenever a finished draft is read (`source.hiddenLines`, line numbers only). A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so the retention rule (Phase 9) applies.
+Lines of the chat that look like orders to an AI are not stored anywhere; they are found again from the chat file whenever a finished draft is read (`source.hiddenLines`, line numbers only). A deal can have at most 10 drafts. A draft still `running` when the server restarts is marked `failed`. The chat quotes inside `draft` and `council` are personal data, so a finished draft is removed 60 days after it finished; its fingerprint stays in the log (9c).
 
 Drafts made with drafting prompt version 3 (4n) are "format 3": each delivered line also has a suggested mark (`objective`, `process`, `subjective` or `unsure`) and the draft lists what the buyer provides (text, a date or none, citations). Older drafts stay "format 2" and are read as they are. When agreed work is saved from a draft, `SCOPE_CONFIRMED` also says for `buyerProvides` and `deliverableMarks` whether the seller kept the draft's suggestion.
 
@@ -436,7 +436,7 @@ Built in 5a (migration 0020). A Render Cron Job starts the Workflow task `check-
 | `seller_due_at`, `buyer_due_at`          | When each side must respond, as PayPal says                                                                                                              |
 | `allowed_actions`, `offer_types`         | What the seller may do right now, and the refund offers PayPal accepts (read again before any answer)                                                    |
 | `outcome`                                | PayPal's decision, once there is one                                                                                                                     |
-| `details`                                | PayPal's whole answer as read, including the buyer's messages: personal data, so the retention rule (Phase 9) applies                                    |
+| `details`                                | PayPal's whole answer as read, including the buyer's messages: personal data, so it goes with the deal, 210 days after its last activity (9c)            |
 | `paypal_created_at`, `paypal_updated_at` | PayPal's own times                                                                                                                                       |
 | `first_seen_at`, `checked_at`            | When PactPal first saw it and last read it                                                                                                               |
 | `opened_seq`, `resolved_seq`             | The `DISPUTE_OPENED` and `DISPUTE_RESOLVED` entries; set once                                                                                            |
@@ -584,6 +584,12 @@ One row per deal and person: `read_seq` (the last message they have read; it onl
 | `created_at`, `read_at`    | Server times; `read_at` is empty until seen                                                                                                                       |
 
 Not evidence: the log records what happened. News (`signed`, `step-news`) is marked read when the person opens the tab it points at (7o); the other kinds ask them to act and stay until opened from the list. A person has at most one unread `message` notification per deal; later messages fold into it until they read the chat, which also marks it read. Each new notification is emailed (the buyer's with a fresh private link), except a message while the person has the deal open. Emails never quote a message.
+
+### `retention_runs`: each daily clean-up (9c)
+
+One row per run of the `retention-sweep` Workflow task: when it ran, whether it was a dry run, its two cutoffs (`deals_before`, 210 days back; `short_before`, 60 days back) and `counts`, the number of rows removed per kind (deals, deals held by an open dispute, deals that failed, notifications, drafts, sessions, buyer links, unmatched disputes, file bytes). No personal data and no deal ids.
+
+The guarded tables still refuse every `UPDATE`. Since migration 0041 each also has a `<table>_no_delete` guard that refuses every `DELETE` unless the transaction has set `pactpal.retention_purge = 'on'` (`SET LOCAL`). Only the clean-up sets it, and it removes a deal from every table in one transaction (`purgeDeal`), so a deal is never left in part. File bytes go when no file or packet uses them any more.
 
 ## Phase 7 (deal space)
 

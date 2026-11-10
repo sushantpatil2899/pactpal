@@ -14,6 +14,12 @@ export const PAGES: readonly { file: string; slug: string; title: string; about:
     about: "What PactPal does and does not do",
   },
   {
+    file: "docs/privacy.md",
+    slug: "privacy",
+    title: "Privacy",
+    about: "What is kept, for how long, and who sees it",
+  },
+  {
     file: "docs/demo.md",
     slug: "demo",
     title: "Demo stories",
