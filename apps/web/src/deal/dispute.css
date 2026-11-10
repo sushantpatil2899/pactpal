@@ -1,0 +1,115 @@
+/* The dispute workspace: the facts across the top, the work on the left, what to do pinned beside it. */
+@layer pp {
+  .pp-dispute {
+    overflow-wrap: anywhere;
+  }
+
+  .pp-dispute .pp-panel {
+    padding: var(--space-16) var(--space-24) var(--space-24);
+  }
+
+  .pp-dispute .pp-panel:empty {
+    display: none;
+  }
+
+  .pp-dispute h3 {
+    margin: 0 0 var(--space-8);
+    font-size: var(--text-17);
+  }
+
+  .pp-dispute h4 {
+    margin: var(--space-16) 0 var(--space-4);
+    font-size: var(--text-13);
+  }
+
+  .pp-dispute .pp-panel > section + section,
+  .pp-dispute .pp-panel > section > section {
+    margin-top: var(--space-16);
+    padding-top: var(--space-16);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .pp-dispute-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: var(--space-16) var(--space-32);
+  }
+
+  .pp-dispute .pp-dispute-facts > section + section {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .pp-dispute-facts p {
+    margin: 0;
+    color: var(--color-ink-2);
+  }
+
+  .pp-deadline[data-urgent="true"] {
+    color: var(--color-alert-ink);
+    font-weight: 600;
+  }
+
+  .pp-dispute-work {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    align-items: start;
+    gap: var(--space-16);
+  }
+
+  .pp-dispute-main,
+  .pp-dispute-side {
+    display: grid;
+    gap: var(--space-16);
+    min-width: 0;
+  }
+
+  .pp-dispute-side {
+    position: sticky;
+    top: var(--space-16);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    font-size: var(--text-13);
+  }
+
+  .pp-dispute blockquote {
+    margin: var(--space-8) 0;
+    padding: var(--space-12) var(--space-16);
+    border-left: 3px solid var(--color-line-strong);
+    border-radius: 0 var(--radius-control) var(--radius-control) 0;
+    background: var(--color-bg-sunk);
+    white-space: pre-wrap;
+  }
+
+  .pp-dispute blockquote footer {
+    margin-top: var(--space-4);
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-dispute-side ol,
+  .pp-dispute-side ul {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    padding-left: var(--space-16);
+    color: var(--color-ink-2);
+  }
+
+  .pp-dispute textarea {
+    width: 100%;
+  }
+
+  @media (max-width: 72rem) {
+    .pp-dispute-work {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pp-dispute-side {
+      position: static;
+      max-height: none;
+      order: -1;
+    }
+  }
+}

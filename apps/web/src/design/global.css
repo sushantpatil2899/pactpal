@@ -319,7 +319,7 @@
     background: color-mix(in srgb, var(--color-accent) 9%, transparent);
   }
 
-  [role="alert"] {
+  [role="alert"]:not(.pp-vendor *) {
     border-color: color-mix(in srgb, var(--color-alert) 35%, transparent);
     background: color-mix(in srgb, var(--color-alert) 9%, transparent);
     color: var(--color-alert-ink);
