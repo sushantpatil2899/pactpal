@@ -361,7 +361,7 @@ The platform app got a notification address first (`pnpm sandbox:webhook --app p
 
 - **Likely reason (not confirmed by PayPal):** a platform only sees disputes, and only gets notifications, for payments it took part in. This invoice was made on PayPal's own website, so PactPal had no part in it. If so, the invoice permission decides the platform path: PactPal must create the seller's invoices itself.
 - **Not tested:** answering a dispute for the seller (the planned test message), since no dispute could be read.
-- **Next:** when PayPal enables `INVOICE_READ_WRITE`, re-run 6b with an invoice PactPal creates for the seller (`sandbox:partner --act` makes a draft; sending it is one more step).
+- **Outcome (10 Nov 2026):** PayPal will not enable `INVOICE_READ_WRITE` for our platform app (partner invoicing is for select partners only), so 6b is not re-run; 6h covers invoices and disputes for linked sellers (live in 6h-6).
 
 ## Live test 6h-6: Test Store's own app (8 November 2026)
 

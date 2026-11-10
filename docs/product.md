@@ -138,13 +138,13 @@ PDF or image files under 10 MB each, within PayPal's total size limit.
 
 ## PayPal integration
 
-| API               | Used for                                                                                |
-| ----------------- | --------------------------------------------------------------------------------------- |
-| Partner Referrals | "Connect with PayPal" for sellers (fallback: the seller connects their own sandbox app) |
-| Invoicing v2      | Milestone invoices                                                                      |
-| Webhooks          | Payments and disputes, signature-verified                                               |
-| Disputes v1       | List, get, provide evidence, make offer, accept claim, appeal                           |
-| Orders v2         | Shipment tracking for physical goods                                                    |
+| API          | Used for                                                                                                                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PayPal apps  | Each seller links their own sandbox PayPal app for invoices and disputes; "Connect with PayPal" (Partner Referrals) is not available to us: PayPal offers partner invoicing to select partners only |
+| Invoicing v2 | Milestone invoices                                                                                                                                                                                  |
+| Webhooks     | Payments and disputes, signature-verified                                                                                                                                                           |
+| Disputes v1  | List, get, provide evidence, make offer, accept claim, appeal                                                                                                                                       |
+| Orders v2    | Shipment tracking for physical goods                                                                                                                                                                |
 
 Every operation tries a PayPal MCP tool first and falls back to REST; the transport used is shown in the timeline. See [sandbox-notes.md](sandbox-notes.md).
 
