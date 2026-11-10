@@ -29,7 +29,8 @@ export function Dispute() {
             Every claim, <em>checked against the record.</em>
           </h2>
         </header>
-        <blockquote className="pp-lp-claim" aria-label={`The buyer's claim: ${CLAIM.text}`}>
+        <blockquote className="pp-lp-claim">
+          <span className="pp-hidden">The buyer&apos;s claim: {CLAIM.text}</span>
           {words.map(({ word, i }) => {
             const part = partOf(i);
             return (

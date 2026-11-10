@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import type { Me } from "../api";
 import { CommandPalette } from "../app/CommandPalette";
 import { byUrgency, isOpen, otherName } from "../app/overview-words";
@@ -6,7 +6,7 @@ import { Avatar, Unread } from "../app/parts";
 import { Icon, type IconName } from "../design/icons";
 import { Logo } from "../design/Logo";
 import type { DealOverview } from "../overview-api";
-import { Button } from "../design/parts";
+import { Button, Skeleton } from "../design/parts";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../design/theme";
 import { CONTACT } from "./contact";
 import "./shell.css";
@@ -176,7 +176,7 @@ export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppL
       </header>
       <div className="pp-app-body">
         <main id="content" className="pp-app-main">
-          {children}
+          <Suspense fallback={<Skeleton label="Loading…" lines={6} />}>{children}</Suspense>
         </main>
         <Footer />
       </div>
@@ -198,7 +198,7 @@ export function BuyerLayout({
         {me && onSignOut && <Account me={me} onSignOut={onSignOut} />}
       </header>
       <main id="content" className="pp-buyer-main">
-        {children}
+        <Suspense fallback={<Skeleton label="Loading…" lines={6} />}>{children}</Suspense>
       </main>
       <Footer />
     </div>

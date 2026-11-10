@@ -1,20 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { getMe, signOut, type Me } from "./api";
-import { DisputePage } from "./DisputePage";
-import { DealPage } from "./DealPage";
 import { DealsHome } from "./DealsHome";
 import { LegalPage } from "./landing/LegalPage";
 import { LinkPage } from "./LinkPage";
-import { Dashboard } from "./app/Dashboard";
-import { NewDealPage } from "./app/NewDealPage";
-import {
-  DeadlinesPage,
-  DealsPage,
-  DisputesPage,
-  InsightsPage,
-  NotificationsPage,
-  SettingsPage,
-} from "./app/pages";
 import { useOverview, type Overview } from "./app/useOverview";
 import { Alert } from "./design/parts";
 import { SIGN_IN_PAGE, type Route } from "./router/routes";
@@ -23,8 +11,27 @@ import { signInReturn } from "./sign-in-words";
 import { navigate, useRoute } from "./router/useRoute";
 import { AppLayout, BuyerLayout, PublicLayout, Splash } from "./shell/layouts";
 
-// The landing page is only for visitors who are signed out; it loads on its own.
-const Landing = lazy(() => import("./landing/Landing").then((m) => ({ default: m.Landing })));
+// The landing page is only for visitors who are signed out; it loads on its own, and starts
+// loading at once on the home address, alongside the check of who is signed in.
+const loadLanding = () => import("./landing/Landing");
+const Landing = lazy(() => loadLanding().then((m) => ({ default: m.Landing })));
+if (window.location.pathname === "/") void loadLanding();
+
+// The signed-in pages load only when someone signed in (or with a buyer's link) opens them,
+// so a visitor to the landing page downloads none of them.
+const pages = () => import("./app/pages");
+const DealPage = lazy(() => import("./DealPage").then((m) => ({ default: m.DealPage })));
+const DisputePage = lazy(() => import("./DisputePage").then((m) => ({ default: m.DisputePage })));
+const Dashboard = lazy(() => import("./app/Dashboard").then((m) => ({ default: m.Dashboard })));
+const NewDealPage = lazy(() =>
+  import("./app/NewDealPage").then((m) => ({ default: m.NewDealPage })),
+);
+const DealsPage = lazy(() => pages().then((m) => ({ default: m.DealsPage })));
+const DeadlinesPage = lazy(() => pages().then((m) => ({ default: m.DeadlinesPage })));
+const DisputesPage = lazy(() => pages().then((m) => ({ default: m.DisputesPage })));
+const InsightsPage = lazy(() => pages().then((m) => ({ default: m.InsightsPage })));
+const NotificationsPage = lazy(() => pages().then((m) => ({ default: m.NotificationsPage })));
+const SettingsPage = lazy(() => pages().then((m) => ({ default: m.SettingsPage })));
 
 type Session = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };
 

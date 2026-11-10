@@ -777,7 +777,7 @@
     padding: 2px 10px;
     border-radius: 999px;
     background: rgb(15 169 122 / 0.14);
-    color: #087a58;
+    color: #065c43;
     font-style: normal;
     font-weight: 600;
   }
@@ -1001,8 +1001,11 @@
       grid-template-columns: minmax(0, 1fr);
     }
 
+    /* Two lines kept for the trades line, so a longer trade never pushes the page down. */
     .pp-lp-for {
+      min-height: 2.8em;
       font-size: 1.125rem;
+      line-height: 1.4;
     }
   }
 

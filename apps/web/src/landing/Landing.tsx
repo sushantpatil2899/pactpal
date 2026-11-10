@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { SIGN_IN_PATH } from "../api";
 import { ButtonLink } from "../design/parts";
-import { Logo, LogoMark } from "../design/Logo";
+import { Logo } from "../design/Logo";
 import { Footer } from "../shell/layouts";
+import { Closing } from "./closing/Closing";
 import { Council } from "./council/Council";
 import { Dispute } from "./dispute/Dispute";
 import { Features } from "./features/Features";
 import { Rails } from "./paypal/Rails";
 import { Tour } from "./tour/Tour";
 import { Hero } from "./hero/Hero";
-import { FAQ, LIMITS, TAGLINE, revealWords } from "./landing-words";
 import { Ledger } from "./ledger/Ledger";
 import { Audience } from "./audience/Audience";
 import { Moves } from "./moves/Moves";
@@ -22,6 +22,7 @@ import "./landing.css";
 import "./slice.css";
 import "./slice2.css";
 import "./slice3.css";
+import "./closing/closing.css";
 
 const NAV = [
   { href: "#get", label: "What you get" },
@@ -103,22 +104,6 @@ function Nav() {
   );
 }
 
-/** The tagline, each word brightening in turn as it scrolls through the window. */
-function Tagline() {
-  const words = revealWords(TAGLINE);
-  return (
-    <section className="pp-lp-tagline" data-string="progress" aria-label="What PactPal promises">
-      <p style={{ "--n": words.length } as CSSProperties}>
-        {words.map(({ word, i }) => (
-          <span key={i} style={{ "--i": i } as CSSProperties}>
-            {word}{" "}
-          </span>
-        ))}
-      </p>
-    </section>
-  );
-}
-
 /**
  * The public landing page (`/` when signed out): one story, told as one deal unfolding down the
  * page, with one action: sign in with PayPal. Loaded only for visitors who are signed out.
@@ -143,43 +128,11 @@ export function Landing({ problem }: { problem?: string }) {
         <Tour />
         <Features />
 
-        <Tagline />
-
-        <section id="trust" className="pp-lp-band" aria-labelledby="pp-lp-trust" data-reveal>
-          <h2 id="pp-lp-trust">What PactPal is, and what it is not</h2>
-          <div className="pp-lp-limits">
-            {LIMITS.map((limit) => (
-              <div key={limit.title}>
-                <h3>{limit.title}</h3>
-                <p>{limit.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section id="faq" className="pp-lp-band" aria-labelledby="pp-lp-faq">
-          <h2 id="pp-lp-faq">Questions sellers ask</h2>
-          <div className="pp-lp-faq">
-            {FAQ.map((item) => (
-              <details key={item.q}>
-                <summary>{item.q}</summary>
-                <p>{item.a}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        <section className="pp-lp-end" aria-labelledby="pp-lp-end" data-reveal>
-          <h2 id="pp-lp-end">Keep the proof from the first message.</h2>
-          <p>Sign in with the PayPal account you are paid through. Your buyers need no account.</p>
-          {signIn(true)}
-        </section>
-        <p className="pp-lp-wordmark" aria-hidden="true">
-          <LogoMark className="pp-lp-wordmark-mark" />
-          PactPal
-        </p>
+        <Closing />
       </main>
-      <Footer links />
+      <div className="pp-scope-dark pp-lp-foot">
+        <Footer links />
+      </div>
     </div>
   );
 }

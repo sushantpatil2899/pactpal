@@ -13,11 +13,12 @@ Reference systems read for structure only (Stripe, Wise, Mercury, Linear, Notion
 
 ## Surfaces by audience
 
-| Surface                                          | Layout                                                                 | Notes                                                                                   |
-| ------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Landing page, sign-in                            | Public: a soft wash of the accent behind the top of the page           | The landing page carries the scroll-driven story; larger type, the same cards and parts |
-| Buyer pages (link, terms to sign, delivery)      | One column, 46rem wide, a plain top bar                                | One card per record, one highlighted band for the one action                            |
-| Dashboard, deals, deal space, disputes, settings | A rail of sections and open deals beside the page; a top bar on phones | Dense but quiet: cards, tiles, a segmented switcher                                     |
+| Surface                                          | Layout                                                                 | Notes                                                                               |
+| ------------------------------------------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Sign-in                                          | Public: a soft wash of the accent behind the top of the page           | One card, one action                                                                |
+| Landing page                                     | Full-width sections that change colour as you scroll (see below)       | Its own louder language: a dark vault, a display serif, 3D and scroll-driven motion |
+| Buyer pages (link, terms to sign, delivery)      | One column, 46rem wide, a plain top bar                                | One card per record, one highlighted band for the one action                        |
+| Dashboard, deals, deal space, disputes, settings | A rail of sections and open deals beside the page; a top bar on phones | Dense but quiet: cards, tiles, a segmented switcher                                 |
 
 ## Colour
 
@@ -56,14 +57,14 @@ Each status has a word, a shape and a colour, so it reads without colour.
 
 ## Type
 
-Geist for text and interface, Geist Mono for fingerprints, record numbers and amounts in tables. Both are open-licence and self-hosted. Body is 15 px; headings 17, 20 and 24 at weight 650 with tight tracking; public and buyer headlines 28 to 40 px. Captions are 12 px. Numbers are tabular everywhere.
+Geist for text and interface, Geist Mono for fingerprints, record numbers and amounts in tables. On the landing page only, Instrument Serif (regular and italic) sets the big lines, with the italic half often in the green-violet gradient. All three are open-licence and self-hosted. Body is 15 px; headings 17, 20 and 24 at weight 650 with tight tracking; public and buyer headlines 28 to 40 px. Captions are 12 px. Numbers are tabular everywhere.
 
 ## Shape, depth, space
 
 - Radius: 16 px cards, 12 px tiles and bands, 10 px controls, full for badges and avatars.
 - Depth: two soft shadows. `shadow-1` on cards and the open tab; `shadow-2` on the sign-in card and overlays. In the dark theme depth comes mostly from surface steps and an inner top highlight.
 - Spacing steps (px): 4, 8, 12, 16, 24, 32, 48, 64, 96.
-- Borders are 1 px hairlines. No heavy rules, no hard offset shadows.
+- Borders are 1 px hairlines. No heavy rules, no hard offset shadows (except the landing page's stickers and feature tiles, which are meant to look like stickers).
 
 ## Components
 
@@ -85,7 +86,7 @@ Geist for text and interface, Geist Mono for fingerprints, record numbers and am
 
 ## Logo
 
-The owner's handshake-heart, redrawn as an SVG with gradients: the hands in bright and deep green, the last finger in violet. The wordmark is "PactPal" in Geist at weight 700. No PayPal marks or colours beside it.
+The owner's handshake-heart, redrawn as an SVG with gradients: the hands in bright and deep green, the last finger in violet. The wordmark is "PactPal" in Geist at weight 700; the landing page closes with it in outlined Instrument Serif. No PayPal marks or colours beside it.
 
 ## Themes
 
@@ -95,9 +96,33 @@ The app follows the device's light or dark setting; a switch in the footer cycle
 
 - Durations 120, 200 and 320 ms with an ease-out curve. Buttons lift one pixel on hover; the current step's ring pulses slowly; typing dots bob.
 - Motion shows a state changing (a field filling, a step completing, a citation lighting its source); nothing moves for decoration.
-- Landing page: scroll-linked, with one deal advancing section by section. Phones get simple reveals instead of pinning.
+- Landing page: see the next section. Phones get simple stacks instead of pinning.
 - `prefers-reduced-motion`: animations and transitions are switched off and scroll-linked states render in their final form.
 - Nothing hijacks the scroll wheel, the keyboard, find-in-page or anchor links, and nothing shifts layout after load.
+
+## The landing page
+
+Built from how four reference sites move (Restless, Sweet Tape, Epic, Rive), to say who PactPal is for and what every deal gets before it proves the AI, PayPal and the ledger.
+
+| Section                  | Ground                     | What moves                                                                                                                                                                                                        |
+| ------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hero                     | Vault (always dark)        | A 3D chain (Three.js): chat fragments stream in, five council members vote, a sealed block locks on; letters rise; the trade in "For the … paid through PayPal" scrambles to the next; a ticker of ledger entries |
+| Four pillars             | Vault                      | Each card's screen sits in a warped grid of its own colour (violet, gold, green, coral) and loops a small animation                                                                                               |
+| Who it is for            | Mint poster                | Trade stickers drift with scroll and turn over to show a deal                                                                                                                                                     |
+| Five moves               | Light                      | The section pins and the cards slide sideways, big outlined words drifting behind                                                                                                                                 |
+| The AI council           | Vault, violet glow         | Pinned steps on the left light up while each plays out on a glass stage with a turning light at its edge                                                                                                          |
+| PayPal's rails           | Vault, gold and green glow | A light runs node to node; PayPal's side is gold, PactPal's record is green                                                                                                                                       |
+| The evidence log         | Vault, green glow          | Real SHA-256 in the browser; the page edits an entry itself and the check breaks the chain there                                                                                                                  |
+| A dispute                | Warm paper                 | The claim comes apart word by word; its statements land beside the record or "No record covers this"                                                                                                              |
+| Product tour             | Vault                      | Real app screenshots in a window that settles from a tilt, with notes popping on                                                                                                                                  |
+| Buyer, feature tiles     | Vault, then warm paper     | A phone scrolling the buyer's page; sticker tiles each with a small loop                                                                                                                                          |
+| Tagline, trust, FAQ, end | Vault                      | Words brighten in turn; limits as glass cards; accordions; a giant outlined wordmark                                                                                                                              |
+
+- `.pp-scope-dark` gives a part of a page the dark tokens whatever the theme.
+- Scroll progress comes from StringTune's progress module (`data-string="progress"` writes `--progress`); everything else is CSS keyframes and a little React state. No scroll smoothing.
+- Motion runs only while its part is on screen or active; the 3D pauses when off screen or in a hidden tab.
+- With reduced motion, StringTune and the 3D loop never start, every part shows its finished state and nothing pins.
+- Measured on a phone with a four times slower CPU and slow 4G (production build): largest paint 2.1 s, layout shift 0.07, no frames over 50 ms.
 
 ## Voice
 

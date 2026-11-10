@@ -209,3 +209,11 @@
     }
   }
 }
+
+@layer pp {
+  .pp-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8) var(--space-16);
+  }
+}
