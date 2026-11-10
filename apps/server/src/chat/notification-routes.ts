@@ -1,4 +1,4 @@
-import { listNotifications, markNotificationsRead, type Database } from "@pactpal/db";
+import { DEAL_TABS, listNotifications, markNotificationsRead, type Database } from "@pactpal/db";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { readBody, requireViewer } from "../deals/access.js";
@@ -14,6 +14,8 @@ const listQuery = z.object({ dealId: z.uuid().optional() });
 const readRequest = z.union([
   z.strictObject({ ids: z.array(z.uuid()).min(1).max(50) }),
   z.strictObject({ dealId: z.uuid() }),
+  /** A tab was opened: its news is settled (7o). */
+  z.strictObject({ dealId: z.uuid(), tab: z.enum(DEAL_TABS) }),
 ]);
 
 /**

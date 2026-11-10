@@ -1177,4 +1177,13 @@ CREATE TRIGGER timeline_progress_no_truncate BEFORE TRUNCATE ON timeline_progres
 CREATE TRIGGER timeline_reminders_append_only BEFORE UPDATE OR DELETE ON timeline_reminders
   FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0039_notification_news",
+    // "step-news" (7o): a step approved or done, which needs nothing from the person; "step" now
+    // only means a step waits for them. News is settled when its tab is opened.
+    sql: `ALTER TABLE notifications DROP CONSTRAINT notifications_kind_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check CHECK (
+  kind IN ('message', 'review-requested', 'changes-requested', 'signed', 'step', 'step-news',
+    'reminder'))`,
+  },
 ];

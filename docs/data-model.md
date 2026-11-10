@@ -559,15 +559,15 @@ One row per deal and person: `read_seq` (the last message they have read; it onl
 
 ### `notifications`: what needs each person (7e)
 
-| Column                     | Meaning                                                                                                 |
-| -------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `id`, `user_id`, `deal_id` | The notification, who it is for and its deal                                                            |
-| `kind`                     | `message`, `review-requested`, `changes-requested`, `signed`, `step` or `reminder`                      |
-| `tab`                      | The deal space tab it opens                                                                             |
-| `text`                     | The words shown (at most 300 characters; for a message, the sender's name and the start of the message) |
-| `created_at`, `read_at`    | Server times; `read_at` is empty until seen                                                             |
+| Column                     | Meaning                                                                                                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `user_id`, `deal_id` | The notification, who it is for and its deal                                                                                                                      |
+| `kind`                     | `message`, `review-requested`, `changes-requested`, `signed`, `step` (a step waits for them), `step-news` (a step approved or done; migration 0039) or `reminder` |
+| `tab`                      | The deal space tab it opens                                                                                                                                       |
+| `text`                     | The words shown (at most 300 characters; for a message, the sender's name and the start of the message)                                                           |
+| `created_at`, `read_at`    | Server times; `read_at` is empty until seen                                                                                                                       |
 
-Not evidence: the log records what happened. A person has at most one unread `message` notification per deal; later messages fold into it until they read the chat, which also marks it read. Each new notification is emailed (the buyer's with a fresh private link), except a message while the person has the deal open. Emails never quote a message.
+Not evidence: the log records what happened. News (`signed`, `step-news`) is marked read when the person opens the tab it points at (7o); the other kinds ask them to act and stay until opened from the list. A person has at most one unread `message` notification per deal; later messages fold into it until they read the chat, which also marks it read. Each new notification is emailed (the buyer's with a fresh private link), except a message while the person has the deal open. Emails never quote a message.
 
 ## Phase 7 (deal space)
 

@@ -32,7 +32,7 @@ function pointedWords(step: TimelineStep, targets: StepTargets): string {
 }
 
 /** The fields of a step that has words of its own: what it is, by when, and (other) who does it. */
-function OwnFields({
+export function OwnFields({
   step,
   n,
   targets,

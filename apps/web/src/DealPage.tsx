@@ -20,6 +20,7 @@ import { TabPanel, Tabs, useTabInAddress, type TabDefinition } from "./Tabs";
 import { TimelineTab } from "./TimelineTab";
 import { useLiveChat } from "./useLiveChat";
 import { NotificationsList } from "./NotificationsList";
+import { markNotificationsRead } from "./chat-api";
 import { tabFromHash } from "./tab-address";
 import {
   SIGN_IN_PATH,
@@ -63,6 +64,12 @@ export function DealPage({ dealId }: { dealId: string }) {
       setNotesKey((n) => n + 1);
     },
   });
+
+  // Opening a tab settles the news it holds (a step approved, a signature); also when news for
+  // the open tab arrives. What asks the person to act stays in "Needs you".
+  useEffect(() => {
+    markNotificationsRead({ dealId, tab }).catch(() => undefined);
+  }, [dealId, tab, notesKey]);
 
   useEffect(() => {
     Promise.all([getDeal(dealId), getLedger(dealId), getMe()]).then(

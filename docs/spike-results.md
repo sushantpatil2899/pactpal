@@ -384,3 +384,23 @@ The fallback path end to end on the live site (`pactpal-server.onrender.com`), w
 - PayPal shows dates in US Pacific time ("Issued 7 Nov 2026" for 03:05 UTC on 8 Nov).
 - **Found, for a later fix:** the seller account used here has an `example.com` email, so PactPal's emails to the seller cannot be delivered. Whether the payment emails reached Chris was not reported.
 - Not run: PayPal's decision (a sandbox reviewer step), messages and offers (not allowed at the chargeback stage), unlinking (Test Store stays linked for the demo). These join the live checks after Phase 6.
+
+## Drafting eval with prompt version 4 (sub-phase 7o, 10 November 2026)
+
+`pnpm eval:scope`: the same 11 chats, one run each, all five models, with drafting prompt version 4 (the timeline, every step quoting the chat). 982 seconds. Run 2 (4n-2, prompt version 3) in brackets.
+
+| Model               | Asked | Failed (no reply) | Dropped by the checker | Scored | Average score | Wrong values | Tokens per draft | Seconds per draft |
+| ------------------- | ----- | ----------------- | ---------------------- | ------ | ------------- | ------------ | ---------------- | ----------------- |
+| gemini              | 11    | 0 (9)             | 2 (0)                  | 9      | 0.99 (1.00)   | 0            | 2,500            | 16.4              |
+| qwen-groq           | 11    | 0                 | 2 (0)                  | 9      | 0.77 (0.81)   | 0            | 2,211            | 2.2               |
+| gpt-oss-groq        | 11    | 0                 | 2 (0)                  | 9      | 0.93 (0.94)   | 0            | 5,285            | 5.0               |
+| mistral             | 11    | 0                 | 3 (2)                  | 8      | 0.90 (0.88)   | 2 (4)        | 2,658            | 9.1               |
+| nemotron-openrouter | 11    | 7 (0)             | 0 (1)                  | 4      | 0.96 (0.99)   | 0            | 5,399            | 39.2              |
+
+- **The two chats with an agreed timeline fail the citation check.** `maya` and `sunrise` are the only eval chats with timeline steps. On `maya` every draft was dropped (Nemotron timed out), so the council had no winner. On `sunrise` only qwen's draft passed. Every other drop is on these two chats. The eval does not print why a draft was dropped; the 7h local run with a 7-message chat passed the check, so the cause is still to be found (see the build plan's open points).
+- **Timeline found:** where a timeline draft passed (qwen on `sunrise`, which the council picked), it found half the agreed steps, half in order.
+- **The council** chose a draft for 10 of 11 chats; its pick scored 0.90 (0.98), against 0.87 for a single model's draft on the same chats and 0.94 for the best draft on offer. It picked the best draft 7 times. It used 9.1 calls, 26,501 tokens and 89 seconds per chat, about 7.9 times the tokens of one draft. It flagged 2 picks for review (average 0.75) against 8 unflagged (0.93), so the flag caught worse picks this time. No ties.
+- **Wrong values:** only Mistral, 2 (4): the euro price in `foreign-currency` and a revision count in `small-talk`.
+- **Failed calls:** Nemotron timed out 6 times and had 1 network error. Gemini answered every call this run.
+- **Buyer duties and line marks** held: duties found 0.94 to 1.00, dates right 1.00 for every model; the council's pick got 12 of 13 marks right.
+- **Limits of the check:** 11 chats written by us, one run each; read the numbers as a tendency.

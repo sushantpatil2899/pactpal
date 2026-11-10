@@ -108,6 +108,14 @@ describe("notifications", () => {
       (await call("POST", "/api/notifications/read", deal.buyerToken, { dealId: second.id }))
         .statusCode,
     ).toBe(404);
+    expect(
+      (
+        await call("POST", "/api/notifications/read", deal.buyerToken, {
+          dealId: second.id,
+          tab: "timeline",
+        })
+      ).statusCode,
+    ).toBe(404);
     await app.close();
     await deal.app.close();
   });
@@ -120,6 +128,14 @@ describe("notifications", () => {
     );
     expect(
       (await call("POST", "/api/notifications/read", deal.sellerToken, { ids: [] })).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await call("POST", "/api/notifications/read", deal.sellerToken, {
+          dealId: deal.dealId,
+          tab: "elsewhere",
+        })
+      ).statusCode,
     ).toBe(400);
     expect((await call("GET", "/api/notifications")).statusCode).toBe(401);
     const off = dealTestApp(undefined);

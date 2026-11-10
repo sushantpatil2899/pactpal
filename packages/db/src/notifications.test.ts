@@ -3,6 +3,7 @@ import {
   addNotification,
   listNotifications,
   markNotificationsRead,
+  type DealTabName,
   type NotificationKind,
 } from "./index.js";
 import {
@@ -18,7 +19,13 @@ const db = useMigratedTestDatabase();
 /** The test deal, and a way to add notification `n` for its buyer at a given minute. */
 async function buyerNotes() {
   const deal = await createTestDeal(db);
-  const add = (n: number, kind: NotificationKind, text: string, minutes = 0) =>
+  const add = (
+    n: number,
+    kind: NotificationKind,
+    text: string,
+    minutes = 0,
+    tab: DealTabName = kind === "message" ? "chat" : "scope",
+  ) =>
     addNotification(
       db,
       {
@@ -26,7 +33,7 @@ async function buyerNotes() {
         userId: deal.buyer.id,
         dealId: deal.dealId,
         kind,
-        tab: kind === "message" ? "chat" : "scope",
+        tab,
         text,
       },
       minutesAfterTestNow(minutes),
@@ -63,6 +70,23 @@ describe("notifications", () => {
     expect(await read("message")).toBe(0);
     expect(await add(3, "message", "c")).toEqual({ created: true });
     expect(await read()).toBe(2);
+  });
+
+  it("settles only a tab's news when it is opened, and only for that person", async () => {
+    const { buyer, seller, dealId, add } = await buyerNotes();
+    await add(1, "step-news", "approved", 0, "timeline");
+    await add(2, "signed", "signed", 0, "timeline");
+    await add(3, "step", "waits for you", 0, "timeline");
+    await add(4, "reminder", "due soon", 0, "timeline");
+    await add(5, "step-news", "news on another tab", 0, "scope");
+    const open = (userId: string) =>
+      markNotificationsRead(db, userId, { dealId, tab: "timeline" }, TEST_NOW);
+    expect(await open(seller.id)).toBe(0);
+    expect(await open(buyer.id)).toBe(2);
+    const unread = (await listNotifications(db, buyer.id))
+      .filter((n) => n.readAt === null)
+      .map((n) => n.text);
+    expect(unread.sort()).toEqual(["due soon", "news on another tab", "waits for you"]);
   });
 
   it("cuts long words to 300 characters", async () => {

@@ -1673,6 +1673,8 @@ export interface ChangeProposal {
   addExclusions: string[];
   addBuyerProvides: { text: string; dueDate?: string }[];
   addStages: { title: string; amount: string; dueDate?: string }[];
+  /** Timeline steps added after the signed ones (reviews and other steps). */
+  addSteps?: TimelineStep[];
   dueDate?: string;
   revisionsIncluded?: number;
   message?: string;

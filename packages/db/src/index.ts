@@ -378,6 +378,7 @@ export { CHAT_CHANNEL, chatEventSchema, parseChatEvent, publishChatEvent } from 
 export type { ChatEvent } from "./chat-events.js";
 export {
   DEAL_TABS,
+  NEWS_KINDS,
   NOTIFICATION_KINDS,
   NOTIFICATION_LIST_SIZE,
   addNotification,
@@ -390,6 +391,7 @@ export type {
   NewNotification,
   Notification,
   NotificationKind,
+  NotificationsToRead,
 } from "./notifications.js";
 export {
   StepNotAllowedError,
