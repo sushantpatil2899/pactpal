@@ -1,4 +1,4 @@
-import { Suspense, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import type { Me } from "../api";
 import { CommandPalette } from "../app/CommandPalette";
 import { byUrgency, isOpen, otherName } from "../app/overview-words";
@@ -9,6 +9,7 @@ import type { DealOverview } from "../overview-api";
 import { Button, Skeleton } from "../design/parts";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../design/theme";
 import { CONTACT } from "./contact";
+import { isRailKey, saveRail, savedRail } from "./rail";
 import "./shell.css";
 
 const THEME_WORDS: Record<Theme, string> = {
@@ -65,7 +66,7 @@ const SkipLink = () => (
   </a>
 );
 
-/** Who is signed in, and the way out. */
+/** Who is signed in, and the way out. In the closed sidebar only the icons show. */
 function Account({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
   return (
     <section className="pp-account" aria-label="Your account">
@@ -73,9 +74,38 @@ function Account({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
         Signed in as <strong>{me.displayName ?? me.email}</strong>
         {me.access !== "full" && " with a link to one deal"}
       </span>
-      <Button onClick={onSignOut}>Sign out</Button>
+      <Button onClick={onSignOut} data-tip="Sign out">
+        <Icon name="exit" />
+        <span className="pp-rail-label">Sign out</span>
+      </Button>
     </section>
   );
+}
+
+/** Whether the sidebar is closed to its icons; remembered, and toggled with ⌘\ too. */
+function useRail(): [boolean, () => void] {
+  const [closed, setClosed] = useState(savedRail);
+  const toggle = () => {
+    setClosed((was) => {
+      saveRail(!was);
+      return !was;
+    });
+  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!isRailKey(event)) return;
+      event.preventDefault();
+      setClosed((was) => {
+        saveRail(!was);
+        return !was;
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+  return [closed, toggle];
 }
 
 interface SignedIn {
@@ -127,8 +157,12 @@ interface AppLayoutProps extends SignedIn {
   children: ReactNode;
 }
 
-/** The seller's app: a rail of sections and open deals beside the page. */
+/**
+ * The seller's app: a rail of sections and open deals beside the page. The rail closes to its
+ * icons (labels then show on hover) so the page gets the room, and remembers how it was left.
+ */
 export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppLayoutProps) {
+  const [closed, toggle] = useRail();
   const open = (deals ?? []).filter(isOpen).sort(byUrgency);
   const unread = (deals ?? []).reduce((sum, deal) => sum + deal.unreadNotifications, 0);
   const disputes = open.filter((deal) => deal.dispute !== null).length;
@@ -136,10 +170,23 @@ export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppL
   // A deal page belongs to the Deals section.
   const section = page === "deal" || page === "dispute" || page === "new-deal" ? "deals" : page;
   return (
-    <div className="pp-app">
+    <div className="pp-app" data-rail={closed ? "closed" : "open"}>
       <SkipLink />
-      <header className="pp-rail">
-        <Logo />
+      <header className="pp-rail" id="pp-rail">
+        <div className="pp-rail-head">
+          <Logo />
+          <button
+            type="button"
+            className="pp-rail-toggle"
+            aria-controls="pp-rail"
+            aria-expanded={!closed}
+            aria-label={closed ? "Open the sidebar" : "Close the sidebar"}
+            data-tip={closed ? "Open the sidebar  ⌘\\" : "Close the sidebar  ⌘\\"}
+            onClick={toggle}
+          >
+            <Icon name="sidebar" />
+          </button>
+        </div>
         <CommandPalette deals={deals ?? []} />
         <nav aria-label="Sections">
           {SECTIONS.map((item) => (
@@ -147,9 +194,10 @@ export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppL
               key={item.path}
               href={item.path}
               aria-current={item.page === section ? "page" : undefined}
+              data-tip={item.title}
             >
               <Icon name={item.icon} />
-              {item.title}
+              <span className="pp-rail-label">{item.title}</span>
               {(counts[item.page] ?? 0) > 0 && (
                 <span className="pp-count">{counts[item.page]}</span>
               )}
@@ -164,9 +212,10 @@ export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppL
                 key={deal.id}
                 href={`/deals/${deal.id}`}
                 aria-current={deal.id === dealId ? "page" : undefined}
+                data-tip={deal.title}
               >
                 <Avatar name={otherName(deal)} />
-                <span>{deal.title}</span>
+                <span className="pp-rail-label">{deal.title}</span>
                 <Unread deal={deal} />
               </a>
             ))}

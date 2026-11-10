@@ -80,6 +80,7 @@
     display: grid;
     grid-template-columns: 15.5rem minmax(0, 1fr);
     min-height: 100dvh;
+    transition: grid-template-columns 280ms var(--ease);
   }
 
   .pp-rail {
@@ -98,40 +99,165 @@
     padding: var(--space-4) var(--space-8);
   }
 
-  .pp-rail nav {
-    display: grid;
-    gap: 2px;
-  }
-
-  .pp-rail nav a {
+  /* The logo and the button that closes the rail to its icons. */
+  .pp-rail-head {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+  }
+
+  .pp-rail-toggle,
+  .pp-rail-toggle:hover:not(:disabled) {
+    position: relative;
+    flex: none;
+    width: 2.25rem;
     min-height: 2.25rem;
-    padding: 0 var(--space-12);
-    border-radius: var(--radius-control);
-    color: var(--color-ink-2);
-    font-weight: 550;
-    text-decoration: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-ink-3);
   }
 
-  .pp-rail nav a:hover {
+  .pp-rail-toggle:hover:not(:disabled) {
     background: var(--color-line);
-  }
-
-  .pp-rail nav a[aria-current="page"] {
-    background: var(--color-surface);
     color: var(--color-ink);
-    box-shadow: var(--shadow-1);
   }
 
-  .pp-rail .pp-account {
-    flex-direction: column;
-    align-items: stretch;
-    margin-top: auto;
-    padding: var(--space-12);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-box);
-    background: var(--color-surface);
+  .pp-account .pp-icon {
+    display: none;
+  }
+
+  /* The rail closes to its icons on wider screens only; phones keep the bar across the top. */
+  @media (width > 50rem) {
+    /* While open, nothing spills out as the rail widens; closed, the hover labels may. */
+    .pp-app[data-rail="open"] .pp-rail {
+      overflow-x: clip;
+    }
+
+    /*
+     * Closed: a strip of icons. Every icon keeps the place it has when open, so nothing jumps;
+     * the words are hidden from sight but still read out, and show on hover beside the strip.
+     */
+    .pp-app[data-rail="closed"] {
+      grid-template-columns: 4.25rem minmax(0, 1fr);
+    }
+
+    .pp-app[data-rail="closed"] .pp-rail {
+      z-index: 20;
+    }
+
+    .pp-app[data-rail="closed"] .pp-rail-head {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .pp-app[data-rail="closed"] .pp-logo {
+      font-size: 0;
+    }
+
+    .pp-app[data-rail="closed"] .pp-logo svg {
+      height: 1.875rem;
+    }
+
+    .pp-app[data-rail="closed"] :is(.pp-rail-label, .pp-jump span, .pp-jump kbd, .pp-caption),
+    .pp-app[data-rail="closed"] .pp-account > span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .pp-app[data-rail="closed"] .pp-rail nav a,
+    .pp-app[data-rail="closed"] .pp-jump {
+      position: relative;
+    }
+
+    .pp-app[data-rail="closed"] .pp-rail nav a .pp-count {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      min-width: 1rem;
+      height: 1rem;
+      padding: 0 4px;
+      font-size: 0.625rem;
+    }
+
+    .pp-app[data-rail="closed"] .pp-rail .pp-account {
+      padding: 0;
+      border: 0;
+      background: none;
+    }
+
+    .pp-app[data-rail="closed"] .pp-account button {
+      position: relative;
+      justify-content: flex-start;
+      padding: 0 var(--space-12);
+      border-color: transparent;
+      background: none;
+    }
+
+    .pp-app[data-rail="closed"] .pp-account .pp-icon {
+      display: block;
+    }
+
+    .pp-app[data-rail="closed"] .pp-rail [data-tip]:is(:hover, :focus-visible)::after,
+    .pp-rail-toggle:is(:hover, :focus-visible)::after {
+      position: absolute;
+      z-index: 1;
+      top: 50%;
+      left: calc(100% + var(--space-8));
+      padding: var(--space-4) var(--space-8);
+      border-radius: 6px;
+      background: var(--color-ink);
+      box-shadow: var(--shadow-2);
+      color: var(--color-bg);
+      content: attr(data-tip);
+      font-size: var(--text-12);
+      font-weight: 550;
+      line-height: 1.4;
+      white-space: pre;
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+
+    .pp-rail nav {
+      display: grid;
+      gap: 2px;
+    }
+
+    .pp-rail nav a {
+      display: flex;
+      align-items: center;
+      min-height: 2.25rem;
+      padding: 0 var(--space-12);
+      border-radius: var(--radius-control);
+      color: var(--color-ink-2);
+      font-weight: 550;
+      text-decoration: none;
+    }
+
+    .pp-rail nav a:hover {
+      background: var(--color-line);
+    }
+
+    .pp-rail nav a[aria-current="page"] {
+      background: var(--color-surface);
+      color: var(--color-ink);
+      box-shadow: var(--shadow-1);
+    }
+
+    .pp-rail .pp-account {
+      flex-direction: column;
+      align-items: stretch;
+      margin-top: auto;
+      padding: var(--space-12);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius-box);
+      background: var(--color-surface);
+    }
   }
 
   .pp-app-body {
@@ -197,6 +323,10 @@
 
     .pp-rail nav {
       display: flex;
+    }
+
+    .pp-rail-toggle {
+      display: none;
     }
 
     .pp-rail .pp-account {

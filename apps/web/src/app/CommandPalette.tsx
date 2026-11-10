@@ -73,7 +73,7 @@ export function CommandPalette({ deals }: { deals: readonly DealOverview[] }) {
 
   return (
     <>
-      <button type="button" className="pp-jump" onClick={open}>
+      <button type="button" className="pp-jump" onClick={open} data-tip="Jump to a deal  ⌘K">
         <Icon name="search" />
         <span>Jump to a deal</span>
         <kbd>⌘K</kbd>
