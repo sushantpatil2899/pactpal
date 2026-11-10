@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextTheme, readTheme } from "./theme";
+import { isDark, nextTheme, readTheme } from "./theme";
 
 describe("the theme choice", () => {
   it("cycles from the device's setting to light, to dark, and back", () => {
@@ -13,5 +13,12 @@ describe("the theme choice", () => {
     expect(readTheme("light")).toBe("light");
     expect(readTheme(null)).toBe("auto");
     expect(readTheme("sepia")).toBe("auto");
+  });
+
+  it("is dark by choice, or by the device when no choice was made", () => {
+    expect(isDark("dark", false)).toBe(true);
+    expect(isDark("light", true)).toBe(false);
+    expect(isDark(undefined, true)).toBe(true);
+    expect(isDark(undefined, false)).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
-import { Alert, ButtonLink, Card, EmptyState, Skeleton } from "../design/parts";
+import { Alert, Button, ButtonLink, Card, EmptyState, Skeleton } from "../design/parts";
 import { Icon } from "../design/icons";
 import { NotificationsList } from "../NotificationsList";
 import type { DealStage } from "../overview-api";
@@ -10,6 +10,7 @@ import { DealRow } from "./parts";
 import type { Overview } from "./useOverview";
 
 // AG Grid is large; it loads only when the Deals page opens.
+const Insights = lazy(() => import("./Insights").then((m) => ({ default: m.Insights })));
 const DealsTable = lazy(() => import("./DealsTable").then((m) => ({ default: m.DealsTable })));
 
 function Page({
@@ -91,6 +92,32 @@ export function DealsPage({ overview }: { overview: Overview }) {
       {deals !== undefined && overview.deals?.length !== 0 && (
         <Suspense fallback={<Skeleton label="Loading the table…" lines={5} />}>
           <DealsTable deals={deals} search={search} />
+        </Suspense>
+      )}
+    </Page>
+  );
+}
+
+/** Charts of the person's own deals; the charts can be rearranged in edit mode. */
+export function InsightsPage({ overview }: { overview: Overview }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <Page
+      title="Insights"
+      action={
+        <Button
+          onClick={() => {
+            setEditing(!editing);
+          }}
+        >
+          {editing ? "Done" : "Edit charts"}
+        </Button>
+      }
+    >
+      <Waiting overview={overview} />
+      {overview.deals !== undefined && (
+        <Suspense fallback={<Skeleton label="Loading the charts…" lines={5} />}>
+          <Insights deals={overview.deals} editing={editing} />
         </Suspense>
       )}
     </Page>

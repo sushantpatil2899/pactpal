@@ -7,6 +7,8 @@ const server = "http://localhost:3000";
 
 export default defineConfig({
   plugins: [react()],
+  // One `.env` at the top of the repository; only names starting `VITE_` reach the page.
+  envDir: "../..",
   // `ws` also forwards the live chat's WebSocket (7c).
   server: { proxy: { "/api": { target: server, ws: true }, "/auth": server } },
 });

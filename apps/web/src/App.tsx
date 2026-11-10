@@ -6,7 +6,13 @@ import { DealsHome } from "./DealsHome";
 import { LinkPage } from "./LinkPage";
 import { Dashboard } from "./app/Dashboard";
 import { NewDealPage } from "./app/NewDealPage";
-import { DealsPage, DisputesPage, NotificationsPage, SettingsPage } from "./app/pages";
+import {
+  DealsPage,
+  DisputesPage,
+  InsightsPage,
+  NotificationsPage,
+  SettingsPage,
+} from "./app/pages";
 import { useOverview, type Overview } from "./app/useOverview";
 import { Alert, ButtonLink } from "./design/parts";
 import { SIGN_IN_PAGE, type Route } from "./router/routes";
@@ -49,6 +55,8 @@ function sellerPage(route: Route, overview: Overview) {
       return <NotificationsPage />;
     case "disputes":
       return <DisputesPage overview={overview} />;
+    case "insights":
+      return <InsightsPage overview={overview} />;
     case "settings":
       return <SettingsPage />;
     case "home":

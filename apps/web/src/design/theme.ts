@@ -33,3 +33,8 @@ export function applyTheme(theme: Theme): void {
     // The choice still holds for this visit.
   }
 }
+
+/** Whether the page is drawn dark: the person's choice, or the device's when they made none. */
+export function isDark(choice: string | undefined, deviceDark: boolean): boolean {
+  return choice === "dark" || (choice !== "light" && deviceDark);
+}
