@@ -1,4 +1,6 @@
-import { createDeal, getLatestScope, readLedger } from "@pactpal/db";
+import { createDeal, getLatestScope, listArtifacts, readLedger } from "@pactpal/db";
+import sharp from "sharp";
+import { planExhibits } from "../disputes/packet.js";
 import {
   TEST_NOW,
   createTestParties,
@@ -16,8 +18,12 @@ import { dealTestApp, signedInAs } from "./test-app.js";
 
 const db = useMigratedTestDatabase();
 
-/** A WebP picture's first bytes, as Channel3's image server sends them. */
-const WEBP = new Uint8Array([...new TextEncoder().encode("RIFF\0\0\0\0WEBPVP8 "), 1, 2, 3]);
+/** A real WebP picture, as Channel3's image server sends them. */
+const WEBP = new Uint8Array(
+  await sharp({ create: { width: 30, height: 20, channels: 3, background: "#246" } })
+    .webp()
+    .toBuffer(),
+);
 const PHOTO = "https://cdn.trychannel3.com/77fa?mid=FJaR";
 
 /** A stand-in Channel3: the test listing for any page, and a WebP for each photo. */
@@ -75,7 +81,27 @@ describe("what's being sold, from a listing link (8e)", () => {
     const photos = saved.json<{
       photos: { artifactId: string; sha256: string; filename: string }[];
     }>().photos;
-    expect(photos.map((p) => p.filename)).toEqual(["listing-photo-1.webp", "listing-photo-2.webp"]);
+    expect(photos.map((p) => p.filename)).toEqual(["listing-photo-1.jpg", "listing-photo-2.jpg"]);
+    // Saved as JPEG, so a dispute packet sends them to PayPal as they are (8h).
+    const files = (await listArtifacts(db, env.deal.id, "source")).filter((f) =>
+      f.filename.startsWith("listing-photo"),
+    );
+    expect(files.map((f) => f.mediaType)).toEqual(["image/jpeg", "image/jpeg"]);
+    expect(
+      planExhibits(
+        files.map((f) => ({
+          id: f.id,
+          kind: f.kind,
+          filename: f.filename,
+          mediaType: f.mediaType,
+          sizeBytes: f.sizeBytes,
+          sha256: f.sha256,
+          addedBy: "seller" as const,
+          addedAt: f.createdAt,
+        })),
+        new Set(),
+      ).map((plan) => plan.send),
+    ).toEqual(["as-is", "as-is"]);
     expect(
       (await readLedger(db, env.deal.id)).filter((e) => e.type === "SOURCE_ADDED"),
     ).toHaveLength(2);
@@ -112,7 +138,7 @@ describe("what's being sold, from a listing link (8e)", () => {
       }),
     );
     expect(receipt).toContain("What is being sold, as listed on allbirds.com, 10 Nov 2026");
-    expect(receipt).toContain("listing-photo-1.webp");
+    expect(receipt).toContain("listing-photo-1.jpg");
     await env.app.close();
   });
 

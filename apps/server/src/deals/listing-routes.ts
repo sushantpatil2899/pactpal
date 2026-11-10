@@ -5,11 +5,17 @@ import {
   postgresContentStore,
 } from "@pactpal/db";
 import { detectMediaType, isWebp } from "@pactpal/ledger";
-import { PHOTO_HOST, type LookupRefusal, type ProductLookup } from "@pactpal/products";
+import {
+  MAX_PHOTO_BYTES,
+  PHOTO_HOST,
+  type LookupRefusal,
+  type ProductLookup,
+} from "@pactpal/products";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requestOrigin } from "../request-origin.js";
 import { readBody, type DealLookup } from "./access.js";
+import { toJpeg } from "./photo-convert.js";
 
 export interface ListingRouteOptions {
   sellersDeal: DealLookup;
@@ -42,17 +48,10 @@ const LOOKUP_REFUSALS: Record<LookupRefusal, { status: number; error: string }> 
   unavailable: { status: 502, error: "product lookup did not answer; try again" },
 };
 
-const EXTENSIONS: Record<string, string> = {
-  "image/webp": "webp",
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/gif": "gif",
-};
-
-/** A picture's type from its bytes, or undefined when it is not a picture. */
-const pictureType = (bytes: Uint8Array) => {
-  const known = detectMediaType(bytes) ?? (isWebp(bytes) ? "image/webp" : undefined);
-  return known === undefined || known === "application/pdf" ? undefined : known;
+/** Whether the bytes are a picture (WebP, as Channel3 serves them, or JPEG, PNG or GIF). */
+const isPicture = (bytes: Uint8Array) => {
+  const type = detectMediaType(bytes);
+  return isWebp(bytes) || (type !== undefined && type !== "application/pdf");
 };
 
 class PhotoError extends Error {}
@@ -86,11 +85,12 @@ export const listingRoutes: FastifyPluginAsync<ListingRouteOptions> = (app, opti
   });
 
   /** One photo's bytes through the lookup's own fetch: a picture, or an error. */
+  /** One photo through the lookup's own fetch, checked as a picture and saved as JPEG (8h). */
   async function photo(lookup: ProductLookup, url: string) {
     const bytes = await lookup.photo(url);
-    const type = bytes === undefined ? undefined : pictureType(bytes);
-    if (bytes === undefined || type === undefined) throw new PhotoError("not saved");
-    return { bytes, type };
+    const jpeg = bytes === undefined || !isPicture(bytes) ? undefined : await toJpeg(bytes);
+    if (jpeg === undefined || jpeg.byteLength > MAX_PHOTO_BYTES) throw new PhotoError("not saved");
+    return jpeg;
   }
 
   app.post("/api/deals/:id/listing/photos", async (request, reply) => {
@@ -110,7 +110,7 @@ export const listingRoutes: FastifyPluginAsync<ListingRouteOptions> = (app, opti
     }
     try {
       const saved = [];
-      for (const [n, { bytes, type }] of fetched.entries()) {
+      for (const [n, bytes] of fetched.entries()) {
         const file = await addArtifact(
           db,
           postgresContentStore(db, clock),
@@ -118,7 +118,7 @@ export const listingRoutes: FastifyPluginAsync<ListingRouteOptions> = (app, opti
             id: newId(),
             dealId: deal.id,
             kind: "source",
-            filename: `listing-photo-${String(n + 1)}.${EXTENSIONS[type] ?? "img"}`,
+            filename: `listing-photo-${String(n + 1)}.jpg`,
             bytes,
             addedBy: { actor: "seller", actorId: viewer.user.id },
             ...requestOrigin(request, recordIp),
