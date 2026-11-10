@@ -50,6 +50,8 @@ import { LiveHub } from "../chat/live-hub.js";
 import { liveRoutes } from "../chat/live-routes.js";
 import { notificationRoutes } from "../chat/notification-routes.js";
 import { Notifier } from "../chat/notifier.js";
+import type { ProductLookup } from "@pactpal/products";
+import { listingRoutes } from "./listing-routes.js";
 import { mcpRoutes } from "../agents/mcp-routes.js";
 import { agentRequestRoutes } from "../agents/request-routes.js";
 import { DealCards } from "../chat/cards.js";
@@ -81,6 +83,8 @@ export interface DealOptions {
   claims?: ClaimRunner | undefined;
   /** Escalates disputes and sends evidence (5g); undefined until the seller app is set. */
   disputeWriter?: DisputeWriter | undefined;
+  /** Reads product listing pages (8e); undefined until `CHANNEL3_API_KEY` is set. */
+  products?: ProductLookup | undefined;
   /** Chat events between server copies (7c). */
   chatBus: ChatBus;
   /** This server copy's id, for chat presence. */
@@ -241,6 +245,13 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   // The MCP server for agents (8a-8c) and the seller's answers to what an agent asks.
   void app.register(mcpRoutes, { database, clock, newId, notifier });
   void app.register(agentRequestRoutes, { database, clock });
+  void app.register(listingRoutes, {
+    sellersDeal,
+    clock,
+    newId,
+    recordIp,
+    products: options.products,
+  });
   void app.register(screenshotRoutes, { sellersDeal, clock, drafting, models });
   void app.register(messageRoutes, { sellersDeal, clock, newId, drafting });
   void app.register(chatRoutes, {

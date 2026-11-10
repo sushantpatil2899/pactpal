@@ -31,6 +31,7 @@ type Part =
   | "inbound"
   | "render"
   | "sellerKeys"
+  | "products"
   | `ai:${string}`;
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
@@ -48,6 +49,8 @@ const RENDER_API_KEY = "RENDER_API_KEY";
 const DISPUTE_TASK_SLUG = "DISPUTE_TASK_SLUG";
 /** Sellers' own apps (6h): the key that encrypts their app secrets in the database. */
 const SELLER_KEYS_ENCRYPTION_KEY = "SELLER_KEYS_ENCRYPTION_KEY";
+/** Product listings (8e): Channel3's API key. */
+const CHANNEL3_API_KEY = "CHANNEL3_API_KEY";
 /** 32 bytes in standard base64, as `openssl rand -base64 32` prints them. */
 const ENCRYPTION_KEY = /^[A-Za-z0-9+/]{43}=$/;
 const DEFAULT_PORT = 3000;
@@ -71,6 +74,7 @@ function partVars(part: Part): string[] {
   if (part === "inbound") return [RESEND_INBOUND_API_KEY, RESEND_WEBHOOK_SECRET, INBOUND_DOMAIN];
   if (part === "render") return [RENDER_API_KEY, DISPUTE_TASK_SLUG];
   if (part === "sellerKeys") return [SELLER_KEYS_ENCRYPTION_KEY];
+  if (part === "products") return [CHANNEL3_API_KEY];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
@@ -88,6 +92,7 @@ export const SETTING_NAMES: readonly string[] = [
   "inbound" as const,
   "render" as const,
   "sellerKeys" as const,
+  "products" as const,
   ...AI_KEYS.map((name): Part => `ai:${name}`),
 ].flatMap(partVars);
 
@@ -108,6 +113,7 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Dispute checks (Render Workflows)", needs: ["render"], runtime: true },
   // Without it a seller cannot link their own PayPal app (6h); everything else works.
   { name: "Linked seller apps", needs: ["sellerKeys", "database"], runtime: true },
+  { name: "Product listings (Channel3)", needs: ["products"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
   // Not runtime yet: the server starts using AI models in sub-phase 3d.
@@ -206,6 +212,8 @@ export interface Config {
   render?: { apiKey: Secret; taskSlug: string };
   /** The 32-byte key that encrypts sellers' own app secrets (6h); absent until set. */
   sellerKeys?: { encryptionKey: Secret };
+  /** Channel3's key for reading product listings (8e); absent until set. */
+  channel3?: { apiKey: Secret };
   /**
    * How many proxies stand in front of the server, from `TRUST_PROXY_HOPS`. Absent until measured:
    * visitors' IP addresses are then not recorded, because the address seen would be the proxy's.
@@ -323,6 +331,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
       domain: inboundDomain,
     };
   }
+  const channel3Key = values.get(CHANNEL3_API_KEY);
+  if (channel3Key !== undefined) config.channel3 = { apiKey: new Secret(channel3Key) };
   const renderKey = values.get(RENDER_API_KEY);
   const taskSlug = values.get(DISPUTE_TASK_SLUG);
   if (renderKey !== undefined && taskSlug !== undefined) {

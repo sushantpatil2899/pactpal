@@ -16,6 +16,7 @@ export {
   hashFile,
   isPlainFileName,
   isPlainText,
+  isWebp,
   verifyFile,
   type FileFingerprint,
   type MediaType,

@@ -63,6 +63,7 @@ describe("render.yaml", () => {
         (name) => name !== "DISPUTE_TASK_SLUG",
       ),
       ...settingsFor("Linked seller apps").filter((name) => name !== "DATABASE_URL"),
+      ...settingsFor("Product listings (Channel3)"),
     ]);
     // Sign-in needs nothing secret beyond those.
     for (const name of settingsFor("Sign in with PayPal")) {

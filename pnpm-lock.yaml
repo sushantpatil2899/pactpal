@@ -89,6 +89,9 @@ importers:
       '@pactpal/pdf':
         specifier: workspace:*
         version: link:../../packages/pdf
+      '@pactpal/products':
+        specifier: workspace:*
+        version: link:../../packages/products
       '@pactpal/qa':
         specifier: workspace:*
         version: link:../../packages/qa
@@ -225,6 +228,9 @@ importers:
       '@pactpal/ledger':
         specifier: workspace:*
         version: link:../ledger
+      '@pactpal/products':
+        specifier: workspace:*
+        version: link:../products
       '@pactpal/timeline':
         specifier: workspace:*
         version: link:../timeline
@@ -319,6 +325,19 @@ importers:
       pdf-lib:
         specifier: 1.17.1
         version: 1.17.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.5
+
+  packages/products:
+    dependencies:
+      '@pactpal/net':
+        specifier: workspace:*
+        version: link:../net
       zod:
         specifier: ^4.6.7
         version: 4.6.7

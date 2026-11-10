@@ -93,6 +93,7 @@ describe("loadConfig", () => {
       ],
       "Dispute checks (Render Workflows)": ["RENDER_API_KEY", "DISPUTE_TASK_SLUG"],
       "Linked seller apps": ["SELLER_KEYS_ENCRYPTION_KEY", "DATABASE_URL"],
+      "Product listings (Channel3)": ["CHANNEL3_API_KEY"],
       "Test setup script": ["PAYPAL_BUYER_BIZ_CLIENT_ID", "PAYPAL_BUYER_BIZ_CLIENT_SECRET"],
       "Connect with PayPal tests": ["PAYPAL_PLATFORM_CLIENT_ID", "PAYPAL_PLATFORM_CLIENT_SECRET"],
       "AI model: gemini": ["GEMINI_API_KEY"],
@@ -227,6 +228,10 @@ describe("loadConfig", () => {
     expect(config.sellerKeys?.encryptionKey.reveal()).toBe(key);
     expect(JSON.stringify(config)).not.toContain(key);
     expect(expectLoaded({}).config.sellerKeys).toBeUndefined();
+    expect(expectLoaded({ CHANNEL3_API_KEY: "c3-key" }).config.channel3?.apiKey.reveal()).toBe(
+      "c3-key",
+    );
+    expect(expectLoaded({}).config.channel3).toBeUndefined();
     const short = Buffer.alloc(16, 3).toString("base64");
     for (const bad of [short, `${key.slice(0, -1)}A`, key.replace("A", "-")]) {
       expect(expectErrors({ SELLER_KEYS_ENCRYPTION_KEY: bad })).toEqual([
@@ -273,6 +278,7 @@ describe("missingRuntimeSettings", () => {
       "RENDER_API_KEY",
       "DISPUTE_TASK_SLUG",
       "SELLER_KEYS_ENCRYPTION_KEY",
+      "CHANNEL3_API_KEY",
     ]);
   });
 
@@ -291,6 +297,7 @@ describe("missingRuntimeSettings", () => {
       RENDER_API_KEY: "rnd_key",
       DISPUTE_TASK_SLUG: "pactpal-workflows/check-disputes",
       SELLER_KEYS_ENCRYPTION_KEY: fullEnv.SELLER_KEYS_ENCRYPTION_KEY,
+      CHANNEL3_API_KEY: "c3-key",
     });
     expect(missingRuntimeSettings(report)).toEqual([]);
   });

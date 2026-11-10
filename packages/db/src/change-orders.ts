@@ -109,6 +109,8 @@ export function changeOf(
       : proposed.revisionsIncluded !== undefined &&
         proposed.revisionsIncluded >= signed.revisionsIncluded;
   if (!revisionsOk) problems.push("revisionsIncluded");
+  // The product as listed is part of what was signed; a change order adds, never replaces it.
+  if (!same(signed.listing, proposed.listing)) problems.push("listing");
   if (
     addedLines === undefined ||
     addedExclusions === undefined ||

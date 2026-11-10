@@ -1,4 +1,5 @@
 import {
+  agreementListingSchema,
   deliverableKindSchema,
   documentFingerprint,
   getLatestScope,
@@ -76,6 +77,8 @@ export const acceptanceDocumentSchema = z.strictObject({
         }),
       )
       .optional(),
+    /** The product as listed (8e); absent for versions without one. */
+    listing: agreementListingSchema.optional(),
   }),
   notice: z.strictObject({
     version: z.number().int(),

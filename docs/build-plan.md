@@ -127,12 +127,15 @@ All done in 7o (10 Nov 2026). Phase 7 stays open until the owner's live run on t
 
 Agreed with the owner on 10 November 2026: of the sponsors' tools, the MCP server for agents first (for "Best Use of Agentic Commerce"), then Bryntum and Channel3; AG Grid, APIMatic, Postman, Zapier, Astropods and Elastic dropped. Deadline: 12 Nov 2026, 12:00 PST, submitting a day early.
 
-| Sub-phase | What                                                      | Status                                                                                                                    |
-| --------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| 8a        | Agent keys and `POST /mcp` with the read tools            | ✅ built (10 Nov 2026)                                                                                                    |
-| 8b        | Prepare tools: a deal from text, a draft evidence packet  | ✅ built (10 Nov 2026)                                                                                                    |
-| 8c        | Approve-and-code flow; `send_invoice` and `send_evidence` | ✅ built (10 Nov 2026): a real sandbox invoice sent locally through the official MCP client after approval in the browser |
-| 8d        | Live run on the site with Claude Code or Desktop          | The owner's (README "Connect your agent")                                                                                 |
+| Sub-phase | What                                                                                                   | Status                                                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 8a        | Agent keys and `POST /mcp` with the read tools                                                         | ✅ built (10 Nov 2026)                                                                                                    |
+| 8b        | Prepare tools: a deal from text, a draft evidence packet                                               | ✅ built (10 Nov 2026)                                                                                                    |
+| 8c        | Approve-and-code flow; `send_invoice` and `send_evidence`                                              | ✅ built (10 Nov 2026): a real sandbox invoice sent locally through the official MCP client after approval in the browser |
+| 8d        | Live run on the site with Claude Code or Desktop                                                       | The owner's (README "Connect your agent")                                                                                 |
+| 8e        | Channel3: "What's being sold" from a listing link, photos saved as files, the listing in the agreement | ✅ built (10 Nov 2026): real lookup and photos locally; the buyer's page shows the card                                   |
+| 8f        | The listing in the signed page, receipt, buyer Q&A and claim comparison                                | ✅ built (10 Nov 2026); score item left for the owner (see decisions)                                                     |
+| 8g        | `lookup_listing` for agents                                                                            | ✅ built (10 Nov 2026)                                                                                                    |
 
 ## Where things stand (5 November 2026)
 

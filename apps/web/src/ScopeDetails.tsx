@@ -1,11 +1,12 @@
 import type { ScopeTerms } from "./api";
+import { ListingCard } from "./ListingCard";
 import { dayWords, markWords, stepLine } from "@pactpal/words";
 
 /** A date (YYYY-MM-DD) as people read it, e.g. "20 Nov 2026". */
 export const dateOf = dayWords;
 
 /** A version's terms, read-only: shown on the deal page and on the acceptance page. */
-export function ScopeDetails({ scope }: { scope: ScopeTerms }) {
+export function ScopeDetails({ scope, dealId }: { scope: ScopeTerms; dealId: string }) {
   return (
     <>
       <p>
@@ -15,6 +16,7 @@ export function ScopeDetails({ scope }: { scope: ScopeTerms }) {
         </code>
       </p>
       <p>{scope.summary}</p>
+      {scope.listing && <ListingCard dealId={dealId} listing={scope.listing} />}
       <h4>What will be delivered</h4>
       <ul>
         {scope.deliverables.map((item, n) => {

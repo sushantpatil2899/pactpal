@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { ProductLookup } from "@pactpal/products";
 import fastifyCookie from "@fastify/cookie";
 import fastifyHelmet from "@fastify/helmet";
 import fastifyWebsocket from "@fastify/websocket";
@@ -58,6 +59,8 @@ export interface AppOptions {
   claims?: ClaimRunner;
   /** Escalates disputes and sends evidence to PayPal (5g); off until the seller app is set. */
   disputeWriter?: DisputeWriter;
+  /** Reads product listing pages (8e); off until `CHANNEL3_API_KEY` is set. */
+  products?: ProductLookup;
   /** Linking sellers' own PayPal apps (6h-2); off until the database and encryption key are set. */
   sellerApps?: SellerAppLinking;
   /**
@@ -187,6 +190,7 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     disputes: opts.disputes,
     claims: opts.claims,
     disputeWriter: opts.disputeWriter,
+    products: opts.products,
     chatBus,
     serverId: opts.serverId ?? randomUUID(),
   });

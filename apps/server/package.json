@@ -37,6 +37,7 @@
     "@pactpal/net": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@pactpal/paypal": "workspace:*",
+    "@pactpal/products": "workspace:*",
     "@pactpal/pdf": "workspace:*",
     "@pactpal/qa": "workspace:*",
     "@pactpal/scope-draft": "workspace:*",

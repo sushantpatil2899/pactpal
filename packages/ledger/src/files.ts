@@ -31,6 +31,19 @@ export function detectMediaType(bytes: Uint8Array): MediaType | undefined {
   return SIGNATURES.find(({ prefix }) => prefix.every((byte, i) => bytes[i] === byte))?.type;
 }
 
+/**
+ * True for a WebP picture ("RIFF", 4 size bytes, "WEBP"). Kept as a deal file (product photos,
+ * 8e) but not one of the `MediaType`s PayPal takes as evidence.
+ */
+export function isWebp(bytes: Uint8Array): boolean {
+  // The two markers are plain ASCII, compared one byte at a time.
+  const ascii = (from: number, text: string) =>
+    Array.from({ length: text.length }, (_, i) => text.charCodeAt(i)).every(
+      (code, i) => bytes[from + i] === code,
+    );
+  return bytes.length >= 12 && ascii(0, "RIFF") && ascii(8, "WEBP");
+}
+
 /** A control character: below the space, or delete. */
 const isControl = (code: number): boolean => code < 0x20 || code === 0x7f;
 const isAllowedWhitespace = (code: number): boolean =>

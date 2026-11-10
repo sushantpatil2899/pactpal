@@ -184,6 +184,7 @@ const TYPE_WORDS: Record<string, string> = {
   "image/png": "PNG picture",
   "image/jpeg": "JPEG picture",
   "image/gif": "GIF picture",
+  "image/webp": "WebP picture (PayPal does not take this type)",
   "text/plain": "text (sent as PDF)",
 };
 

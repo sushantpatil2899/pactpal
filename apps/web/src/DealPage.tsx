@@ -208,6 +208,7 @@ export function DealPage({ dealId }: { dealId: string }) {
             dealId={deal.id}
             currency={deal.currency}
             canEdit={deal.role === "seller" && deal.status === "draft"}
+            listingAllowed={deal.kind !== "service"}
             fill={fill}
             onClearFill={() => {
               setFill(undefined);

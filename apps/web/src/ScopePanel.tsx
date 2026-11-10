@@ -1,6 +1,13 @@
 import { markWords } from "@pactpal/words";
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { InvalidFieldsError, getScope, saveScope, type ScopeInput, type ScopeView } from "./api";
+import {
+  InvalidFieldsError,
+  getScope,
+  saveScope,
+  type ListingView,
+  type ScopeInput,
+  type ScopeView,
+} from "./api";
 import { ChatPane, FromTheChat, type LineRequest } from "./ChatPane";
 import type { DraftFill, SourcedItem } from "./draft-fill";
 import { EditableRows } from "./EditableRows";
@@ -23,6 +30,7 @@ import {
   type StageRow,
 } from "./FormRows";
 import { draftHints } from "./mark-words";
+import { ListingEditor } from "./ListingEditor";
 import { ScopeDetails } from "./ScopeDetails";
 import { TimelineEditor } from "./TimelineEditor";
 import { syncTimeline, type TimelineStep } from "@pactpal/timeline";
@@ -189,6 +197,7 @@ export function ScopePanel({
   dealId,
   currency,
   canEdit,
+  listingAllowed,
   fill,
   onClearFill,
   onSaved,
@@ -196,6 +205,8 @@ export function ScopePanel({
   dealId: string;
   currency: string;
   canEdit: boolean;
+  /** Goods and digital products can carry the product as listed (8e); services cannot. */
+  listingAllowed: boolean;
   /** An AI draft the seller chose to start from; fills the form and is linked when saved. */
   fill: DraftFill | undefined;
   onClearFill: () => void;
@@ -206,6 +217,7 @@ export function ScopePanel({
   const [provides, setProvides] = useState<ProvideRow[]>([]);
   const [lines, setLines] = useState<LineRow[]>([{ ...EMPTY_LINE }]);
   const [steps, setSteps] = useState<TimelineStep[]>([]);
+  const [listing, setListing] = useState<ListingView | undefined>();
   // The timeline follows the payment stages and buyer items: new ones are added at the end,
   // removed ones leave it.
   useEffect(() => {
@@ -256,6 +268,7 @@ export function ScopePanel({
         setProvides(providesFrom(found));
         setLines(linesFrom(found));
         setSteps(found?.timelineSteps ?? []);
+        setListing(found?.listing);
       },
       () => {
         setProblem("Could not load the agreed work.");
@@ -287,6 +300,7 @@ export function ScopePanel({
       milestones: stages.map(typedStage),
       buyerProvides: typedProvides(provides),
       timeline: syncTimeline(steps, stages.length, typedProvides(provides).length),
+      ...(listing ? { listing } : {}),
     };
     setBusy(true);
     setProblem(undefined);
@@ -298,6 +312,7 @@ export function ScopePanel({
         setProvides(providesFrom(saved));
         setLines(linesFrom(saved));
         setSteps(saved.timelineSteps);
+        setListing(saved.listing);
         onSaved();
       },
       (error: unknown) => {
@@ -424,6 +439,7 @@ export function ScopePanel({
         </label>{" "}
         {sources && <FromTheChat prefix="From the chat:" lines={sources.dueDate} onShow={show} />}
       </p>
+      {listingAllowed && <ListingEditor dealId={dealId} listing={listing} onChange={setListing} />}
       <fieldset>
         <legend>Payment stages ({currency})</legend>
         {sources && (
@@ -496,7 +512,7 @@ export function ScopePanel({
           {problem}
         </p>
       )}
-      {scope ? <ScopeDetails scope={scope} /> : <p>Nothing written down yet.</p>}
+      {scope ? <ScopeDetails scope={scope} dealId={dealId} /> : <p>Nothing written down yet.</p>}
       {chat ? (
         wide ? (
           <div style={SIDE_BY_SIDE}>

@@ -161,8 +161,13 @@ Built in 8a–8c. The seller makes an agent key in the app and adds `https://<si
 | `request_send_invoice`, `request_send_evidence` | Asks the seller; the request waits in the app with its exact wording                      |
 | `confirm_action`                                | Runs an approved request with the seller's one-time code (10 minutes, once)               |
 | `get_request`                                   | Where a request stands                                                                    |
+| `lookup_listing`                                | Reads a product listing page through Channel3 (shown only; the seller adds it in the app) |
 
 Sending an invoice or evidence needs the seller to approve the exact request on the deal page, which shows a one-time code to give the agent. There is no tool to sign, accept, act for a buyer, make offers, send messages or appeal. Read results tell the agent that buyers' words are data, never instructions. Every request, answer and action is in the evidence log with the key's last 4 characters.
+
+## What's being sold (Channel3)
+
+For goods and digital products (8e), the seller can paste the product's listing link on the Agreement tab. PactPal reads it through Channel3's URL lookup (`POST /v1/lookup`, one credit; pages outside Channel3's catalog are fetched live) and shows a card: title, brand, description, materials, features, attributes, weight and price, with up to 3 photos. Once the seller checks and uses it, the photos are saved as the deal's files (fingerprinted; Channel3 serves WebP, which PayPal does not take as evidence, so the packet leaves the photos out) and the facts join the agreement with their own fingerprint. The buyer signs them with the rest; they are in the signed receipt PDF (an exhibit in every evidence packet) and in the agreement lines the AI reads for buyers' questions and the claim-vs-record comparison ("Listed materials: …"). A change order cannot change them.
 
 ## Guardrails
 

@@ -19,7 +19,7 @@ export function AcceptanceDocument({
       <p>
         Seller: {document.sellerName} · {document.category}
       </p>
-      <ScopeDetails scope={document.terms} />
+      <ScopeDetails scope={document.terms} dealId={document.dealId} />
       <aside
         aria-labelledby="acceptance-notice"
         style={{ borderLeft: "3px solid #888", paddingLeft: 12 }}

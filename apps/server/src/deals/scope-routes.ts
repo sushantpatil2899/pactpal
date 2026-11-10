@@ -1,4 +1,5 @@
 import {
+  listArtifacts,
   DraftIntegrityError,
   ScopeNotAllowedError,
   draftFingerprint,
@@ -94,6 +95,15 @@ export const scopeRoutes: FastifyPluginAsync<ScopeRouteOptions> = (app, options)
     const { deal, db, viewer } = found;
     const content = toContent(body, deal.currency);
     if (!content.ok) return reply.code(400).send({ error: "invalid", fields: content.fields });
+    // A listing's photos must be this deal's own saved files, unchanged (8e).
+    const photos = content.content.listing?.photos ?? [];
+    if (photos.length > 0) {
+      const files = await listArtifacts(db, deal.id, "source");
+      const kept = new Map(files.map((file) => [file.id, file.sha256]));
+      if (photos.some((p) => kept.get(p.artifactId) !== p.sha256)) {
+        return reply.code(400).send({ error: "invalid", fields: ["listing.photos"] });
+      }
+    }
 
     // A version made from an AI draft records the link, with what the seller kept and changed.
     let confirmedFrom;

@@ -302,6 +302,29 @@ export const AGENT_TOOLS: readonly AgentTool[] = [
     },
   },
   {
+    name: "lookup_listing",
+    description:
+      "Read a product listing page (the seller's own shop page, say) as structured facts through Channel3: title, brand, materials, features, attributes, price and photos. Only shows it: the seller adds it to the agreement in PactPal. Uses one Channel3 credit.",
+    input: z.object({
+      dealId,
+      url: z
+        .url({ protocol: /^https?$/ })
+        .max(2000)
+        .describe("The product page's address"),
+    }),
+    readOnly: true,
+    run: async (context, input) => {
+      const answer = await context.call(
+        "POST",
+        `${dealPath(String(input.dealId))}/listing/lookup`,
+        { url: input.url },
+      );
+      return succeeded(answer)
+        ? { ok: true, data: { note: UNTRUSTED_NOTE, ...(answer.body as object) } }
+        : failed(routeError(answer));
+    },
+  },
+  {
     name: "request_send_invoice",
     description:
       "Ask the seller to let you send the PayPal invoice for one payment stage of a signed deal. Nothing is sent until the seller approves it in PactPal and you call confirm_action with their code.",

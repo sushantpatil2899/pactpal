@@ -63,6 +63,10 @@ describe("the MCP server for agents", () => {
       text: "not found",
     });
     expect(await env.tool("get_deal", { dealId: "not-an-id" })).toMatchObject({ isError: true });
+    // A listing lookup goes through the deal's own route: a service deal has none.
+    expect(
+      await env.tool("lookup_listing", { dealId: env.dealId, url: "https://shop.example/p/1" }),
+    ).toMatchObject({ isError: true, text: "listings are for goods and digital products" });
     await env.app.close();
   });
 
