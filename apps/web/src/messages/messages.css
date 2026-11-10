@@ -1,0 +1,324 @@
+@layer pp {
+  /* Messages: people and their chats, the chosen chat, and the deal it belongs to. */
+
+  .pp-app-main:has(.pp-messages) {
+    max-width: none;
+    padding-bottom: var(--space-16);
+  }
+
+  .pp-messages {
+    display: grid;
+    grid-template-columns: minmax(16rem, 21rem) minmax(0, 1fr) minmax(14rem, 17rem);
+    gap: var(--space-16);
+    height: calc(100dvh - 4rem);
+    min-height: 32rem;
+  }
+
+  .pp-messages > * {
+    min-height: 0;
+  }
+
+  /* The list */
+
+  .pp-messages-list {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .pp-messages-list header {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    display: grid;
+    gap: var(--space-12);
+    padding: var(--space-16);
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-surface);
+  }
+
+  .pp-messages-list h1 {
+    margin: 0;
+    font-size: var(--text-24);
+  }
+
+  .pp-messages-list input {
+    width: 100%;
+  }
+
+  .pp-messages-list > [role="alert"],
+  .pp-messages-list > .pp-empty {
+    margin: var(--space-16);
+  }
+
+  .pp-messages-none {
+    margin: 0;
+    padding: var(--space-16);
+    color: var(--color-ink-3);
+  }
+
+  .pp-people,
+  .pp-threads {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pp-people > li + li {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .pp-person {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin: 0;
+    padding: var(--space-12) var(--space-16) var(--space-4);
+  }
+
+  .pp-person > span {
+    display: grid;
+    min-width: 0;
+  }
+
+  .pp-person b {
+    overflow: hidden;
+    font-size: var(--text-13);
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pp-person small {
+    overflow: hidden;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pp-person .pp-person-deals {
+    flex: none;
+    margin-left: auto;
+  }
+
+  .pp-threads {
+    display: grid;
+    gap: 2px;
+    padding: 0 var(--space-8) var(--space-8);
+  }
+
+  .pp-threads a {
+    display: grid;
+    grid-template-areas:
+      "title time"
+      "last count";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px var(--space-8);
+    padding: var(--space-8) var(--space-12) var(--space-8) 2.75rem;
+    border-radius: 10px;
+    color: var(--color-ink);
+    text-decoration: none;
+    transition: background-color var(--time-fast) var(--ease);
+  }
+
+  .pp-threads a:hover {
+    background: var(--color-bg-sunk);
+  }
+
+  .pp-threads a[aria-current] {
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+    box-shadow: inset 3px 0 0 var(--color-accent);
+  }
+
+  .pp-thread-title,
+  .pp-thread-last {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pp-thread-title {
+    grid-area: title;
+    font-size: var(--text-13);
+    font-weight: 600;
+  }
+
+  .pp-threads time {
+    grid-area: time;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-thread-last {
+    grid-area: last;
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-threads a[data-unread="true"] .pp-thread-title {
+    font-weight: 750;
+  }
+
+  .pp-threads a[data-unread="true"] .pp-thread-last {
+    color: var(--color-ink);
+  }
+
+  .pp-threads .pp-count {
+    grid-area: count;
+    justify-self: end;
+  }
+
+  /* The chat */
+
+  .pp-messages .pp-messages-thread {
+    position: static;
+    height: auto;
+    min-height: 0;
+  }
+
+  .pp-messages-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+    padding: var(--space-8) var(--space-16);
+    border-bottom: 1px solid var(--color-line);
+    font-size: var(--text-13);
+  }
+
+  .pp-messages-back,
+  .pp-messages-back:hover:not(:disabled) {
+    min-height: 2rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-accent-ink);
+    font-size: var(--text-13);
+  }
+
+  .pp-messages-open {
+    margin-left: auto;
+    color: var(--color-accent-ink);
+    font-weight: 600;
+  }
+
+  .pp-chat-about {
+    display: block;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+    font-weight: 500;
+  }
+
+  .pp-messages-pick {
+    display: grid;
+    grid-column: span 2;
+    place-items: center;
+    margin: 0;
+    color: var(--color-ink-3);
+  }
+
+  /* The deal */
+
+  .pp-messages-deal {
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: var(--space-12);
+    padding: var(--space-24) var(--space-16);
+    overflow: auto;
+  }
+
+  .pp-messages-deal .pp-caption {
+    margin: 0;
+  }
+
+  .pp-messages-deal h2 {
+    margin: 0;
+    font-size: var(--text-17);
+    line-height: 1.3;
+  }
+
+  .pp-messages-deal dl {
+    display: grid;
+    gap: var(--space-12);
+    width: 100%;
+    margin: var(--space-4) 0;
+    padding: var(--space-12) 0;
+    border-block: 1px solid var(--color-line);
+  }
+
+  .pp-messages-deal dt {
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+    font-weight: 550;
+  }
+
+  .pp-messages-deal dd {
+    margin: 2px 0 0;
+    font-size: var(--text-13);
+  }
+
+  .pp-messages-deal dd small {
+    display: block;
+    margin-top: 2px;
+  }
+
+  .pp-messages-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8) var(--space-16);
+    font-size: var(--text-13);
+  }
+
+  .pp-messages-links a:not(.pp-button) {
+    color: var(--color-accent-ink);
+  }
+
+  .pp-messages-note {
+    margin: 0;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  /* Narrower: the deal's card gives way, and the chat links to the deal instead. */
+  @media (max-width: 80rem) {
+    .pp-messages {
+      grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+    }
+
+    .pp-messages-deal {
+      display: none;
+    }
+
+    .pp-messages-pick {
+      grid-column: auto;
+    }
+
+    .pp-messages-bar {
+      display: flex;
+    }
+
+    .pp-messages-back {
+      display: none;
+    }
+  }
+
+  /* Phones: the list, or one chat with the way back. */
+  @media (max-width: 50rem) {
+    .pp-messages {
+      grid-template-columns: minmax(0, 1fr);
+      height: calc(100dvh - 9rem);
+    }
+
+    .pp-messages[data-showing="thread"] .pp-messages-list,
+    .pp-messages[data-showing="list"] :is(.pp-messages-thread, .pp-messages-pick) {
+      display: none;
+    }
+
+    .pp-messages-back {
+      display: inline-flex;
+    }
+  }
+}

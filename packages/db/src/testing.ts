@@ -125,6 +125,17 @@ export async function createTestDeal(
   return { seller, buyer, dealId: deal.id };
 }
 
+/** The test deal (id 100) and a second deal (id 101) between the same seller and buyer. */
+export async function createTwoTestDeals(db: Database) {
+  const first = await createTestDeal(db);
+  const { deal } = await createDeal(
+    db,
+    testDeal(first.seller.id, { id: testId(101), buyerId: first.buyer.id, title: "Banner" }),
+    minutesAfterTestNow(1),
+  );
+  return { ...first, secondId: deal.id };
+}
+
 /** A file added to a test deal by its seller (`deal` as the test deal makers return it). */
 export function addTestFile(
   db: Database,

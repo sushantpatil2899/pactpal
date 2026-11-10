@@ -29,6 +29,9 @@ const NewDealPage = lazy(() =>
 const DealsPage = lazy(() => pages().then((m) => ({ default: m.DealsPage })));
 const DeadlinesPage = lazy(() => pages().then((m) => ({ default: m.DeadlinesPage })));
 const DisputesPage = lazy(() => pages().then((m) => ({ default: m.DisputesPage })));
+const MessagesPage = lazy(() =>
+  import("./messages/MessagesPage").then((m) => ({ default: m.MessagesPage })),
+);
 const InsightsPage = lazy(() => pages().then((m) => ({ default: m.InsightsPage })));
 const NotificationsPage = lazy(() => pages().then((m) => ({ default: m.NotificationsPage })));
 const SettingsPage = lazy(() => pages().then((m) => ({ default: m.SettingsPage })));
@@ -63,6 +66,8 @@ function sellerPage(route: Route, overview: Overview) {
       return <DealsPage overview={overview} />;
     case "new-deal":
       return <NewDealPage />;
+    case "messages":
+      return <MessagesPage overview={overview} />;
     case "notifications":
       return <NotificationsPage />;
     case "disputes":

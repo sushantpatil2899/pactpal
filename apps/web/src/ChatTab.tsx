@@ -107,11 +107,17 @@ export function ChatTab({
   chat,
   otherName,
   onOpenTab,
+  about,
+  pasted = true,
 }: {
   dealId: string;
   chat: LiveChat;
   otherName: string;
   onOpenTab: (tab: DealTab) => void;
+  /** The deal this chat belongs to, named under the heading where the page does not say it. */
+  about?: string;
+  /** Whether to list the chats pasted in from elsewhere (the deal space does). */
+  pasted?: boolean;
 }) {
   const { state } = chat;
   const [draft, setDraft] = useState("");
@@ -136,7 +142,10 @@ export function ChatTab({
 
   return (
     <section aria-labelledby="chat-heading" className="pp-chat">
-      <h3 id="chat-heading">Chat with {otherName}</h3>
+      <h3 id="chat-heading">
+        Chat with {otherName}
+        {about !== undefined && <small className="pp-chat-about">{about}</small>}
+      </h3>
       <p role="status" data-connection={state.connection}>
         {CONNECTION_WORDS[state.connection]}
         {state.role !== undefined && (
@@ -213,7 +222,7 @@ export function ChatTab({
       ) : (
         <p>This deal was cancelled; its chat is closed.</p>
       )}
-      <PastedChats dealId={dealId} />
+      {pasted && <PastedChats dealId={dealId} />}
     </section>
   );
 }

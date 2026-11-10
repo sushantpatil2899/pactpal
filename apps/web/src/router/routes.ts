@@ -12,6 +12,7 @@ export type Route =
 /** The seller's sections beside the dashboard, by address. */
 export const APP_SECTIONS = {
   "/deals": "deals",
+  "/messages": "messages",
   "/new": "new-deal",
   "/notifications": "notifications",
   "/disputes": "disputes",

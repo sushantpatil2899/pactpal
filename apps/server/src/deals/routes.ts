@@ -57,6 +57,7 @@ import { agentRequestRoutes } from "../agents/request-routes.js";
 import { DealCards } from "../chat/cards.js";
 import { timelineRoutes } from "./timeline-routes.js";
 import { overviewRoutes } from "./overview-routes.js";
+import { conversationRoutes } from "./conversation-routes.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -298,6 +299,7 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
   });
 
   void app.register(overviewRoutes, { database, clock, describe });
+  void app.register(conversationRoutes, { database, clock });
 
   app.post("/api/deals", async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });

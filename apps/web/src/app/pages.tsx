@@ -4,6 +4,7 @@ import { Icon } from "../design/icons";
 import { NotificationsList } from "../NotificationsList";
 import type { DealStage } from "../overview-api";
 import { navigate } from "../router/useRoute";
+import { noteAddress } from "../messages/threads";
 import { SellerAppPanel } from "../SellerAppPanel";
 import { STAGES, STAGE_ORDER, byUrgency } from "./overview-words";
 import { DealRow } from "./parts";
@@ -186,7 +187,7 @@ export function NotificationsPage() {
           </EmptyState>
         }
         onOpen={(note) => {
-          navigate(`/deals/${note.dealId}#${note.tab}`);
+          navigate(noteAddress(note));
         }}
       />
     </Page>

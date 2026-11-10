@@ -138,6 +138,7 @@ export function PublicLayout({
 const SECTIONS: { path: string; page: string; title: string; icon: IconName }[] = [
   { path: "/", page: "home", title: "Dashboard", icon: "home" },
   { path: "/deals", page: "deals", title: "Deals", icon: "deals" },
+  { path: "/messages", page: "messages", title: "Messages", icon: "chat" },
   { path: "/notifications", page: "notifications", title: "Needs you", icon: "bell" },
   { path: "/disputes", page: "disputes", title: "Disputes", icon: "dispute" },
   { path: "/deadlines", page: "deadlines", title: "Deadlines", icon: "calendar" },
@@ -166,7 +167,8 @@ export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppL
   const open = (deals ?? []).filter(isOpen).sort(byUrgency);
   const unread = (deals ?? []).reduce((sum, deal) => sum + deal.unreadNotifications, 0);
   const disputes = open.filter((deal) => deal.dispute !== null).length;
-  const counts: Record<string, number> = { notifications: unread, disputes };
+  const messages = (deals ?? []).reduce((sum, deal) => sum + deal.unreadMessages, 0);
+  const counts: Record<string, number> = { notifications: unread, disputes, messages };
   // A deal page belongs to the Deals section.
   const section = page === "deal" || page === "dispute" || page === "new-deal" ? "deals" : page;
   return (

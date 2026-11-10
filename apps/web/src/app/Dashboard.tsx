@@ -3,6 +3,7 @@ import { Icon } from "../design/icons";
 import { NotificationsList } from "../NotificationsList";
 import type { DealOverview } from "../overview-api";
 import { navigate } from "../router/useRoute";
+import { noteAddress } from "../messages/threads";
 import { byUrgency, isOpen, needsMe } from "./overview-words";
 import { DealRow } from "./parts";
 import type { Overview } from "./useOverview";
@@ -80,7 +81,7 @@ export function Dashboard({ overview }: { overview: Overview }) {
           <NotificationsList
             refreshKey={deals.length}
             onOpen={(note) => {
-              navigate(`/deals/${note.dealId}#${note.tab}`);
+              navigate(noteAddress(note));
             }}
           />
           <DealList title="Waiting for you" deals={mine} empty="Nothing is waiting for you." />

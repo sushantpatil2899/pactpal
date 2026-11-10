@@ -243,6 +243,24 @@ export async function listMessages(
   return rows.map((row) => checkedMessage(row));
 }
 
+/**
+ * The newest message of each of the given deals, in one read, for a list of conversations.
+ * Deals with no messages are left out.
+ */
+export async function lastMessages(
+  q: Queryable,
+  dealIds: readonly string[],
+): Promise<Map<string, ChatMessage>> {
+  if (dealIds.length === 0) return new Map();
+  const rows = await q.query(
+    `SELECT DISTINCT ON (deal_id) ${COLUMNS} FROM deal_messages
+      WHERE deal_id = ANY($1::uuid[]) ORDER BY deal_id, seq DESC`,
+    [dealIds],
+  );
+  const newest = rows.map((row) => checkedMessage(row));
+  return new Map(newest.map((message) => [message.dealId, message]));
+}
+
 /** Every message of a deal after position `after`, oldest first, read a page at a time. */
 export async function listAllMessages(
   q: Queryable,

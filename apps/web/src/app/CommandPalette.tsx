@@ -7,6 +7,7 @@ import { matchingDeals, otherName, waitingWords } from "./overview-words";
 const PLACES = [
   { path: "/", title: "Dashboard" },
   { path: "/deals", title: "Deals" },
+  { path: "/messages", title: "Messages" },
   { path: "/new", title: "New deal" },
   { path: "/notifications", title: "Needs you" },
   { path: "/disputes", title: "Disputes" },

@@ -30,6 +30,21 @@ export interface OverviewRouteOptions {
   describe: (db: Database, deal: Deal, viewer: Viewer) => Promise<object>;
 }
 
+/**
+ * The deals a viewer may see, most recently changed first, at most `OVERVIEW_LIMIT`: everything
+ * they sell or buy in, or only the deal their buyer link opens.
+ */
+export async function visibleDeals(database: Database, viewer: Viewer): Promise<Deal[]> {
+  const own =
+    viewer.access.method === "link"
+      ? [await getDeal(database, viewer.access.dealId)].filter((d): d is Deal => d !== undefined)
+      : await listDealsForUser(database, viewer.user.id);
+  return own
+    .filter((deal) => canSeeDeal(viewer, deal))
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    .slice(0, OVERVIEW_LIMIT);
+}
+
 /** What one deal's row on the dashboard needs, read with the deal's own tested readers. */
 async function overviewOf(db: Database, deal: Deal, viewer: Viewer, today: string) {
   const role = roleIn(viewer, deal);
@@ -77,14 +92,7 @@ export const overviewRoutes: FastifyPluginAsync<OverviewRouteOptions> = (app, op
     const now = clock();
     const viewer = await requireViewer(request, reply, database, now);
     if (!viewer) return reply;
-    const own =
-      viewer.access.method === "link"
-        ? [await getDeal(database, viewer.access.dealId)].filter((d): d is Deal => d !== undefined)
-        : await listDealsForUser(database, viewer.user.id);
-    const deals = own
-      .filter((deal) => canSeeDeal(viewer, deal))
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-      .slice(0, OVERVIEW_LIMIT);
+    const deals = await visibleDeals(database, viewer);
     const notes = await listNotifications(database, viewer.user.id);
     const today = now.toISOString().slice(0, 10);
     return reply.send({

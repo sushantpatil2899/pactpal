@@ -14,6 +14,7 @@ describe("routes", () => {
     expect(matchRoute("/disputes")).toEqual({ page: "disputes" });
     expect(matchRoute("/settings")).toEqual({ page: "settings" });
     expect(matchRoute("/insights")).toEqual({ page: "insights" });
+    expect(matchRoute("/messages")).toEqual({ page: "messages" });
     expect(matchRoute("/privacy")).toEqual({ page: "privacy" });
     expect(matchRoute("/terms")).toEqual({ page: "terms" });
     expect(matchRoute("/deadlines")).toEqual({ page: "deadlines" });
