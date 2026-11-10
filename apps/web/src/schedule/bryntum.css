@@ -1,0 +1,61 @@
+/*
+ * Bryntum's own styles, then PactPal's tokens laid over its variables so the charts follow the
+ * light and dark themes. These sit outside the `pp` layer because they adjust Bryntum's look,
+ * and on the page's root because Bryntum reads its variables there (its tooltips live there too).
+ */
+@import "@bryntum/gantt/gantt.css";
+@import "@bryntum/gantt/svalbard-light.css";
+@import "@bryntum/gantt/fontawesome/css/fontawesome.css";
+@import "@bryntum/gantt/fontawesome/css/solid.css";
+
+:root:not(.b-nothing) {
+  --b-primary: var(--color-accent);
+  --b-secondary: var(--color-ai);
+  --b-mix: var(--color-surface);
+  --b-opposite: var(--color-ink);
+  --b-widget-font-family: var(--font-text);
+  --b-widget-font-size: 13px;
+
+  /* Bryntum's greys, from the surface (100) to the ink (0), so they turn with the theme. */
+  --b-neutral-0: color-mix(in srgb, var(--color-surface) 0%, var(--color-ink));
+  --b-neutral-1: color-mix(in srgb, var(--color-surface) 1%, var(--color-ink));
+  --b-neutral-2: color-mix(in srgb, var(--color-surface) 2%, var(--color-ink));
+  --b-neutral-5: color-mix(in srgb, var(--color-surface) 5%, var(--color-ink));
+  --b-neutral-10: color-mix(in srgb, var(--color-surface) 10%, var(--color-ink));
+  --b-neutral-15: color-mix(in srgb, var(--color-surface) 15%, var(--color-ink));
+  --b-neutral-20: color-mix(in srgb, var(--color-surface) 20%, var(--color-ink));
+  --b-neutral-25: color-mix(in srgb, var(--color-surface) 25%, var(--color-ink));
+  --b-neutral-30: color-mix(in srgb, var(--color-surface) 30%, var(--color-ink));
+  --b-neutral-35: color-mix(in srgb, var(--color-surface) 35%, var(--color-ink));
+  --b-neutral-40: color-mix(in srgb, var(--color-surface) 40%, var(--color-ink));
+  --b-neutral-45: color-mix(in srgb, var(--color-surface) 45%, var(--color-ink));
+  --b-neutral-50: color-mix(in srgb, var(--color-surface) 50%, var(--color-ink));
+  --b-neutral-55: color-mix(in srgb, var(--color-surface) 55%, var(--color-ink));
+  --b-neutral-60: color-mix(in srgb, var(--color-surface) 60%, var(--color-ink));
+  --b-neutral-65: color-mix(in srgb, var(--color-surface) 65%, var(--color-ink));
+  --b-neutral-70: color-mix(in srgb, var(--color-surface) 70%, var(--color-ink));
+  --b-neutral-75: color-mix(in srgb, var(--color-surface) 75%, var(--color-ink));
+  --b-neutral-80: color-mix(in srgb, var(--color-surface) 80%, var(--color-ink));
+  --b-neutral-85: color-mix(in srgb, var(--color-surface) 85%, var(--color-ink));
+  --b-neutral-90: color-mix(in srgb, var(--color-surface) 90%, var(--color-ink));
+  --b-neutral-91: color-mix(in srgb, var(--color-surface) 91%, var(--color-ink));
+  --b-neutral-92: color-mix(in srgb, var(--color-surface) 92%, var(--color-ink));
+  --b-neutral-93: color-mix(in srgb, var(--color-surface) 93%, var(--color-ink));
+  --b-neutral-94: color-mix(in srgb, var(--color-surface) 94%, var(--color-ink));
+  --b-neutral-95: color-mix(in srgb, var(--color-surface) 95%, var(--color-ink));
+  --b-neutral-96: color-mix(in srgb, var(--color-surface) 96%, var(--color-ink));
+  --b-neutral-97: color-mix(in srgb, var(--color-surface) 97%, var(--color-ink));
+  --b-neutral-98: color-mix(in srgb, var(--color-surface) 98%, var(--color-ink));
+  --b-neutral-99: color-mix(in srgb, var(--color-surface) 99%, var(--color-ink));
+  --b-neutral-100: color-mix(in srgb, var(--color-surface) 100%, var(--color-ink));
+}
+
+.pp-bryntum {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-box);
+  overflow: hidden;
+}
+
+.pp-deadlines {
+  min-height: 12rem;
+}

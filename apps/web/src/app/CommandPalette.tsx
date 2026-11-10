@@ -10,6 +10,7 @@ const PLACES = [
   { path: "/new", title: "New deal" },
   { path: "/notifications", title: "Needs you" },
   { path: "/disputes", title: "Disputes" },
+  { path: "/deadlines", title: "Deadlines" },
   { path: "/insights", title: "Insights" },
   { path: "/settings", title: "Settings" },
 ];

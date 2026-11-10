@@ -349,6 +349,13 @@
     overflow: auto;
   }
 
+  .pp-page-note {
+    max-width: 70ch;
+    margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
   .pp-insights-note {
     display: flex;
     flex-wrap: wrap;

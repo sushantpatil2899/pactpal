@@ -14,6 +14,7 @@ describe("routes", () => {
     expect(matchRoute("/disputes")).toEqual({ page: "disputes" });
     expect(matchRoute("/settings")).toEqual({ page: "settings" });
     expect(matchRoute("/insights")).toEqual({ page: "insights" });
+    expect(matchRoute("/deadlines")).toEqual({ page: "deadlines" });
     expect(matchRoute(`/deals/${DEAL_ID}`)).toEqual({ page: "deal", dealId: DEAL_ID });
     expect(matchRoute(`/deals/${DEAL_ID}/disputes/PP-R-ABC-123`)).toEqual({
       page: "dispute",

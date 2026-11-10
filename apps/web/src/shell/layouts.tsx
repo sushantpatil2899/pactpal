@@ -102,6 +102,7 @@ const SECTIONS: { path: string; page: string; title: string; icon: IconName }[] 
   { path: "/deals", page: "deals", title: "Deals", icon: "deals" },
   { path: "/notifications", page: "notifications", title: "Needs you", icon: "bell" },
   { path: "/disputes", page: "disputes", title: "Disputes", icon: "dispute" },
+  { path: "/deadlines", page: "deadlines", title: "Deadlines", icon: "calendar" },
   { path: "/insights", page: "insights", title: "Insights", icon: "chart" },
   { path: "/settings", page: "settings", title: "Settings", icon: "settings" },
 ];

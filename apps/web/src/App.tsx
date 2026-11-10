@@ -7,6 +7,7 @@ import { LinkPage } from "./LinkPage";
 import { Dashboard } from "./app/Dashboard";
 import { NewDealPage } from "./app/NewDealPage";
 import {
+  DeadlinesPage,
   DealsPage,
   DisputesPage,
   InsightsPage,
@@ -55,6 +56,8 @@ function sellerPage(route: Route, overview: Overview) {
       return <NotificationsPage />;
     case "disputes":
       return <DisputesPage overview={overview} />;
+    case "deadlines":
+      return <DeadlinesPage overview={overview} />;
     case "insights":
       return <InsightsPage overview={overview} />;
     case "settings":

@@ -10,6 +10,9 @@ import { DealRow } from "./parts";
 import type { Overview } from "./useOverview";
 
 // AG Grid is large; it loads only when the Deals page opens.
+const Deadlines = lazy(() =>
+  import("../schedule/Deadlines").then((m) => ({ default: m.Deadlines })),
+);
 const Insights = lazy(() => import("./Insights").then((m) => ({ default: m.Insights })));
 const DealsTable = lazy(() => import("./DealsTable").then((m) => ({ default: m.DealsTable })));
 
@@ -94,6 +97,24 @@ export function DealsPage({ overview }: { overview: Overview }) {
           <div className="pp-vendor">
             <DealsTable deals={deals} search={search} />
           </div>
+        </Suspense>
+      )}
+    </Page>
+  );
+}
+
+/** What is due, late or disputed across every deal, on one calendar-like chart. */
+export function DeadlinesPage({ overview }: { overview: Overview }) {
+  return (
+    <Page title="Deadlines">
+      <p className="pp-page-note">
+        Each deal&apos;s next dated step, and the day to respond by on any open dispute. Red is
+        late, or a dispute with no evidence prepared yet.
+      </p>
+      <Waiting overview={overview} />
+      {overview.deals !== undefined && (
+        <Suspense fallback={<Skeleton label="Loading the deadlines…" lines={5} />}>
+          <Deadlines deals={overview.deals} />
         </Suspense>
       )}
     </Page>

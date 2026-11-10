@@ -144,6 +144,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@bryntum/gantt':
+        specifier: npm:@bryntum/gantt-trial@7.3.8
+        version: '@bryntum/gantt-trial@7.3.8'
+      '@bryntum/gantt-react':
+        specifier: 7.3.8
+        version: 7.3.8
       '@fontsource-variable/geist':
         specifier: ^5.3.0
         version: 5.3.0
@@ -539,6 +545,17 @@ packages:
 
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
+
+  '@bryntum/gantt-react@7.3.8':
+    resolution: {integrity: sha512-CmlxtRIN2LleR6FlCBFXzxpzkNjx74WhD5z5U3/JJkMdJLd2OQWrjebyOMRbCYe6hD5fnCOta5RwuApM/ZQQQQ==}
+    engines: {node: '>=0.10.0'}
+
+  '@bryntum/gantt-trial-lib@1.0.1':
+    resolution: {integrity: sha512-VWtowNi9FBCC6EWz8zZjrnPALCsFrYt4HPwmsgqv3qediQPfyYM/5Bq3rFuEUa1/2C/1u7YXzW2q1HZykHnp+Q==}
+
+  '@bryntum/gantt-trial@7.3.8':
+    resolution: {integrity: sha512-u3qbPxYnd5Ut+hJTnofPdTBPznQVrR2YezYtpJGIbw6ed056frR0bMQUcqus5dkbi2MIFkgBm0HNfS/naZUirg==}
+    engines: {node: '>=0.10.0'}
 
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
@@ -3524,6 +3541,14 @@ snapshots:
       '@babel/helper-validator-identifier': 7.29.7
 
   '@bcoe/v8-coverage@0.2.3': {}
+
+  '@bryntum/gantt-react@7.3.8': {}
+
+  '@bryntum/gantt-trial-lib@1.0.1': {}
+
+  '@bryntum/gantt-trial@7.3.8':
+    dependencies:
+      '@bryntum/gantt-trial-lib': 1.0.1
 
   '@colors/colors@1.5.0':
     optional: true

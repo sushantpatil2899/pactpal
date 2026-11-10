@@ -14,6 +14,7 @@ export const APP_SECTIONS = {
   "/notifications": "notifications",
   "/disputes": "disputes",
   "/insights": "insights",
+  "/deadlines": "deadlines",
   "/settings": "settings",
 } as const;
 export type AppSection = (typeof APP_SECTIONS)[keyof typeof APP_SECTIONS];

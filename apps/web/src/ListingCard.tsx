@@ -1,6 +1,5 @@
 import { listingLines, listingSource } from "@pactpal/words";
 import type { ListingPreview, ListingView } from "./api";
-import { WRAP } from "./styles";
 
 const fileUrl = (dealId: string, fileId: string) =>
   `/api/deals/${encodeURIComponent(dealId)}/files/${encodeURIComponent(fileId)}`;
@@ -18,10 +17,7 @@ export function ListingCard({
 }) {
   const photos = "photos" in listing ? listing.photos : [];
   return (
-    <section
-      aria-label="What is being sold, as listed"
-      style={{ ...WRAP, border: "1px solid #ccc", borderRadius: 8, padding: "0 12px" }}
-    >
+    <section aria-label="What is being sold, as listed" className="pp-listing">
       <h4>What is being sold, as listed on {listingSource(listing)}</h4>
       {photos.length > 0 && (
         <p>
@@ -30,7 +26,6 @@ export function ListingCard({
               key={photo.artifactId}
               src={fileUrl(dealId, photo.artifactId)}
               alt={`Listing photo ${String(n + 1)} of ${listing.title}`}
-              style={{ width: 120, height: 120, objectFit: "contain", marginRight: 8 }}
             />
           ))}
         </p>

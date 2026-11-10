@@ -1,0 +1,536 @@
+/* The deal space: a header, the steps across the top, the chat pinned beside one working view. */
+@layer pp {
+  .pp-app-main:has(.pp-deal) {
+    max-width: 96rem;
+  }
+
+  .pp-deal {
+    display: grid;
+    gap: var(--space-16);
+    min-width: 0;
+  }
+
+  .pp-deal > * {
+    min-width: 0;
+    margin: 0;
+  }
+
+  .pp-deal-head h1 {
+    margin: 0 0 var(--space-8);
+    font-size: var(--text-24);
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+
+  .pp-deal-head p {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8) var(--space-12);
+    margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  /* Progress strip */
+
+  .pp-strip {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-16);
+    padding: var(--space-12) var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-1);
+  }
+
+  .pp-strip ol {
+    display: flex;
+    flex: 1;
+    gap: var(--space-4);
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-4) 0;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .pp-strip li {
+    position: relative;
+    display: flex;
+    flex: 1 0 9.5rem;
+    align-items: center;
+    gap: var(--space-8);
+    min-width: 0;
+    padding-right: var(--space-12);
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+    line-height: 1.3;
+  }
+
+  .pp-strip li b,
+  .pp-strip li small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pp-strip li > span:last-child {
+    min-width: 0;
+  }
+
+  .pp-strip li b {
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+    font-weight: 600;
+  }
+
+  .pp-strip-node {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 1.625rem;
+    height: 1.625rem;
+    border: 1.5px solid var(--color-line-strong);
+    border-radius: 50%;
+    background: var(--color-surface);
+    font-family: var(--font-mono);
+    font-size: var(--text-12);
+    font-weight: 600;
+  }
+
+  .pp-strip li[data-state="done"] .pp-strip-node {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+    color: var(--color-accent-ink);
+  }
+
+  .pp-strip li[data-state="now"] b,
+  .pp-strip li[data-state="late"] b {
+    color: var(--color-ink);
+  }
+
+  .pp-strip li[data-state="now"] .pp-strip-node {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--color-accent-strong), var(--color-accent-strong-2));
+    color: var(--color-on-accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  }
+
+  .pp-strip li[data-state="late"] .pp-strip-node {
+    border-color: transparent;
+    background: var(--color-alert);
+    color: var(--color-on-alert);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-alert) 18%, transparent);
+  }
+
+  .pp-strip li[data-state="late"] small {
+    color: var(--color-alert-ink);
+  }
+
+  .pp-strip-next {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-12);
+    max-width: 24rem;
+    padding-left: var(--space-16);
+    border-left: 1px solid var(--color-line);
+  }
+
+  .pp-strip-next b,
+  .pp-strip-next small {
+    display: block;
+  }
+
+  .pp-strip-next b {
+    font-size: var(--text-13);
+  }
+
+  .pp-strip-next small {
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-strip-next button {
+    flex: none;
+    min-height: 2.125rem;
+    font-size: var(--text-13);
+  }
+
+  .pp-strip-empty {
+    margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  /* Agent requests */
+
+  .pp-agent-asks {
+    padding: var(--space-16) var(--space-24);
+    border: 1px solid color-mix(in srgb, var(--color-ai) 35%, transparent);
+    border-radius: var(--radius-card);
+    background: color-mix(in srgb, var(--color-ai) 7%, var(--color-surface));
+    overflow-wrap: anywhere;
+  }
+
+  .pp-agent-asks h3 {
+    margin: 0 0 var(--space-8);
+    color: var(--color-ai-ink);
+    font-size: var(--text-15);
+  }
+
+  .pp-agent-asks ul {
+    display: grid;
+    gap: var(--space-12);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pp-agent-asks li p {
+    margin: 0 0 var(--space-8);
+  }
+
+  /* The chat beside the working view */
+
+  .pp-panel {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-1);
+  }
+
+  /* The timeline's steps, one card each; the current one stands out. */
+
+  .pp-steps {
+    display: grid;
+    gap: var(--space-8);
+    margin: var(--space-12) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pp-steps > li {
+    padding: var(--space-12) var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+    background: var(--color-surface-2);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-steps > li > strong {
+    display: block;
+    color: var(--color-ink);
+    font-size: var(--text-15);
+    font-weight: 600;
+  }
+
+  .pp-steps > li[data-state="done"] > strong {
+    color: var(--color-ink-2);
+    font-weight: 500;
+  }
+
+  .pp-steps > li[aria-current] {
+    border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+    background: color-mix(in srgb, var(--color-accent) 6%, var(--color-surface));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+
+  .pp-step-state {
+    font-weight: 600;
+  }
+
+  .pp-steps ul {
+    margin: var(--space-4) 0 0;
+    padding-left: var(--space-16);
+  }
+
+  .pp-steps form {
+    display: grid;
+    gap: var(--space-8);
+    margin-top: var(--space-12);
+  }
+
+  .pp-steps form button {
+    justify-self: start;
+  }
+
+  .pp-steps textarea {
+    width: 100%;
+  }
+
+  .pp-check {
+    display: block;
+  }
+
+  .pp-deal-work {
+    display: grid;
+    grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-16);
+  }
+
+  .pp-deal-chat {
+    position: sticky;
+    top: var(--space-16);
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 2rem);
+    min-height: 24rem;
+    overflow: hidden;
+  }
+
+  .pp-deal-view {
+    min-width: 0;
+    padding: var(--space-16) var(--space-24) var(--space-24);
+  }
+
+  .pp-deal-view > [role="tablist"] {
+    margin-bottom: var(--space-16);
+  }
+
+  .pp-deal-view section + section {
+    margin-top: var(--space-24);
+    padding-top: var(--space-24);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .pp-deal-view h3 {
+    margin: 0 0 var(--space-12);
+    font-size: var(--text-17);
+  }
+
+  .pp-chat {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .pp-chat > h3 {
+    margin: 0;
+    padding: var(--space-16) var(--space-16) 0;
+    font-size: var(--text-15);
+  }
+
+  .pp-chat > [role="status"] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin: 0;
+    padding: var(--space-4) var(--space-16) 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-chat > [role="status"]::before {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-wait);
+    content: "";
+  }
+
+  .pp-chat > [role="status"][data-connection="live"]::before {
+    background: var(--color-accent);
+  }
+
+  .pp-chat-note {
+    margin: 0;
+    padding: var(--space-8) var(--space-16) var(--space-12);
+    border-bottom: 1px solid var(--color-line);
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-thread {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-8);
+    min-height: 8rem;
+    margin: 0;
+    padding: var(--space-16);
+    list-style: none;
+    overflow-y: auto;
+  }
+
+  .pp-thread-empty {
+    margin: auto;
+    color: var(--color-ink-3);
+  }
+
+  .pp-msg {
+    display: grid;
+    justify-items: start;
+    gap: 2px;
+  }
+
+  .pp-msg > div {
+    max-width: 88%;
+    padding: var(--space-8) var(--space-12);
+    border-radius: 14px 14px 14px 4px;
+    background: var(--color-bg-sunk);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .pp-msg small {
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-msg[data-mine="true"],
+  .pp-msg[data-mine=""] {
+    justify-items: end;
+  }
+
+  .pp-msg[data-mine="true"] > div,
+  .pp-msg[data-mine=""] > div {
+    border-radius: 14px 14px 4px;
+    background: color-mix(in srgb, var(--color-accent) 15%, var(--color-surface));
+  }
+
+  .pp-msg-card {
+    padding: var(--space-12);
+    border: 1px solid color-mix(in srgb, var(--color-ai) 30%, transparent);
+    border-radius: var(--radius-box);
+    background: color-mix(in srgb, var(--color-ai) 7%, var(--color-surface));
+    font-size: var(--text-13);
+    overflow-wrap: anywhere;
+  }
+
+  .pp-msg-card strong {
+    color: var(--color-ai-ink);
+  }
+
+  .pp-msg-card button {
+    min-height: 1.875rem;
+    margin-top: var(--space-4);
+    font-size: var(--text-12);
+  }
+
+  .pp-msg-card small {
+    color: var(--color-ink-3);
+  }
+
+  .pp-chat > p[aria-live] {
+    margin: 0;
+    padding: 0 var(--space-16) var(--space-8);
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-compose {
+    display: flex;
+    align-items: end;
+    gap: var(--space-8);
+    padding: var(--space-12);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .pp-compose textarea {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+  }
+
+  .pp-chat > section {
+    padding: 0 var(--space-16) var(--space-12);
+    font-size: var(--text-13);
+  }
+
+  .pp-chat > section h4 {
+    margin: var(--space-8) 0 var(--space-4);
+    font-size: var(--text-13);
+  }
+
+  /* Listing card and evidence log */
+
+  .pp-listing {
+    padding: var(--space-4) var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+    background: var(--color-surface-2);
+    overflow-wrap: anywhere;
+  }
+
+  .pp-listing img {
+    width: 7.5rem;
+    height: 7.5rem;
+    margin-right: var(--space-8);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+    object-fit: contain;
+  }
+
+  .pp-log {
+    display: grid;
+    gap: var(--space-8);
+    padding-left: var(--space-24);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-gantt {
+    min-height: 10rem;
+    margin-bottom: var(--space-16);
+  }
+
+  @media (max-width: 72rem) {
+    .pp-deal-work {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pp-deal-work[data-chat="hidden"] .pp-deal-chat {
+      display: none;
+    }
+
+    .pp-deal-chat {
+      position: static;
+      height: min(42rem, calc(100dvh - 9rem));
+      border-radius: 0 0 var(--radius-card) var(--radius-card);
+      order: 2;
+    }
+
+    .pp-deal-work[data-chat="shown"] {
+      gap: 0;
+    }
+
+    .pp-deal-work[data-chat="shown"] .pp-deal-view {
+      padding-bottom: 0;
+      border-bottom: 0;
+      border-radius: var(--radius-card) var(--radius-card) 0 0;
+      box-shadow: none;
+    }
+
+    .pp-deal-work[data-chat="shown"] .pp-deal-view > [role="tablist"] {
+      margin-bottom: var(--space-12);
+    }
+
+    .pp-strip {
+      flex-direction: column;
+      gap: var(--space-12);
+    }
+
+    .pp-strip-next {
+      justify-content: space-between;
+      max-width: none;
+      padding: var(--space-12) 0 0;
+      border-top: 1px solid var(--color-line);
+      border-left: 0;
+    }
+
+    .pp-deal-view {
+      padding: var(--space-12) var(--space-16) var(--space-16);
+    }
+  }
+}

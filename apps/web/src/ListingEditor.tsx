@@ -58,7 +58,7 @@ export function ListingEditor({
     <fieldset>
       <legend>What&rsquo;s being sold (optional)</legend>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
