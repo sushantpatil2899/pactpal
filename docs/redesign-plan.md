@@ -1,6 +1,6 @@
 # Redesign plan (proposed Phase 7R)
 
-Status: **approved by the owner on 10 November 2026.** R1 to R4 are done and were restyled on 10 November 2026 when the owner replaced the first visual direction (see [DESIGN.md](DESIGN.md) and the last row of the redesign table in [decisions.md](decisions.md)); the colour, type, logo and motion rows below describe the first direction where they differ. R5 (the overview address) is next. Branch: `redesign`, from `dev`.
+Status: **approved by the owner on 10 November 2026.** R1 to R4 are done and were restyled on 10 November 2026 when the owner replaced the first visual direction (see [DESIGN.md](DESIGN.md) and the last row of the redesign table in [decisions.md](decisions.md)); the colour, type, logo and motion rows below describe the first direction where they differ. R5 (the overview address) is done; R6 (app shell and dashboard) is next. Branch: `redesign`, from `dev`.
 
 ## Goal
 
@@ -45,7 +45,7 @@ Each is logged in [decisions.md](decisions.md) when its step is built.
 - open dispute, if any, with its respond-by date
 - time of the latest activity
 
-Rules: read-only, no ledger events, the same access checks as the deal list, a zod schema for the answer, a fixed number of queries whatever the number of deals, and the same tests as other routes. `GET /api/deals` stays as it is.
+Rules: read-only, no ledger events, the same access checks as the deal list, and the same tests as other routes. As built (see decisions.md) it reuses each deal's existing readers for the 200 most recently changed deals, instead of a fixed number of set-based queries. `GET /api/deals` stays as it is.
 
 ## Routes
 

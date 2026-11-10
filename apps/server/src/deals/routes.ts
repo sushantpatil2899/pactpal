@@ -52,6 +52,7 @@ import { notificationRoutes } from "../chat/notification-routes.js";
 import { Notifier } from "../chat/notifier.js";
 import { DealCards } from "../chat/cards.js";
 import { timelineRoutes } from "./timeline-routes.js";
+import { overviewRoutes } from "./overview-routes.js";
 
 export interface DealOptions {
   /** Undefined until `DATABASE_URL` is set. */
@@ -279,6 +280,8 @@ export const dealRoutes: FastifyPluginAsync<DealOptions> = (app, options) => {
     email,
     publicBaseUrl,
   });
+
+  void app.register(overviewRoutes, { database, clock, describe });
 
   app.post("/api/deals", async (request, reply) => {
     if (!database) return reply.code(503).send({ error: "unavailable" });
