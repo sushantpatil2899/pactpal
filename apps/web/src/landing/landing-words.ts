@@ -19,13 +19,7 @@ export interface StoryStep {
 }
 
 export const HERO = {
-  title: ["AI that seals", "the deal."],
-  lede: "PactPal turns the chat where you agreed a job into a signed agreement, PayPal invoices for each milestone and a sealed record of what was delivered. If a buyer disputes, the proof is already in one place.",
-  facts: [
-    "For sellers paid through PayPal",
-    "Buyers need no account",
-    "Every term cites its source",
-  ],
+  lede: "A council of AI models drafts your agreement from the chat and checks each other's work. PayPal moves the money. Every step is sealed into a chain nobody can quietly edit.",
 } as const;
 
 export const STORY: readonly StoryStep[] = [
@@ -37,7 +31,6 @@ export const STORY: readonly StoryStep[] = [
   },
   {
     id: "capture",
-    anchor: "how",
     eyebrow: "1 · Capture",
     title: "Start from wherever the deal was made.",
     body: "Paste a chat, upload an export, forward an email to the deal's own address, or talk in the deal's live chat. Every message and file is kept with the time it arrived.",
@@ -181,3 +174,15 @@ export function revealWords(text: string): { word: string; i: number }[] {
     .filter(Boolean)
     .map((word, i) => ({ word, i }));
 }
+
+/** The ledger entries that run along the foot of the hero: invented, in the app's own words. */
+export const TICKER: readonly { event: string; detail: string; hash: string }[] = [
+  { event: "MESSAGE_SENT", detail: "Chris · live chat", hash: "9f2c…a71e" },
+  { event: "SCOPE_CONFIRMED", detail: "council 4 of 5 agreed", hash: "71ae…c04d" },
+  { event: "ACCEPTED", detail: "typed name, receipt sent", hash: "c04d…5be8" },
+  { event: "INVOICE_SENT", detail: "PayPal invoice, stage 1", hash: "5be8…e219" },
+  { event: "PAYMENT_RECEIVED", detail: "PayPal webhook, verified", hash: "e219…a7d3" },
+  { event: "DELIVERY_SENT", detail: "cover-final.pdf, 8.2 MB", hash: "a7d3…3c91" },
+  { event: "DELIVERY_OPENED", detail: "buyer, 2 times", hash: "3c91…b40f" },
+  { event: "STEP_APPROVED", detail: "sketch, by Chris", hash: "b40f…68ea" },
+];

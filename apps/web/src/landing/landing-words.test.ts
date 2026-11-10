@@ -25,6 +25,6 @@ describe("the landing page's words", () => {
   });
 
   it("gives the navigation's anchors a step to land on", () => {
-    expect(STORY.map((step) => step.anchor).filter(Boolean)).toEqual(["how", "get"]);
+    expect(STORY.map((step) => step.anchor).filter(Boolean)).toEqual(["get"]);
   });
 });

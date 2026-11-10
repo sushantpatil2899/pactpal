@@ -3,11 +3,17 @@ import { SIGN_IN_PATH } from "../api";
 import { ButtonLink } from "../design/parts";
 import { Logo } from "../design/Logo";
 import { Footer } from "../shell/layouts";
-import { AUDIENCE, FAQ, HERO, LIMITS, STORY, TAGLINE, revealWords } from "./landing-words";
-import { HeroScene, SCENES } from "./scenes";
+import { Council } from "./council/Council";
+import { Hero } from "./hero/Hero";
+import { AUDIENCE, FAQ, LIMITS, STORY, TAGLINE, revealWords } from "./landing-words";
+import { Ledger } from "./ledger/Ledger";
+import { SCENES } from "./scenes";
 import { useScrollStory } from "./useScrollStory";
 import "../deal/deal.css";
+import "@fontsource/instrument-serif/400.css";
+import "@fontsource/instrument-serif/400-italic.css";
 import "./landing.css";
+import "./slice.css";
 
 const NAV = [
   { href: "#how", label: "How it works" },
@@ -116,28 +122,9 @@ export function Landing({ problem }: { problem?: string }) {
       </a>
       <Nav />
       <main id="content">
-        <section className="pp-lp-hero" aria-labelledby="pp-lp-title">
-          <div>
-            {problem !== undefined && (
-              <p role="alert" data-tone="problem">
-                {problem}
-              </p>
-            )}
-            <h1 id="pp-lp-title">
-              {HERO.title[0]}
-              <br />
-              {HERO.title[1]}
-            </h1>
-            <p className="pp-lp-lede">{HERO.lede}</p>
-            <div className="pp-lp-actions">{signIn(true)}</div>
-            <ul className="pp-lp-facts">
-              {HERO.facts.map((fact) => (
-                <li key={fact}>{fact}</li>
-              ))}
-            </ul>
-          </div>
-          <HeroScene />
-        </section>
+        <Hero problem={problem} />
+        <Council />
+        <Ledger />
 
         <div className="pp-lp-story" data-string="progress">
           <span className="pp-lp-thread" aria-hidden="true" />

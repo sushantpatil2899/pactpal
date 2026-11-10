@@ -1,7 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Avatar } from "../app/parts";
 import { StatusBadge } from "../design/Badge";
-import { LogoMark } from "../design/Logo";
 import type { SceneId } from "./landing-words";
 
 /**
@@ -18,12 +17,6 @@ function Frame({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-const Bubble = ({ mine = false, children }: { mine?: boolean; children: ReactNode }) => (
-  <div className="pp-msg" data-mine={mine}>
-    <div>{children}</div>
-  </div>
-);
-
 /** Its place in a list, for staggered motion. */
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
 
@@ -36,38 +29,6 @@ const Row = ({ label, children, tone }: { label: string; children: ReactNode; to
     <b>{children}</b>
   </div>
 );
-
-/** The hero: a short chat folding into the agreement it became. */
-export function HeroScene() {
-  return (
-    <Frame label="A chat between Maya and Chris becoming a signed agreement with cited terms">
-      <div className="pp-lp-hero-chat">
-        <Bubble>Can you do the cover by the 28th? Print and web sizes.</Bubble>
-        <Bubble mine>Yes. Two revision rounds included, 600 USD in three parts.</Bubble>
-        <Bubble>Deal. Square web version too, please.</Bubble>
-      </div>
-      <div className="pp-lp-card pp-lp-hero-card">
-        <header>
-          <LogoMark className="pp-lp-mark" />
-          <b>Book cover, The Long Tide</b>
-          <StatusBadge status="signed">Signed</StatusBadge>
-        </header>
-        <Row label="Due">
-          28 Nov <Cite n={1} />
-        </Row>
-        <Row label="Revisions">
-          2 included <Cite n={2} />
-        </Row>
-        <Row label="Price">
-          600.00 USD <Cite n={2} />
-        </Row>
-        <Row label="Square web version">
-          Yes <Cite n={3} />
-        </Row>
-      </div>
-    </Frame>
-  );
-}
 
 function ProblemScene() {
   return (

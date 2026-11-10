@@ -138,59 +138,6 @@
     transform: translateY(-3.25px) rotate(-45deg);
   }
 
-  /* Hero */
-
-  .pp-lp-hero {
-    display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-    align-items: center;
-    gap: var(--space-48);
-    min-height: min(100dvh, 56rem);
-    padding-block: 8rem var(--space-64);
-  }
-
-  .pp-lp-hero h1 {
-    max-width: 680px;
-    margin: 0 0 var(--space-24);
-    background: linear-gradient(90deg, var(--color-ink), var(--color-ink-3));
-    background-clip: text;
-    color: transparent;
-    font-size: 3.75rem;
-    font-weight: 600;
-    line-height: 1;
-    animation: pp-lp-rise 800ms var(--lp-ease) both;
-  }
-
-  .pp-lp-lede {
-    max-width: 680px;
-    margin: 0 0 var(--space-32);
-    color: var(--color-ink-2);
-    font-size: var(--text-17);
-    line-height: 1.6;
-    animation: pp-lp-rise 800ms 120ms var(--lp-ease) both;
-  }
-
-  .pp-lp-actions {
-    animation: pp-lp-rise 800ms 220ms var(--lp-ease) both;
-  }
-
-  .pp-lp-facts {
-    display: grid;
-    gap: var(--space-8);
-    margin: var(--space-32) 0 0;
-    padding: 0;
-    color: var(--color-ink-3);
-    font-size: var(--text-13);
-    list-style: none;
-    animation: pp-lp-rise 800ms 320ms var(--lp-ease) both;
-  }
-
-  .pp-lp-facts li::before {
-    margin-right: var(--space-8);
-    color: var(--color-accent);
-    content: "✓";
-  }
-
   /* The scenes: small product views on a soft stage. */
 
   .pp-lp-frame {
@@ -288,61 +235,6 @@
 
   .pp-lp-frame .pp-msg > div {
     max-width: 92%;
-  }
-
-  /* Hero scene: the chat folds away as the agreement lands. */
-
-  .pp-lp-hero-chat {
-    display: grid;
-    gap: var(--space-8);
-  }
-
-  .pp-lp-hero-chat > .pp-msg {
-    animation: pp-lp-fold 1.4s var(--lp-ease) both;
-    animation-delay: calc(400ms + var(--n, 0) * 120ms);
-  }
-
-  .pp-lp-hero-chat > .pp-msg:nth-child(2) {
-    --n: 1;
-  }
-
-  .pp-lp-hero-chat > .pp-msg:nth-child(3) {
-    --n: 2;
-  }
-
-  .pp-lp-hero-card {
-    animation: pp-lp-land 900ms 1.2s var(--lp-ease) both;
-  }
-
-  @keyframes pp-lp-rise {
-    from {
-      opacity: 0;
-      transform: translateY(2rem);
-    }
-  }
-
-  @keyframes pp-lp-fold {
-    0% {
-      opacity: 0;
-      transform: translateY(1rem);
-    }
-
-    35% {
-      opacity: 1;
-      transform: none;
-    }
-
-    100% {
-      opacity: 0.45;
-      transform: scale(0.94);
-    }
-  }
-
-  @keyframes pp-lp-land {
-    from {
-      opacity: 0;
-      transform: translateY(1.5rem) scale(0.97);
-    }
   }
 
   /* The story: text on the left, its scene held beside it, a thread joining the steps. */
@@ -874,18 +766,8 @@
   /* Phones and small tablets: no holding, scenes follow their text, a full height menu. */
 
   @media (max-width: 64rem) {
-    .pp-lp-hero,
     .pp-lp-step {
       grid-template-columns: minmax(0, 1fr);
-    }
-
-    .pp-lp-hero {
-      min-height: auto;
-      padding-top: 7rem;
-    }
-
-    .pp-lp-hero h1 {
-      font-size: 3rem;
     }
 
     .pp-lp-text,
@@ -980,10 +862,6 @@
   @media (max-width: 30rem) {
     .pp-lp-nav .pp-button {
       padding-inline: var(--space-12);
-    }
-
-    .pp-lp-hero h1 {
-      font-size: 2.5rem;
     }
 
     .pp-lp-steps {

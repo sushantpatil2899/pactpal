@@ -114,6 +114,8 @@ export function tokenCss(): string {
     `:root{color-scheme:light;${declarations(SHARED)}${declarations(LIGHT)}}`,
     `@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;${dark}}}`,
     `:root[data-theme="dark"]{color-scheme:dark;${dark}}`,
+    // A part of a page that is always dark, whatever the theme (the landing page's vault).
+    `.pp-scope-dark{color-scheme:dark;${dark}}`,
   ].join("");
 }
 
