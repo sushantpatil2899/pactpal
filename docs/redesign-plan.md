@@ -1,6 +1,6 @@
 # Redesign plan (proposed Phase 7R)
 
-Status: **approved by the owner on 10 November 2026.** R1 to R3 are done; R4 (buyer pages) is next. Branch: `redesign`, from `dev`.
+Status: **approved by the owner on 10 November 2026.** R1 to R4 are done; R5 (the overview address) is next. Branch: `redesign`, from `dev`.
 
 ## Goal
 

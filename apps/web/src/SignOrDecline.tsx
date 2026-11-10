@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { FULL_WIDTH } from "./styles";
+import { Button } from "./design/parts";
 
 const textOf = (value: FormDataEntryValue | null) =>
   typeof value === "string" ? value.trim() : "";
 
 /**
  * The buyer's answer to a page shown above it: a typed name to sign, or a decline with an
- * optional reason. Used for the agreement and for change orders, with their own words.
+ * optional reason. Used for the agreement and for change orders, with their own words. Signing
+ * sits on the tape band; declining is the quieter choice under it.
  */
 export function SignOrDecline({
   busy,
@@ -31,37 +32,37 @@ export function SignOrDecline({
   };
   return (
     <>
-      <form onSubmit={sign}>
-        <p>
-          <label>
-            Type your full name{" "}
-            <input name="typedName" required minLength={2} maxLength={200} autoComplete="name" />
-          </label>
-        </p>
-        <button type="submit" disabled={busy}>
+      <form onSubmit={sign} className="pp-tape pp-sign">
+        <label>
+          Type your full name
+          <input name="typedName" required minLength={2} maxLength={200} autoComplete="name" />
+        </label>
+        <Button type="submit" large disabled={busy}>
           {words.sign}
-        </button>{" "}
-        <button
-          type="button"
+        </Button>
+      </form>
+      <p className="pp-sign-after">
+        <Button
           disabled={busy}
+          aria-expanded={declining}
           onClick={() => {
             setDeclining(!declining);
           }}
         >
           {words.decline ?? "Decline"}
-        </button>
-      </form>
+        </Button>
+      </p>
       {declining && (
         <form onSubmit={decline}>
           <p>
             <label>
               {words.reasonLabel}
-              <textarea name="reason" maxLength={1000} rows={3} style={FULL_WIDTH} />
+              <textarea name="reason" maxLength={1000} rows={3} className="pp-full" />
             </label>
           </p>
-          <button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy}>
             {words.sendDecline}
-          </button>
+          </Button>
         </form>
       )}
     </>

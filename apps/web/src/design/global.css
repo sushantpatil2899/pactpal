@@ -384,26 +384,36 @@ th {
   letter-spacing: -0.02em;
 }
 
-/* Security tape across a label: carries the one action. Text on tape is ink. */
-.pp-label > .pp-tape {
-  position: relative;
-  z-index: 1;
+/* Security tape: carries the one action. Text on tape is ink. */
+.pp-tape {
   display: flex;
   align-items: center;
-  gap: var(--space-24);
-  margin: 0 -0.75rem;
-  padding: var(--space-16) clamp(1.5rem, 5vw, 3rem);
-  border: 0;
+  gap: var(--space-16) var(--space-24);
+  padding: var(--space-16) var(--space-24);
   background: var(--color-tape);
   color: var(--color-ink);
   overflow: hidden;
-  transform: rotate(-1deg);
   white-space: nowrap;
 }
 
-/* The action sits level on the tilted tape. */
-.pp-tape > :first-child {
-  flex: none;
+/* A long action wraps inside the tape on a narrow screen instead of running off it. */
+.pp-tape > :is(a, button) {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: normal;
+}
+
+/* On public pages the tape crosses its label at a slight angle; the action stays level. */
+.pp-public .pp-label > .pp-tape {
+  position: relative;
+  z-index: 1;
+  margin: 0 -0.75rem;
+  padding-inline: clamp(1.5rem, 5vw, 3rem);
+  border: 0;
+  transform: rotate(-1deg);
+}
+
+.pp-public .pp-label > .pp-tape > :is(a, button) {
   transform: rotate(1deg);
 }
 

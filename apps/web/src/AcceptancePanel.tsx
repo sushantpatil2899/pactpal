@@ -11,6 +11,7 @@ import {
   type AcceptanceView,
   type DealSummary,
 } from "./api";
+import { Button, ButtonLink } from "./design/parts";
 import { when } from "./format";
 import { SignOrDecline } from "./SignOrDecline";
 
@@ -93,18 +94,14 @@ export function AcceptancePanel({
   };
 
   if (!view) {
-    return problem ? (
-      <p role="alert" style={{ color: "#8a1c1c" }}>
-        {problem}
-      </p>
-    ) : null;
+    return problem ? <p role="alert">{problem}</p> : null;
   }
   const { document, documentSha256 } = view;
   const shown = document && documentSha256 !== null && (
     <AcceptanceDocument document={document} documentSha256={documentSha256} />
   );
   const alert = problem && (
-    <p role="alert" style={{ color: "#8a1c1c" }}>
+    <p role="alert">
       {problem}{" "}
       <button type="button" onClick={load}>
         Reload
@@ -121,9 +118,9 @@ export function AcceptancePanel({
           {view.accepted.version}).
         </p>
         <p>
-          <a href={receiptUrl(deal.id)} download>
+          <ButtonLink href={receiptUrl(deal.id)} download>
             Download the receipt (PDF)
-          </a>
+          </ButtonLink>
         </p>
         {view.emailOn && view.receiptEmails && (
           <ReceiptEmails
@@ -152,7 +149,9 @@ export function AcceptancePanel({
     }
     return (
       <section aria-labelledby="acceptance">
-        <h3 id="acceptance">Please review and sign</h3>
+        <h3 id="acceptance" className="pp-display">
+          Please review and sign
+        </h3>
         {alert}
         {shown}
         <SignOrDecline
@@ -228,14 +227,14 @@ export function AcceptancePanel({
       )}
       {missing !== undefined && <p>{missing}</p>}
       {missing === undefined && !previewing && (
-        <button
-          type="button"
+        <Button
+          look="primary"
           onClick={() => {
             setPreviewing(true);
           }}
         >
           Preview and send for acceptance
-        </button>
+        </Button>
       )}
       {missing === undefined && previewing && document && documentSha256 !== null && (
         <>
@@ -245,15 +244,15 @@ export function AcceptancePanel({
             posts a card in the deal&apos;s chat.
           </p>
           {shown}
-          <button
-            type="button"
+          <Button
+            look="primary"
             disabled={busy}
             onClick={() => {
               run(requestAcceptance(deal.id, { version: document.terms.version, documentSha256 }));
             }}
           >
             Send to the buyer
-          </button>{" "}
+          </Button>{" "}
           <button
             type="button"
             onClick={() => {

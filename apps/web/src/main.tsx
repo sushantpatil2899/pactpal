@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource-variable/archivo/wdth.css";
 import "@fontsource-variable/martian-mono";
 import "./design/global.css";
+import "./design/records.css";
 import { App } from "./App";
 import { applyTokens } from "./design/tokens";
 

@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { approveDelivery, requestChanges, type DeliveriesView, type DeliveryView } from "./api";
 import { when } from "./format";
-import { FULL_WIDTH, WRAP } from "./styles";
+import { Button } from "./design/parts";
+import { WRAP } from "./styles";
 
 type Revisions = NonNullable<DeliveriesView["revisions"]>;
 
@@ -58,16 +59,16 @@ export function AnswerBox({
   return (
     <div>
       {mode === "none" && (
-        <p>
-          <button
-            type="button"
+        <p className="pp-actions">
+          <Button
+            look="primary"
             disabled={busy}
             onClick={() => {
               setMode("approve");
             }}
           >
             Approve this delivery
-          </button>{" "}
+          </Button>{" "}
           <button
             type="button"
             disabled={busy}
@@ -113,7 +114,7 @@ export function AnswerBox({
           <p>
             <label>
               What should change?
-              <textarea name="request" required maxLength={2000} rows={3} style={FULL_WIDTH} />
+              <textarea name="request" required maxLength={2000} rows={3} className="pp-full" />
             </label>
           </p>
           <button type="submit" disabled={busy}>

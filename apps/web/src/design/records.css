@@ -1,0 +1,135 @@
+/* Records people read and answer: agreed terms, the signing band, delivered files. */
+
+.pp-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-16) var(--space-24);
+}
+
+.pp-facts .pp-caption {
+  margin-bottom: var(--space-4);
+}
+
+.pp-terms-title {
+  margin-bottom: var(--space-16);
+  font-size: var(--text-32);
+  font-stretch: 75%;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.pp-terms h4 {
+  font-size: var(--text-13);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pp-terms .pp-terms-title {
+  font-size: var(--text-32);
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.pp-terms > * > :last-child {
+  margin-bottom: 0;
+}
+
+.pp-plain-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+caption {
+  padding-bottom: var(--space-8);
+  font-size: var(--text-13);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+tfoot th,
+tfoot td {
+  border-bottom: 0;
+  border-top: 2px solid var(--color-ink);
+  font-size: var(--text-15);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* What signing means, set apart as its own ruled row. */
+.pp-notice {
+  background: var(--color-label);
+  font-size: var(--text-15);
+}
+
+.pp-fingerprint {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-13);
+  overflow-wrap: anywhere;
+}
+
+/* The signing band: a name and the one action, on tape. */
+.pp-sign {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  white-space: normal;
+}
+
+.pp-sign label {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: var(--space-4);
+  font-size: var(--text-15);
+}
+
+.pp-sign input {
+  width: 100%;
+}
+
+.pp-sign-after {
+  margin-top: var(--space-16);
+}
+
+.pp-full {
+  display: block;
+  width: 100%;
+}
+
+/* One delivered file: its name and fingerprint, then the download. */
+.pp-files {
+  padding: 0;
+  list-style: none;
+}
+
+.pp-files li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-16);
+  padding: var(--space-12) 0;
+  border-bottom: var(--rule-thin) solid var(--color-rule);
+  overflow-wrap: anywhere;
+}
+
+.pp-files li + li {
+  margin-top: 0;
+}
+
+.pp-files small {
+  display: block;
+}
+
+.pp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  align-items: center;
+}
+
+.pp-stack > * + * {
+  margin-top: var(--space-24);
+}
