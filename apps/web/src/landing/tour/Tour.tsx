@@ -31,6 +31,7 @@ export function Tour() {
   return (
     <>
       <section
+        id="app"
         className="pp-lp-tour pp-scope-dark"
         data-string="progress"
         aria-labelledby="pp-lp-tour"
@@ -103,7 +104,7 @@ export function Tour() {
           </figure>
         </div>
       </section>
-      <section className="pp-lp-buyer" aria-labelledby="pp-lp-buyer">
+      <section id="buyer" className="pp-lp-buyer" aria-labelledby="pp-lp-buyer">
         <div className="pp-lp-phone" aria-hidden="true">
           <div>
             <img src={buyer} alt="" loading="lazy" width={390} height={3070} />

@@ -71,7 +71,12 @@ function Sticker({ sticker, i }: { sticker: (typeof STICKERS)[number]; i: number
  */
 export function Audience() {
   return (
-    <section className="pp-lp-audience" data-string="progress" aria-labelledby="pp-lp-audience">
+    <section
+      id="for"
+      className="pp-lp-audience"
+      data-string="progress"
+      aria-labelledby="pp-lp-audience"
+    >
       <div className="pp-lp-stickers">
         {STICKERS.map((sticker, i) => (
           <Sticker key={sticker.trade} sticker={sticker} i={i} />

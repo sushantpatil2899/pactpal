@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TRADES } from "../landing-words";
 
 const HOLD_MS = 2400;
@@ -16,11 +16,27 @@ function scrambled(to: string, progress: number): string {
 }
 
 /**
- * "For the logo designer paid through PayPal": the trade changes every few seconds, its letters
- * scrambling into the next one. Screen readers get one plain sentence instead.
+ * "Paid through PayPal, built for the logo designer": the trade changes every few seconds, its
+ * letters scrambling into the next one. The trade ends the line so nothing after it moves, and its
+ * box eases to the new word's width, measured on a hidden copy, instead of following each
+ * scrambled frame. Screen readers get one plain sentence instead.
  */
 export function TradeLine() {
   const [shown, setShown] = useState<string>(TRADES[0]);
+  const [target, setTarget] = useState<string>(TRADES[0]);
+  const [width, setWidth] = useState<number | null>(null);
+  const ghost = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ghost.current;
+    if (!el) return;
+    const measure = new ResizeObserver(() => {
+      setWidth(el.getBoundingClientRect().width);
+    });
+    measure.observe(el);
+    return () => {
+      measure.disconnect();
+    };
+  }, []);
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let n = 0;
@@ -28,6 +44,7 @@ export function TradeLine() {
     const timer = window.setInterval(() => {
       n = (n + 1) % TRADES.length;
       const to = TRADES[n] ?? TRADES[0];
+      setTarget(to);
       const start = performance.now();
       const tick = (now: number) => {
         const progress = Math.min((now - start) / SCRAMBLE_MS, 1);
@@ -44,10 +61,16 @@ export function TradeLine() {
   return (
     <p className="pp-lp-for">
       <span className="pp-hidden">
-        For freelancers, studios and makers who are paid through PayPal.
+        Paid through PayPal, built for freelancers, studios and makers.
       </span>
       <span aria-hidden="true">
-        For the <b>{shown}</b> paid through PayPal.
+        Paid through PayPal, built for the{" "}
+        <b style={width === null ? undefined : { width }}>
+          <span>{shown}</span>
+        </b>
+        <b ref={ghost} className="pp-lp-for-ghost">
+          {target}
+        </b>
       </span>
     </p>
   );

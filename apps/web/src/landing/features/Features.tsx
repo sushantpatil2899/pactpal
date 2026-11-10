@@ -79,7 +79,7 @@ const ART: Record<(typeof FEATURES)[number]["id"], ReactNode> = {
 /** Everything else in the box, one small moving tile each. */
 export function Features() {
   return (
-    <section className="pp-lp-features" aria-labelledby="pp-lp-features">
+    <section id="features" className="pp-lp-features" aria-labelledby="pp-lp-features">
       <header data-reveal>
         <p className="pp-lp-kicker">Also in the box</p>
         <h2 id="pp-lp-features" className="pp-lp-display">

@@ -36,7 +36,7 @@ export const PILLARS = [
     id: "paid",
     title: "Paid through PayPal, milestone by milestone",
     body: "One PayPal invoice for each agreed stage, straight to your own PayPal account. Payments land in the record as they happen.",
-    link: "#how",
+    link: "#paypal",
   },
   {
     id: "sealed",
@@ -48,7 +48,7 @@ export const PILLARS = [
     id: "dispute",
     title: "Ready if a buyer disputes",
     body: "PactPal spots the dispute, counts down to PayPal's deadline, matches the claim to the record and builds the packet you confirm.",
-    link: "#how",
+    link: "#disputes",
   },
 ] as const;
 

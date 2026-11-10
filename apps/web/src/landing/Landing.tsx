@@ -1,7 +1,3 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { SIGN_IN_PATH } from "../api";
-import { ButtonLink } from "../design/parts";
-import { Logo } from "../design/Logo";
 import { Footer } from "../shell/layouts";
 import { Closing } from "./closing/Closing";
 import { Council } from "./council/Council";
@@ -13,6 +9,7 @@ import { Hero } from "./hero/Hero";
 import { Ledger } from "./ledger/Ledger";
 import { Audience } from "./audience/Audience";
 import { Moves } from "./moves/Moves";
+import { Nav } from "./Nav";
 import { Pillars } from "./pillars/Pillars";
 import { useScrollStory } from "./useScrollStory";
 import "../deal/deal.css";
@@ -23,86 +20,6 @@ import "./slice.css";
 import "./slice2.css";
 import "./slice3.css";
 import "./closing/closing.css";
-
-const NAV = [
-  { href: "#get", label: "What you get" },
-  { href: "#how", label: "How it works" },
-  { href: "#council", label: "AI council" },
-  { href: "#paypal", label: "PayPal" },
-  { href: "#trust", label: "Trust" },
-  { href: "#faq", label: "FAQ" },
-];
-
-const signIn = (large = false) => (
-  <ButtonLink look="primary" large={large} href={SIGN_IN_PATH}>
-    Sign in with PayPal
-  </ButtonLink>
-);
-
-/** The bar that floats over the page, shrinking once the hero has scrolled away. */
-function Nav() {
-  const [open, setOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const top = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const marker = top.current;
-    if (!marker) return;
-    const watch = new IntersectionObserver(([entry]) => {
-      setScrolled(entry?.isIntersecting === false);
-    });
-    watch.observe(marker);
-    return () => {
-      watch.disconnect();
-    };
-  }, []);
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  const close = () => {
-    setOpen(false);
-  };
-  return (
-    <>
-      <span ref={top} className="pp-lp-top" aria-hidden="true" />
-      <header className="pp-lp-nav" data-scrolled={scrolled} data-open={open}>
-        <Logo />
-        <nav aria-label="Sections" id="pp-lp-menu">
-          {NAV.map((item, i) => (
-            <a
-              key={item.href}
-              href={item.href}
-              onClick={close}
-              style={{ "--i": i } as CSSProperties}
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-        {signIn()}
-        <button
-          type="button"
-          className="pp-lp-toggle"
-          aria-expanded={open}
-          aria-controls="pp-lp-menu"
-          aria-label={open ? "Close the menu" : "Open the menu"}
-          onClick={() => {
-            setOpen(!open);
-          }}
-        >
-          <i />
-          <i />
-        </button>
-      </header>
-    </>
-  );
-}
 
 /**
  * The public landing page (`/` when signed out): one story, told as one deal unfolding down the

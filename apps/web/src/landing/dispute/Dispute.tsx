@@ -19,7 +19,12 @@ export function Dispute() {
   const partOf = (i: number) =>
     CLAIM.parts.findIndex((part) => (part.words as readonly number[]).includes(i));
   return (
-    <section className="pp-lp-dispute" data-string="progress" aria-labelledby="pp-lp-dispute">
+    <section
+      id="disputes"
+      className="pp-lp-dispute"
+      data-string="progress"
+      aria-labelledby="pp-lp-dispute"
+    >
       <div className="pp-lp-dispute-pin">
         <header>
           <p className="pp-lp-kicker">

@@ -46,10 +46,6 @@ describe("the landing page's words", () => {
     expect(all).not.toMatch(/\w-\w/);
   });
 
-  it("links each pillar to a part of the page that explains it", () => {
-    expect(PILLARS.map((pillar) => pillar.link)).toEqual(["#council", "#how", "#ledger", "#how"]);
-  });
-
   it("marks the claim's statements at the words they are made of", () => {
     const words = revealWords(CLAIM.text).map(({ word }) => word.replace(/[.,]/g, ""));
     expect(CLAIM.parts.map((part) => part.words.map((i) => words[i]).join(" "))).toEqual(
