@@ -1,5 +1,6 @@
 import { SCORED_FIELDS, type DraftScore } from "@pactpal/scope-draft/testing";
 import type { AloneRecord, CouncilEvalRecord, EvalRun } from "./eval-runner.js";
+import { droppedSection } from "./eval-reasons.js";
 import { table } from "./report-table.js";
 
 const mean = (values: readonly number[]): number | undefined =>
@@ -56,6 +57,11 @@ function aloneSection(alone: readonly AloneRecord[]): string {
   );
   if (wrong.length > 0)
     text += `\nWrong values (model, chat: field)\n${wrong.map((w) => `  ${w}\n`).join("")}`;
+  text += droppedSection(
+    alone
+      .filter((r) => r.status === "dropped")
+      .map((r) => ({ model: r.model, caseId: r.caseId, reasons: r.reasons ?? [] })),
+  );
   const failures = alone.filter((r) => r.status === "failed");
   if (failures.length > 0) {
     const kinds = unique(failures.map((r) => `${r.model}: ${r.failure ?? "unknown"}`));
