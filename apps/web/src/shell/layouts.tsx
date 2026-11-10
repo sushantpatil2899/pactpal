@@ -8,6 +8,7 @@ import { Logo } from "../design/Logo";
 import type { DealOverview } from "../overview-api";
 import { Button } from "../design/parts";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../design/theme";
+import { CONTACT } from "./contact";
 import "./shell.css";
 
 const THEME_WORDS: Record<Theme, string> = {
@@ -37,9 +38,16 @@ function ThemeSwitch() {
  * What every page says about PactPal's limits. `brief` leaves out what the page itself already
  * says beside its action (the sign-in page states the test mode and what signing in shows).
  */
-function Footer({ brief = false }: { brief?: boolean }) {
+export function Footer({ brief = false, links = false }: { brief?: boolean; links?: boolean }) {
   return (
     <footer className="pp-footer">
+      {links && (
+        <nav aria-label="About PactPal" className="pp-footer-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+          <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
+        </nav>
+      )}
       <p>
         {!brief && "PactPal currently runs in test mode. No real money moves. "}
         Not legal advice. PactPal records what was agreed and delivered; it does not guarantee any
@@ -92,7 +100,7 @@ export function PublicLayout({
       <main id="content" className="pp-public-main">
         {children}
       </main>
-      <Footer brief={briefFooter} />
+      <Footer brief={briefFooter} links />
     </div>
   );
 }

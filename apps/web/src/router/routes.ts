@@ -4,6 +4,8 @@ export type Route =
   | { page: "sign-in" }
   | { page: AppSection }
   | { page: "link" }
+  | { page: "privacy" }
+  | { page: "terms" }
   | { page: "deal"; dealId: string }
   | { page: "dispute"; dealId: string; disputeId: string };
 
@@ -29,6 +31,8 @@ const DISPUTE = /^\/deals\/([0-9a-f-]{36})\/disputes\/([A-Za-z0-9-]{1,100})$/;
 export function matchRoute(path: string): Route {
   if (path === "/link") return { page: "link" };
   if (path === SIGN_IN_PAGE) return { page: "sign-in" };
+  if (path === "/privacy") return { page: "privacy" };
+  if (path === "/terms") return { page: "terms" };
   const section = (APP_SECTIONS as Record<string, AppSection | undefined>)[path];
   if (section !== undefined) return { page: section };
   const dispute = DISPUTE.exec(path);

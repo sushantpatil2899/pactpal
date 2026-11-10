@@ -150,6 +150,9 @@ importers:
       '@bryntum/gantt-react':
         specifier: 7.3.8
         version: 7.3.8
+      '@fiddle-digital/string-tune':
+        specifier: 1.2.7
+        version: 1.2.7
       '@fontsource-variable/geist':
         specifier: ^5.3.0
         version: 5.3.0
@@ -1093,6 +1096,9 @@ packages:
 
   '@fastify/websocket@11.3.7':
     resolution: {integrity: sha512-fkkS87CkAOY/MzvJrB94S729RxvIbLHXv2LNGkPifli4/q4IdeicpcFoxgJ3oVmIRVNSi4W6FZai5AmRhzhhTw==}
+
+  '@fiddle-digital/string-tune@1.2.7':
+    resolution: {integrity: sha512-rB5GmW9ED724in5/LKborEmbCT+aYJ8qiDBQV4nkIt1bQZ//n8SN/cuXxhXC4VC3K2jWcDyMfiXp8vppVZ9j/g==}
 
   '@fontsource-variable/geist-mono@5.3.0':
     resolution: {integrity: sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw==}
@@ -3894,6 +3900,8 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  '@fiddle-digital/string-tune@1.2.7': {}
 
   '@fontsource-variable/geist-mono@5.3.0': {}
 

@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { SIGN_IN_PATH, getMe, signOut, type Me } from "./api";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { getMe, signOut, type Me } from "./api";
 import { DisputePage } from "./DisputePage";
 import { DealPage } from "./DealPage";
 import { DealsHome } from "./DealsHome";
+import { LegalPage } from "./landing/LegalPage";
 import { LinkPage } from "./LinkPage";
 import { Dashboard } from "./app/Dashboard";
 import { NewDealPage } from "./app/NewDealPage";
@@ -15,12 +16,15 @@ import {
   SettingsPage,
 } from "./app/pages";
 import { useOverview, type Overview } from "./app/useOverview";
-import { Alert, ButtonLink } from "./design/parts";
+import { Alert } from "./design/parts";
 import { SIGN_IN_PAGE, type Route } from "./router/routes";
 import { SignInPage } from "./SignInPage";
 import { signInReturn } from "./sign-in-words";
 import { navigate, useRoute } from "./router/useRoute";
 import { AppLayout, BuyerLayout, PublicLayout, Splash } from "./shell/layouts";
+
+// The landing page is only for visitors who are signed out; it loads on its own.
+const Landing = lazy(() => import("./landing/Landing").then((m) => ({ default: m.Landing })));
 
 type Session = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };
 
@@ -65,6 +69,8 @@ function sellerPage(route: Route, overview: Overview) {
     case "home":
     case "sign-in":
     case "link":
+    case "privacy":
+    case "terms":
       return <Dashboard overview={overview} />;
   }
 }
@@ -117,6 +123,13 @@ export function App() {
       </BuyerLayout>
     );
   }
+  if (route.page === "privacy" || route.page === "terms") {
+    return (
+      <PublicLayout>
+        <LegalPage page={route.page} />
+      </PublicLayout>
+    );
+  }
   if (route.page === "sign-in") {
     return (
       <PublicLayout briefFooter>
@@ -135,15 +148,15 @@ export function App() {
   if (session.kind === "signed-out") {
     if (isDealRoute(route)) return <BuyerLayout>{dealPage(route)}</BuyerLayout>;
     return (
-      <PublicLayout>
-        {alert}
-        <h1>AI that seals the deal.</h1>
-        <p>
-          <ButtonLink look="primary" large href={SIGN_IN_PATH}>
-            Sign in with PayPal
-          </ButtonLink>
-        </p>
-      </PublicLayout>
+      <Suspense
+        fallback={
+          <Splash>
+            <p aria-busy="true">Loading PactPal…</p>
+          </Splash>
+        }
+      >
+        <Landing problem={problem} />
+      </Suspense>
     );
   }
   const account = { me: session.me, onSignOut };
