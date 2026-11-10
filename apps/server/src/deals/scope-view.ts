@@ -52,6 +52,8 @@ export function scopeTerms(scope: ScopeVersion, currency: string) {
         }),
     // Only a version that lists its steps signs them (7f), so earlier documents stay the same.
     ...(content.timeline === undefined ? {} : { timeline: stepTerms(content, currency) }),
+    // The product as listed (8e), signed with the rest; absent otherwise.
+    ...(content.listing === undefined ? {} : { listing: content.listing }),
   };
 }
 

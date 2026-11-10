@@ -81,8 +81,20 @@ describe("the running timeline (7k)", () => {
       state: "done",
       waitingOn: null,
     });
-    // Approval waits for nobody, so no email; the seller sees it in the app.
+    // Approval waits for nobody, so no email; the seller sees it in the app, as news.
     expect(env.sent).toHaveLength(1);
+    const notes = async (token: string) =>
+      (await env.call("GET", `/api/notifications?dealId=${env.dealId}`, token)).json<{
+        notifications: { kind: string; read: boolean }[];
+      }>().notifications;
+    expect((await notes(env.buyerToken)).map((n) => n.kind)).toEqual(["step"]);
+    expect((await notes(env.sellerToken)).map((n) => n.kind)).toEqual(["step-news"]);
+    // Opening the Timeline tab settles the news, not what waits for the person.
+    const openTab = (token: string) =>
+      env.call("POST", "/api/notifications/read", token, { dealId: env.dealId, tab: "timeline" });
+    expect((await openTab(env.sellerToken)).json()).toEqual({ changed: 1 });
+    expect((await openTab(env.buyerToken)).json()).toEqual({ changed: 0 });
+    expect((await notes(env.buyerToken)).map((n) => n.read)).toEqual([false]);
     await env.app.close();
   });
 

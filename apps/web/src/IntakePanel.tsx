@@ -18,6 +18,10 @@ export const intakeExample = (origin: string, key: string) =>
   -H "Content-Type: application/json" \\
   -d '{"title": "New commission", "text": "Paste the chat or email here"}'`;
 
+/** How to add PactPal to Claude Code with an agent key (8a); `origin` is this site's address. */
+export const agentSetup = (origin: string, key: string) =>
+  `claude mcp add --transport http pactpal ${origin}/mcp --header "Authorization: Bearer ${key}"`;
+
 /** The words that differ between the key and the forwarding address. */
 const WORDS: Record<IntakeKind, { name: string; make: string; shown: string }> = {
   key: { name: "key", make: "Make a key", shown: "Your new key (shown only now):" },
@@ -25,6 +29,11 @@ const WORDS: Record<IntakeKind, { name: string; make: string; shown: string }> =
     name: "address",
     make: "Make my address",
     shown: "Your new address (shown only now; save it as a contact):",
+  },
+  agent: {
+    name: "agent key",
+    make: "Make an agent key",
+    shown: "Your new agent key (shown only now):",
   },
 };
 
@@ -221,6 +230,26 @@ export function IntakePanel({ options }: { options: DealOptions }) {
         </>
       ) : (
         <p>Email forwarding is not set up yet.</p>
+      )}
+      <h3>Connect your AI agent</h3>
+      <p style={WRAP}>
+        Make an agent key, then add PactPal to an AI assistant that supports MCP (such as Claude
+        Code, Claude Desktop or Cursor) at <code>{window.location.origin}/mcp</code>. It can read
+        your deals and disputes, create draft deals and build evidence packets.{" "}
+        <strong>
+          It cannot send anything to PayPal by itself: each invoice or evidence upload it asks for
+          waits for you to approve it on the deal, and only then gives you a one-time code to pass
+          to it.
+        </strong>
+      </p>
+      {part(
+        "agent",
+        <>
+          <p>Add it to Claude Code:</p>
+          <pre style={{ ...FULL_WIDTH, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {agentSetup(window.location.origin, shown?.secret ?? "")}
+          </pre>
+        </>,
       )}
     </section>
   );

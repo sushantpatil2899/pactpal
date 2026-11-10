@@ -257,7 +257,57 @@ export interface ScopeTerms {
   timeline?: StepView[];
   /** Every step of the version (its own or the ones it implies); on the deal page. */
   steps?: StepView[];
+  /** The product as listed (8e), when the version has one. */
+  listing?: ListingView;
 }
+
+/** A product as its listing page described it, with the photos the seller saved (8e). */
+export interface ListingPreview {
+  source: "channel3";
+  productId: string;
+  url: string;
+  domain: string;
+  retrievedAt: string;
+  title: string;
+  brand?: string;
+  description?: string;
+  materials: string[];
+  keyFeatures: string[];
+  attributes: { name: string; values: string[] }[];
+  price?: { amount: string; currency: string };
+  weight?: string;
+  imageUrls: string[];
+  snapshotSha256: string;
+}
+export interface ListingView extends ListingPreview {
+  photos: { artifactId: string; sha256: string; filename: string }[];
+}
+
+const isListingPreview = (value: unknown): value is ListingPreview =>
+  isObject(value) &&
+  typeof value.title === "string" &&
+  typeof value.url === "string" &&
+  typeof value.domain === "string" &&
+  typeof value.snapshotSha256 === "string" &&
+  Array.isArray(value.imageUrls);
+
+/** Reads a product listing page through Channel3 (8e): shown to the seller, not saved. */
+export const lookUpListing = (dealId: string, url: string) =>
+  postStep(
+    `/api/deals/${encodeURIComponent(dealId)}/listing/lookup`,
+    { url },
+    "look the listing up",
+    (b): b is { listing: ListingPreview } => isObject(b) && isListingPreview(b.listing),
+  );
+
+/** Saves the listing's photos as the deal's files, for the agreement. */
+export const saveListingPhotos = (dealId: string, imageUrls: string[]) =>
+  postStep(
+    `/api/deals/${encodeURIComponent(dealId)}/listing/photos`,
+    { imageUrls },
+    "save the listing's photos",
+    (b): b is { photos: ListingView["photos"] } => isObject(b) && Array.isArray(b.photos),
+  );
 
 /** One timeline step as both sides read it (7f). */
 export interface StepView {
@@ -295,6 +345,7 @@ export interface ScopeInput {
   buyerProvides?: { text: string; dueDate?: string }[];
   deliverableKinds?: DeliverableKind[];
   timeline?: TimelineStep[];
+  listing?: ListingView;
 }
 
 /** The server refused some fields; `fields` names them, e.g. "milestones.0.amount". */
@@ -1673,6 +1724,8 @@ export interface ChangeProposal {
   addExclusions: string[];
   addBuyerProvides: { text: string; dueDate?: string }[];
   addStages: { title: string; amount: string; dueDate?: string }[];
+  /** Timeline steps added after the signed ones (reviews and other steps). */
+  addSteps?: TimelineStep[];
   dueDate?: string;
   revisionsIncluded?: number;
   message?: string;
@@ -1938,6 +1991,8 @@ export interface IntakeSecretView {
 export interface IntakeKeyView {
   key: IntakeSecretView | null;
   address: IntakeSecretView | null;
+  /** The agent key for the MCP server (8a). */
+  agent: IntakeSecretView | null;
   /** Whether email forwarding is set up on the server. */
   forwarding: boolean;
   /** The only sender whose forwarded emails are accepted. */
@@ -1953,6 +2008,7 @@ const isIntakeKey = (value: unknown): value is IntakeKeyView =>
   isObject(value) &&
   isSecretView(value.key) &&
   isSecretView(value.address) &&
+  isSecretView(value.agent) &&
   typeof value.forwarding === "boolean" &&
   typeof value.sellerEmail === "string" &&
   (value.secret === undefined || typeof value.secret === "string");
@@ -1961,7 +2017,7 @@ export async function getIntakeKey(): Promise<IntakeKeyView> {
   return readChecked(await fetch("/api/intake/key"), isIntakeKey, "load the intake key");
 }
 
-export type IntakeKind = "key" | "address";
+export type IntakeKind = "key" | "address" | "agent";
 interface IntakeDefaults {
   defaultCategory: string;
   defaultCurrency: string;
@@ -1973,6 +2029,49 @@ export const makeIntakeSecret = (kind: IntakeKind, defaults: IntakeDefaults) =>
 
 export const turnOffIntakeSecret = (kind: IntakeKind) =>
   postStep(`/api/intake/${kind}/off`, undefined, `turn the ${kind} off`, isIntakeKey);
+
+// --- Agent requests (8c) -----------------------------------------------------------------------
+
+/** Something the seller's agent asks to do, as the seller reads it before approving. */
+export interface AgentRequestView {
+  id: string;
+  dealId: string;
+  kind: "send-invoice" | "send-evidence";
+  status: "waiting" | "approved" | "declined" | "done" | "failed" | "expired";
+  summary: string;
+  keyEnding: string;
+  createdAt: string;
+  codeExpiresAt: string | null;
+}
+
+const isAgentRequest = (value: unknown): value is AgentRequestView =>
+  isObject(value) &&
+  typeof value.id === "string" &&
+  typeof value.summary === "string" &&
+  typeof value.status === "string" &&
+  typeof value.keyEnding === "string";
+
+/** The open requests of the seller's agent on one deal. */
+export async function getAgentRequests(dealId: string): Promise<AgentRequestView[]> {
+  const body = await readChecked(
+    await fetch(`/api/agent-requests?dealId=${encodeURIComponent(dealId)}`),
+    (b): b is { requests: unknown[] } => isObject(b) && Array.isArray(b.requests),
+    "load your agent's requests",
+  );
+  return body.requests.filter(isAgentRequest);
+}
+
+/** Approves (giving the one-time code, shown once) or declines a request. */
+export const answerAgentRequest = (id: string, answer: "approve" | "decline") =>
+  postStep(
+    `/api/agent-requests/${encodeURIComponent(id)}/${answer}`,
+    undefined,
+    `${answer} the request`,
+    (b): b is { request: AgentRequestView; code?: string } =>
+      isObject(b) &&
+      isAgentRequest(b.request) &&
+      (b.code === undefined || typeof b.code === "string"),
+  );
 
 // --- Your PayPal app (6h-2) ----------------------------------------------------------------------
 

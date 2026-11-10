@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { defaultHttpDeps } from "@pactpal/net";
+import { Channel3Lookup } from "@pactpal/products";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { MODEL_REGISTRY } from "@pactpal/ai";
@@ -185,6 +187,10 @@ const app = buildApp(report, {
   // Escalations and evidence (5g) go from this server over REST, after the seller confirms.
   ...(sellerDisputes ? { disputeWriter: sellerDisputes } : {}),
   ...(email ? { email } : {}),
+  // Product listings (8e) through Channel3, when its key is set.
+  ...(config.channel3
+    ? { products: new Channel3Lookup(config.channel3.apiKey, defaultHttpDeps, () => new Date()) }
+    : {}),
   // Forwarding to the private address needs Resend's inbound key, its webhook secret and the domain.
   ...(config.inbound
     ? {

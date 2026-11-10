@@ -1,4 +1,5 @@
 import { canonicalJson, sha256Hex, type LedgerEntry } from "@pactpal/ledger";
+import { productListingSchema } from "@pactpal/products";
 import { timelineProblems, timelineSchema } from "@pactpal/timeline";
 import { z } from "zod";
 import type { Database, Queryable } from "./database.js";
@@ -22,6 +23,34 @@ const buyerProvidesSchema = z.strictObject({
   text: line,
   dueDate: z.iso.date().optional(),
 });
+
+/**
+ * The product as its listing page described it (8e), as the seller confirmed it: the facts, the
+ * photos saved as the deal's files (each with its fingerprint), and the facts' own fingerprint.
+ */
+export const agreementListingSchema = productListingSchema.extend({
+  photos: z
+    .array(
+      z.strictObject({
+        artifactId: z.uuid(),
+        sha256: z.string().regex(/^[0-9a-f]{64}$/),
+        filename: z.string().min(1).max(200),
+      }),
+    )
+    .max(3),
+  snapshotSha256: z.string().regex(/^[0-9a-f]{64}$/),
+});
+export type AgreementListing = z.output<typeof agreementListingSchema>;
+
+/** The fingerprint of a listing's facts: everything but its saved photos and this fingerprint. */
+export function listingSnapshotSha256(
+  listing: Omit<AgreementListing, "photos" | "snapshotSha256">,
+): string {
+  const facts: Record<string, unknown> = { ...listing };
+  delete facts.photos;
+  delete facts.snapshotSha256;
+  return sha256Hex(canonicalJson(facts));
+}
 
 /**
  * How a delivered line can be judged (4i-2): something anyone can check, a step in the work, or a
@@ -68,6 +97,11 @@ export const scopeContentSchema = z.strictObject({
    * their fingerprints; readers use `timelineOf`, which implies one for versions without it.
    */
   timeline: timelineSchema.optional(),
+  /**
+   * What is being sold, as listed (8e). Optional and never stored when absent, so earlier
+   * versions keep their fingerprints; a change order cannot change it.
+   */
+  listing: agreementListingSchema.optional(),
 });
 export type ScopeContent = z.output<typeof scopeContentSchema>;
 export type ScopeContentInput = z.input<typeof scopeContentSchema>;
@@ -83,6 +117,16 @@ export const checkedScopeContentSchema = scopeContentSchema.superRefine((content
       code: "custom",
       path: ["deliverableKinds"],
       message: "one mark per delivered line",
+    });
+  }
+  if (
+    content.listing &&
+    listingSnapshotSha256(content.listing) !== content.listing.snapshotSha256
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["listing", "snapshotSha256"],
+      message: "the listing does not match its fingerprint",
     });
   }
   for (const problem of timelineProblems(content)) {

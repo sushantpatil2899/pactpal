@@ -102,6 +102,9 @@ export {
   scopeContentSchema,
   checkedScopeContentSchema,
   deliverableKindSchema,
+  agreementListingSchema,
+  listingSnapshotSha256,
+  type AgreementListing,
   type DeliverableKind,
   scopeFingerprint,
   scopeTotalMinor,
@@ -271,6 +274,24 @@ export {
   type IntakeRefusal,
 } from "./intake.js";
 export {
+  AGENT_CODE_LIFETIME_MS,
+  AGENT_REQUEST_KINDS,
+  AGENT_REQUEST_STATUSES,
+  MAX_WRONG_CODES,
+  agentBodySha256,
+  answerAgentRequest,
+  claimAgentRequest,
+  createAgentRequest,
+  finishAgentRequest,
+  getAgentRequest,
+  listOpenAgentRequests,
+  type AgentRequest,
+  type AgentRequestKind,
+  type AgentRequestRefusal,
+  type AgentRequestStatus,
+  type NewAgentRequest,
+} from "./agent-requests.js";
+export {
   DISPUTE_CHECK_SOURCES,
   DISPUTE_MATCHES,
   disputeChanges,
@@ -378,6 +399,7 @@ export { CHAT_CHANNEL, chatEventSchema, parseChatEvent, publishChatEvent } from 
 export type { ChatEvent } from "./chat-events.js";
 export {
   DEAL_TABS,
+  NEWS_KINDS,
   NOTIFICATION_KINDS,
   NOTIFICATION_LIST_SIZE,
   addNotification,
@@ -390,6 +412,7 @@ export type {
   NewNotification,
   Notification,
   NotificationKind,
+  NotificationsToRead,
 } from "./notifications.js";
 export {
   StepNotAllowedError,

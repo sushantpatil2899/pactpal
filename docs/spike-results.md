@@ -361,7 +361,7 @@ The platform app got a notification address first (`pnpm sandbox:webhook --app p
 
 - **Likely reason (not confirmed by PayPal):** a platform only sees disputes, and only gets notifications, for payments it took part in. This invoice was made on PayPal's own website, so PactPal had no part in it. If so, the invoice permission decides the platform path: PactPal must create the seller's invoices itself.
 - **Not tested:** answering a dispute for the seller (the planned test message), since no dispute could be read.
-- **Next:** when PayPal enables `INVOICE_READ_WRITE`, re-run 6b with an invoice PactPal creates for the seller (`sandbox:partner --act` makes a draft; sending it is one more step).
+- **Outcome (10 Nov 2026):** PayPal will not enable `INVOICE_READ_WRITE` for our platform app (partner invoicing is for select partners only), so 6b is not re-run; 6h covers invoices and disputes for linked sellers (live in 6h-6).
 
 ## Live test 6h-6: Test Store's own app (8 November 2026)
 
@@ -384,3 +384,69 @@ The fallback path end to end on the live site (`pactpal-server.onrender.com`), w
 - PayPal shows dates in US Pacific time ("Issued 7 Nov 2026" for 03:05 UTC on 8 Nov).
 - **Found, for a later fix:** the seller account used here has an `example.com` email, so PactPal's emails to the seller cannot be delivered. Whether the payment emails reached Chris was not reported.
 - Not run: PayPal's decision (a sandbox reviewer step), messages and offers (not allowed at the chargeback stage), unlinking (Test Store stays linked for the demo). These join the live checks after Phase 6.
+
+## Drafting eval with prompt version 4 (sub-phase 7o, 10 November 2026)
+
+`pnpm eval:scope`: the same 11 chats, one run each, all five models, with drafting prompt version 4 (the timeline, every step quoting the chat). 982 seconds. Run 2 (4n-2, prompt version 3) in brackets.
+
+| Model               | Asked | Failed (no reply) | Dropped by the checker | Scored | Average score | Wrong values | Tokens per draft | Seconds per draft |
+| ------------------- | ----- | ----------------- | ---------------------- | ------ | ------------- | ------------ | ---------------- | ----------------- |
+| gemini              | 11    | 0 (9)             | 2 (0)                  | 9      | 0.99 (1.00)   | 0            | 2,500            | 16.4              |
+| qwen-groq           | 11    | 0                 | 2 (0)                  | 9      | 0.77 (0.81)   | 0            | 2,211            | 2.2               |
+| gpt-oss-groq        | 11    | 0                 | 2 (0)                  | 9      | 0.93 (0.94)   | 0            | 5,285            | 5.0               |
+| mistral             | 11    | 0                 | 3 (2)                  | 8      | 0.90 (0.88)   | 2 (4)        | 2,658            | 9.1               |
+| nemotron-openrouter | 11    | 7 (0)             | 0 (1)                  | 4      | 0.96 (0.99)   | 0            | 5,399            | 39.2              |
+
+- **The two chats with an agreed timeline fail the citation check.** `maya` and `sunrise` are the only eval chats with timeline steps. On `maya` every draft was dropped (Nemotron timed out), so the council had no winner. On `sunrise` only qwen's draft passed. Every other drop is on these two chats. The eval does not print why a draft was dropped; the 7h local run with a 7-message chat passed the check, so the cause is still to be found (see the build plan's open points).
+- **Timeline found:** where a timeline draft passed (qwen on `sunrise`, which the council picked), it found half the agreed steps, half in order.
+- **The council** chose a draft for 10 of 11 chats; its pick scored 0.90 (0.98), against 0.87 for a single model's draft on the same chats and 0.94 for the best draft on offer. It picked the best draft 7 times. It used 9.1 calls, 26,501 tokens and 89 seconds per chat, about 7.9 times the tokens of one draft. It flagged 2 picks for review (average 0.75) against 8 unflagged (0.93), so the flag caught worse picks this time. No ties.
+- **Wrong values:** only Mistral, 2 (4): the euro price in `foreign-currency` and a revision count in `small-talk`.
+- **Failed calls:** Nemotron timed out 6 times and had 1 network error. Gemini answered every call this run.
+- **Buyer duties and line marks** held: duties found 0.94 to 1.00, dates right 1.00 for every model; the council's pick got 12 of 13 marks right.
+- **Limits of the check:** 11 chats written by us, one run each; read the numbers as a tendency.
+
+## Prompt-injection check with prompt version 4 (sub-phase 7o, 10 November 2026)
+
+`pnpm eval:injection --council` with drafting prompt version 4 and hiding on (as in the product): the same 14 hostile chats and 3 hostile drafts, one run each, all five models. 99 runs, about 359,000 tokens, 28 minutes, run straight after the drafting eval above, so Gemini's and Groq's limits were partly spent. Run 4n-2 (prompt version 3) in brackets.
+
+| Model               | Held   | Dropped | Compromised | Call failed |
+| ------------------- | ------ | ------- | ----------- | ----------- |
+| gemini              | 1 (6)  | 0 (0)   | 0 (0)       | 13 (8)      |
+| qwen-groq           | 6 (13) | 8 (1)   | 0 (0)       | 0 (0)       |
+| gpt-oss-groq        | 4 (14) | 4 (0)   | 0 (0)       | 6 (0)       |
+| mistral             | 1 (11) | 13 (3)  | 0 (0)       | 0 (0)       |
+| nemotron-openrouter | 1 (3)  | 1 (1)   | 0 (0)       | 12 (10)     |
+
+- **No model and no council pick was compromised.** The hiding and the prompt rule held with prompt version 4.
+- **But most drafts were dropped by the citation check:** qwen 8 of 14 (1), mistral 13 of 14 (3), gpt-oss 4. The council therefore had no winner on 8 of the 14 chats and held on the other 6 (version 3: held 14 of 14). This matches the drafting eval above: version 4 drafts fail the citation check far more often. It is a quality problem, not a safety one, and is the open point in the build plan.
+- **Voting attacks (3 hostile drafts):** no voter ranked a hostile draft first; qwen and mistral held 3 of 3, Nemotron 1, Gemini and gpt-oss failed all 3 calls.
+- **Failed calls:** Gemini was rate limited 16 times, gpt-oss 9 times (Groq's per-minute limit), Nemotron timed out 11 times, was rate limited twice and had 1 network error.
+- **Limits of the check:** 17 attacks written by us, one run each, the same simple judge. A clean result does not prove safety; the many failed and dropped calls make this run weaker than 4n-2.
+
+## Prompt version 5 and the share check (sub-phase 7p, 10 November 2026)
+
+**Cause found:** with prompt version 4 the models worked out payments from a share the chat states ("$240 total … 50% up front" → 120.00), and the checker dropped the whole draft because "120" is not in the quote. 7p lets the checker accept such a payment when it redoes the arithmetic (a stated share of the stated price to the cent, or "the rest" as the price less the other payments), and prompt version 5 tells the models to do exactly that. The reports now list why each draft was dropped.
+
+Both evals ran straight after the 7o runs, so the free quotas were spent: Gemini and Nemotron failed every call, gpt-oss nearly every one, Mistral about half. The scores below are therefore mostly qwen and Mistral and are **not comparable** with 7o or 4n-2; only the drop counts are.
+
+`pnpm eval:scope` (262 s): 7o in brackets.
+
+| Model               | Asked | Failed (no reply) | Dropped by the checker | Scored | Average score |
+| ------------------- | ----- | ----------------- | ---------------------- | ------ | ------------- |
+| gemini              | 11    | 11 (0)            | 0 (2)                  | 0      | -             |
+| qwen-groq           | 11    | 0                 | 0 (2)                  | 11     | 0.78 (0.77)   |
+| gpt-oss-groq        | 11    | 10 (0)            | 0 (2)                  | 1      | 1.00          |
+| mistral             | 11    | 5 (0)             | 0 (3)                  | 6      | 0.91 (0.90)   |
+| nemotron-openrouter | 11    | 11 (7)            | 0 (0)                  | 0      | -             |
+
+- **No draft was dropped** (17 in 7o). `maya` now scores 1.00 from gpt-oss and Mistral; `sunrise` 1.00 from Mistral, 0.57 from qwen.
+- **Timeline:** the council's picks found 0.75 of the agreed steps (0.63 in order); Mistral's drafts found all of them.
+- **The council** had a winner on 11 of 11 chats (10 of 11), but with mostly one or two models answering its 0.81 says little.
+
+`pnpm eval:injection --council` (498 s, about 88,000 tokens):
+
+- **Dropped: 0 for every model** (7o: qwen 8, Mistral 13, gpt-oss 4). qwen held 7 of 7 and Mistral 8 of 8 chats it answered.
+- **Nothing compromised.** The council held 9 of 14; the other 5 had no winner because every model was refused (quota). No voting attack could be judged (all 15 voting calls refused).
+- The cause of the version 4 drops on the injection chats was not traced separately; with version 5 and the share check none remain.
+
+**Still to do:** one fresh-day run of both evals (after Gemini's daily reset, about 08:00 UTC) for scores comparable with 4n-2.

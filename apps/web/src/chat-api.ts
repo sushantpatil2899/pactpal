@@ -107,9 +107,12 @@ export async function getNotifications(dealId?: string): Promise<NotificationVie
   return body.notifications.filter(isNotification);
 }
 
-/** Marks notifications read: some by id, or all of one deal's. */
+/**
+ * Marks notifications read: some by id, all of one deal's, or (when a tab is opened) the news
+ * of one deal that points at that tab.
+ */
 export async function markNotificationsRead(
-  which: { ids: string[] } | { dealId: string },
+  which: { ids: string[] } | { dealId: string } | { dealId: string; tab: string },
 ): Promise<void> {
   await postStep(
     "/api/notifications/read",

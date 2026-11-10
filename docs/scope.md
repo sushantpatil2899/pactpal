@@ -40,7 +40,7 @@ The prohibited list is checked against PayPal's current Acceptable Use Policy be
 ## Roadmap (not built now)
 
 - Tier 3 deals: deposit bookings, retainers and subscriptions, regulated services, with the extra terms and disclaimers they need
-- Production partner approval for "Connect with PayPal"
+- Production partner approval for "Connect with PayPal" (PayPal offers partner invoicing to select partners only; sellers link their own app)
 - Connectors for platforms that keep disputes in-house, if official API access is granted
 - Hold, reserve and account-limitation appeal pack
 - Card issuer and ombudsman escalation summaries

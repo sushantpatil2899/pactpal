@@ -24,7 +24,7 @@ export function AcceptanceDocument({
           </div>
         </header>
         <div>
-          <ScopeDetails scope={document.terms} />
+          <ScopeDetails scope={document.terms} dealId={document.dealId} />
         </div>
         <aside aria-labelledby="acceptance-notice" className="pp-notice">
           <h4 id="acceptance-notice">{document.notice.title}</h4>

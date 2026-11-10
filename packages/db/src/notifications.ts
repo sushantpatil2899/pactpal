@@ -7,9 +7,18 @@ export const NOTIFICATION_KINDS = [
   "changes-requested",
   "signed",
   "step",
+  "step-news",
   "reminder",
+  "agent-request",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+/**
+ * Notifications that only tell the person something (a step approved or done, the agreement
+ * signed): they are settled when the person opens the tab they point at. The rest ask the person
+ * to act and stay until opened from the list ("message" is settled by reading the chat).
+ */
+export const NEWS_KINDS: readonly NotificationKind[] = ["signed", "step-news"];
 
 /** The deal space's tabs a notification can open. */
 export const DEAL_TABS = ["chat", "scope", "timeline", "files", "disputes", "log"] as const;
@@ -85,30 +94,39 @@ export async function listNotifications(
   return rows.map((row) => notificationRow.parse(row));
 }
 
-/**
- * Marks a person's unread notifications read: those named by `ids`, or all of one deal's
- * (optionally of one kind). Returns how many changed.
- */
+/** Which unread notifications to mark read. */
+export type NotificationsToRead =
+  /** These ones. */
+  | { ids: readonly string[] }
+  /** All of one deal's, or only those of one kind. */
+  | { dealId: string; kind?: NotificationKind }
+  /** One deal's news (`NEWS_KINDS`) that points at a tab, when that tab is opened. */
+  | { dealId: string; tab: DealTabName };
+
+/** Marks a person's unread notifications read (see `NotificationsToRead`). Returns how many changed. */
 export async function markNotificationsRead(
   q: Queryable,
   userId: string,
-  which: { ids: readonly string[] } | { dealId: string; kind?: NotificationKind },
+  which: NotificationsToRead,
   now: Date,
 ): Promise<number> {
-  const rows =
-    "ids" in which
-      ? await q.query(
-          `UPDATE notifications SET read_at = $2
-            WHERE user_id = $1 AND read_at IS NULL AND id::text = ANY(string_to_array($3, ','))
-            RETURNING id`,
-          [userId, now, which.ids.join(",")],
-        )
-      : await q.query(
-          `UPDATE notifications SET read_at = $2
-            WHERE user_id = $1 AND read_at IS NULL AND deal_id = $3
-              AND ($4::text IS NULL OR kind = $4)
-            RETURNING id`,
-          [userId, now, which.dealId, which.kind ?? null],
-        );
+  if ("ids" in which) {
+    const rows = await q.query(
+      `UPDATE notifications SET read_at = $2
+        WHERE user_id = $1 AND read_at IS NULL AND id::text = ANY(string_to_array($3, ','))
+        RETURNING id`,
+      [userId, now, which.ids.join(",")],
+    );
+    return rows.length;
+  }
+  const kinds = "tab" in which ? NEWS_KINDS : which.kind === undefined ? null : [which.kind];
+  const rows = await q.query(
+    `UPDATE notifications SET read_at = $2
+      WHERE user_id = $1 AND read_at IS NULL AND deal_id = $3
+        AND ($4::text IS NULL OR kind = ANY(string_to_array($4, ',')))
+        AND ($5::text IS NULL OR tab = $5)
+      RETURNING id`,
+    [userId, now, which.dealId, kinds?.join(",") ?? null, "tab" in which ? which.tab : null],
+  );
   return rows.length;
 }

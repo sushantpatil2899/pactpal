@@ -1,4 +1,12 @@
-import { dayWords, markedLine, stepLine, type LineMark, type StepFacts } from "@pactpal/words";
+import {
+  dayWords,
+  listingLines,
+  markedLine,
+  stepLine,
+  type LineMark,
+  type ListingFacts,
+  type StepFacts,
+} from "@pactpal/words";
 
 /** The page the buyer signs, as far as its lines go (the acceptance document's shape). */
 export interface AgreementPage {
@@ -17,6 +25,8 @@ export interface AgreementPage {
     total: { text: string };
     /** The signed steps in order, when the version lists them (7f). */
     timeline?: readonly StepFacts[];
+    /** The product as listed, when the version has one (8e). */
+    listing?: ListingFacts;
   };
 }
 
@@ -55,6 +65,7 @@ export function agreementLines(page: AgreementPage): AgreementLine[] {
     ),
     `Total: ${terms.total.text} ${terms.currency}`,
     ...(terms.timeline ?? []).map((step) => `Timeline step ${stepLine(step, terms.currency)}`),
+    ...(terms.listing === undefined ? [] : listingLines(terms.listing)),
   ];
   return texts.map((text, i) => ({ n: i + 1, text }));
 }

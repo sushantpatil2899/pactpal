@@ -1,7 +1,7 @@
 import type { Acceptance } from "@pactpal/db";
 import type { LedgerEntry } from "@pactpal/ledger";
 import { renderPdf, type Block } from "@pactpal/pdf";
-import { dayWords, markedLine, stepLine } from "@pactpal/words";
+import { listingLines, listingSource, dayWords, markedLine, stepLine } from "@pactpal/words";
 import { z } from "zod";
 import { acceptanceDocumentSchema, type AcceptanceDocument } from "./document.js";
 
@@ -96,6 +96,20 @@ export function receiptBlocks(
       : ([
           { kind: "paragraph", text: "Timeline (in this order)", style: "bold" },
           { kind: "list", items: terms.timeline.map((step) => stepLine(step, terms.currency)) },
+        ] satisfies Block[])),
+    ...(terms.listing === undefined
+      ? []
+      : ([
+          {
+            kind: "paragraph",
+            text: `What is being sold, as listed on ${listingSource(terms.listing)}`,
+            style: "bold",
+          },
+          { kind: "list", items: listingLines(terms.listing) },
+          {
+            kind: "paragraph",
+            text: `Listing page: ${terms.listing.url}. Photos kept as the deal's files: ${terms.listing.photos.map((p) => p.filename).join(", ") || "none"}.`,
+          },
         ] satisfies Block[])),
     ...(extras.length === 0 ? [] : [{ kind: "fields", rows: extras } satisfies Block]),
     {

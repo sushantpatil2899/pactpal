@@ -147,7 +147,7 @@ describe("making a draft", () => {
       requestedBy: seller.id,
       sourceArtifactId: file.id,
       sourceSha256: file.sha256,
-      draftPromptVersion: 4,
+      draftPromptVersion: PROMPT_VERSIONS.draft,
       rankPromptVersion: 1,
       models: ["test-model", "test-model", "test-model"].map(() => expect.any(String) as unknown),
       validDrafts: 3,

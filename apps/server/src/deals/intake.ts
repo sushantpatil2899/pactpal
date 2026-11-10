@@ -15,7 +15,7 @@ export async function createIntakeDeal(
   deps: { db: Database; clock: () => Date; newId: () => string },
   input: {
     record: IntakeKey;
-    via: "intake" | "email";
+    via: "intake" | "email" | "agent";
     title: string;
     text: string;
     /** The source file's name, e.g. "email-2026-11-05.txt". */

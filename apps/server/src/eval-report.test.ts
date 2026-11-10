@@ -34,6 +34,7 @@ const alone = (
   tokens: status === "failed" ? 0 : 1000,
   seconds: 2,
   ...(status === "failed" ? { failure: "rate_limited" } : {}),
+  ...(status === "dropped" ? { reasons: ["timeline[1]: line 99 does not exist"] } : {}),
 });
 
 const councilRecord = (
@@ -89,6 +90,9 @@ describe("formatEvalReport", () => {
     expect(text).toMatch(/c\s+1\s+1\s+0\s+0\s+-\s+0\s+-\s+-/);
     expect(text).toContain("Wrong values (model, chat: field)\n  b, maya: price");
     expect(text).toContain("Calls that failed (model: reason, count)\n  c: rate_limited (1)");
+    expect(text).toContain(
+      "Why drafts were dropped (model, chat: rule)\n  a, sunrise: timeline: line 99 does not exist",
+    );
   });
 
   it("shows the council, the chats, and how often the flag and ties appeared", () => {

@@ -7,8 +7,10 @@ import {
   draftTimelineOf,
   scopeDraftV4Schema,
   type Citation,
+  type DraftStep,
   type ScopeDraft,
 } from "./schema.js";
+import { paymentFromShare, sharesIn } from "./payment-share.js";
 import type { SourceLine } from "./source.js";
 
 export interface ValidationContext {
@@ -138,11 +140,21 @@ const minorOf = (amount: string) => {
 };
 
 /**
- * A payment step's amount must be above zero and its digits must be in its quotes; no other
+ * A payment step's amount must be above zero, and its digits must be in its quotes or it must be
+ * a share of the stated price that its quotes state ("50% up front", "the rest"; 7p); no other
  * step has an amount; and when the price and every payment are stated, they add up.
  */
 function timelineProblems(draft: ScopeDraft): string[] {
   const steps = draftTimelineOf(draft);
+  const priceMinor = draft.price.status === "found" ? minorOf(draft.price.amount) : 0;
+  const fromShare = (step: DraftStep) => {
+    if (step.amount === null) return false;
+    const others = steps
+      .filter((other) => other !== step && other.kind === "payment")
+      .map((other) => (other.amount === null ? null : minorOf(other.amount)));
+    const quotes = step.citations.map((c) => normalizeForMatch(withoutLinePrefix(c.quote)));
+    return paymentFromShare(minorOf(step.amount), priceMinor, sharesIn(quotes), others);
+  };
   const problems = steps.flatMap((step, index) => {
     const where = `timeline[${String(index)}]`;
     if (step.kind !== "payment") {
@@ -150,7 +162,7 @@ function timelineProblems(draft: ScopeDraft): string[] {
     }
     if (step.amount === null) return [];
     if (minorOf(step.amount) <= 0) return [`${where}: the amount is not above zero`];
-    return amountQuoted(step.amount, step.citations)
+    return amountQuoted(step.amount, step.citations) || fromShare(step)
       ? []
       : [`${where}: the amount does not appear in the quotes cited for it`];
   });

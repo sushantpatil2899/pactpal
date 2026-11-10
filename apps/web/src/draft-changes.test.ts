@@ -47,6 +47,14 @@ const draft = (over: Partial<DraftContent>): DraftContent => ({
   ...over,
 });
 
+/** A draft that repeats the scope's lists, so only what a test changes shows. */
+const unchanged = (over: Partial<DraftContent>) =>
+  draft({
+    deliverables: [{ text: "Three concepts", citations: [] }],
+    exclusions: [{ text: "Printing", citations: [] }],
+    ...over,
+  });
+
 describe("what an updated draft changes", () => {
   it("lists additions, removals and new values, ignoring case and spacing", () => {
     expect(
@@ -111,5 +119,81 @@ describe("what an updated draft changes", () => {
         { ...scope, revisionsIncluded: null },
       ),
     ).toEqual([]);
+  });
+
+  it("shows a line the models only reworded once, as reworded", () => {
+    expect(
+      draftChanges(
+        unchanged({
+          deliverables: [
+            { text: "Three logo concepts as vector files", citations: [] },
+            { text: "A favicon", citations: [] },
+          ],
+        }),
+        { ...scope, deliverables: ["Three logo concepts in vector format", "Business cards"] },
+      ),
+    ).toEqual([
+      "Delivered, reworded: Three logo concepts in vector format → Three logo concepts as vector files",
+      "Delivered, added: A favicon",
+      "Delivered, no longer: Business cards",
+    ]);
+  });
+
+  it("pairs each line once, best match first, and ignores filler words", () => {
+    expect(
+      draftChanges(
+        unchanged({
+          exclusions: [
+            { text: "Printing of business cards", citations: [] },
+            { text: "Printing of the flyers", citations: [] },
+          ],
+        }),
+        { ...scope, exclusions: ["Printing business cards and flyers", "The domain"] },
+      ),
+    ).toEqual([
+      "Not included, reworded: Printing business cards and flyers → Printing of business cards",
+      "Not included, added: Printing of the flyers",
+      "Not included, no longer: The domain",
+    ]);
+  });
+
+  it("pairs timeline steps only with a step of the same kind, on their own words", () => {
+    expect(
+      draftChanges(
+        unchanged({
+          timeline: [
+            {
+              kind: "payment",
+              text: "Full price payment",
+              owner: "buyer",
+              amount: "300.00",
+              dueDate: null,
+              citations: [],
+            },
+            {
+              kind: "review",
+              text: "Full price",
+              owner: "seller",
+              amount: null,
+              dueDate: null,
+              citations: [],
+            },
+          ],
+        }),
+        scope,
+      ),
+    ).toEqual([
+      "Timeline, reworded: Payment: Full price → Payment: Full price payment",
+      "Timeline, added: Review (seller shares, buyer approves): Full price",
+    ]);
+  });
+
+  it("never pairs lines made only of filler words", () => {
+    expect(
+      draftChanges(unchanged({ exclusions: [{ text: "and the", citations: [] }] }), {
+        ...scope,
+        exclusions: ["of a"],
+      }),
+    ).toEqual(["Not included, added: and the", "Not included, no longer: of a"]);
   });
 });

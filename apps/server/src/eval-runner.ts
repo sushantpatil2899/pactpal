@@ -29,6 +29,8 @@ export interface AloneRecord {
   seconds: number;
   /** Why a call failed; never the model's words. */
   failure?: string;
+  /** Why the checker dropped it (field, line and rule; never the chat's or the model's words). */
+  reasons?: readonly string[];
 }
 
 /** The council's result on the same drafts, with what it cost for the whole chat (answers and rankings). */
@@ -102,7 +104,7 @@ async function runCase(
       return { ...common, status: "failed", failure: answer.failureKind ?? "unknown" };
     }
     return score === undefined
-      ? { ...common, status: "dropped" }
+      ? { ...common, status: "dropped", reasons: answer.errors }
       : { ...common, status: "scored", score };
   });
 

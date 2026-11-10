@@ -4,6 +4,7 @@ import {
   canonicalJson,
   GENESIS_HASH,
   detectMediaType,
+  isWebp,
   hashFile,
   isPlainFileName,
   isPlainText,
@@ -254,6 +255,14 @@ describe("file checks", () => {
     ["nothing", bytes()],
   ])("does not recognise %s as a picture or PDF", (_name, content) => {
     expect(detectMediaType(content)).toBeUndefined();
+  });
+
+  it("recognises a WebP picture for storage, but not as a type PayPal takes", () => {
+    const webp = text("RIFF\u0000\u0000\u0000\u0000WEBPVP8 ");
+    expect(isWebp(webp)).toBe(true);
+    expect(detectMediaType(webp)).toBeUndefined();
+    expect(isWebp(text("RIFF\u0000\u0000\u0000\u0000WAVE"))).toBe(false);
+    expect(isWebp(text("RIFF"))).toBe(false);
   });
 
   it.each([

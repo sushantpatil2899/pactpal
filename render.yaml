@@ -72,6 +72,9 @@ services:
       # seller must link again.
       - key: SELLER_KEYS_ENCRYPTION_KEY
         sync: false
+      # Product listings (8e): Channel3's API key. Without it, "Look up" says it is not set up.
+      - key: CHANNEL3_API_KEY
+        sync: false
 
   # Render Workflows: PactPal's background tasks, run on Render outside the website: check-disputes,
   # which reads the seller's PayPal disputes and logs them on their deals, and analyze-claim, which

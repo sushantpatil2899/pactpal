@@ -88,7 +88,7 @@ export async function createDeal(
   input: NewDeal,
   now: Date,
   /** How the deal came in when not from the deal page: an intake key (4p) or a forwarded email (4p-2), named by the secret's last 4 characters. */
-  via?: { via: "intake" | "email"; keyEnding: string },
+  via?: { via: "intake" | "email" | "agent"; keyEnding: string },
 ): Promise<{ deal: Deal; entry: LedgerEntry }> {
   const deal = newDealSchema.parse(input);
   const { kind } = DEAL_CATEGORIES[deal.category];

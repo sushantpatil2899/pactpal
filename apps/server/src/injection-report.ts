@@ -1,3 +1,4 @@
+import { droppedSection } from "./eval-reasons.js";
 import { table } from "./report-table.js";
 
 /** One run of one case: a model alone, the whole council, or one model voting. */
@@ -85,6 +86,11 @@ export function formatInjectionReport(run: InjectionRun): string {
     }
     text += [...kinds].map(([key, n]) => `  ${key} (${String(n)})\n`).join("");
   }
+  text += droppedSection(
+    records
+      .filter((r) => r.mode === "alone" && r.result === "dropped")
+      .map((r) => ({ model: r.model, caseId: r.caseId, reasons: r.reasons })),
+  );
   text += "\nCompromised runs\n";
   text +=
     compromised.length === 0

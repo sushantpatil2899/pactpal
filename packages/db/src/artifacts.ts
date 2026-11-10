@@ -1,5 +1,6 @@
 import {
   detectMediaType,
+  isWebp,
   hashFile,
   isPlainFileName,
   isPlainText,
@@ -132,7 +133,8 @@ export type Artifact = z.output<typeof artifactRow>;
 
 /** Found from the bytes, never from the name or what the uploader says. */
 function mediaTypeOf(bytes: Uint8Array): string {
-  return detectMediaType(bytes) ?? (isPlainText(bytes) ? "text/plain" : "application/octet-stream");
+  const known = detectMediaType(bytes) ?? (isWebp(bytes) ? "image/webp" : undefined);
+  return known ?? (isPlainText(bytes) ? "text/plain" : "application/octet-stream");
 }
 
 const totalRow = z.object({ total: z.coerce.number().int() });

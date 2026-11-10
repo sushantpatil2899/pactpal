@@ -1,5 +1,6 @@
+import { STEP_KIND_WORDS, type TimelineStep } from "@pactpal/timeline";
 import { changeLines } from "@pactpal/words";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { AcceptanceDocument } from "./AcceptanceDocument";
 import {
   InvalidFieldsError,
@@ -35,9 +36,68 @@ import {
   type StageRow,
 } from "./FormRows";
 import { SignOrDecline } from "./SignOrDecline";
+import { OwnFields } from "./TimelineEditor";
 import { FULL_WIDTH, WRAP } from "./styles";
 
 const ALERT = { color: "var(--color-alert-ink)" } as const;
+
+/** The most timeline steps one change may add (as the server allows). */
+const MAX_ADDED_STEPS = 20;
+
+/** A step a change can add with words of its own: a review or another step. */
+type AddedStep = Extract<TimelineStep, { kind: "review" | "other" }>;
+interface StepRow {
+  step: AddedStep;
+}
+const EMPTY_STEP: StepRow = { step: { kind: "review", text: "" } };
+
+/** The step with another kind, keeping its words and due date. */
+const withKind = (step: AddedStep, kind: AddedStep["kind"]): AddedStep =>
+  kind === "review"
+    ? { kind, text: step.text, dueDate: step.dueDate }
+    : { kind, owner: "seller", text: step.text, dueDate: step.dueDate };
+
+/** The rows to send: each step with its words trimmed, empty ones left out. */
+const addedSteps = (rows: readonly StepRow[]): AddedStep[] =>
+  rows.map(({ step }) => ({ ...step, text: step.text.trim() })).filter((step) => step.text !== "");
+
+/** One added step: its kind, then the same fields as in the agreement's timeline editor. */
+function StepFields({
+  number,
+  row,
+  change,
+}: {
+  number: number;
+  row: StepRow;
+  change: (update: Partial<StepRow>) => void;
+}) {
+  return (
+    <>
+      <label>
+        Step {number}{" "}
+        <select
+          value={row.step.kind}
+          onChange={(event) => {
+            change({
+              step: withKind(row.step, event.target.value === "other" ? "other" : "review"),
+            });
+          }}
+        >
+          <option value="review">{STEP_KIND_WORDS.review}</option>
+          <option value="other">{STEP_KIND_WORDS.other}</option>
+        </select>
+      </label>
+      <OwnFields
+        step={row.step}
+        n={number}
+        targets={{ stages: [], items: [], currency: "" }}
+        change={(step) => {
+          if (step.kind === "review" || step.kind === "other") change({ step });
+        }}
+      />
+    </>
+  );
+}
 
 /** What a change adds or changes, one line each. `stages` are the new version's stage titles. */
 function ChangeSummary({
@@ -91,6 +151,8 @@ function partLabel(field: string): string {
       return `added payment stage${n}${rest[0] === "amount" ? ": amount" : ""}`;
     case "addBuyerProvides":
       return `added buyer-provides item${n}`;
+    case "addSteps":
+      return `added timeline step${n}`;
     case "addExclusions":
       return `added "not included" line${n}`;
     case "revisionsIncluded":
@@ -104,6 +166,46 @@ function partLabel(field: string): string {
 
 const textOf = (value: FormDataEntryValue | null) =>
   typeof value === "string" ? value.trim() : "";
+
+/** The timeline steps a change adds, numbered after the signed ones. */
+function AddedStepRows({
+  rows,
+  setRows,
+  signedSteps,
+}: {
+  rows: StepRow[];
+  setRows: Dispatch<SetStateAction<StepRow[]>>;
+  signedSteps: number;
+}) {
+  return (
+    <fieldset>
+      <legend>Add timeline steps</legend>
+      <p>
+        Added after the signed steps: a review (you share something, the buyer approves it) or
+        another step either side does. New payment stages and buyer items get their own steps.
+      </p>
+      <EditableRows
+        rows={rows}
+        setRows={setRows}
+        min={0}
+        max={MAX_ADDED_STEPS}
+        empty={EMPTY_STEP}
+        addLabel="Add a timeline step"
+        removeLabel={(n) => `Remove step ${String(signedSteps + n)}`}
+      >
+        {(row, n, change) => <StepFields number={signedSteps + n + 1} row={row} change={change} />}
+      </EditableRows>
+    </fieldset>
+  );
+}
+
+/** The rows of the seller's form, as filled in. */
+interface ProposedRows {
+  lines: LineRow[];
+  provides: ProvideRow[];
+  stages: StageRow[];
+  steps: StepRow[];
+}
 
 /** The seller's form: it only adds to the signed agreement. */
 function ProposeForm({
@@ -119,10 +221,7 @@ function ProposeForm({
   initialLines: readonly string[];
   currency: string;
   busy: boolean;
-  onSend: (
-    form: HTMLFormElement,
-    rows: { lines: LineRow[]; provides: ProvideRow[]; stages: StageRow[] },
-  ) => void;
+  onSend: (form: HTMLFormElement, rows: ProposedRows) => void;
   onCancel: () => void;
 }) {
   const [lines, setLines] = useState<LineRow[]>(() =>
@@ -130,11 +229,12 @@ function ProposeForm({
   );
   const [provides, setProvides] = useState<ProvideRow[]>([]);
   const [stages, setStages] = useState<StageRow[]>([]);
+  const [steps, setSteps] = useState<StepRow[]>([]);
   const firstNew = signed.milestones.length + 1;
   const titles = [...signed.milestones.map((stage) => stage.title), ...stages.map((s) => s.title)];
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onSend(event.currentTarget, { lines, provides, stages });
+    onSend(event.currentTarget, { lines, provides, stages, steps });
   };
   return (
     <form onSubmit={submit}>
@@ -202,6 +302,7 @@ function ProposeForm({
           {(row, n, change) => <StageFields number={firstNew + n} row={row} change={change} />}
         </EditableRows>
       </fieldset>
+      <AddedStepRows rows={steps} setRows={setSteps} signedSteps={signed.steps.length} />
       <p>
         <label>
           New due date (optional) <input name="dueDate" type="date" />
@@ -309,10 +410,7 @@ export function ChangeOrderPanel({
     );
   };
 
-  const onSend = (
-    form: HTMLFormElement,
-    rows: { lines: LineRow[]; provides: ProvideRow[]; stages: StageRow[] },
-  ) => {
+  const onSend = (form: HTMLFormElement, rows: ProposedRows) => {
     const data = new FormData(form);
     const revisions = textOf(data.get("revisionsIncluded"));
     const dueDate = textOf(data.get("dueDate"));
@@ -329,6 +427,7 @@ export function ChangeOrderPanel({
           .filter((line) => line !== ""),
         addBuyerProvides: typedProvides(rows.provides),
         addStages: rows.stages.map(typedStage),
+        addSteps: addedSteps(rows.steps),
         ...(dueDate === "" ? {} : { dueDate }),
         ...(revisions === "" || Number(revisions) === signed?.revisionsIncluded
           ? {}

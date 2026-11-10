@@ -177,7 +177,8 @@ export const timelineRoutes: FastifyPluginAsync<TimelineRouteOptions> = (app, op
       // The other side is emailed when the step now waits for them.
       const needsThem = body.status === "submitted" || body.status === "changes";
       const notification: Omit<PartyNotice, "text"> = {
-        kind: "step",
+        // Only news when nothing is asked of them; news is settled when the tab is opened.
+        kind: needsThem ? "step" : "step-news",
         tab: "timeline",
         ...(needsThem
           ? {

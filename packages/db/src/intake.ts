@@ -10,19 +10,25 @@ export const MAX_INTAKE_DEALS_PER_DAY = 30;
 /** What every key starts with, so a person can tell it from other secrets. */
 const KEY_PREFIX = "ppk_";
 
-/** The two kinds of intake secret: a key for other tools (4p), a forwarding address (4p-2). */
-export type IntakeKind = "key" | "address";
+/**
+ * The kinds of intake secret: a key for other tools (4p), a forwarding address (4p-2) and an
+ * agent key for the MCP server (8a).
+ */
+export type IntakeKind = "key" | "address" | "agent";
 
 /** Letters and digits easy to read aloud (no 0/o or 1/l), 32 of them: 5 bits per character. */
 const ADDRESS_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 
-/** A forwarding address's secret part: 16 characters, 80 random bits, lower case. */
-const newAddressCode = () =>
-  [...randomBytes(16)].map((byte) => ADDRESS_ALPHABET[byte % 32] ?? "a").join("");
+/** `length` characters of that alphabet, 5 random bits each (also agent confirm codes, 8c). */
+export const readableCode = (length: number) =>
+  [...randomBytes(length)].map((byte) => ADDRESS_ALPHABET[byte % 32] ?? "a").join("");
 
-/** A new secret of the kind: the key as typed, or the code that goes after "deals+". */
+/** A forwarding address's secret part: 16 characters, 80 random bits, lower case. */
+const newAddressCode = () => readableCode(16);
+
+/** A new secret of the kind: a key as typed, or the code that goes after "deals+". */
 const newSecret = (kind: IntakeKind) =>
-  kind === "key" ? `${KEY_PREFIX}${newSessionToken()}` : newAddressCode();
+  kind === "address" ? newAddressCode() : `${KEY_PREFIX}${newSessionToken()}`;
 
 const keyRow = z
   .object({
@@ -153,7 +159,7 @@ export async function useIntakeKey(
   now: Date,
   kind: IntakeKind = "key",
 ): Promise<{ ok: true; record: IntakeKey } | { ok: false; reason: IntakeRefusal }> {
-  const shaped = kind === "key" ? key.startsWith(KEY_PREFIX) : /^[a-z0-9]{16}$/.test(key);
+  const shaped = kind === "address" ? /^[a-z0-9]{16}$/.test(key) : key.startsWith(KEY_PREFIX);
   if (!shaped) return { ok: false, reason: "not-valid" };
   const today = now.toISOString().slice(0, 10);
   return db.transaction(async (tx) => {

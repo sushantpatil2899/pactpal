@@ -1177,4 +1177,50 @@ CREATE TRIGGER timeline_progress_no_truncate BEFORE TRUNCATE ON timeline_progres
 CREATE TRIGGER timeline_reminders_append_only BEFORE UPDATE OR DELETE ON timeline_reminders
   FOR EACH ROW EXECUTE FUNCTION pactpal_forbid_change()`,
   },
+  {
+    id: "0039_notification_news",
+    // "step-news" (7o): a step approved or done, which needs nothing from the person; "step" now
+    // only means a step waits for them. News is settled when its tab is opened.
+    sql: `ALTER TABLE notifications DROP CONSTRAINT notifications_kind_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check CHECK (
+  kind IN ('message', 'review-requested', 'changes-requested', 'signed', 'step', 'step-news',
+    'reminder'))`,
+  },
+  {
+    id: "0040_agents",
+    // The MCP server for agents (8a-8c): an agent key is a third kind of intake secret; an agent
+    // asks to send an invoice or evidence and the seller approves it in the app, which gives a
+    // one-time code (only its hash is kept). The exact request to run is stored and fingerprinted.
+    sql: `ALTER TABLE intake_keys DROP CONSTRAINT intake_keys_kind_check;
+ALTER TABLE intake_keys ADD CONSTRAINT intake_keys_kind_check
+  CHECK (kind IN ('key', 'address', 'agent'));
+ALTER TABLE notifications DROP CONSTRAINT notifications_kind_check;
+ALTER TABLE notifications ADD CONSTRAINT notifications_kind_check CHECK (
+  kind IN ('message', 'review-requested', 'changes-requested', 'signed', 'step', 'step-news',
+    'reminder', 'agent-request'));
+CREATE TABLE agent_requests (
+  id uuid PRIMARY KEY,
+  seller_id uuid NOT NULL REFERENCES users (id),
+  deal_id uuid NOT NULL REFERENCES deals (id),
+  key_ending text NOT NULL CHECK (char_length(key_ending) = 4),
+  kind text NOT NULL CHECK (kind IN ('send-invoice', 'send-evidence')),
+  path text NOT NULL CHECK (path ~ '^/api/deals/'),
+  body jsonb NOT NULL,
+  body_sha256 text NOT NULL CHECK (body_sha256 ~ '^[0-9a-f]{64}$'),
+  summary text NOT NULL CHECK (char_length(summary) BETWEEN 1 AND 2000),
+  status text NOT NULL CHECK (
+    status IN ('waiting', 'approved', 'declined', 'done', 'failed', 'expired')),
+  code_hash text CHECK (code_hash ~ '^[0-9a-f]{64}$'),
+  code_expires_at timestamptz,
+  wrong_codes integer NOT NULL DEFAULT 0 CHECK (wrong_codes >= 0),
+  created_at timestamptz NOT NULL,
+  answered_at timestamptz,
+  used_at timestamptz,
+  result_status integer,
+  result_error text CHECK (char_length(result_error) <= 300),
+  CHECK ((status = 'waiting') = (answered_at IS NULL)),
+  CHECK ((code_hash IS NULL) = (code_expires_at IS NULL))
+);
+CREATE INDEX agent_requests_by_seller ON agent_requests (seller_id, created_at DESC);`,
+  },
 ];

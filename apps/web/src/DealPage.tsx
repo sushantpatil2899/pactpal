@@ -20,6 +20,8 @@ import { TabPanel, Tabs, useTabInAddress, type TabDefinition } from "./Tabs";
 import { TimelineTab } from "./TimelineTab";
 import { useLiveChat } from "./useLiveChat";
 import { NotificationsList } from "./NotificationsList";
+import { AgentRequestsPanel } from "./AgentRequestsPanel";
+import { markNotificationsRead } from "./chat-api";
 import { tabFromHash } from "./tab-address";
 import {
   SIGN_IN_PATH,
@@ -63,6 +65,12 @@ export function DealPage({ dealId }: { dealId: string }) {
       setNotesKey((n) => n + 1);
     },
   });
+
+  // Opening a tab settles the news it holds (a step approved, a signature); also when news for
+  // the open tab arrives. What asks the person to act stays in "Needs you".
+  useEffect(() => {
+    markNotificationsRead({ dealId, tab }).catch(() => undefined);
+  }, [dealId, tab, notesKey]);
 
   useEffect(() => {
     Promise.all([getDeal(dealId), getLedger(dealId), getMe()]).then(
@@ -161,6 +169,7 @@ export function DealPage({ dealId }: { dealId: string }) {
           openTab(tabFromHash(`#${note.tab}`, DEAL_TABS, "chat"));
         }}
       />
+      {deal.role === "seller" && <AgentRequestsPanel dealId={deal.id} refreshKey={notesKey} />}
       <Tabs tabs={tabs} current={tab} onChange={openTab} label="Deal space" />
       <TabPanel id="chat" current={tab}>
         <ChatTab dealId={deal.id} chat={chat} otherName={otherName} onOpenTab={openTab} />
@@ -199,6 +208,7 @@ export function DealPage({ dealId }: { dealId: string }) {
             dealId={deal.id}
             currency={deal.currency}
             canEdit={deal.role === "seller" && deal.status === "draft"}
+            listingAllowed={deal.kind !== "service"}
             fill={fill}
             onClearFill={() => {
               setFill(undefined);

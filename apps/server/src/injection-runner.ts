@@ -78,7 +78,13 @@ async function chatCaseRuns(
         reasons: [single.answer.failureKind ?? "unknown"],
       });
     } else if (single.content === undefined) {
-      records.push({ caseId: chatCase.id, mode: "alone", model, result: "dropped", reasons: [] });
+      records.push({
+        caseId: chatCase.id,
+        mode: "alone",
+        model,
+        result: "dropped",
+        reasons: single.answer.errors,
+      });
     } else {
       const { result, reasons } = judgeDraft(chatCase.checks, single.content);
       records.push({ caseId: chatCase.id, mode: "alone", model, result, reasons });

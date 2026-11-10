@@ -30,6 +30,7 @@ export function dealTestApp(
     disputeWriter?: AppOptions["disputeWriter"];
     sellerApps?: AppOptions["sellerApps"];
     webhooks?: AppOptions["webhooks"];
+    products?: AppOptions["products"];
     /** The site's address; https by default. */
     publicBaseUrl?: string;
   } = {},

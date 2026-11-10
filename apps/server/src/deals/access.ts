@@ -19,6 +19,29 @@ export async function requireViewer(
   return session;
 }
 
+/**
+ * The person signed in with PayPal (not by a buyer link), or undefined after answering: 503
+ * without a database, 401 signed out, 403 with `refusal` for a link visitor.
+ */
+export async function requirePayPalUser(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  database: Database | undefined,
+  now: Date,
+  refusal: string,
+): Promise<Viewer | undefined> {
+  if (!database) {
+    await reply.code(503).send({ error: "unavailable" });
+    return undefined;
+  }
+  const viewer = await requireViewer(request, reply, database, now);
+  if (viewer && viewer.access.method !== "paypal") {
+    await reply.code(403).send({ error: refusal });
+    return undefined;
+  }
+  return viewer;
+}
+
 /** The request body checked against `schema`, or undefined after answering 400 with the bad fields. */
 export async function readBody<T>(
   schema: z.ZodType<T>,

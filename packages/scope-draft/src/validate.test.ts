@@ -1,6 +1,6 @@
 import { okReply, testSpec } from "@pactpal/ai/testing";
 import { describe, expect, it } from "vitest";
-import type { ScopeDraft } from "./schema.js";
+import type { DraftStep, ScopeDraft } from "./schema.js";
 import { numberSourceLines } from "./source.js";
 import { ALL_MISSING_DRAFT, MAYA_CHAT, MAYA_DRAFT, TEST_CATEGORIES } from "./testing.js";
 import { normalizeForMatch, readScopeDraft, validateScopeDraft } from "./validate.js";
@@ -148,7 +148,8 @@ describe("validateScopeDraft", () => {
         withSteps((d) => {
           if (d.format !== 4) return;
           const [first, second] = d.timeline;
-          if (first) first.amount = "120.00";
+          // 130.00 is not 50% of the 240.00 price, and "130" is not in the quote.
+          if (first) first.amount = "130.00";
           if (second) second.amount = "5";
           d.timeline.push({
             kind: "other",
@@ -188,6 +189,47 @@ describe("validateScopeDraft", () => {
     ).toEqual(["timeline: the payments do not add up to the price"]);
     expect(validateScopeDraft(split("0", "300"), { ...context, lines }).validation.errors).toEqual([
       "timeline[0]: the amount is not above zero",
+    ]);
+  });
+
+  it("accepts payments worked out from a share of the price the chat states (7p)", () => {
+    // Maya: "$240 total", "50% up front and 50% on delivery" -> 120.00 and 120.00.
+    const maya = altered((d) => {
+      if (d.format !== 4) return;
+      for (const step of d.timeline) if (step.kind === "payment") step.amount = "120.00";
+    });
+    expect(validateScopeDraft(maya, context).validation.errors).toEqual([]);
+    // "$900 in total", "40% up front and the rest when you approve" -> 360.00 and 540.00.
+    const lines = [
+      { n: 1, text: "It's $900 in total" },
+      { n: 2, text: "I'd ask for 40% up front and the rest when you approve the finished site" },
+    ];
+    const sunrise = (rest: string) =>
+      onlyPrice((d) => {
+        if (d.format !== 4) return;
+        d.price = {
+          status: "found",
+          amount: "900.00",
+          currency: "USD",
+          citations: [{ line: 1, quote: "$900 in total" }],
+        };
+        const pay = (amount: string, quote: string): DraftStep => ({
+          kind: "payment",
+          text: "Pay",
+          owner: "buyer",
+          amount,
+          dueDate: null,
+          citations: [{ line: 2, quote }],
+        });
+        d.timeline = [
+          pay("360.00", "40% up front"),
+          pay(rest, "the rest when you approve the finished site"),
+        ];
+      });
+    expect(validateScopeDraft(sunrise("540.00"), { ...context, lines }).ok).toBe(true);
+    expect(validateScopeDraft(sunrise("500.00"), { ...context, lines }).validation.errors).toEqual([
+      "timeline[1]: the amount does not appear in the quotes cited for it",
+      "timeline: the payments do not add up to the price",
     ]);
   });
 
