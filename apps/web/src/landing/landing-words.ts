@@ -4,105 +4,162 @@
  * binding", no prediction, and PayPal named only as the service sellers are paid through.
  */
 
-/** The story told down the page; each step has a scene drawn beside it. */
-export type SceneId =
-  "problem" | "capture" | "scope" | "agree" | "paid" | "deliver" | "ledger" | "dispute" | "score";
-
-export interface StoryStep {
-  id: SceneId;
-  /** The anchor the navigation links to, when the step starts a part of the page. */
-  anchor?: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  points?: readonly string[];
-}
-
 export const HERO = {
   lede: "A council of AI models drafts your agreement from the chat and checks each other's work. PayPal moves the money. Every step is sealed into a chain nobody can quietly edit.",
 } as const;
 
-export const STORY: readonly StoryStep[] = [
+/** Who sells through PactPal: cycled in the hero's line, one at a time. */
+export const TRADES = [
+  "logo designer",
+  "translator",
+  "app developer",
+  "video editor",
+  "illustrator",
+  "candle maker",
+  "consultant",
+  "template seller",
+  "photo retoucher",
+  "jewellery maker",
+  "copywriter",
+  "web designer",
+] as const;
+
+/** The four things every deal gets, said before anything is explained. */
+export const PILLARS = [
   {
-    id: "problem",
-    eyebrow: "The problem",
-    title: "PayPal knows the money moved. Not what you agreed.",
-    body: "The terms live in a chat, an email thread or a platform inbox. When a buyer opens a dispute, you have days to rebuild the story from screenshots, under a deadline, and the record is only as good as what you can still find.",
-  },
-  {
-    id: "capture",
-    eyebrow: "1 · Capture",
-    title: "Start from wherever the deal was made.",
-    body: "Paste a chat, upload an export, forward an email to the deal's own address, or talk in the deal's live chat. Every message and file is kept with the time it arrived.",
-  },
-  {
-    id: "scope",
-    eyebrow: "2 · Scope",
-    title: "An agreement drafted from the chat, line by line.",
-    body: "Several AI models draft the scope and rank each other's drafts. Every field cites the exact line it came from. Anything nobody said stays blank, and vague words like “print ready” are flagged with a measurable rewrite.",
-    points: [
-      "Low agreement between the models goes to you for review",
-      "Nothing reaches the buyer until you confirm it",
-    ],
-  },
-  {
-    id: "agree",
-    eyebrow: "3 · Agree",
-    title: "The buyer reads every term on one page and signs.",
-    body: "No account and no password. They open the link in their email, ask questions or request changes, type their name and sign. Both sides get a receipt with the page's fingerprint.",
+    id: "draft",
+    title: "An agreement drafted from the chat",
+    body: "Five AI models read your conversation and draft the terms. Every term cites the line it came from, or stays blank.",
+    link: "#council",
   },
   {
     id: "paid",
-    anchor: "get",
-    eyebrow: "4 · Get paid",
-    title: "One PayPal invoice for each milestone you agreed.",
-    body: "The amounts and due days come from the signed agreement, so the invoice matches the terms. Payments land in your own PayPal account; PactPal never holds the money.",
+    title: "Paid through PayPal, milestone by milestone",
+    body: "One PayPal invoice for each agreed stage, straight to your own PayPal account. Payments land in the record as they happen.",
+    link: "#how",
   },
   {
-    id: "deliver",
-    eyebrow: "5 · Deliver",
-    title: "A delivery link that records what happened.",
-    body: "When the buyer opens or downloads your files, it is recorded. They approve the work or ask for changes, within the revision rounds you agreed, and each step on the timeline is ticked off.",
-  },
-  {
-    id: "ledger",
-    eyebrow: "6 · The record",
-    title: "A log where every entry seals the one before it.",
-    body: "Each message, signature, payment and delivery is written to an append only log, and each entry carries the fingerprint of the last. Change one entry and the chain breaks at that exact point, for anyone who checks.",
+    id: "sealed",
+    title: "A record nobody can quietly edit",
+    body: "Every message, signature, payment and delivery is sealed into a chain of SHA-256 fingerprints. Change one and it shows.",
+    link: "#ledger",
   },
   {
     id: "dispute",
-    eyebrow: "7 · If a dispute opens",
-    title: "The claim, matched statement by statement to the record.",
-    body: "PactPal shows which agreement lines and log entries speak to each thing the buyer says, or plainly that no record covers it. It builds an evidence packet that you review and confirm before anything goes to PayPal.",
-    points: [
-      "If PayPal decides for the buyer, an appeal is drafted only when there is evidence that was not sent before",
-      "When there is none, PactPal says so",
-    ],
+    title: "Ready if a buyer disputes",
+    body: "PactPal spots the dispute, counts down to PayPal's deadline, matches the claim to the record and builds the packet you confirm.",
+    link: "#how",
+  },
+] as const;
+
+/** The trades drifting around "who it's for", each with a deal it might send through PactPal. */
+export const STICKERS = [
+  {
+    trade: "Logo designer",
+    icon: "pen",
+    deal: "Logo refresh",
+    amount: "450.00 USD",
+    steps: "3 stages",
   },
   {
-    id: "score",
-    eyebrow: "8 · Completeness",
-    title: "See how complete your records are, at a glance.",
-    body: "A score from 0 to 100 fills as steps are recorded: a signed agreement, paid invoices, delivered files, answers. It measures how complete the record is. It does not predict any outcome.",
+    trade: "Video editor",
+    icon: "film",
+    deal: "Podcast edit, ep. 12",
+    amount: "180.00 USD",
+    steps: "2 stages",
   },
-];
+  {
+    trade: "App developer",
+    icon: "code",
+    deal: "Booking app MVP",
+    amount: "3,200.00 USD",
+    steps: "5 stages",
+  },
+  {
+    trade: "Jewellery maker",
+    icon: "ring",
+    deal: "Silver ring, size 7",
+    amount: "95.00 USD",
+    steps: "made and shipped",
+  },
+  {
+    trade: "Translator",
+    icon: "speech",
+    deal: "Blog translation, 6 posts",
+    amount: "540.00 USD",
+    steps: "2 stages",
+  },
+  {
+    trade: "Photographer",
+    icon: "camera",
+    deal: "Product photos, 40 images",
+    amount: "1,200.00 USD",
+    steps: "3 stages",
+  },
+  {
+    trade: "Template seller",
+    icon: "grid",
+    deal: "Notion client portal",
+    amount: "39.00 USD",
+    steps: "one download",
+  },
+  {
+    trade: "Consultant",
+    icon: "chart",
+    deal: "Pricing review",
+    amount: "750.00 USD",
+    steps: "2 sessions",
+  },
+  {
+    trade: "Candle maker",
+    icon: "flame",
+    deal: "Wedding favours, 80 candles",
+    amount: "620.00 USD",
+    steps: "deposit and balance",
+  },
+] as const;
+
+export type StickerIcon = (typeof STICKERS)[number]["icon"];
+
+/** How a deal goes, in five moves. */
+export const MOVES = [
+  {
+    id: "capture",
+    word: "Capture",
+    title: "Start from wherever you agreed it",
+    body: "Paste the chat, upload an export or a screenshot, forward the email, or talk in the deal's live chat. Every message keeps its time.",
+  },
+  {
+    id: "agree",
+    word: "Agree",
+    title: "Your buyer reads it all and signs",
+    body: "The council's draft, checked by you, goes to your buyer as one page. No account: they ask questions, type their name and sign.",
+  },
+  {
+    id: "paid",
+    word: "Get paid",
+    title: "An invoice for every stage",
+    body: "PayPal invoices for each milestone, with amounts and due days from the signed terms. Reminders go out before anything is late.",
+  },
+  {
+    id: "deliver",
+    word: "Deliver",
+    title: "Hand over work that proves itself",
+    body: "Send files through a tracked link. Opens and downloads are recorded, and your buyer approves or asks for changes within the agreed rounds.",
+  },
+  {
+    id: "protected",
+    word: "Protected",
+    title: "If a dispute opens, you're ready",
+    body: "PactPal sees it through PayPal, counts down to the deadline, lines the claim up against the record and builds the packet you send.",
+  },
+] as const;
 
 export const TAGLINE =
   "Every term traced to the chat it came from. Every step sealed in a record nobody can quietly edit.";
 
-export const AUDIENCE = {
-  fits: [
-    "Digital art and design",
-    "Writing and translation",
-    "Web and software projects",
-    "Video and photo editing",
-    "Consulting",
-    "Templates and digital products",
-    "Handmade goods",
-  ],
-  notYet: ["Regulated professional services", "Subscriptions", "Deposits for events"],
-} as const;
+/** What PactPal does not handle yet, said plainly. */
+export const NOT_YET = ["regulated professional services", "subscriptions", "deposits for events"];
 
 /** What PactPal is and is not, said plainly. */
 export const LIMITS: readonly { title: string; body: string }[] = [
@@ -177,12 +234,20 @@ export function revealWords(text: string): { word: string; i: number }[] {
 
 /** The ledger entries that run along the foot of the hero: invented, in the app's own words. */
 export const TICKER: readonly { event: string; detail: string; hash: string }[] = [
-  { event: "MESSAGE_SENT", detail: "Chris · live chat", hash: "9f2c…a71e" },
-  { event: "SCOPE_CONFIRMED", detail: "council 4 of 5 agreed", hash: "71ae…c04d" },
-  { event: "ACCEPTED", detail: "typed name, receipt sent", hash: "c04d…5be8" },
-  { event: "INVOICE_SENT", detail: "PayPal invoice, stage 1", hash: "5be8…e219" },
-  { event: "PAYMENT_RECEIVED", detail: "PayPal webhook, verified", hash: "e219…a7d3" },
-  { event: "DELIVERY_SENT", detail: "cover-final.pdf, 8.2 MB", hash: "a7d3…3c91" },
-  { event: "DELIVERY_OPENED", detail: "buyer, 2 times", hash: "3c91…b40f" },
-  { event: "STEP_APPROVED", detail: "sketch, by Chris", hash: "b40f…68ea" },
+  { event: "MESSAGE_SENT", detail: "Logo refresh · live chat", hash: "9f2c…a71e" },
+  {
+    event: "SCOPE_CONFIRMED",
+    detail: "Booking app MVP · council 4 of 5 agreed",
+    hash: "71ae…c04d",
+  },
+  { event: "ACCEPTED", detail: "Silver ring, size 7 · typed name", hash: "c04d…5be8" },
+  { event: "INVOICE_SENT", detail: "Product photos · PayPal invoice, stage 1", hash: "5be8…e219" },
+  {
+    event: "PAYMENT_RECEIVED",
+    detail: "Podcast edit · PayPal webhook, verified",
+    hash: "e219…a7d3",
+  },
+  { event: "DELIVERY_SENT", detail: "Blog translation · 6 files", hash: "a7d3…3c91" },
+  { event: "REMINDER_SENT", detail: "Wedding favours · balance due tomorrow", hash: "3c91…b40f" },
+  { event: "STEP_APPROVED", detail: "Pricing review · session 1", hash: "b40f…68ea" },
 ];

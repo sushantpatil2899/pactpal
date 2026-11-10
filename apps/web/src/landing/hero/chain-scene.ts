@@ -48,7 +48,20 @@ const MEMBERS = 5;
 
 /** The hash shown on each block's face: short, like the app shows them. */
 const HASHES = ["9f2c", "71ae", "c04d", "5be8", "e219", "a7d3", "3c91", "b40f", "68ea", "d15b"];
-const EVENTS = ["MESSAGE", "SCOPE", "SIGNED", "INVOICE", "PAID", "DELIVERY", "OPENED", "APPROVED"];
+const EVENTS = ["SIGNED", "PAID", "DELIVERED", "APPROVED", "INVOICED", "MESSAGE"];
+/** The deals on the chain's blocks: many trades, one chain each. */
+const DEALS = [
+  "Logo refresh",
+  "Podcast edit #12",
+  "Silver ring, size 7",
+  "Notion template",
+  "Booking app MVP",
+  "Blog translation",
+  "Product photos",
+  "Pricing review",
+  "Wedding candles",
+  "Book cover",
+];
 
 /** Where block `i` of the chain rests: a gentle arc away to the right and into the distance. */
 function slot(i: number): Vector3 {
@@ -68,17 +81,18 @@ function faceTexture(n: number): CanvasTexture {
   if (g) {
     g.fillStyle = "rgba(4, 19, 14, 0.0)";
     g.fillRect(0, 0, 256, 160);
-    g.font = "600 26px ui-monospace, Menlo, monospace";
+    g.font = "500 20px ui-monospace, Menlo, monospace";
     g.fillStyle = DARK["color-accent"];
-    g.fillText(`#${String(412 + n).padStart(4, "0")}`, 20, 44);
-    g.font = "500 22px ui-monospace, Menlo, monospace";
-    g.fillStyle = "rgba(238, 242, 246, 0.82)";
-    g.fillText(EVENTS[n % EVENTS.length] ?? "", 20, 88);
+    g.fillText(`#${String(412 + n).padStart(4, "0")}  ${EVENTS[n % EVENTS.length] ?? ""}`, 18, 38);
+    g.font = "600 30px system-ui, -apple-system, sans-serif";
+    g.fillStyle = "rgba(238, 242, 246, 0.95)";
+    g.fillText(DEALS[n % DEALS.length] ?? "", 18, 92, 224);
+    g.font = "500 20px ui-monospace, Menlo, monospace";
     g.fillStyle = "rgba(238, 242, 246, 0.5)";
     g.fillText(
       `${HASHES[n % HASHES.length] ?? ""}…${HASHES[(n + 3) % HASHES.length] ?? ""}`,
-      20,
-      128,
+      18,
+      134,
     );
   }
   const texture = new CanvasTexture(canvas);

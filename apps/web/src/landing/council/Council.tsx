@@ -167,7 +167,7 @@ export function Council() {
     };
   }, []);
   return (
-    <section id="how" className="pp-lp-council pp-scope-dark" aria-labelledby="pp-lp-council">
+    <section id="council" className="pp-lp-council pp-scope-dark" aria-labelledby="pp-lp-council">
       <div className="pp-lp-council-side">
         <p className="pp-lp-kicker">
           <i /> The AI council

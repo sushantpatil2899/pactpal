@@ -5,20 +5,24 @@ import { Logo } from "../design/Logo";
 import { Footer } from "../shell/layouts";
 import { Council } from "./council/Council";
 import { Hero } from "./hero/Hero";
-import { AUDIENCE, FAQ, LIMITS, STORY, TAGLINE, revealWords } from "./landing-words";
+import { FAQ, LIMITS, TAGLINE, revealWords } from "./landing-words";
 import { Ledger } from "./ledger/Ledger";
-import { SCENES } from "./scenes";
+import { Audience } from "./audience/Audience";
+import { Moves } from "./moves/Moves";
+import { Pillars } from "./pillars/Pillars";
 import { useScrollStory } from "./useScrollStory";
 import "../deal/deal.css";
 import "@fontsource/instrument-serif/400.css";
 import "@fontsource/instrument-serif/400-italic.css";
 import "./landing.css";
 import "./slice.css";
+import "./slice2.css";
 
 const NAV = [
-  { href: "#how", label: "How it works" },
   { href: "#get", label: "What you get" },
-  { href: "#trust", label: "Trust and limits" },
+  { href: "#how", label: "How it works" },
+  { href: "#council", label: "AI council" },
+  { href: "#trust", label: "Trust" },
   { href: "#faq", label: "FAQ" },
 ];
 
@@ -123,55 +127,13 @@ export function Landing({ problem }: { problem?: string }) {
       <Nav />
       <main id="content">
         <Hero problem={problem} />
+        <Pillars />
+        <Audience />
+        <Moves />
         <Council />
         <Ledger />
 
-        <div className="pp-lp-story" data-string="progress">
-          <span className="pp-lp-thread" aria-hidden="true" />
-          {STORY.map((step) => {
-            const Scene = SCENES[step.id];
-            return (
-              <section
-                key={step.id}
-                id={step.anchor}
-                className="pp-lp-step"
-                data-scene={step.id}
-                data-string="progress"
-                aria-labelledby={`pp-lp-${step.id}`}
-              >
-                <div className="pp-lp-text" data-reveal>
-                  <p className="pp-lp-eyebrow">{step.eyebrow}</p>
-                  <h2 id={`pp-lp-${step.id}`}>{step.title}</h2>
-                  <p>{step.body}</p>
-                  {step.points && (
-                    <ul>
-                      {step.points.map((point) => (
-                        <li key={point}>{point}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-                <div className="pp-lp-stage" data-reveal>
-                  <Scene />
-                </div>
-              </section>
-            );
-          })}
-        </div>
-
         <Tagline />
-
-        <section className="pp-lp-band" aria-labelledby="pp-lp-who" data-reveal>
-          <h2 id="pp-lp-who">Made for work agreed in a conversation</h2>
-          <ul className="pp-lp-chips">
-            {AUDIENCE.fits.map((fit) => (
-              <li key={fit}>{fit}</li>
-            ))}
-          </ul>
-          <p>
-            <b>Not supported yet:</b> {AUDIENCE.notYet.join(", ").toLowerCase()}.
-          </p>
-        </section>
 
         <section id="trust" className="pp-lp-band" aria-labelledby="pp-lp-trust" data-reveal>
           <h2 id="pp-lp-trust">What PactPal is, and what it is not</h2>

@@ -3,6 +3,7 @@ import { SIGN_IN_PATH } from "../../api";
 import { ButtonLink } from "../../design/parts";
 import { Letters } from "../Letters";
 import { HERO, TICKER } from "../landing-words";
+import { TradeLine } from "./TradeLine";
 import type { ChainScene } from "./chain-scene";
 
 const REDUCED = "(prefers-reduced-motion: reduce)";
@@ -109,7 +110,7 @@ export function Hero({ problem }: { problem?: string }) {
           </p>
         )}
         <p className="pp-lp-kicker">
-          <i /> For sellers paid through PayPal
+          <i /> Agreements, payments and proof for every deal
         </p>
         <h1 id="pp-lp-title" aria-label="AI that seals the deal.">
           <Letters text="AI that" from={0} />{" "}
@@ -119,6 +120,7 @@ export function Hero({ problem }: { problem?: string }) {
           <br />
           <Letters text="the deal." from={12} />
         </h1>
+        <TradeLine />
         <p className="pp-lp-lede">{HERO.lede}</p>
         <div className="pp-lp-actions">
           <ButtonLink look="primary" large href={SIGN_IN_PATH}>

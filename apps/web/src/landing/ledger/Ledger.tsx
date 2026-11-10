@@ -130,7 +130,12 @@ export function Ledger() {
       : `Changed at entry ${String(changedAt + 1)}. The chain no longer matches from there on.`;
 
   return (
-    <section ref={section} className="pp-lp-ledger pp-scope-dark" aria-labelledby="pp-lp-ledger">
+    <section
+      ref={section}
+      id="ledger"
+      className="pp-lp-ledger pp-scope-dark"
+      aria-labelledby="pp-lp-ledger"
+    >
       <div className="pp-lp-ledger-copy" data-reveal>
         <p className="pp-lp-kicker">
           <i /> The evidence log
