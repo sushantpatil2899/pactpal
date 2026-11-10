@@ -10,7 +10,7 @@ import {
 } from "./api";
 import { AnswerBox } from "./AnswerBox";
 import { DeliverPanel } from "./DeliverPanel";
-import { Button, ButtonLink, EmptyState, Label } from "./design/parts";
+import { Button, ButtonLink, EmptyState, Card } from "./design/parts";
 import { when } from "./format";
 import { WRAP } from "./styles";
 
@@ -101,7 +101,7 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
         const visible = seller || opened.has(delivery.id) || delivery.access.opened.count > 0;
         return (
           <article key={delivery.id} aria-label={`Delivery for stage ${String(delivery.stage)}`}>
-            <Label>
+            <Card>
               <header>
                 <h4>
                   Stage {delivery.stage}: {delivery.stageTitle}
@@ -109,8 +109,9 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
                 <small>Sent {when(delivery.sentAt)}</small>
               </header>
               {!visible && (
-                <div className="pp-tape">
+                <div className="pp-band">
                   <Button
+                    look="primary"
                     large
                     disabled={busy}
                     onClick={() => {
@@ -182,7 +183,7 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
                   )}
                 </div>
               )}
-            </Label>
+            </Card>
           </article>
         );
       })}

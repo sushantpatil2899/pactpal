@@ -1,8 +1,32 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Me } from "../api";
 import { Logo } from "../design/Logo";
 import { Button } from "../design/parts";
+import { applyTheme, nextTheme, savedTheme, type Theme } from "../design/theme";
 import "./shell.css";
+
+const THEME_WORDS: Record<Theme, string> = {
+  auto: "Theme: device",
+  light: "Theme: light",
+  dark: "Theme: dark",
+};
+
+/** Cycles the theme: the device's setting, light, dark. */
+function ThemeSwitch() {
+  const [theme, setTheme] = useState<Theme>(savedTheme);
+  return (
+    <Button
+      look="quiet"
+      onClick={() => {
+        const next = nextTheme(theme);
+        applyTheme(next);
+        setTheme(next);
+      }}
+    >
+      {THEME_WORDS[theme]}
+    </Button>
+  );
+}
 
 /**
  * What every page says about PactPal's limits. `brief` leaves out what the page itself already
@@ -17,6 +41,7 @@ function Footer({ brief = false }: { brief?: boolean }) {
         dispute outcome.
         {!brief && " Signing in with PayPal shows control of a PayPal account, not legal identity."}
       </p>
+      <ThemeSwitch />
     </footer>
   );
 }

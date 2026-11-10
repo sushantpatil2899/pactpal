@@ -129,7 +129,7 @@ export function AppealPanel({ dealId, disputeId }: { dealId: string; disputeId: 
     <section aria-labelledby="appeal-check">
       <h3 id="appeal-check">Appeal check (AI draft)</h3>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

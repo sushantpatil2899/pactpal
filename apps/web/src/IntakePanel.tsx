@@ -190,7 +190,7 @@ export function IntakePanel({ options }: { options: DealOptions }) {
     <section aria-labelledby="intake">
       <h2 id="intake">Create deals from other tools</h2>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

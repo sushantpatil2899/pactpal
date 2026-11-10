@@ -121,7 +121,7 @@ export function ClaimPanel({
         it does not decide who is right.
       </p>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

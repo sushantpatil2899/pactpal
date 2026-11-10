@@ -7,7 +7,7 @@ const textOf = (value: FormDataEntryValue | null) =>
 /**
  * The buyer's answer to a page shown above it: a typed name to sign, or a decline with an
  * optional reason. Used for the agreement and for change orders, with their own words. Signing
- * sits on the tape band; declining is the quieter choice under it.
+ * sits in its own highlighted band; declining is the quieter choice under it.
  */
 export function SignOrDecline({
   busy,
@@ -32,12 +32,12 @@ export function SignOrDecline({
   };
   return (
     <>
-      <form onSubmit={sign} className="pp-tape pp-sign">
+      <form onSubmit={sign} className="pp-band pp-sign">
         <label>
           Type your full name
           <input name="typedName" required minLength={2} maxLength={200} autoComplete="name" />
         </label>
-        <Button type="submit" large disabled={busy}>
+        <Button type="submit" look="primary" large disabled={busy}>
           {words.sign}
         </Button>
       </form>

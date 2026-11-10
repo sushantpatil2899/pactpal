@@ -58,7 +58,7 @@ export function ChatDraftForm({
         to the AI providers; the exact text they read is kept with this deal.
       </p>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
@@ -89,7 +89,7 @@ export function ChatDraftForm({
         )}
       </p>
       {hasAgreement && (
-        <p style={{ fontSize: 14, color: "#555" }}>
+        <p data-tone="note">
           &quot;Update from the latest chat&quot; reads the agreement as it stands and only the
           messages since the last draft, and shows you what would change.
         </p>

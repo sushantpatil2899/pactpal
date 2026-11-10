@@ -251,7 +251,9 @@ function EvidenceFiles({
           </li>
         ))}
       </ol>
-      <p style={packet.overLimit ? { color: "#8a1c1c", fontWeight: 600 } : undefined}>
+      <p
+        style={packet.overLimit ? { color: "var(--color-alert-ink)", fontWeight: 600 } : undefined}
+      >
         {sizeWords(packet.totalBytes)} of {sizeWords(view.limits.maxTotalBytes)} in total.
       </p>
       {packet.newerEntries > 0 && (
@@ -393,7 +395,7 @@ export function DisputeActions({
       <h4>Send to PayPal</h4>
       {!view.canSend && <p>Sending to PayPal is not set up on this server.</p>}
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
@@ -427,7 +429,7 @@ export function DisputeActions({
             </p>
           )}
           {open === "appeal" && view.appealMissing !== null && view.appealMissing.length > 0 && (
-            <p role="alert" style={{ color: "#8a1c1c" }}>
+            <p role="alert" data-tone="problem">
               This packet leaves out what the appeal relies on: {view.appealMissing.join(", ")}.
               Build a new packet above first.
             </p>

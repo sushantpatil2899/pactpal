@@ -33,7 +33,9 @@ const bubble = (mine: boolean) =>
     marginLeft: mine ? "auto" : 0,
     padding: "0.4rem 0.6rem",
     borderRadius: 8,
-    background: mine ? "#e6f0ff" : "#f2f2f2",
+    background: mine
+      ? "color-mix(in srgb, var(--color-accent) 14%, transparent)"
+      : "var(--color-bg-sunk)",
     whiteSpace: "pre-wrap",
     ...WRAP,
   }) as const;
@@ -56,7 +58,7 @@ function Message({
         style={{
           margin: "0.5rem 0",
           padding: "0.4rem 0.6rem",
-          border: "1px solid #ccc",
+          border: "1px solid var(--color-line-strong)",
           borderRadius: 8,
         }}
       >
@@ -168,7 +170,7 @@ export function ChatTab({
           </>
         )}
       </p>
-      <p style={{ fontSize: 14, color: "#555" }}>
+      <p data-tone="note">
         Every message is saved with the time and a fingerprint in the deal&apos;s evidence log.
         Agree on the work, the stages and the payments here; the seller can turn the chat into the
         agreement.

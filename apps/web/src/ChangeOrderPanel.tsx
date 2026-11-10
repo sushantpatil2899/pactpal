@@ -37,7 +37,7 @@ import {
 import { SignOrDecline } from "./SignOrDecline";
 import { FULL_WIDTH, WRAP } from "./styles";
 
-const ALERT = { color: "#8a1c1c" } as const;
+const ALERT = { color: "var(--color-alert-ink)" } as const;
 
 /** What a change adds or changes, one line each. `stages` are the new version's stage titles. */
 function ChangeSummary({

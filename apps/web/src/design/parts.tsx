@@ -45,12 +45,12 @@ export function ButtonLink({
   );
 }
 
-/** A label: the ruled container for one record. Each child is one of its ruled rows. */
-export function Label({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={["pp-label", className].filter(Boolean).join(" ")}>{children}</div>;
+/** A card: the container for one record or task. Each child is one of its ruled rows. */
+export function Card({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={["pp-card", className].filter(Boolean).join(" ")}>{children}</div>;
 }
 
-/** A captioned fact on a label. A fact with no source says so instead of staying empty. */
+/** A captioned fact on a card. A fact with no source says so instead of staying empty. */
 export function Field({ caption, children }: { caption: string; children?: ReactNode }) {
   return (
     <div>

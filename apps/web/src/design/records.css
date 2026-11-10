@@ -1,37 +1,40 @@
 /* Records people read and answer: agreed terms, the signing band, delivered files. */
 
+/* Captioned facts as a row of soft tiles. */
 .pp-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--space-16) var(--space-24);
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--space-8);
+}
+
+.pp-facts > div {
+  padding: var(--space-12);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-box);
+  background: var(--color-surface-2);
+  font-weight: 600;
 }
 
 .pp-facts .pp-caption {
-  margin-bottom: var(--space-4);
+  margin-bottom: 2px;
 }
 
 .pp-terms-title {
   margin-bottom: var(--space-16);
-  font-size: var(--text-32);
-  font-stretch: 75%;
-  font-weight: 800;
-  line-height: 1;
+  font-size: var(--text-24);
+  letter-spacing: -0.02em;
 }
 
-.pp-terms h4 {
-  font-size: var(--text-13);
-  letter-spacing: 0.04em;
+.pp-terms h4:not(.pp-terms-title) {
+  color: var(--color-ink-3);
+  font-size: var(--text-12);
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.pp-terms .pp-terms-title {
-  font-size: var(--text-32);
-  letter-spacing: -0.01em;
-  text-transform: none;
-}
-
-.pp-terms > * > :last-child {
-  margin-bottom: 0;
+.pp-terms p {
+  font-size: var(--text-17);
 }
 
 .pp-plain-list {
@@ -39,58 +42,46 @@
   list-style: none;
 }
 
-caption {
-  padding-bottom: var(--space-8);
-  font-size: var(--text-13);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-align: left;
-  text-transform: uppercase;
-}
-
-tfoot th,
-tfoot td {
-  border-bottom: 0;
-  border-top: 2px solid var(--color-ink);
-  font-size: var(--text-15);
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-/* What signing means, set apart as its own ruled row. */
+/* What signing means, set apart in its own row. */
 .pp-notice {
-  background: var(--color-label);
-  font-size: var(--text-15);
+  background: var(--color-surface-2);
+  color: var(--color-ink-2);
+  font-size: var(--text-13);
 }
 
 .pp-fingerprint {
   margin: 0;
-  color: var(--color-ink-soft);
-  font-size: var(--text-13);
+  color: var(--color-ink-3);
+  font-size: var(--text-12);
   overflow-wrap: anywhere;
 }
 
-/* The signing band: a name and the one action, on tape. */
+/* The signing band: a name and the one action. */
 .pp-sign {
-  flex-wrap: wrap;
   align-items: flex-end;
-  white-space: normal;
+  padding: var(--space-16);
+  margin-top: var(--space-16);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+  box-shadow: var(--shadow-1);
 }
 
 .pp-sign label {
   display: grid;
   flex: 1 1 14rem;
   gap: var(--space-4);
-  font-size: var(--text-15);
+  font-size: var(--text-13);
 }
 
 .pp-sign input {
   width: 100%;
+  min-height: 3rem;
+  font-size: var(--text-17);
 }
 
 .pp-sign-after {
-  margin-top: var(--space-16);
+  margin-top: var(--space-12);
 }
 
 .pp-full {
@@ -101,6 +92,9 @@ tfoot td {
 /* One delivered file: its name and fingerprint, then the download. */
 .pp-files {
   padding: 0;
+  margin-bottom: var(--space-12);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-box);
   list-style: none;
 }
 
@@ -110,26 +104,28 @@ tfoot td {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8) var(--space-16);
-  padding: var(--space-12) 0;
-  border-bottom: var(--rule-thin) solid var(--color-rule);
+  padding: var(--space-12);
+  font-weight: 550;
   overflow-wrap: anywhere;
 }
 
 .pp-files li + li {
   margin-top: 0;
+  border-top: 1px solid var(--color-line);
 }
 
 .pp-files small {
   display: block;
+  font-weight: 400;
 }
 
 .pp-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-12);
+  gap: var(--space-8);
   align-items: center;
 }
 
 .pp-stack > * + * {
-  margin-top: var(--space-24);
+  margin-top: var(--space-16);
 }

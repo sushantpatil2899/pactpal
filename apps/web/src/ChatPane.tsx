@@ -8,7 +8,10 @@ export interface LineRequest {
   nonce: number;
 }
 
-const HIGHLIGHT: CSSProperties = { background: "#fff3b0", outline: "2px solid #b58900" };
+const HIGHLIGHT: CSSProperties = {
+  background: "color-mix(in srgb, var(--color-wait) 22%, transparent)",
+  outline: "2px solid var(--color-wait)",
+};
 
 /** The numbered chat lines, marking those hidden from the AI and the highlighted one. */
 function ChatLines({
@@ -32,9 +35,7 @@ function ChatLines({
           style={line.n === highlighted ? HIGHLIGHT : undefined}
         >
           <code>{line.n}</code> {line.text}
-          {hidden.includes(line.n) && (
-            <strong style={{ color: "#8a1c1c" }}> (hidden from the AI)</strong>
-          )}
+          {hidden.includes(line.n) && <strong data-tone="problem"> (hidden from the AI)</strong>}
         </li>
       ))}
     </ol>
@@ -110,7 +111,7 @@ export function FromTheChat({
 }) {
   if (lines.length === 0) return null;
   return (
-    <span style={{ color: "#555", fontSize: 14 }}>
+    <span data-tone="note">
       {prefix}{" "}
       {lines.map((line, n) => (
         <span key={line}>

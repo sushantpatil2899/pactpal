@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TOKENS, token, tokenCss } from "./tokens";
+import { DARK, LIGHT, SHARED, token, tokenCss, type ColorToken } from "./tokens";
 
 /** Relative luminance of a `#rrggbb` colour (WCAG 2). */
 function luminance(hex: string): number {
@@ -15,27 +15,46 @@ function contrast(a: string, b: string): number {
   return (light! + 0.05) / (dark! + 0.05);
 }
 
+// The text-on-ground pairings docs/DESIGN.md allows for body-size text.
+const PAIRS: [ColorToken, ColorToken][] = [
+  ["color-ink", "color-bg"],
+  ["color-ink", "color-surface"],
+  ["color-ink-2", "color-bg"],
+  ["color-ink-2", "color-surface"],
+  ["color-ink-3", "color-surface"],
+  ["color-ink-3", "color-bg-sunk"],
+  ["color-on-accent", "color-accent-strong"],
+  ["color-on-accent", "color-accent-strong-2"],
+  ["color-accent-ink", "color-surface"],
+  ["color-on-ai", "color-ai"],
+  ["color-ai-ink", "color-surface"],
+  ["color-wait-ink", "color-surface"],
+  ["color-on-alert", "color-alert"],
+  ["color-alert-ink", "color-surface"],
+];
+
 describe("design tokens", () => {
-  it("writes every token as a custom property", () => {
+  it("writes the shared tokens once and the colours for both themes", () => {
     const css = tokenCss();
-    expect(css.startsWith(":root{")).toBe(true);
-    expect(css).toContain("--color-ink:#0b0c0a;");
-    expect(css.split(";").length - 1).toBe(Object.keys(TOKENS).length);
-    expect(token("color-tape")).toBe("var(--color-tape)");
+    expect(css.startsWith(":root{color-scheme:light;")).toBe(true);
+    expect(css).toContain(`--color-ink:${LIGHT["color-ink"]};`);
+    expect(css).toContain(`:root[data-theme="dark"]{color-scheme:dark;--color-bg:#0a0c10;`);
+    expect(css).toContain(`@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){`);
+    expect(css.split("--font-text:").length - 1).toBe(1);
+    expect(Object.keys(SHARED).length).toBeGreaterThan(20);
+    expect(token("color-accent")).toBe("var(--color-accent)");
   });
 
-  // The pairings docs/DESIGN.md allows for body-size text.
-  it.each([
-    ["color-ink", "color-label"],
-    ["color-ink-soft", "color-label"],
-    ["color-ink", "color-kraft"],
-    ["color-ink", "color-tape"],
-    ["color-label", "color-tape-deep"],
-    ["color-ink", "color-void"],
-    ["color-void-deep", "color-label"],
-    ["color-amber", "color-amber-wash"],
-    ["color-tape-deep", "color-label"],
-  ] as const)("%s on %s is readable (4.5:1)", (text, ground) => {
-    expect(contrast(TOKENS[text], TOKENS[ground])).toBeGreaterThanOrEqual(4.5);
+  it("gives the dark theme every colour the light theme has", () => {
+    expect(Object.keys(DARK).sort()).toEqual(Object.keys(LIGHT).sort());
+  });
+
+  describe.each([
+    ["light", LIGHT],
+    ["dark", DARK],
+  ] as const)("%s theme", (_name, theme) => {
+    it.each(PAIRS)("%s on %s is readable (4.5:1)", (text, ground) => {
+      expect(contrast(theme[text], theme[ground])).toBeGreaterThanOrEqual(4.5);
+    });
   });
 });

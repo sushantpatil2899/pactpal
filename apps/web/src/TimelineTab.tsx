@@ -73,7 +73,7 @@ function StepActions({
       }}
     >
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
@@ -171,7 +171,7 @@ export function TimelineTab({
             style={{
               margin: "0.75rem 0",
               padding: "0.5rem",
-              border: `1px solid ${step === current ? "#b58900" : "#ccc"}`,
+              border: `1px solid var(${step === current ? "--color-wait" : "--color-line-strong"})`,
               borderRadius: 8,
             }}
           >
@@ -201,7 +201,7 @@ export function TimelineTab({
               <StepActions dealId={dealId} step={step} files={files} onDone={setTimeline} />
             )}
             {(step.kind === "payment" || step.kind === "delivery") && step.state !== "done" && (
-              <p style={{ fontSize: 14, color: "#555" }}>
+              <p data-tone="note">
                 {step.kind === "payment"
                   ? "Payments go through PayPal invoices, below."
                   : "Deliveries are sent and answered below."}

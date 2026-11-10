@@ -86,7 +86,7 @@ function Deadline({ dueAt }: { dueAt: string | null }) {
   const due = new Date(dueAt);
   const urgent = deadlineIsNear(due, now) || due.getTime() <= now.getTime();
   return (
-    <p style={urgent ? { color: "#8a1c1c", fontWeight: 600 } : undefined}>
+    <p style={urgent ? { color: "var(--color-alert-ink)", fontWeight: 600 } : undefined}>
       Respond by {when(dueAt)}: {deadlineWords(due, now)}.
     </p>
   );

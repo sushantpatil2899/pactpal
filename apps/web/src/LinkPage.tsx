@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { SIGN_IN_PATH, redeemLink, type LinkProblem } from "./api";
-import { Alert, Button, ButtonLink, Label, Skeleton } from "./design/parts";
+import { Alert, Button, ButtonLink, Card, Skeleton } from "./design/parts";
 
 const PROBLEMS: Record<LinkProblem, string> = {
   unknown: "This link is not valid. Please ask the seller to send it again.",
@@ -68,7 +68,7 @@ export function LinkPage() {
 
   return (
     <section aria-labelledby="link-title">
-      <Label>
+      <Card>
         <div>
           <h1 id="link-title" className="pp-display">
             Your deal on PactPal
@@ -84,8 +84,9 @@ export function LinkPage() {
         </div>
         {view.kind === "ready" && (
           <>
-            <div className="pp-tape">
+            <div className="pp-band">
               <Button
+                look="primary"
                 large
                 onClick={() => {
                   onUse(view.secret, false);
@@ -112,13 +113,13 @@ export function LinkPage() {
           </>
         )}
         {view.kind === "in" && (
-          <div className="pp-tape">
-            <ButtonLink large href={`/deals/${view.dealId}`}>
+          <div className="pp-band">
+            <ButtonLink look="primary" large href={`/deals/${view.dealId}`}>
               Open your deal
             </ButtonLink>
           </div>
         )}
-      </Label>
+      </Card>
     </section>
   );
 }

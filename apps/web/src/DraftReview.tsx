@@ -8,7 +8,7 @@ import { fillFrom, type DraftFill } from "./draft-fill";
 import { lineNumbers } from "./format";
 import { WRAP } from "./styles";
 
-const muted = { color: "#555", fontSize: 14 } as const;
+const muted = { color: "var(--color-ink-3)", fontSize: 13 } as const;
 
 /** The quotes behind a statement: the line number and the words copied from that line. */
 function Quotes({ citations }: { citations: Citation[] }) {

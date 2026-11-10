@@ -115,7 +115,7 @@ export function PaymentsPanel({ deal, onChange }: { deal: DealSummary; onChange:
     <section aria-labelledby="payments">
       <h3 id="payments">Payment stages</h3>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

@@ -113,7 +113,7 @@ export function DealPage({ dealId }: { dealId: string }) {
 
   if (problem) {
     return (
-      <p role="alert" style={{ color: "#8a1c1c" }}>
+      <p role="alert" data-tone="problem">
         {problem} <a href="/">Back to your deals</a>
       </p>
     );
@@ -275,7 +275,7 @@ export function DealPage({ dealId }: { dealId: string }) {
             </p>
           )}
           {check?.status === "changed" && (
-            <p role="alert" style={{ color: "#8a1c1c" }}>
+            <p role="alert" data-tone="problem">
               Changed at entry {check.atEntry + 1}: {check.reason}.
             </p>
           )}

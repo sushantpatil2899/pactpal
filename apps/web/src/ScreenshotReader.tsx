@@ -80,7 +80,7 @@ export function ScreenshotReader({
         {busy ? "Reading…" : "Read the screenshots"}
       </button>
       {problem && (
-        <span role="alert" style={{ display: "block", color: "#8a1c1c" }}>
+        <span role="alert" data-tone="problem-block">
           {problem}
         </span>
       )}

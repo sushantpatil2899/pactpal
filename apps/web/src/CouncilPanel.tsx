@@ -93,7 +93,7 @@ export function CouncilPanel({ council }: { council: CouncilView }) {
         </div>
       )}
       {council.scores.length > 0 && (
-        <p style={{ color: "#555", fontSize: 14 }}>
+        <p data-tone="note">
           Score: 1 means every counted model ranked that draft first, 0 last. Counted: how many
           models&apos; rankings were used (a model&apos;s ranking of its own draft is ignored).
         </p>

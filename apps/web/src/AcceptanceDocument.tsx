@@ -1,5 +1,5 @@
 import type { AcceptanceDocument as Document } from "./api";
-import { Field, Label } from "./design/parts";
+import { Field, Card } from "./design/parts";
 import { ScopeDetails } from "./ScopeDetails";
 
 /**
@@ -15,7 +15,7 @@ export function AcceptanceDocument({
 }) {
   return (
     <article aria-label="Terms to agree to">
-      <Label className="pp-terms">
+      <Card className="pp-terms">
         <header>
           <h4 className="pp-terms-title">{document.title}</h4>
           <div className="pp-facts">
@@ -37,7 +37,7 @@ export function AcceptanceDocument({
         <p className="pp-fingerprint">
           Page fingerprint (SHA-256): <code>{documentSha256}</code>
         </p>
-      </Label>
+      </Card>
     </article>
   );
 }

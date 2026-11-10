@@ -32,10 +32,7 @@ export function NotificationsList({
     onOpen(note);
   };
   return (
-    <section
-      aria-labelledby="notifications"
-      style={{ border: "1px solid #b58900", padding: "0 0.75rem", borderRadius: 8 }}
-    >
+    <section aria-labelledby="notifications" className="pp-needs">
       <h3 id="notifications">Needs you ({notes.length})</h3>
       <ul>
         {notes.map((note) => (

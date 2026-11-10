@@ -1,113 +1,102 @@
 # PactPal design system
 
-The visual world is **Sealed Parcel**: every deal is a parcel, labelled as it was agreed and sealed with tape that shows if anyone opens it. Chosen by the owner on 10 November 2026. This file is written before the build and is refreshed from the built screens at the end of the redesign.
+A calm, modern product look: soft rounded cards on cool neutral grounds, fine hairlines, one emerald-to-teal gradient for actions and progress, and violet for anything the AI drafted. It comes in a light and a dark theme. Chosen by the owner on 10 November 2026 from a mock-up of the deal space, after the first direction ("Sealed Parcel": square ruled labels on kraft) was built for three screens and judged plain, boxy and childish.
 
-Reference systems read for structure only (Stripe, Wise, Mercury, Linear, Notion): one action colour; real product UI as the proof; tabular figures for money; status colours kept apart from the brand colour; surface contrast and rules instead of shadows; plain rectangles for working screens. No palette, logo or look is taken from them.
+Reference systems read for structure only (Stripe, Wise, Mercury, Linear, Notion): one action colour; real product UI as the proof; tabular figures for money; status colours kept apart from the action colour; depth from surface contrast and soft shadow. No palette, logo or look is taken from them.
 
-## The world
+## Principles
 
-| Thing in the world        | What it is in PactPal                                              |
-| ------------------------- | ------------------------------------------------------------------ |
-| Shipping label            | Any record: an agreement, a receipt, a deal header, a packet cover |
-| Label fields (FROM, TO)   | Labelled facts; a field with no source stays visibly blank         |
-| Tracking scans            | The evidence log and the timeline: one mark per step, in order     |
-| Security tape             | The seal: signing, the primary action, an unchanged log            |
-| Tape showing VOID         | The log was changed at this entry                                  |
-| Record number and barcode | Fingerprints                                                       |
-| Kraft board               | The public ground: the parcel the label sits on                    |
+1. **The record is the hero.** Screens show real terms, messages and fingerprints, not illustrations.
+2. **Colour has jobs.** Green: the one action, progress, signed and done. Violet: drafted by AI, and its citations. Amber: waiting. Red: a problem, a dispute, a changed log. Nothing is coloured for decoration.
+3. **Calm where trust is decided.** Signing and delivery pages have one action and nothing that competes with it.
+4. **Honest states.** A field with no source says so. The completeness score is never shown beside words about outcomes.
 
-The world is the structure of the page, never decoration on top of it. No drawings of boxes, trucks or envelopes; PactPal is not a courier and nothing on a page may suggest it ships goods.
+## Surfaces by audience
 
-## How far the world reaches, by surface
-
-| Surface                                          | Mode     | Treatment                                                                                                                                 |
-| ------------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Landing page, sign-in                            | Persuade | Full world. Kraft ground, one large label per screen, tape bands that own whole regions, condensed heavy headlines                        |
-| Buyer pages (link, acceptance, delivery)         | Read     | One calm label on a label-grey ground, large text, a single tape band for the one action. Nothing else competes                           |
-| Dashboard, deals, deal space, disputes, settings | Operate  | Restrained. Label-grey ground, white panels with thin rules, tape green only for the primary action and progress, mono for record numbers |
+| Surface                                          | Layout                                                                 | Notes                                                                                   |
+| ------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Landing page, sign-in                            | Public: a soft wash of the accent behind the top of the page           | The landing page carries the scroll-driven story; larger type, the same cards and parts |
+| Buyer pages (link, terms to sign, delivery)      | One column, 46rem wide, a plain top bar                                | One card per record, one highlighted band for the one action                            |
+| Dashboard, deals, deal space, disputes, settings | A rail of sections and open deals beside the page; a top bar on phones | Dense but quiet: cards, tiles, a segmented switcher                                     |
 
 ## Colour
 
-Strategy: committed. Tape green and kraft own whole regions on public pages; working screens stay neutral so status colours can be read.
+Tokens live in `apps/web/src/design/tokens.ts`, in a light and a dark set; the pairings below are tested for 4.5:1 contrast in both.
 
-| Token         | Value     | Role                                                                      |
-| ------------- | --------- | ------------------------------------------------------------------------- |
-| `label`       | `#F3F4EF` | Label stock: the ground of app and buyer pages, the label on public pages |
-| `label-white` | `#FFFFFF` | Panels and inputs on `label`                                              |
-| `kraft`       | `#B98E5E` | Public ground                                                             |
-| `kraft-deep`  | `#7A5830` | Text and rules on kraft where ink is too strong                           |
-| `ink`         | `#0B0C0A` | Text, rules, the dark hand of the logo                                    |
-| `ink-soft`    | `#4A4E47` | Secondary text (7.9:1 on `label`)                                         |
-| `rule`        | `#C9CCC2` | Thin rules and borders on working screens                                 |
-| `tape`        | `#0B8F5C` | Tape bands, progress, scan marks. Carries `ink` text only (4.8:1)         |
-| `tape-deep`   | `#086B45` | Primary buttons and green text; carries `label` text (5.9:1)              |
-| `void`        | `#FF5A1F` | Changed-log bands and fills. Carries `ink` text only (6.3:1)              |
-| `void-deep`   | `#B93A0C` | Warning and error text on `label` (5.2:1)                                 |
-| `amber`       | `#8A5A00` | Waiting text; on `amber-wash` `#FBE9B8`                                   |
+| Token                                 | Light                | Dark                 | Role                                              |
+| ------------------------------------- | -------------------- | -------------------- | ------------------------------------------------- |
+| `bg`                                  | `#f4f6f8`            | `#0a0c10`            | Page ground                                       |
+| `bg-sunk`                             | `#eceff3`            | `#0e1116`            | The rail, tab tracks, code                        |
+| `surface`                             | `#ffffff`            | `#12161c`            | Cards, inputs, buttons                            |
+| `surface-2`                           | `#f8fafb`            | `#171c24`            | Tiles and bands inside a card                     |
+| `line`, `line-strong`                 | ink at 8% and 16%    | white at 7% and 15%  | Hairlines; control borders                        |
+| `ink`, `ink-2`, `ink-3`               | `#0d1219` and greys  | `#eef2f6` and greys  | Text, secondary text, captions                    |
+| `accent`, `accent-2`                  | `#0fa97a`, `#0b8f8c` | `#22c997`, `#17b3b0` | Progress, marks, glows (not for body text)        |
+| `accent-strong` pair with `on-accent` | deep greens, white   | bright greens, ink   | The primary button's gradient and its text        |
+| `accent-ink`                          | `#087a58`            | `#4fdcb0`            | Green text and links                              |
+| `ai`, `on-ai`, `ai-ink`               | `#6d5cf6` family     | `#8f81ff` family     | AI drafts, AI cards in the chat, citation numbers |
+| `wait`, `wait-ink`                    | amber                | amber                | Waiting for someone                               |
+| `alert`, `on-alert`, `alert-ink`      | red                  | red                  | Problems, disputes, a changed log                 |
 
-No blue anywhere. Green is never used to mean "you are protected" or a likely outcome; it means sealed, signed or done.
+No blue anywhere, so nothing reads as PayPal's brand. Washes are made in CSS with `color-mix` from these tokens. Green never means "you are protected" or a likely outcome.
 
 ### Status
 
 Each status has a word, a shape and a colour, so it reads without colour.
 
-| Status          | Word shown        | Shape                                    | Colour                  |
-| --------------- | ----------------- | ---------------------------------------- | ----------------------- |
-| Draft           | Draft             | Dashed outline, empty circle             | `ink-soft`              |
-| Awaiting buyer  | Waiting for buyer | Solid outline, half-filled circle        | `amber` on `amber-wash` |
-| Signed          | Signed            | Outline with a tape strip, tick          | `tape-deep` outline     |
-| Paid            | Paid              | Filled, tick                             | `label` on `tape-deep`  |
-| Delivered       | Delivered         | Filled, double tick                      | `label` on `ink`        |
-| Disputed        | Disputed          | Filled, exclamation mark                 | `label` on `void-deep`  |
-| Tamper detected | Changed           | Diagonal VOID hatching, broken-link mark | `ink` on `void`         |
+| Status          | Word shown        | Shape              | Colour               |
+| --------------- | ----------------- | ------------------ | -------------------- |
+| Draft           | Draft             | Dashed circle      | Grey, dashed outline |
+| Awaiting buyer  | Waiting for buyer | Half-filled circle | Amber wash           |
+| Signed          | Signed            | Tick               | Green wash           |
+| Paid            | Paid              | Tick               | Green wash           |
+| Delivered       | Delivered         | Double tick        | Ink, filled          |
+| Disputed        | Disputed          | Exclamation mark   | Red wash             |
+| Tamper detected | Changed           | Broken link        | Red, filled          |
 
 ## Type
 
-| Role             | Face                                | Use                                                                         |
-| ---------------- | ----------------------------------- | --------------------------------------------------------------------------- |
-| Display and text | Archivo (variable width and weight) | Headlines condensed (width 75) at weight 800; text at normal width, 400/600 |
-| Records          | Martian Mono                        | Fingerprints, record numbers, times, amounts in tables                      |
+Geist for text and interface, Geist Mono for fingerprints, record numbers and amounts in tables. Both are open-licence and self-hosted. Body is 15 px; headings 17, 20 and 24 at weight 650 with tight tracking; public and buyer headlines 28 to 40 px. Captions are 12 px. Numbers are tabular everywhere.
 
-Both are open-licence and self-hosted. Field captions (FROM, TO, CONTENTS) are 12–13 px, weight 700, upper case, tracked +4%. Money and counts use tabular figures. The completeness score is set in fixed digit positions in the mono face.
+## Shape, depth, space
 
-Scale (px): 13, 15, 17 (body), 20, 24, 32, 44, 64, 96, 128. Public headlines run 64–128; working screens stop at 32. Body lines are 60–75 characters.
-
-## Space, shape, depth
-
-- Spacing steps (px): 4, 8, 12, 16, 24, 32, 48, 64, 96, 128. Sections on public pages are 96–128 apart; working screens use 16–32.
-- Corners are square: labels, panels, buttons and inputs have radius 0 on public and buyer pages and 2 px on working screens. Full rounding is reserved for the logo's fingers, scan marks and status badges.
-- Rules: 3 px `ink` on labels (public, buyer); 1 px `rule` on working screens. A label's fields are divided by rules, not by gaps or cards.
-- Depth: none. No drop shadows on content. Only overlays (menus, the deal switcher) lift, with `0 8px 24px rgb(11 12 10 / 0.16)`.
-- Tape bands are rotated 1–2° on public pages only; never on working screens or buyer pages.
+- Radius: 16 px cards, 12 px tiles and bands, 10 px controls, full for badges and avatars.
+- Depth: two soft shadows. `shadow-1` on cards and the open tab; `shadow-2` on the sign-in card and overlays. In the dark theme depth comes mostly from surface steps and an inner top highlight.
+- Spacing steps (px): 4, 8, 12, 16, 24, 32, 48, 64, 96.
+- Borders are 1 px hairlines. No heavy rules, no hard offset shadows.
 
 ## Components
 
-| Component   | Rule                                                                                                                             |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Button      | Primary: `tape-deep` fill, `label` text. Secondary: 2 px `ink` outline. One primary per view. Minimum 44 px tall                 |
-| Label       | The record container: caption row, ruled fields, optional record number and barcode. Used for agreements, receipts, deal headers |
-| Field       | Caption above value. Unsourced value shows "Not in the source. Left blank." in `ink-soft`, never an empty box                    |
-| Citation    | A numbered mark beside a field; hovering or focusing it highlights the source line with a `tape` edge                            |
-| Scan mark   | A circle in the margin column: empty, half or filled. A filled mark never empties again                                          |
-| Tape band   | Carries the one primary action or a sealed/changed state. Text on it is `ink`                                                    |
-| Badge       | The seven statuses above, plus counts                                                                                            |
-| Alert       | A 2 px outline in the status colour on white, the word first ("Changed at entry 4"), `role="alert"` or `role="status"`           |
-| Tabs        | Text tabs with a 3 px `ink` underline on the current one; arrow keys move between them                                           |
-| Empty state | A blank label with its captions and one sentence saying what will appear and the one action that starts it                       |
-| Skeleton    | Ruled label outlines in `rule`; no shimmer                                                                                       |
-| Focus       | 3 px `ink` outline with a 2 px `label` gap, on every interactive element                                                         |
+| Component      | Rule                                                                                                                                           |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Button         | Primary: the green gradient with a soft glow; one per view. Secondary: surface with a hairline. Quiet: text only. 40 px tall, 48 px when large |
+| Card           | One record or task. Rows inside are divided by hairlines                                                                                       |
+| Band           | The row of a card that holds its one action, on `surface-2`; the signing band is tinted green                                                  |
+| Field and tile | A caption above a value, on a soft tile. An unsourced value reads "Not in the source. Left blank." with a dashed outline                       |
+| Citation       | A small violet number beside a term; hovering or focusing it highlights the chat line it came from                                             |
+| AI card        | Violet wash, a spark mark, what the AI prepared and one button. Always a draft, never an action taken                                          |
+| Progress strip | Numbered nodes joined by a line; done nodes are filled green with a tick, the current one has a ring; the next action sits at its right        |
+| Tabs           | A segmented control: one sunk track, the open tab lifted out of it                                                                             |
+| Badge          | The seven statuses above, as pills                                                                                                             |
+| Alert          | A tinted, rounded box: green for confirmations (`role="status"`), red for problems (`role="alert"`), the word first                            |
+| Empty state    | A dashed box with one sentence on what will appear and how to start                                                                            |
+| Skeleton       | Rounded bars that breathe slowly; no shimmer sweep                                                                                             |
+| Focus          | A 2 px accent outline; inputs get an accent border and a soft ring                                                                             |
 
 ## Logo
 
-The owner's handshake-heart, redrawn as an SVG: the left hand in `ink`, the right hand in `tape`, the palm in `tape-deep`. On dark grounds the left hand becomes `label`. The wordmark is "PactPal" in Archivo condensed 800. Minimum size 20 px high; no PayPal marks or colours beside it.
+The owner's handshake-heart, redrawn as an SVG with gradients: the hands in bright and deep green, the last finger in violet. The wordmark is "PactPal" in Geist at weight 700. No PayPal marks or colours beside it.
+
+## Themes
+
+The app follows the device's light or dark setting; a switch in the footer cycles device, light and dark and is remembered. Every screen is checked in both.
 
 ## Motion
 
-- Durations 120, 200 and 320 ms; ease-out. Motion shows a state changing (a field filling, a mark closing, tape sealing); nothing moves for decoration.
-- Landing page: scroll-linked. The deal's label stays pinned while sections advance it; each section closes one scan mark in the margin column, numbered 01–13. Marks and filled fields persist when scrolling back.
-- The trust moment: an altered log entry turns its tape to VOID hatching and every later entry breaks from the chain.
-- Phones: no pinning; each section reveals once as it enters.
-- `prefers-reduced-motion`: every scroll-linked state renders in its final form; no pinning, no rotation changes.
+- Durations 120, 200 and 320 ms with an ease-out curve. Buttons lift one pixel on hover; the current step's ring pulses slowly; typing dots bob.
+- Motion shows a state changing (a field filling, a step completing, a citation lighting its source); nothing moves for decoration.
+- Landing page: scroll-linked, with one deal advancing section by section. Phones get simple reveals instead of pinning.
+- `prefers-reduced-motion`: animations and transitions are switched off and scroll-linked states render in their final form.
 - Nothing hijacks the scroll wheel, the keyboard, find-in-page or anchor links, and nothing shifts layout after load.
 
 ## Voice
@@ -116,10 +105,9 @@ Plain, short, exact. Say what was recorded, never what will happen. No exclamati
 
 ## Do and don't
 
-- Do let one label carry one record, with every fact in a captioned field.
-- Do keep green for sealed, signed and done, and orange for changed and disputed.
+- Do give each view one primary action.
+- Do keep violet for AI drafts and their citations only.
 - Do show real product screens with invented people (Maya, Chris, Daniel, Rosa, Jun) as the proof.
-- Don't draw parcels, trucks, stamps of approval or anything that reads as shipping.
-- Don't add shadows, gradients, glass or rounded cards.
-- Don't use heavy black boxes on working screens; the label look is for public and buyer pages.
+- Don't use heavy black borders, square boxes or flat saturated colour fields.
+- Don't hard-code colours in components; use the tokens, so both themes work.
 - Don't put the completeness score at the centre of a page or beside words about outcomes.

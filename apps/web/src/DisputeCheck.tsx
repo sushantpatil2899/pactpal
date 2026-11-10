@@ -76,7 +76,7 @@ export function CheckNow({
   return (
     <>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

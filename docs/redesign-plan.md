@@ -1,6 +1,6 @@
 # Redesign plan (proposed Phase 7R)
 
-Status: **approved by the owner on 10 November 2026.** R1 to R4 are done; R5 (the overview address) is next. Branch: `redesign`, from `dev`.
+Status: **approved by the owner on 10 November 2026.** R1 to R4 are done and were restyled on 10 November 2026 when the owner replaced the first visual direction (see [DESIGN.md](DESIGN.md) and the last row of the redesign table in [decisions.md](decisions.md)); the colour, type, logo and motion rows below describe the first direction where they differ. R5 (the overview address) is next. Branch: `redesign`, from `dev`.
 
 ## Goal
 

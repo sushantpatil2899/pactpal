@@ -165,7 +165,7 @@ export function PacketPanel({
       {[problem, summaries.problem].map(
         (text) =>
           text !== undefined && (
-            <p key={text} role="alert" style={{ color: "#8a1c1c" }}>
+            <p key={text} role="alert" data-tone="problem">
               {text}
             </p>
           ),
@@ -197,7 +197,7 @@ export function PacketPanel({
           </li>
         ))}
       </ul>
-      <p style={over ? { color: "#8a1c1c", fontWeight: 600 } : undefined}>
+      <p style={over ? { color: "var(--color-alert-ink)", fontWeight: 600 } : undefined}>
         {sizeWords(total)} of {sizeWords(view.meter.maxTotalBytes)} in total; largest file{" "}
         {sizeWords(largest)} of {sizeWords(view.meter.maxFileBytes)}. The packet PDF itself is added
         on top (usually well under 1 MB).

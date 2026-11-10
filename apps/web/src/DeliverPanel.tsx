@@ -155,7 +155,7 @@ export function DeliverPanel({
     <form ref={form} onSubmit={onSubmit} onChange={onChange} aria-labelledby="deliver">
       <h4 id="deliver">Deliver work</h4>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
