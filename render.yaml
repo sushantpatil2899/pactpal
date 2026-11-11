@@ -71,8 +71,9 @@ services:
     # No outside connections: only services on Render's private network can reach it.
     ipAllowList: []
 
-  # The docs site (9R-4): the project's documents as web pages, rebuilt on every push and served
-  # from Render's global network. Free.
+  # The help site (9R-4, reworked in 7R): PactPal help for sellers plus the technical documents
+  # that apply, in the website's look, rebuilt on every push and served from Render's global
+  # network. Free. Working documents (plans, decisions, notes) are not published.
   - type: web
     name: pactpal-docs
     runtime: static

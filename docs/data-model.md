@@ -48,14 +48,14 @@ erDiagram
 
 One row per person. "Seller" and "buyer" are roles on a deal, not kinds of person, so one person can sell in one deal and buy in another.
 
-| Column                              | Meaning                                                                                                                                         |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                                | The person's PactPal id                                                                                                                         |
-| `email`                             | Required. Unique ignoring upper and lower case                                                                                                  |
-| `email_verified_at`                 | When the address was proven (PayPal says verified, or an emailed link was used). Empty if not proven                                            |
-| `display_name`                      | One free-text name; may be empty. The legally relevant name is the one a buyer types when agreeing, which the ledger records                    |
-| `paypal_user_id`, `paypal_payer_id` | PayPal's login subject and account id. Empty until the person signs in with PayPal; each unique. To be confirmed against the live sandbox in 2e |
-| `created_at`, `updated_at`          | Server time                                                                                                                                     |
+| Column                              | Meaning                                                                                                                                                  |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                | The person's PactPal id                                                                                                                                  |
+| `email`                             | Required. Unique ignoring upper and lower case                                                                                                           |
+| `email_verified_at`                 | When the address was proven (PayPal says verified, or an emailed link was used). Empty if not proven                                                     |
+| `display_name`                      | One free-text name; may be empty. The legally relevant name is the one a buyer types when agreeing, which the ledger records                             |
+| `paypal_user_id`, `paypal_payer_id` | PayPal's login subject and account id. Empty until the person signs in with PayPal; each unique. To be confirmed against PayPal's test environment in 2e |
+| `created_at`, `updated_at`          | Server time                                                                                                                                              |
 
 A person invited by email has no PayPal ids. If they later sign in with PayPal, their row is linked (only when the email is proven both ways; built in 2e).
 
@@ -237,7 +237,7 @@ Built in 4d (migration 0010). One row per payment stage of the **signed** versio
 
 Since 5a (migration 0020) a paid stage also keeps `invoice_number`, PayPal's own number for the invoice (not its id), read from PayPal's answer when the payment is recorded, so a dispute can be matched by it.
 
-Since 6h-3 (migration 0031) a stage also keeps `seller_connection_id`: the seller's own linked app its invoice is sent from (a `seller_connections` row), or empty for PactPal's own sandbox seller app. It is set when the stage is reserved and never changes, so retries, payment checks and disputes always use the account that made the invoice. The `INVOICE_SENT` entry of such an invoice also carries `paypalAccount`, the seller's PayPal account id.
+Since 6h-3 (migration 0031) a stage also keeps `seller_connection_id`: the seller's own linked app its invoice is sent from (a `seller_connections` row), or empty for PactPal's own test seller app. It is set when the stage is reserved and never changes, so retries, payment checks and disputes always use the account that made the invoice. The `INVOICE_SENT` entry of such an invoice also carries `paypalAccount`, the seller's PayPal account id.
 
 `INVOICE_SENT` (by the seller) holds the version, stage, PayPal invoice id, amount and currency, the fingerprints of the agreed work and of the invoice text, a SHA-256 of the buyer's lower-cased address (never the address) and the route PayPal answered by (`rest`).
 
@@ -535,12 +535,12 @@ Built in 5j (migration 0028); append-only. One row per email key: a new dispute,
 
 ### `seller_connections`: sellers connected to their own PayPal account
 
-Built in 6c (migration 0029); own apps added in 6h-1 (migration 0030) and their alert address in 6h-4 (migration 0032). One row per attempt to connect through Partner Referrals ("Connect with PayPal"), or per link of a seller's own sandbox REST app. Not append-only, because the status changes, and not evidence. Ending a connection keeps the row, and reconnecting makes a new one, so it stays known which PayPal account past invoices came from. Sellers with no live connection use PactPal's own sandbox seller app, as before. Nothing on the site writes rows yet: own apps from 6h-2, Partner Referrals from 6d.
+Built in 6c (migration 0029); own apps added in 6h-1 (migration 0030) and their alert address in 6h-4 (migration 0032). One row per attempt to connect through Partner Referrals ("Connect with PayPal"), or per link of a seller's own REST app. Not append-only, because the status changes, and not evidence. Ending a connection keeps the row, and reconnecting makes a new one, so it stays known which PayPal account past invoices came from. Sellers with no live connection use PactPal's own test seller app, as before. Nothing on the site writes rows yet: own apps from 6h-2, Partner Referrals from 6d.
 
 | Column                                          | Meaning                                                                                                                                                                        |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `id`, `user_id`                                 | The attempt and the PactPal seller. Deleting the user deletes their rows                                                                                                       |
-| `method`                                        | `partner` (Partner Referrals) or `own_app` (the seller's own sandbox REST app, 6h)                                                                                             |
+| `method`                                        | `partner` (Partner Referrals) or `own_app` (the seller's own REST app, 6h)                                                                                                     |
 | `tracking_id`                                   | Partner Referrals only: PactPal's own id for the attempt, sent to PayPal and given back when the seller is looked up. Unique                                                   |
 | `client_id`                                     | Own apps only: the app's client id. Not secret                                                                                                                                 |
 | `client_secret_sealed`                          | Own apps only, while connected: the app's secret encrypted with `SELLER_KEYS_ENCRYPTION_KEY` (AES-256-GCM, bound to the row). Wiped when the link ends                         |

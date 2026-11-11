@@ -39,6 +39,20 @@ export default tseslint.config(
     extends: [tseslint.configs.disableTypeChecked],
   },
   {
+    // The help site's one script runs in the browser.
+    files: ["apps/docs/src/site.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: {
+        document: "readonly",
+        window: "readonly",
+        navigator: "readonly",
+        getComputedStyle: "readonly",
+        IntersectionObserver: "readonly",
+      },
+    },
+  },
+  {
     files: ["**/*.cjs"],
     languageOptions: {
       sourceType: "commonjs",

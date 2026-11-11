@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DARK, LIGHT, SHARED, token, tokenCss, type ColorToken } from "./tokens";
+import { DARK, LIGHT, SHARED, token, tokenCss, type ColorToken } from "./tokens.js";
 
 /** Relative luminance of a `#rrggbb` colour (WCAG 2). */
 function luminance(hex: string): number {

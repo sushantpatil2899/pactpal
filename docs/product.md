@@ -138,15 +138,15 @@ PDF or image files under 10 MB each, within PayPal's total size limit.
 
 ## PayPal integration
 
-| API          | Used for                                                                                                                                                                                            |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PayPal apps  | Each seller links their own sandbox PayPal app for invoices and disputes; "Connect with PayPal" (Partner Referrals) is not available to us: PayPal offers partner invoicing to select partners only |
-| Invoicing v2 | Milestone invoices                                                                                                                                                                                  |
-| Webhooks     | Payments and disputes, signature-verified                                                                                                                                                           |
-| Disputes v1  | List, get, provide evidence, make offer, accept claim, appeal                                                                                                                                       |
-| Orders v2    | Shipment tracking for physical goods                                                                                                                                                                |
+| API          | Used for                                                                                                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PayPal apps  | Each seller links their own PayPal app for invoices and disputes; "Connect with PayPal" (Partner Referrals) is not available to us: PayPal offers partner invoicing to select partners only |
+| Invoicing v2 | Milestone invoices                                                                                                                                                                          |
+| Webhooks     | Payments and disputes, signature-verified                                                                                                                                                   |
+| Disputes v1  | List, get, provide evidence, make offer, accept claim, appeal                                                                                                                               |
+| Orders v2    | Shipment tracking for physical goods                                                                                                                                                        |
 
-Every operation tries a PayPal MCP tool first and falls back to REST; the transport used is shown in the timeline. See [sandbox-notes.md](sandbox-notes.md).
+Every operation tries a PayPal MCP tool first and falls back to REST; the transport used is shown in the timeline.
 
 ## MCP server for agents
 
@@ -176,6 +176,6 @@ For goods and digital products (8e), the seller can paste the product's listing 
 3. Pasted conversations are untrusted data: delimited, lines that give orders to an AI hidden from the models and never quotable, instructions inside ignored, outputs validated as JSON.
 4. Human confirmation, with a diff view, before anything is sent to a buyer or to PayPal.
 5. No outcome promises, no legal conclusions, never "legally binding" or "court proof".
-6. A prompt-injection test set runs before each demo (`pnpm eval:injection --council`; `--models a,b` limits it to some models).
+6. A prompt-injection test set runs before each release (`pnpm eval:injection --council`; `--models a,b` limits it to some models).
 7. Draft quality is measured by `pnpm eval:scope`: each model alone and the council, scored against known right answers (wrong values counted separately).
 8. Minimal personal data, stated retention, logging notice shown at acceptance.
