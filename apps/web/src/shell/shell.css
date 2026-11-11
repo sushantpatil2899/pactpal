@@ -440,3 +440,128 @@
     gap: var(--space-8) var(--space-16);
   }
 }
+
+@layer pp {
+  /* The buyer link: one calm card, the two ways in. */
+  .pp-link {
+    display: grid;
+    place-items: center;
+    min-height: 60dvh;
+  }
+
+  .pp-link-card {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-16);
+    width: 100%;
+    max-width: 30rem;
+    padding: clamp(1.5rem, 5vw, 2.5rem);
+    border: 1px solid var(--color-line);
+    border-radius: 24px;
+    background:
+      radial-gradient(
+        24rem 12rem at 50% -4rem,
+        color-mix(in srgb, var(--color-accent) 12%, transparent),
+        transparent
+      ),
+      var(--color-surface);
+    box-shadow: var(--shadow-2);
+    text-align: center;
+  }
+
+  .pp-link-mark {
+    width: auto;
+    height: 3rem;
+  }
+
+  .pp-link-card h1 {
+    margin: 0;
+    font-size: var(--text-32);
+    letter-spacing: -0.02em;
+  }
+
+  .pp-link-lead {
+    margin: 0;
+    color: var(--color-ink-2);
+  }
+
+  .pp-link-choices {
+    display: grid;
+    gap: var(--space-12);
+    width: 100%;
+    margin-top: var(--space-8);
+  }
+
+  .pp-link-choices button,
+  .pp-link-card > .pp-button {
+    width: 100%;
+  }
+
+  .pp-link-choices small {
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-link-or {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    margin: 0;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-link-or::before,
+  .pp-link-or::after {
+    flex: 1;
+    height: 1px;
+    background: var(--color-line);
+    content: "";
+  }
+
+  /* The buyer's deals: each a row that opens the deal. */
+  .pp-deals-home-page {
+    max-width: 60rem;
+  }
+
+  .pp-deals-home h1 {
+    margin: 0 0 var(--space-16);
+  }
+
+  .pp-deals-home ul {
+    display: grid;
+    gap: var(--space-8);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pp-deals-home a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-1);
+    color: var(--color-ink);
+    text-decoration: none;
+    transition: border-color var(--time-fast) var(--ease);
+  }
+
+  .pp-deals-home a:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+
+  .pp-deals-home-text {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pp-deals-home small {
+    color: var(--color-ink-3);
+    font-size: var(--text-13);
+  }
+}

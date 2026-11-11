@@ -244,3 +244,12 @@
     }
   }
 }
+
+@layer pp {
+  /* The buyer's payment action, on its own line under the stage's status. */
+  .pp-pay {
+    display: flex;
+    width: max-content;
+    margin-top: var(--space-8);
+  }
+}
