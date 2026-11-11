@@ -8,3 +8,6 @@ graphify-out
 
 # Browser check working files
 .playwright-mcp/
+
+# Generated demo files (made by hackathon/demo/tools)
+hackathon/demo/deliverables/

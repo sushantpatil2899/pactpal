@@ -1,0 +1,6 @@
+New order from lenasvintagecameras.example (order form)
+Buyer: Sam Patel (sam.patel@pact-pal.app)
+Item: 1970s 35mm SLR film camera, silver and black, with 50mm lens
+Condition (from the listing): Fully working, light meter works. Minor haze on the rear lens element, sold as is.
+Price: $185 including tracked shipping
+Ship by: 20 November 2026
