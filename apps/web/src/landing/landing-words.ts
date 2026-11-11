@@ -24,7 +24,7 @@ export const TRADES = [
   "web designer",
 ] as const;
 
-/** The four things every deal gets, said before anything is explained. */
+/** The five things PactPal gives, said before anything is explained. */
 export const PILLARS = [
   {
     id: "draft",
@@ -50,14 +50,13 @@ export const PILLARS = [
     body: "PactPal spots the dispute, counts down to PayPal's deadline, matches the claim to the record and builds the packet you confirm.",
     link: "#disputes",
   },
+  {
+    id: "agent",
+    title: "Your own AI agent, working for you",
+    body: "Connect Claude, Cursor or any MCP assistant. It reads your deals and builds packets. Anything it sends waits for a code only you can give.",
+    link: "#agents",
+  },
 ] as const;
-
-/** The card under the four: your own AI assistant, which a deal may or may not use. */
-export const AGENT_CARD = {
-  title: "Your own AI agent, working your deals",
-  body: "Connect Claude, Cursor or any MCP assistant. It reads your deals and builds packets. Anything it wants to send waits for a code only you can give it.",
-  link: "#agents",
-} as const;
 
 /** The assistants named on the agent section: product names, said only as facts. */
 export const AGENT_CLIENTS = ["Claude Code", "Claude Desktop", "Cursor", "Any MCP client"] as const;

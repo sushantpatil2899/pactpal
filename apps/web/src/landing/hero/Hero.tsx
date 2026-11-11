@@ -1,6 +1,5 @@
+import { SignInButton } from "../SignInButton";
 import { useEffect, useRef, type RefObject } from "react";
-import { SIGN_IN_PATH } from "../../api";
-import { ButtonLink } from "../../design/parts";
 import { Letters } from "../Letters";
 import { HERO, TICKER } from "../landing-words";
 import { TradeLine } from "./TradeLine";
@@ -123,9 +122,7 @@ export function Hero({ problem }: { problem?: string }) {
         <TradeLine />
         <p className="pp-lp-lede">{HERO.lede}</p>
         <div className="pp-lp-actions">
-          <ButtonLink look="primary" large href={SIGN_IN_PATH}>
-            Sign in with PayPal
-          </ButtonLink>
+          <SignInButton large />
         </div>
       </div>
       <ul className="pp-lp-tags" aria-hidden="true">

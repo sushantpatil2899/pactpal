@@ -1,5 +1,6 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { AGENT_CARD, PILLARS } from "../landing-words";
+import { BrandLogo } from "../../design/brand-logos";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { PILLARS } from "../landing-words";
 import { WarpGrid } from "../WarpGrid";
 
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
@@ -38,7 +39,9 @@ function Paid() {
   return (
     <div className="pp-lp-v-paid">
       <p>
-        <span>PayPal invoice · stage 2 of 3</span>
+        <span>
+          <BrandLogo name="paypal" color="#179bd7" /> PayPal invoice · stage 2 of 3
+        </span>
         <b>200.00 USD</b>
       </p>
       <div className="pp-lp-v-status">
@@ -122,12 +125,18 @@ const VISUALS: Record<(typeof PILLARS)[number]["id"], ReactNode> = {
   paid: <Paid />,
   sealed: <Sealed />,
   dispute: <Dispute />,
+  agent: <Agent />,
 };
 
 /** The agent asking, then waiting at the gate for the seller's code. */
 function Agent() {
   return (
     <div className="pp-lp-v-agent">
+      <small>
+        <BrandLogo name="claude" />
+        <BrandLogo name="cursor" color="#eef2f6" />
+        your assistant
+      </small>
       <code>
         <b>›</b> list_deals <span>7 deals</span>
       </code>
@@ -145,58 +154,95 @@ function Agent() {
   );
 }
 
-/** The four things every deal gets, each shown working, before anything is explained. */
+/**
+ * The five things PactPal gives, each shown working, before anything is explained: one row on
+ * wide screens, a row that scrolls card by card on narrower ones.
+ */
 export function Pillars() {
+  const row = useRef<HTMLDivElement>(null);
+  // Which ends of the row can still be scrolled to; both false when all five fit.
+  const [ends, setEnds] = useState({ back: false, on: false });
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const measure = () => {
+      setEnds({
+        back: el.scrollLeft > 4,
+        on: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+      });
+    };
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    const sized = new ResizeObserver(measure);
+    sized.observe(el);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      sized.disconnect();
+    };
+  }, []);
+  const step = (direction: 1 | -1) => {
+    const el = row.current;
+    const card = el?.querySelector<HTMLElement>(".pp-lp-pillar");
+    if (!el || !card) return;
+    el.scrollBy({ left: direction * (card.offsetWidth + 24), behavior: "smooth" });
+  };
   return (
     <section id="get" className="pp-lp-pillars pp-scope-dark" aria-labelledby="pp-lp-pillars">
       <header data-reveal>
         <p className="pp-lp-kicker">
-          <i /> What every deal gets
+          <i /> What you get
         </p>
         <h2 id="pp-lp-pillars" className="pp-lp-display">
-          Four things, <em>from the first message.</em>
+          Five things, <em>from the first message.</em>
         </h2>
       </header>
-      <div className="pp-lp-pillar-grid">
-        {PILLARS.map((pillar, i) => (
-          <a
-            key={pillar.id}
-            href={pillar.link}
-            className="pp-lp-pillar"
-            data-pillar={pillar.id}
-            data-reveal
-            style={at(i)}
-          >
-            <div className="pp-lp-pillar-frame" aria-hidden="true">
-              <WarpGrid />
-              <div className="pp-lp-pillar-screen">{VISUALS[pillar.id]}</div>
-            </div>
-            <span className="pp-lp-pillar-n">{String(i + 1).padStart(2, "0")}</span>
-            <h3>{pillar.title}</h3>
-            <p>{pillar.body}</p>
-            <span className="pp-lp-pillar-more">See how it works →</span>
-          </a>
-        ))}
+      <div className="pp-lp-pillar-rail" data-back={ends.back} data-on={ends.on}>
+        <button
+          type="button"
+          className="pp-lp-pillar-step"
+          data-dir="back"
+          aria-label="Previous cards"
+          disabled={!ends.back}
+          onClick={() => {
+            step(-1);
+          }}
+        >
+          ←
+        </button>
+        <button
+          type="button"
+          className="pp-lp-pillar-step"
+          data-dir="on"
+          aria-label="Next cards"
+          disabled={!ends.on}
+          onClick={() => {
+            step(1);
+          }}
+        >
+          →
+        </button>
+        <div ref={row} className="pp-lp-pillar-grid">
+          {PILLARS.map((pillar, i) => (
+            <a
+              key={pillar.id}
+              href={pillar.link}
+              className="pp-lp-pillar"
+              data-pillar={pillar.id}
+              data-reveal
+              style={at(i)}
+            >
+              <div className="pp-lp-pillar-frame" aria-hidden="true">
+                <WarpGrid />
+                <div className="pp-lp-pillar-screen">{VISUALS[pillar.id]}</div>
+              </div>
+              <span className="pp-lp-pillar-n">{String(i + 1).padStart(2, "0")}</span>
+              <h3>{pillar.title}</h3>
+              <p>{pillar.body}</p>
+              <span className="pp-lp-pillar-more">See how it works →</span>
+            </a>
+          ))}
+        </div>
       </div>
-      <a
-        href={AGENT_CARD.link}
-        className="pp-lp-pillar pp-lp-pillar-agent"
-        data-pillar="agent"
-        data-reveal
-      >
-        <div className="pp-lp-pillar-frame" aria-hidden="true">
-          <WarpGrid />
-          <div className="pp-lp-pillar-screen">
-            <Agent />
-          </div>
-        </div>
-        <div>
-          <span className="pp-lp-pillar-n">Plus</span>
-          <h3>{AGENT_CARD.title}</h3>
-          <p>{AGENT_CARD.body}</p>
-          <span className="pp-lp-pillar-more">See how it works →</span>
-        </div>
-      </a>
     </section>
   );
 }

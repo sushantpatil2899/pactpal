@@ -293,21 +293,59 @@
     transform: rotateY(-90deg) translateZ(calc(var(--s) / 2));
   }
 
+  /* Side faces centre what they carry: the assistants' logos, PayPal's. */
+  .pp-lp-cube > i:not(.top) {
+    display: grid;
+    place-items: center;
+  }
+
+  .pp-lp-cube .pp-brand-logo {
+    width: 52%;
+    height: 52%;
+  }
+
+  .pp-lp-cube-word {
+    color: #d5cfff;
+    font: 700 max(9px, 2.2cqw) / 1 var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+
+  /* The seller's AI: dark glass sides with the assistants on them, slowly turning. */
   .pp-lp-cube-ai {
-    --s: 10cqw;
+    --s: 11cqw;
+    --a: #222838;
+    --b: #141822;
 
     top: 50%;
     left: 12%;
-    animation: pp-lp-hover 4s ease-in-out infinite;
+    animation: pp-lp-turn 14s linear infinite;
+  }
+
+  .pp-lp-cube-ai > i {
+    border-color: rgb(143 129 255 / 0.55);
+  }
+
+  .pp-lp-cube-ai .top {
+    background: linear-gradient(135deg, #b3a9ff, #8f81ff);
+  }
+
+  @keyframes pp-lp-turn {
+    to {
+      transform: translate(-50%, -50%) translateZ(calc(var(--s) / 2)) rotateZ(1turn);
+    }
   }
 
   .pp-lp-cube-paypal {
     --s: 10cqw;
-    --a: #4fdcb0;
-    --b: #0b8f8c;
+    --a: #f7f9fc;
+    --b: #dfe6f0;
 
     top: 62%;
     left: 88%;
+  }
+
+  .pp-lp-cube-paypal .top b {
+    color: #002991;
   }
 
   @keyframes pp-lp-hover {
@@ -374,7 +412,7 @@
     left: -3cqw;
     width: 6cqw;
     height: 6cqw;
-    transform: translateZ(15cqw) rotateZ(34deg) rotateX(-58deg);
+    transform: translateZ(12.5cqw) rotateZ(34deg) rotateX(-58deg);
     transform-style: preserve-3d;
   }
 
@@ -547,11 +585,11 @@
     }
   }
 
-  /* The evidence log: blocks stacked by PayPal; a new one drops on after the send. */
+  /* The evidence log: a short chain of blocks behind the lane; the new one slides onto the end. */
   .pp-lp-log {
     position: absolute;
-    top: 92%;
-    left: 70%;
+    top: 26%;
+    left: 66%;
     transform-style: preserve-3d;
   }
 
@@ -559,17 +597,16 @@
     --s: 5cqw;
     --a: #3a4250;
     --b: #232a35;
+    --x: 0;
 
     top: 0;
     left: 0;
+    transform: translate(-50%, -50%) translateX(calc(var(--x) * 6.5cqw))
+      translateZ(calc(var(--s) / 2));
   }
 
   .pp-lp-log-block:nth-child(2) {
-    transform: translate(-50%, -50%) translateZ(calc(var(--s) * 1.5));
-  }
-
-  .pp-lp-log-block:nth-child(3) {
-    transform: translate(-50%, -50%) translateZ(calc(var(--s) * 2.5));
+    --x: 1;
   }
 
   .pp-lp-log-block .top b {
@@ -578,10 +615,10 @@
   }
 
   .pp-lp-log-new {
+    --x: 2;
     --a: #22c997;
     --b: #0b8f8c;
 
-    transform: translate(-50%, -50%) translateZ(calc(var(--s) * 3.5));
     animation: pp-lp-seal 800ms 900ms var(--lp-ease) both;
   }
 
@@ -591,8 +628,8 @@
 
   @keyframes pp-lp-seal {
     from {
-      transform: translate(-50%, -50%) translateZ(calc(var(--s) * 7));
       opacity: 0;
+      transform: translate(-50%, -50%) translateX(calc(var(--x) * 6.5cqw)) translateZ(14cqw);
     }
   }
 
@@ -714,43 +751,25 @@
   }
 }
 
-/* The agent's card under the four on "What you get": wide, the scene on the left. */
+/* The agent's card on "What you get": its little console. */
 @layer pp {
-  .pp-lp-pillar-agent {
-    --tint: #8f81ff;
-
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-    align-items: center;
-    gap: var(--space-48);
-    margin-top: var(--space-48);
-    padding: var(--space-24);
-    border: 1px solid rgb(143 129 255 / 0.25);
-    border-radius: 24px;
-    background: linear-gradient(120deg, rgb(143 129 255 / 0.08), rgb(255 255 255 / 0.02));
-  }
-
-  .pp-lp-pillar-agent .pp-lp-pillar-frame {
-    aspect-ratio: 16 / 7;
-    margin: 0;
-  }
-
-  .pp-lp-pillar-agent .pp-lp-pillar-screen {
-    inset: 14% 8%;
-  }
-
-  .pp-lp-pillar-agent h3 {
-    margin: var(--space-8) 0;
-    font-size: clamp(1.25rem, 2vw, 1.75rem);
-  }
-
-  .pp-lp-pillar-agent .pp-lp-pillar-n {
-    color: #b3a9ff;
-  }
-
   .pp-lp-v-agent {
     display: grid;
     gap: 6px;
     font-family: var(--lp-mono);
+  }
+
+  .pp-lp-v-agent small {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+    color: var(--color-ink-3);
+  }
+
+  .pp-lp-v-agent small .pp-brand-logo {
+    width: 12px;
+    height: 12px;
   }
 
   .pp-lp-v-agent code {
@@ -774,7 +793,7 @@
     color: #e6b450;
   }
 
-  .pp-lp-v-agent p {
+  .pp-lp-pillar .pp-lp-v-agent p {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -788,19 +807,12 @@
     line-height: 1.4;
   }
 
-  .pp-lp-v-agent p i {
+  .pp-lp-pillar .pp-lp-v-agent p i {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: #e6b450;
     box-shadow: 0 0 8px #e6b450;
     animation: pp-lp-blink 1.2s ease-in-out infinite alternate;
-  }
-
-  @media (max-width: 64rem) {
-    .pp-lp-pillar-agent {
-      grid-template-columns: minmax(0, 1fr);
-      gap: var(--space-24);
-    }
   }
 }

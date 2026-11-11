@@ -1,14 +1,7 @@
+import { SignInButton } from "./SignInButton";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { SIGN_IN_PATH } from "../api";
-import { ButtonLink } from "../design/parts";
 import { Logo } from "../design/Logo";
 import { NAV, PAGE_ORDER, navOwner, type NavItem } from "./nav-items";
-
-const signIn = (large = false) => (
-  <ButtonLink look="primary" large={large} href={SIGN_IN_PATH}>
-    Sign in with PayPal
-  </ButtonLink>
-);
 
 /** The section crossing the middle of the window, or null while the hero is in view. */
 function useSectionInView(enabled: boolean): string | null {
@@ -181,7 +174,7 @@ export function Nav() {
             ) : (
               <a
                 key={item.id}
-                href={`#${item.id}`}
+                href={item.href ?? `#${item.id}`}
                 className="pp-lp-navlink"
                 aria-current={owner === item.id ? "location" : undefined}
                 onClick={go}
@@ -192,7 +185,7 @@ export function Nav() {
             ),
           )}
         </nav>
-        {signIn()}
+        <SignInButton />
         <button
           type="button"
           className="pp-lp-toggle"

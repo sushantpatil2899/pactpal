@@ -1,3 +1,4 @@
+import { BrandLogo } from "../../design/brand-logos";
 import type { CSSProperties } from "react";
 import { RAILS } from "../landing-words";
 
@@ -12,7 +13,8 @@ export function Rails() {
     <section id="paypal" className="pp-lp-rails pp-scope-dark" aria-labelledby="pp-lp-rails">
       <header data-reveal>
         <p className="pp-lp-kicker">
-          <i /> Built on PayPal
+          <i /> Built on <BrandLogo name="paypal" color="#179bd7" className="pp-lp-kicker-logo" />{" "}
+          PayPal
         </p>
         <h2 id="pp-lp-rails" className="pp-lp-display">
           PayPal moves the money.
@@ -37,7 +39,9 @@ export function Rails() {
         ))}
       </ol>
       <p className="pp-lp-rail-legend" data-reveal>
-        <span data-side="paypal">On PayPal</span>
+        <span data-side="paypal">
+          <BrandLogo name="paypal" color="#179bd7" /> On PayPal
+        </span>
         <span data-side="pactpal">In PactPal&apos;s record</span>
         <small>Every call tries PayPal&apos;s own MCP tools first, then its REST API.</small>
       </p>

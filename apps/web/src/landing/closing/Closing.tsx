@@ -1,6 +1,5 @@
+import { SignInButton } from "../SignInButton";
 import type { CSSProperties } from "react";
-import { SIGN_IN_PATH } from "../../api";
-import { ButtonLink } from "../../design/parts";
 import { LogoMark } from "../../design/Logo";
 import { CONTACT, HELP_URL } from "../../shell/contact";
 import { FAQ, LIMITS, TAGLINE, revealWords } from "../landing-words";
@@ -95,9 +94,7 @@ export function Closing() {
           </h2>
           <p>Sign in with the PayPal account you are paid through. Your buyers need no account.</p>
           <div className="pp-lp-actions">
-            <ButtonLink look="primary" large href={SIGN_IN_PATH}>
-              Sign in with PayPal
-            </ButtonLink>
+            <SignInButton large />
           </div>
         </div>
         <p className="pp-lp-wordmark" aria-hidden="true">

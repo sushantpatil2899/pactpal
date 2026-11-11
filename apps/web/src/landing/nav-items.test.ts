@@ -7,6 +7,11 @@ describe("the landing page's navigation", () => {
     expect(navPlaces()).toEqual(PAGE_ORDER);
   });
 
+  it("ends with Help, which opens PactPal help", () => {
+    expect(NAV.at(-1)).toMatchObject({ id: "help", label: "Help" });
+    expect(NAV.at(-1)?.href).toMatch(/^https?:/);
+  });
+
   it("links a group's own label to its first place", () => {
     for (const item of NAV) {
       if (item.children) expect(item.children[0]?.id).toBe(item.id);
@@ -24,9 +29,9 @@ describe("the landing page's navigation", () => {
     expect(navOwner(null)).toBeNull();
   });
 
-  it("sends the four cards to their own sections, in page order", () => {
+  it("sends the five cards to their own sections, in page order", () => {
     const targets = PILLARS.map((pillar) => pillar.link.slice(1));
-    expect(targets).toEqual(["council", "paypal", "ledger", "disputes"]);
+    expect(targets).toEqual(["council", "paypal", "ledger", "disputes", "agents"]);
     const at = targets.map((id) => PAGE_ORDER.indexOf(id as (typeof PAGE_ORDER)[number]));
     expect(at.every((n) => n >= 0)).toBe(true);
     expect(at).toEqual([...at].sort((a, b) => a - b));

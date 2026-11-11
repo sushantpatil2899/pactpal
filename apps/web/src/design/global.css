@@ -405,6 +405,14 @@
     top: var(--space-16);
   }
 
+  /* Another company's logo beside words (simple-icons, 24 by 24). */
+  .pp-brand-logo {
+    flex: none;
+    width: 1.1em;
+    height: 1.1em;
+    vertical-align: -0.18em;
+  }
+
   .pp-logo {
     display: inline-flex;
     align-items: center;

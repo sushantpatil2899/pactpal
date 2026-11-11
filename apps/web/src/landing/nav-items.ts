@@ -1,3 +1,5 @@
+import { HELP_URL } from "../shell/contact";
+
 /** A place on the landing page the navigation can take a visitor to. */
 export interface NavLink {
   id: string;
@@ -6,9 +8,11 @@ export interface NavLink {
   note?: string;
 }
 
-/** A top-level item: one place, or a group of places shown in a menu. */
+/** A top-level item: one place, a group of places shown in a menu, or another site (`href`). */
 export interface NavItem extends NavLink {
   children?: readonly NavLink[];
+  /** Set for a link that leaves the page, such as PactPal help. */
+  href?: string;
 }
 
 /** The landing page's sections that have an anchor, from the top of the page down. */
@@ -55,11 +59,14 @@ export const NAV: readonly NavItem[] = [
   },
   { id: "trust", label: "Trust" },
   { id: "faq", label: "FAQ" },
+  { id: "help", label: "Help", href: HELP_URL },
 ];
 
-/** Every place the navigation links to, in the order a visitor meets them. */
+/** Every place on the page the navigation links to, in the order a visitor meets them. */
 export const navPlaces = (nav: readonly NavItem[] = NAV): string[] =>
-  nav.flatMap((item) => (item.children ? item.children.map((child) => child.id) : [item.id]));
+  nav
+    .filter((item) => item.href === undefined)
+    .flatMap((item) => (item.children ? item.children.map((child) => child.id) : [item.id]));
 
 /** The top-level item that holds a section, for highlighting where the visitor is. */
 export function navOwner(sectionId: string | null, nav: readonly NavItem[] = NAV): string | null {

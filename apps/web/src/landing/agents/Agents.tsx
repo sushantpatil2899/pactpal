@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { BrandLogo } from "../../design/brand-logos";
 import { helpPage } from "../../shell/contact";
 import { CanCannot } from "../../agent/CanCannot";
 import { AGENT_CAN, AGENT_CANNOT, AGENT_CLIENTS, AGENT_RUN } from "../landing-words";
@@ -16,19 +17,45 @@ const CODE = "482 913";
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
 
-/** A cube standing on the deck: six faces, a label on top. */
-function Cube({ className, label }: { className: string; label?: string }) {
+type Side = "n" | "e" | "s" | "w";
+
+/** A cube standing on the deck: six faces, a label on top, and anything on its sides. */
+function Cube({
+  className,
+  label,
+  sides = {},
+}: {
+  className: string;
+  label?: string;
+  sides?: Partial<Record<Side, ReactNode>>;
+}) {
   return (
     <div className={`pp-lp-cube ${className}`}>
       <i className="top">{label && <b>{label}</b>}</i>
-      <i className="n" />
-      <i className="s" />
-      <i className="e" />
-      <i className="w" />
+      {(["n", "s", "e", "w"] as const).map((side) => (
+        <i key={side} className={side}>
+          {sides[side]}
+        </i>
+      ))}
       <i className="bottom" />
     </div>
   );
 }
+
+/** The assistants on the AI cube's sides, turning past as it spins. */
+const AI_SIDES: Partial<Record<Side, ReactNode>> = {
+  n: <BrandLogo name="claude" />,
+  e: <BrandLogo name="cursor" color="#eef2f6" />,
+  s: <BrandLogo name="claude" />,
+  w: <b className="pp-lp-cube-word">MCP</b>,
+};
+
+const PAYPAL_SIDES: Partial<Record<Side, ReactNode>> = {
+  n: <BrandLogo name="paypal" />,
+  e: <BrandLogo name="paypal" />,
+  s: <BrandLogo name="paypal" />,
+  w: <BrandLogo name="paypal" />,
+};
 
 /**
  * The agent's run, played when the section comes into view and again after a pause: calls typed
@@ -189,7 +216,7 @@ export function Agents() {
         <div className="pp-lp-deck-wrap" aria-hidden="true">
           <div className="pp-lp-deck">
             <div className="pp-lp-lane" />
-            <Cube className="pp-lp-cube-ai" label="Your AI" />
+            <Cube className="pp-lp-cube-ai" label="Your AI" sides={AI_SIDES} />
             <div className="pp-lp-gate">
               <Cube className="pp-lp-post pp-lp-post-a" />
               <Cube className="pp-lp-post pp-lp-post-b" />
@@ -198,7 +225,7 @@ export function Agents() {
                 <i />
               </div>
             </div>
-            <Cube className="pp-lp-cube-paypal" label="PayPal" />
+            <Cube className="pp-lp-cube-paypal" label="PayPal" sides={PAYPAL_SIDES} />
             {scene.packet && <Cube className="pp-lp-cube-packet" label="Packet" />}
             {done > 0 && (
               <Cube
@@ -207,8 +234,8 @@ export function Agents() {
               />
             )}
             <div className="pp-lp-log">
-              {[0, 1, 2].map((n) => (
-                <Cube key={n} className="pp-lp-log-block" label={`#${String(428 + n)}`} />
+              {[0, 1].map((n) => (
+                <Cube key={n} className="pp-lp-log-block" label={`#${String(429 + n)}`} />
               ))}
               {scene.sent && <Cube className="pp-lp-log-block pp-lp-log-new" label="#431" />}
             </div>

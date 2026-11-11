@@ -89,31 +89,38 @@ function SecretPart({
     });
   };
   return (
-    <>
+    <div className="pp-secret">
       {current && (
-        <p>
-          Your {words.name} ends in <code>…{current.ending}</code>, made {when(current.createdAt)}
-          {current.lastUsedAt === null
-            ? ", not used yet"
-            : `, last used ${when(current.lastUsedAt)}`}
-          . New deals: {label(current.defaultCategory)}, {current.defaultCurrency}.{" "}
-          <button type="button" disabled={busy} onClick={onOff}>
+        <div className="pp-secret-status">
+          <p>
+            <span>
+              Your {words.name} ends in <code>…{current.ending}</code>
+            </span>
+            <small>
+              Made {when(current.createdAt)} ·{" "}
+              {current.lastUsedAt === null
+                ? "not used yet"
+                : `last used ${when(current.lastUsedAt)}`}{" "}
+              · New deals: {label(current.defaultCategory)}, {current.defaultCurrency}
+            </small>
+          </p>
+          <button type="button" className="pp-secret-off" disabled={busy} onClick={onOff}>
             Turn off
           </button>
-        </p>
+        </div>
       )}
       {secret && (
-        <div role="status" style={WRAP}>
+        <div role="status" className="pp-secret-new" style={WRAP}>
           <p>
             <strong>{words.shown}</strong> <code>{secret}</code> <CopyButton text={secret} />
           </p>
           {children}
         </div>
       )}
-      <form onSubmit={submit}>
-        <p>
+      <form onSubmit={submit} className="pp-secret-form">
+        <div className="pp-secret-fields">
           <label>
-            Default category{" "}
+            <span>Default category</span>
             <select name="defaultCategory" defaultValue={current?.defaultCategory}>
               {options.categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -121,9 +128,9 @@ function SecretPart({
                 </option>
               ))}
             </select>
-          </label>{" "}
+          </label>
           <label>
-            Currency{" "}
+            <span>Currency</span>
             <select name="defaultCurrency" defaultValue={current?.defaultCurrency}>
               {options.currencies.map((c) => (
                 <option key={c} value={c}>
@@ -132,12 +139,12 @@ function SecretPart({
               ))}
             </select>
           </label>
-        </p>
+        </div>
         <button type="submit" disabled={busy}>
           {current ? `Make a new ${words.name} (the old one stops working)` : words.make}
         </button>
       </form>
-    </>
+    </div>
   );
 }
 

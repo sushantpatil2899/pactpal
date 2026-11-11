@@ -1,3 +1,4 @@
+import { BrandLogo } from "./design/brand-logos";
 import { SIGN_IN_PATH } from "./api";
 import { Alert, ButtonLink, Field, Card } from "./design/parts";
 import { LogoMark } from "./design/Logo";
@@ -19,6 +20,7 @@ export function SignInPage({ problem }: { problem?: string }) {
           PayPal account&apos;s id with PactPal. Your password stays with PayPal.
         </p>
         <ButtonLink look="primary" large href={SIGN_IN_PATH}>
+          <BrandLogo name="paypal" color="currentColor" />
           Sign in with PayPal
         </ButtonLink>
       </div>

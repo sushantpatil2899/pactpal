@@ -458,8 +458,8 @@
 
   .pp-agent-step {
     display: grid;
-    gap: var(--space-8);
-    padding: var(--space-16);
+    gap: var(--space-12);
+    padding: var(--space-16) var(--space-24) var(--space-24);
     border: 1px solid var(--color-line);
     border-radius: var(--radius-box);
     background: var(--color-surface-2);
@@ -484,9 +484,14 @@
     font-size: var(--text-12);
   }
 
-  .pp-agent-step p,
-  .pp-agent-step form p {
+  .pp-agent-step > p {
     margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--text-15);
+  }
+
+  .pp-agent-step [role="tabpanel"] > p {
+    margin: 0 0 var(--space-8);
     font-size: var(--text-13);
   }
 
@@ -586,5 +591,103 @@
     margin: 0;
     color: var(--color-ink-3);
     font-size: var(--text-12);
+  }
+}
+
+@layer pp {
+  /* A private key or address: its status, the new one shown once, and the form that makes it. */
+  .pp-secret {
+    display: grid;
+    gap: var(--space-12);
+  }
+
+  .pp-secret-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8) var(--space-16);
+    padding: var(--space-12);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+  }
+
+  .pp-secret-status p {
+    display: grid;
+    flex: 1 1 16rem;
+    gap: 2px;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--text-15);
+    font-weight: 550;
+  }
+
+  .pp-secret-status small {
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+    font-weight: 400;
+  }
+
+  .pp-secret-off,
+  .pp-secret-off:hover:not(:disabled) {
+    min-height: 2.25rem;
+    padding: 0 var(--space-12);
+    border-color: color-mix(in srgb, var(--color-alert) 40%, transparent);
+    background: none;
+    color: var(--color-alert-ink);
+    font-size: var(--text-13);
+  }
+
+  .pp-secret-form {
+    display: grid;
+    gap: var(--space-12);
+  }
+
+  .pp-secret-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(7rem, 9rem);
+    gap: var(--space-12) var(--space-16);
+  }
+
+  .pp-secret-fields label {
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .pp-secret-fields span {
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+    font-weight: 600;
+  }
+
+  .pp-secret-fields select {
+    width: 100%;
+    min-height: 2.5rem;
+    font-size: var(--text-15);
+  }
+
+  .pp-secret-form > button {
+    justify-self: start;
+    min-height: 2.5rem;
+    font-size: var(--text-15);
+  }
+
+  .pp-secret-new {
+    padding: var(--space-12);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+    border-radius: var(--radius-control);
+    background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+  }
+
+  .pp-secret-new p {
+    margin: 0;
+  }
+
+  @media (max-width: 30rem) {
+    .pp-secret-fields {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 }

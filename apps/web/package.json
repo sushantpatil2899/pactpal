@@ -16,11 +16,11 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource/instrument-serif": "5.3.0",
+    "@pactpal/brand": "workspace:*",
     "@pactpal/delivery-check": "workspace:*",
     "@pactpal/live": "workspace:*",
     "@pactpal/timeline": "workspace:*",
     "@pactpal/watcher": "workspace:*",
-    "@pactpal/brand": "workspace:*",
     "@pactpal/words": "workspace:*",
     "ag-grid-community": "36.3.0",
     "ag-grid-enterprise": "36.3.0",
@@ -29,6 +29,7 @@
     "ag-studio-react": "3.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "simple-icons": "16.35.0",
     "three": "0.181.0"
   },
   "devDependencies": {
