@@ -36,6 +36,7 @@ async function seedContext() {
     app: env.app,
     db,
     clock: () => TEST_NOW,
+    sleep: () => Promise.resolve(),
     content: (path) => {
       const bytes = files[path];
       if (!bytes) throw new Error(`no content ${path}`);

@@ -1,0 +1,20 @@
+Lanternlight on Steam: localisation brief
+Pixel Harbor · written by Maya Lin Studio for Ethan Brooks · draft for review
+
+Languages (phase 1): French, German, Spanish (Latin America), Brazilian Portuguese, Japanese.
+
+Tone
+Warm, quiet and plain. Wren speaks in short sentences; keep them short. Avoid slang that dates quickly.
+
+Names that stay in English
+Wren, Hollow Coast, Lanternlight, Hook Point. Lantern nicknames ("Old Moss") are translated for meaning, with a note.
+
+Text limits
+Store short description: 300 characters in every language. Item names: 24 characters. Tooltips: 80 characters.
+
+Deliverables from the translators
+One spreadsheet per language, with a column for the translator's notes and a column for questions.
+
+Questions for Ethan before sending to vendors
+1. Should the goat have a name in every language?
+2. Can Japanese use vertical text in the logbook screens?

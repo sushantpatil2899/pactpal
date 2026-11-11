@@ -1,4 +1,5 @@
 import { findUserByEmail, type Database } from "@pactpal/db";
+import { renderPdf } from "@pactpal/pdf";
 import type { FastifyInstance } from "fastify";
 import { actingAs } from "../acting-as.js";
 import type { RouteAnswer } from "../agents/tools.js";
@@ -11,6 +12,8 @@ export interface SeedContext {
   clock: () => Date;
   /** A content file's bytes, by its path inside `hackathon/demo/`. */
   content: (path: string) => Buffer;
+  /** Waits, for steps that wait on an AI draft; tests pass one that returns at once. */
+  sleep: (ms: number) => Promise<void>;
 }
 
 /** The browser name the seed's evidence entries carry, so nobody mistakes them for a person's. */
@@ -165,6 +168,15 @@ export async function sendForSigning(
   return preview.documentSha256;
 }
 
+/** The fingerprint of the signing page the buyer was sent; nothing sent is an error. */
+async function signingPage(context: SeedContext, buyer: string, dealId: string): Promise<string> {
+  const page = (
+    await callAs(context, buyer, { method: "GET", path: `/api/deals/${dealId}/acceptance` })
+  ).body as { documentSha256: string | null };
+  if (page.documentSha256 === null) throw new SeedStepError("nothing was sent to sign");
+  return page.documentSha256;
+}
+
 /** The buyer signs the page they were sent, with their typed name. */
 export async function sign(
   context: SeedContext,
@@ -172,14 +184,11 @@ export async function sign(
   dealId: string,
   typedName: string,
 ): Promise<void> {
-  const page = (
-    await callAs(context, buyer, { method: "GET", path: `/api/deals/${dealId}/acceptance` })
-  ).body as { documentSha256: string | null };
-  if (page.documentSha256 === null) throw new SeedStepError("nothing was sent to sign");
+  const documentSha256 = await signingPage(context, buyer, dealId);
   await callAs(context, buyer, {
     method: "POST",
     path: `/api/deals/${dealId}/acceptance/accept`,
-    body: { documentSha256: page.documentSha256, typedName },
+    body: { documentSha256, typedName },
   });
 }
 
@@ -293,4 +302,145 @@ export async function updateStep(
     path: `/api/deals/${dealId}/timeline/${String(step)}`,
     body: update,
   });
+}
+
+/**
+ * A content text file as a PDF document, laid out with PactPal's own renderer: its first line is
+ * the title, its second the byline, blank lines start paragraphs. Uploaded like any file.
+ */
+export async function uploadTextAsPdf(
+  context: SeedContext,
+  who: string,
+  dealId: string,
+  file: { path: string; name: string; kind: "source" | "deliverable" },
+): Promise<string> {
+  const [title = file.name, byline = "", ...rest] = context
+    .content(file.path)
+    .toString("utf8")
+    .split("\n");
+  const { bytes } = await renderPdf({
+    title,
+    author: "Maya Lin Studio",
+    createdAt: context.clock(),
+    blocks: [
+      { kind: "title", text: title },
+      { kind: "paragraph", text: byline, style: "small" },
+      ...rest
+        .join("\n")
+        .split(/\n{2,}/)
+        .filter((paragraph) => paragraph.trim() !== "")
+        .map((paragraph) => ({ kind: "paragraph" as const, text: paragraph.trim() })),
+    ],
+  });
+  const answer = await callAs(context, who, {
+    method: "POST",
+    path: `/api/deals/${dealId}/files?kind=${file.kind}`,
+    body: Buffer.from(bytes),
+    headers: {
+      "content-type": "application/octet-stream",
+      [FILE_NAME_HEADER]: encodeURIComponent(file.name),
+    },
+  });
+  return idOf(answer);
+}
+
+/** The buyer asks a question on the signing page they were sent. */
+export async function askQuestion(
+  context: SeedContext,
+  buyer: string,
+  dealId: string,
+  question: string,
+): Promise<void> {
+  const documentSha256 = await signingPage(context, buyer, dealId);
+  await callAs(context, buyer, {
+    method: "POST",
+    path: `/api/deals/${dealId}/questions`,
+    body: { question, documentSha256 },
+  });
+}
+
+/** The buyer declines the page they were sent, with a reason. */
+export async function decline(
+  context: SeedContext,
+  buyer: string,
+  dealId: string,
+  reason: string,
+): Promise<void> {
+  const documentSha256 = await signingPage(context, buyer, dealId);
+  await callAs(context, buyer, {
+    method: "POST",
+    path: `/api/deals/${dealId}/acceptance/decline`,
+    body: { documentSha256, reason },
+  });
+}
+
+/**
+ * Makes a draft deal from text with the seller's private intake key (4p), as an order form on
+ * their own site would: a new key is made, used once, and stays the seller's.
+ */
+export async function dealFromText(
+  context: SeedContext,
+  seller: string,
+  text: string,
+  title: string,
+): Promise<string> {
+  const made = await callAs(context, seller, {
+    method: "POST",
+    path: "/api/intake/key",
+    body: { defaultCategory: "writing-and-translation", defaultCurrency: "USD" },
+  });
+  const secret = (made.body as { secret?: unknown } | null)?.secret;
+  if (typeof secret !== "string") throw new SeedStepError("no intake key was made");
+  const answer = await context.app.inject({
+    method: "POST",
+    url: "/api/intake/deals",
+    headers: { authorization: `Bearer ${secret}`, "user-agent": SEED_AGENT },
+    payload: { text, title },
+  });
+  if (answer.statusCode !== 201) {
+    throw new SeedStepError(`making a deal from text answered ${String(answer.statusCode)}`);
+  }
+  const dealId = (JSON.parse(answer.body) as { dealId?: unknown }).dealId;
+  if (typeof dealId !== "string") throw new SeedStepError("the intake answer had no deal id");
+  return dealId;
+}
+
+const DRAFT_POLL_MS = 15_000;
+const DRAFT_WAIT_MS = 20 * 60_000;
+
+/**
+ * Starts an AI draft from the deal's pasted chats (and its in-app chat), then waits for the
+ * council to finish; the ready draft's id, or a failure the step reports.
+ */
+export async function draftAgreement(
+  context: SeedContext,
+  seller: string,
+  dealId: string,
+  pastedFileIds: string[],
+): Promise<{ ready: true; draftId: string } | { ready: false; reason: string }> {
+  const started = await callAs(
+    context,
+    seller,
+    {
+      method: "POST",
+      path: `/api/deals/${dealId}/drafts/from-chat`,
+      body: { chat: false, pastedFileIds },
+    },
+    [202],
+  );
+  const draftId = (started.body as { draft?: { id?: unknown } } | null)?.draft?.id;
+  if (typeof draftId !== "string") throw new SeedStepError("the draft answer had no id");
+  for (let waited = 0; waited <= DRAFT_WAIT_MS; waited += DRAFT_POLL_MS) {
+    const read = await callAs(context, seller, {
+      method: "GET",
+      path: `/api/deals/${dealId}/drafts/${draftId}`,
+    });
+    const draft = (read.body as { draft?: { status?: unknown; failureReason?: unknown } }).draft;
+    if (draft?.status === "ready") return { ready: true, draftId };
+    if (draft?.status === "failed") {
+      return { ready: false, reason: `the AI draft failed: ${String(draft.failureReason)}` };
+    }
+    await context.sleep(DRAFT_POLL_MS);
+  }
+  return { ready: false, reason: "the AI draft took longer than 20 minutes" };
 }

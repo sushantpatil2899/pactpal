@@ -1,0 +1,18 @@
+Lanternlight: tutorial script and tooltips (version 1)
+Written by Maya Lin Studio for Chris Park
+
+Scene 1: The first lantern
+WREN: "Old Moss again. Hold still. Let the light find you."
+TOOLTIP: Hold [E] near a lantern to light it.
+
+Scene 2: The wind
+WREN: "Wind's turning. Shield the flame."
+TOOLTIP: Stand between the wind and the lantern to keep it burning.
+
+Scene 3: The traveller
+TRAVELLER: "Which way to the village?"
+WREN: "Follow the lights. I'll be right behind you."
+TOOLTIP: Lit lanterns guide travellers. Light a path to the village.
+
+Scene 4: The logbook
+TOOLTIP: Press [L] to open the keeper's logbook. Every lantern you light is recorded here.

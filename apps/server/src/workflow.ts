@@ -34,6 +34,9 @@ import {
 import { councilClients } from "./drafting/runtime.js";
 import { subtaskClients } from "./drafting/subtask-clients.js";
 import { connectOwnApp } from "./sellers/connect-app.js";
+import { SEED_TASK_NAME, runSeedTask } from "./demo/seed.js";
+import { formatErrors, loadConfig } from "./config.js";
+import { productionApp } from "./production-app.js";
 import type { Secret } from "@pactpal/net";
 
 const log = jsonLines((line) => process.stdout.write(line));
@@ -148,6 +151,24 @@ task(
       connect,
       clock: () => new Date(),
       newId: randomUUID,
+      log,
+    }),
+);
+
+task(
+  // The demo seed (9b-2): plays the people of one demo story through the website's own routes.
+  // Started by hand; a run stops for a person (a sandbox payment, a dispute) and the next run
+  // carries on, so it is never retried automatically.
+  { name: SEED_TASK_NAME, timeoutSeconds: 1800 },
+  (_context, input: unknown) =>
+    runSeedTask(input, {
+      app: async () => {
+        const loaded = loadConfig(process.env);
+        if (!loaded.ok) throw new Error(formatErrors(loaded.errors));
+        return productionApp(loaded.config, loaded.report, "");
+      },
+      clock: () => new Date(),
+      sleep: (ms) => new Promise((done) => setTimeout(done, ms)),
       log,
     }),
 );

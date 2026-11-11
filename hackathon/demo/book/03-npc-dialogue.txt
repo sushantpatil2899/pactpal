@@ -1,0 +1,58 @@
+Harbour market: NPC dialogue (40 lines)
+Lanternfall Games · written by Maya Lin Studio for Nora Quinn
+
+FISHMONGER (BRAN)
+1. "Fresh off the morning boat. Well, yesterday's morning."
+2. "Mind the eels. They mind you."
+3. "Lanterns out again on the north pier. Bad for trade, worse for sailors."
+4. "You want the good herring, you come before the gulls do."
+5. "My boy says the lighthouse keeper talks to herself. Says she answers too."
+
+ROPE SELLER (ODA)
+6. "Every knot tells you who tied it. Yours says hurry."
+7. "Hemp for the boats, silk for the rich, and string for everyone else."
+8. "Lost a whole crate to the tide. The sea takes its tax."
+9. "If you're going past the cliffs, take more rope than you think."
+10. "Come back when the wind turns. I'll have something special."
+
+CHILD (PIP)
+11. "Is it true the lanterns can see you?"
+12. "I found a shell that sings. Want to hear? ...It's shy today."
+13. "My gran says don't follow lights on the water."
+14. "Race you to the fountain! I win. I always win."
+15. "Can you make the dark go away? Just for a bit?"
+
+GUARD (SERGEANT HOLM)
+16. "Market closes at dusk. Which, lately, is always."
+17. "Seen anyone carrying lamp oil in bulk? Asking for the harbourmaster."
+18. "Move along, nothing to see. Except the fish. See the fish."
+19. "Stay off the breakwater after dark. I don't fish people out twice."
+20. "You've a keeper's look. Tired, but stubborn."
+
+MERCHANT (VESNA)
+21. "Spices from the south, cloth from the east, gossip from everywhere."
+22. "Price is fair. Fair to me, at least."
+23. "Buy two, I'll throw in a story."
+24. "That map? Older than the harbour. Possibly wrong. Definitely pretty."
+25. "Come closer. No, closer. There. Now you can see the real wares."
+
+OLD SAILOR (GRIM)
+26. "Forty years at sea and I never saw a fog like this one."
+27. "The light on Hook Point went dark the night the Keeper vanished. Remember that."
+28. "Don't trust a calm sea or a smiling captain."
+29. "Buy me a drink and I'll tell you where the wreck lies."
+30. "My knees know the weather before the gulls do."
+
+BAKER (ILSE)
+31. "Bread's warm, butter's cold, and the day's too short."
+32. "Take a bun for the road. You look like you need it."
+33. "Flour costs double since the boats stopped. Don't tell my customers."
+34. "The keeper used to buy rye every Thursday. Haven't seen her in a month."
+35. "Come back tomorrow, I'm trying a honey loaf."
+
+AMBIENT BARKS
+36. "Mind your step, the cobbles are slick!"
+37. "Last call for the evening catch!"
+38. "Did you hear? Another lantern went out."
+39. "Two coppers, final offer."
+40. "Light's fading. Pack up, pack up."

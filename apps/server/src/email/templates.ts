@@ -17,9 +17,19 @@ import {
  * next to the built server on Render, which runs from the repository checkout.
  */
 export function templatesDir(from = dirname(fileURLToPath(import.meta.url))): string {
+  const dir = repoFolder("templates", "brand.json", from);
+  if (dir === undefined) throw new EmailTemplateError("No templates/brand.json found");
+  return dir;
+}
+
+/**
+ * A folder of the repository checkout (`folder`, recognised by a file in it), found by walking up
+ * from `from`: next to the source when developing and testing, next to the build on Render.
+ */
+export function repoFolder(folder: string, marker: string, from: string): string | undefined {
   for (let dir = from; ; dir = dirname(dir)) {
-    if (existsSync(join(dir, "templates", "brand.json"))) return join(dir, "templates");
-    if (dirname(dir) === dir) throw new EmailTemplateError("No templates/brand.json found");
+    if (existsSync(join(dir, folder, marker))) return join(dir, folder);
+    if (dirname(dir) === dir) return undefined;
   }
 }
 

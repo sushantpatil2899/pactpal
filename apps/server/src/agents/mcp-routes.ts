@@ -8,7 +8,7 @@ import {
   type DealTabName,
   type IntakeKey,
 } from "@pactpal/db";
-import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from "fastify";
+import type { FastifyPluginAsync, FastifyRequest } from "fastify";
 import type { Notifier } from "../chat/notifier.js";
 import type { SharedStore } from "../keyvalue.js";
 import { routeCaller } from "../acting-as.js";
