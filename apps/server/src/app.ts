@@ -21,6 +21,7 @@ import type { ClaimRunner, DisputeChecker } from "./disputes/checker.js";
 import { disputeNotifications } from "./disputes/notifications.js";
 import { registerWebPages } from "./web-pages.js";
 import { emailLogo } from "./email/templates.js";
+import { registerCanonicalHost } from "./canonical-host.js";
 import {
   paypalWebhookRoutes,
   type PayPalWebhookOptions,
@@ -127,6 +128,8 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
     },
   });
   void app.register(fastifyCookie);
+  // Pages opened on the old onrender.com name move to the site's own address (9i).
+  registerCanonicalHost(app, opts.signIn?.publicBaseUrl);
   // Pages send only small frames (typing, read, keep-alive); anything larger is refused.
   void app.register(fastifyWebsocket, { options: { maxPayload: MAX_CLIENT_FRAME_BYTES } });
   const chatBus = opts.chatBus ?? memoryBus();

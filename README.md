@@ -60,7 +60,7 @@ For goods and digital products, paste the product's listing link on the deal's A
 
 ## Deploying to Render
 
-Everything is described in [`render.yaml`](render.yaml) (a Render Blueprint), in Virginia:
+The site lives at **https://pact-pal.app** and its help at **https://help.pact-pal.app** (Render custom domains, DNS at name.com; the old `onrender.com` page addresses move there, while PayPal notifications, `/mcp`, `/api`, `/health` and `/brand` are still answered on the old name). Everything is described in [`render.yaml`](render.yaml) (a Render Blueprint), in Virginia:
 
 | Render service         | Name                    | What it does                                                                                                                   |
 | ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |

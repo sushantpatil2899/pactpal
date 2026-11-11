@@ -235,7 +235,7 @@ export interface Config {
   database?: { url: Secret };
   /** Keys of the AI hosts that are set, by variable name (for example `GEMINI_API_KEY`). */
   ai: { keys: Record<string, Secret> };
-  /** The site's own address without a trailing slash, e.g. https://pactpal-server.onrender.com. */
+  /** The site's own address without a trailing slash, e.g. https://pact-pal.app. */
   publicBaseUrl?: string;
   /** Resend's key and the sender, e.g. `PactPal <receipts@send.example.com>`; absent until both are set. */
   email?: { apiKey: Secret; from: string };

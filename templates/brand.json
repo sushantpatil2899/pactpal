@@ -1,6 +1,6 @@
 {
   "productName": "PactPal",
-  "logoUrl": "https://pactpal-server.onrender.com/brand/logo-email.png",
+  "logoUrl": "https://pact-pal.app/brand/logo-email.png",
   "colors": {
     "background": "#f4f6f8",
     "surface": "#ffffff",
@@ -23,7 +23,7 @@
   },
   "footerLines": ["Every message, file and step of a deal is saved in its evidence log."],
   "links": {
-    "help": "https://pactpal-docs.onrender.com/",
-    "privacy": "https://pactpal-docs.onrender.com/privacy.html"
+    "help": "https://help.pact-pal.app/",
+    "privacy": "https://help.pact-pal.app/privacy.html"
   }
 }

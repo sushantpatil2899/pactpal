@@ -11,7 +11,7 @@ import { payPalIdOption, readChecked, type Checked } from "./cli-args.js";
 import { formatAmount, rows } from "./format.js";
 
 /** Where a connecting seller lands after approving, unless --return-url says otherwise. */
-export const DEFAULT_RETURN_URL = "https://pactpal-server.onrender.com/";
+export const DEFAULT_RETURN_URL = "https://pact-pal.app/";
 
 export type PartnerTask =
   | { kind: "link"; returnUrl: string; features: PartnerFeature[]; send: boolean }

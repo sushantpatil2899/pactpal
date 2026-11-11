@@ -13,10 +13,7 @@ import { PAGES, pageHtml, rewriteLinks, wordingProblems } from "./pages.js";
 const root = new URL("../../../", import.meta.url);
 const dist = new URL("../dist/", import.meta.url);
 /** The website's address; set `PACTPAL_SITE_URL` where the site lives elsewhere. */
-const home = (process.env.PACTPAL_SITE_URL ?? "https://pactpal-server.onrender.com").replace(
-  /\/$/,
-  "",
-);
+const home = (process.env.PACTPAL_SITE_URL ?? "https://pact-pal.app").replace(/\/$/, "");
 
 /** The website's fonts, copied from their packages: Geist, Geist Mono and Instrument Serif. */
 const FONTS = [

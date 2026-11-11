@@ -51,7 +51,7 @@ describe("the repository's email templates (9h)", () => {
       linkNote: "Open the deal in PactPal:",
       link: "https://pactpal.test/deals/1",
     });
-    expect(html).toContain('src="https://pactpal-server.onrender.com/brand/logo-email.png"');
+    expect(html).toContain('src="https://pact-pal.app/brand/logo-email.png"');
     expect(html).toContain(">New message</span");
     expect(html).not.toContain("{{");
     expect(html).toContain(SANDBOX_NOTICE);

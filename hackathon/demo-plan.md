@@ -12,37 +12,42 @@ The hosted demo is filled with real deals made by a seed script through PactPal'
 
 ## Cast
 
-Every person has a real inbox whose address matches their name, so judges can sign in and see the emails PactPal sent. Addresses below are proposals on mail.com's themed domains; the owner confirms the ones that are free.
+Every person has an address on PactPal's own domain that matches their name; all of them arrive in one shared inbox judges can sign in to.
 
-### Sellers (each: a sandbox **Business** account plus a REST app linked in PactPal)
+### Sellers (each: a sandbox **Business** account plus its own REST app, linked in PactPal)
 
-| Seller        | Business                                      | Inbox (proposed)               | Stories           |
-| ------------- | --------------------------------------------- | ------------------------------ | ----------------- |
-| Maya Lin      | Maya Lin Studio: game art and story writing   | `maya.linstudio@artlover.com`  | 1, 6, Maya's book |
-| Daniel Okafor | Okafor Web: websites for small businesses     | `daniel.okafor@techie.com`     | 2                 |
-| Priya Raman   | Priya Raman Retouch: product photo retouching | `priya.raman@photographer.net` | 3                 |
-| Jun Tanaka    | Jun's Sheets: spreadsheet templates           | `jun.tanaka@accountant.com`    | 4                 |
-| Lena Fischer  | Lena's Vintage Cameras                        | `lena.fischer@collector.org`   | 5                 |
+| Seller        | Business (PayPal's name, which allows no apostrophes) | Email                        | Stories           |
+| ------------- | ----------------------------------------------------- | ---------------------------- | ----------------- |
+| Maya Lin      | Maya Lin Studio: game art and story writing           | `maya.lin@pact-pal.app`      | 1, 6, Maya's book |
+| Daniel Okafor | Okafor Web: websites for small businesses             | `daniel.okafor@pact-pal.app` | 2                 |
+| Priya Raman   | Priya Raman Retouch: product photo retouching         | `priya.raman@pact-pal.app`   | 3                 |
+| Jun Tanaka    | Jun's Sheets (Juns Sheets on PayPal)                  | `jun.tanaka@pact-pal.app`    | 4                 |
+| Lena Fischer  | Lena's Vintage Cameras (Lenas Vintage Cameras)        | `lena.fischer@pact-pal.app`  | 5                 |
 
-### Buyers (each: a sandbox **Personal** account with the same email, to pay invoices)
+### Buyers (each: a sandbox **Personal** account with the same email and sandbox balance, to pay invoices)
 
-| Buyer        | Who they are                                  | Inbox (proposed)             | Deals with           |
-| ------------ | --------------------------------------------- | ---------------------------- | -------------------- |
-| Chris Park   | Solo indie game developer ("Lanternlight")    | `chris.park@gamer.com`       | Maya (story 1, book) |
-| Nora Quinn   | Producer at Lanternfall Games                 | `nora.quinn@consultant.com`  | Maya (story 6, book) |
-| Ethan Brooks | Founder of Pixel Harbor, a two-person studio  | `ethan.brooks@gamer.com`     | Maya (book)          |
-| Aisha Khan   | Narrative lead at Moonbyte Studio             | `aisha.khan@writeme.com`     | Maya (book)          |
-| Rosa Alvarez | Owner of Rosa's Corner Bakery                 | `rosa.alvarez@cheerful.com`  | Daniel               |
-| Tom Becker   | Owner of Ember & Wick, a handmade-candle shop | `tom.becker@iname.com`       | Priya                |
-| Alex Morgan  | Freelance bookkeeper                          | `alex.morgan@accountant.com` | Jun                  |
-| Sam Patel    | Film photography hobbyist                     | `sam.patel@photographer.net` | Lena                 |
+| Buyer        | Who they are                                  | Email                                 | Deals with           |
+| ------------ | --------------------------------------------- | ------------------------------------- | -------------------- |
+| Chris Park   | Solo indie game developer ("Lanternlight")    | `chris.park@pact-pal.app`             | Maya (story 1, book) |
+| Nora Quinn   | Producer at Lanternfall Games                 | `nora.quinn@pact-pal.app`             | Maya (story 6, book) |
+| Ethan Brooks | Founder of Pixel Harbor, a two-person studio  | `ethan.brooks@pact-pal.app`           | Maya (book)          |
+| Aisha Khan   | Narrative lead at Moonbyte Studio             | `aisha.khan@pact-pal.app`             | Maya (book)          |
+| Rosa Alvarez | Owner of Rosa's Corner Bakery                 | `rosa.alvarez@pact-pal.app`           | Daniel               |
+| Tom Becker   | Owner of Ember & Wick, a handmade-candle shop | `tom.becker.allowappeal@pact-pal.app` | Priya                |
+| Alex Morgan  | Freelance bookkeeper                          | `alex.morgan@pact-pal.app`            | Jun                  |
+| Sam Patel    | Film photography hobbyist                     | `sam.patel@pact-pal.app`              | Lena                 |
 
-### What the owner creates (once, before the seed runs)
+Tom's address contains `allowappeal` because PayPal's sandbox offers the seller an appeal only when the buyer's email does (story 3 shows the appeal check on a real appeal).
 
-1. **13 inboxes** as above (or the nearest free names), with no personal data and no 2-step login, so they can be shared with judges.
-2. **5 sandbox Business accounts** (one per seller, email = their inbox) and, under each, **one REST app** (Apps & Credentials, Sandbox, Create App, pick that seller's account). Keep each Client ID and Secret in a local file the seed reads, never in chat or the repository.
-3. **8 sandbox Personal accounts** (one per buyer, email = their inbox), with sandbox PayPal balance.
-4. Sign in to PactPal once as each seller with PayPal; the seed takes it from there.
+### How the inboxes work (set up 11 Nov 2026)
+
+All 13 addresses are forwards at name.com to **one Proton Mail inbox**, so judges sign in once and see every email PactPal sent, each addressed to its person. No phone number or account per person was needed. Mail for `pact-pal.app` goes to name.com's mail servers; PactPal's own sending (`send.updates.pact-pal.app`) and forwarding (`in.pact-pal.app`) are separate and unchanged.
+
+### Done by the owner
+
+1. The 13 forwards and the Proton inbox (test email received).
+2. 5 sandbox Business accounts and, under each, one Merchant REST app with Invoicing, Customer disputes and Transaction search. The keys stay with the owner; each app is linked in PactPal while signed in as its seller.
+3. 8 sandbox Personal accounts with sandbox balance.
 
 ## Story 1: Maya and Chris, a clean deal (nothing goes wrong)
 
