@@ -180,8 +180,8 @@ export const LIMITS: readonly { title: string; body: string }[] = [
     body: "Signing in with PayPal shows you control a PayPal account. It is not proof of legal identity.",
   },
   {
-    title: "Only the data it needs",
-    body: "From PayPal: your name, your email and your account id. Your password stays with PayPal. Deals hold what you and your buyer put in them.",
+    title: "Only the data it needs, for as long as it needs it",
+    body: "From PayPal: your name, your email and your account id. Your password stays with PayPal. A deal is deleted 210 days after its last activity, never while a dispute is open.",
   },
   {
     title: "Test mode for now",
@@ -212,7 +212,15 @@ export const FAQ: readonly { q: string; a: string }[] = [
   },
   {
     q: "What if the work changes halfway?",
-    a: "Either side can propose a change order. Once both agree, the new version of the agreement and its timeline replace the old one, and both versions stay in the record.",
+    a: "You propose a change order from the deal. Once your buyer accepts it, the new version of the agreement and its timeline replace the old one, and both versions stay in the record.",
+  },
+  {
+    q: "Can my own AI assistant work with PactPal?",
+    a: "Yes. PactPal is an MCP server, so Claude, Cursor or another assistant can connect with a key from your settings. It can read your deals and disputes, create drafts and build evidence packets. Anything it wants to send to PayPal waits for a one time code only you can give it.",
+  },
+  {
+    q: "How long does PactPal keep my deals?",
+    a: "A deal and everything in it is deleted 210 days after its last activity, which covers PayPal's dispute window. A deal with an open dispute is kept until it is resolved. AI drafts are deleted after 60 days. A deal is always removed whole, so what is kept still checks out.",
   },
   {
     q: "What does it cost?",

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Icon } from "../design/icons";
 import type { DealOverview } from "../overview-api";
 import { navigate } from "../router/useRoute";
+import { HELP_URL } from "../shell/contact";
 import { matchingDeals, otherName, waitingWords } from "./overview-words";
 
 const PLACES = [
@@ -14,6 +15,8 @@ const PLACES = [
   { path: "/deadlines", title: "Deadlines" },
   { path: "/insights", title: "Insights" },
   { path: "/settings", title: "Settings" },
+  { path: "/settings#agent", title: "Connect your AI agent" },
+  { path: HELP_URL, title: "Help" },
 ];
 
 /**
@@ -58,7 +61,9 @@ export function CommandPalette({ deals }: { deals: readonly DealOverview[] }) {
 
   const go = (path: string) => {
     dialog.current?.close();
-    navigate(path);
+    // Help is its own site, opened beside the app.
+    if (/^https?:/.test(path)) window.open(path, "_blank", "noopener");
+    else navigate(path);
   };
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const step = { ArrowDown: 1, ArrowUp: -1 }[event.key];

@@ -6,6 +6,7 @@ import type { DealStage } from "../overview-api";
 import { navigate } from "../router/useRoute";
 import { noteAddress } from "../messages/threads";
 import { SellerAppPanel } from "../SellerAppPanel";
+import { AgentPanel } from "../agent/AgentPanel";
 import { STAGES, STAGE_ORDER, byUrgency } from "./overview-words";
 import { DealRow } from "./parts";
 import type { Overview } from "./useOverview";
@@ -198,11 +199,16 @@ export function NotificationsPage() {
 export function SettingsPage() {
   return (
     <Page title="Settings">
-      <Card>
-        <div>
-          <SellerAppPanel />
-        </div>
-      </Card>
+      <div className="pp-settings">
+        <Card>
+          <div>
+            <SellerAppPanel />
+          </div>
+        </Card>
+        <Card className="pp-agent-card">
+          <AgentPanel />
+        </Card>
+      </div>
     </Page>
   );
 }

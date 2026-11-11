@@ -128,6 +128,15 @@
     display: none;
   }
 
+  /* Help sits at the foot of the rail, just above the account. */
+  .pp-rail-help {
+    margin-top: auto;
+  }
+
+  .pp-rail .pp-rail-help + .pp-account {
+    margin-top: 0;
+  }
+
   /* The rail closes to its icons on wider screens only; phones keep the bar across the top. */
   @media (width > 50rem) {
     /* While open, nothing spills out as the rail widens; closed, the hover labels may. */

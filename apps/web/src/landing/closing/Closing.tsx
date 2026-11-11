@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { SIGN_IN_PATH } from "../../api";
 import { ButtonLink } from "../../design/parts";
 import { LogoMark } from "../../design/Logo";
-import { CONTACT } from "../../shell/contact";
+import { CONTACT, HELP_URL } from "../../shell/contact";
 import { FAQ, LIMITS, TAGLINE, revealWords } from "../landing-words";
 
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
@@ -75,7 +75,8 @@ export function Closing() {
             Questions <em>sellers ask.</em>
           </h2>
           <p>
-            Something else? Write to <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
+            More in <a href={HELP_URL}>PactPal help</a>, or write to{" "}
+            <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
           </p>
         </header>
         <div className="pp-lp-faq-list">

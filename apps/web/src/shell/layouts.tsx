@@ -8,7 +8,7 @@ import { Logo } from "../design/Logo";
 import type { DealOverview } from "../overview-api";
 import { Button, Skeleton } from "../design/parts";
 import { applyTheme, nextTheme, savedTheme, type Theme } from "../design/theme";
-import { CONTACT } from "./contact";
+import { CONTACT, HELP_URL, helpPage } from "./contact";
 import { isRailKey, saveRail, savedRail } from "./rail";
 import "./shell.css";
 
@@ -44,8 +44,9 @@ export function Footer({ brief = false, links = false }: { brief?: boolean; link
     <footer className="pp-footer">
       {links && (
         <nav aria-label="About PactPal" className="pp-footer-links">
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
+          <a href={HELP_URL}>Help</a>
+          <a href={helpPage("privacy")}>Privacy</a>
+          <a href={helpPage("limits")}>Terms</a>
           <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
         </nav>
       )}
@@ -223,13 +224,19 @@ export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppL
             ))}
           </nav>
         )}
+        <nav aria-label="Help" className="pp-rail-help">
+          <a href={HELP_URL} target="_blank" rel="noopener" data-tip="Help">
+            <Icon name="help" />
+            <span className="pp-rail-label">Help</span>
+          </a>
+        </nav>
         <Account me={me} onSignOut={onSignOut} />
       </header>
       <div className="pp-app-body">
         <main id="content" className="pp-app-main">
           <Suspense fallback={<Skeleton label="Loading…" lines={6} />}>{children}</Suspense>
         </main>
-        <Footer />
+        <Footer links />
       </div>
     </div>
   );
@@ -251,7 +258,7 @@ export function BuyerLayout({
       <main id="content" className="pp-buyer-main">
         <Suspense fallback={<Skeleton label="Loading…" lines={6} />}>{children}</Suspense>
       </main>
-      <Footer />
+      <Footer links />
     </div>
   );
 }

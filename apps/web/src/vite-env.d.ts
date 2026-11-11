@@ -2,6 +2,8 @@
 interface ImportMetaEnv {
   /** The AG Grid and AG Studio licence key; without it Insights runs in AG's trial mode. */
   readonly VITE_AG_LICENCE_KEY?: string;
+  /** The help site's address, where it is not the default. */
+  readonly VITE_HELP_URL?: string;
 }
 
 interface ImportMeta {
