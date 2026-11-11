@@ -48,9 +48,10 @@ describe("the seed-demo task (9b-2)", () => {
   it("reads content inside the folder only, and names a missing image", () => {
     const read = contentReader(demoContentDir());
     expect(read("chats/story1-discord.txt").toString("utf8")).toContain("Lanternlight");
+    expect(read("images/maya-final.png").length).toBeGreaterThan(0);
     expect(() => read("../../package.json")).toThrow(/leaves the content folder/);
-    expect(() => read("images/maya-final.png")).toThrow(
-      "add hackathon/demo/images/maya-final.png before running this story",
+    expect(() => read("images/not-added-yet.png")).toThrow(
+      "add hackathon/demo/images/not-added-yet.png before running this story",
     );
   });
 
