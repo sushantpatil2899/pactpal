@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AcceptanceDocument } from "./AcceptanceDocument";
 import {
   acceptTerms,
@@ -57,10 +57,13 @@ export function AcceptancePanel({
   deal,
   revision,
   onChange,
+  aside,
 }: {
   deal: DealSummary;
   revision: number;
   onChange: () => void;
+  /** Shown under the buyer's signing card, such as their questions about the agreement. */
+  aside?: ReactNode;
 }) {
   const [view, setView] = useState<AcceptanceView | undefined>();
   const [problem, setProblem] = useState<string | undefined>();
@@ -147,35 +150,49 @@ export function AcceptancePanel({
     if (view.status !== "awaiting_acceptance" || !document || documentSha256 === null) {
       return null;
     }
+    // The buyer's one job here: the document to read, beside a card that stays in view.
     return (
-      <section aria-labelledby="acceptance">
-        <h3 id="acceptance" className="pp-display">
-          Please review and sign
-        </h3>
-        {alert}
-        {shown}
-        <SignOrDecline
-          busy={busy}
-          words={{
-            sign: "I agree and sign",
-            // The review loop (7j): asking for changes sends this version back, and the reason
-            // goes into the deal's chat for both sides to talk through.
-            decline: "Ask for changes",
-            reasonLabel: "What should change? (optional; it goes into the chat with the seller)",
-            sendDecline: "Send back for changes",
-          }}
-          onSign={(typedName) => {
-            run(acceptTerms(deal.id, { documentSha256, typedName }));
-          }}
-          onDecline={(reason) => {
-            run(
-              declineTerms(deal.id, {
-                documentSha256,
-                ...(reason === undefined ? {} : { reason }),
-              }),
-            );
-          }}
-        />
+      <section aria-labelledby="acceptance" className="pp-sign-view">
+        <div className="pp-sign-doc">
+          <h3 id="acceptance" className="pp-display">
+            Please review and sign
+          </h3>
+          {alert}
+          <AcceptanceDocument document={document} documentSha256={documentSha256} foldFingerprint />
+        </div>
+        <aside className="pp-sign-side" id="pp-sign-here" aria-label="Sign or ask for changes">
+          <p className="pp-sign-lead">
+            <b>Ready to sign?</b>
+            Read every term, then type your full name. You can also ask for changes or ask a
+            question first.
+          </p>
+          <SignOrDecline
+            busy={busy}
+            words={{
+              sign: "I agree and sign",
+              // The review loop (7j): asking for changes sends this version back, and the reason
+              // goes into the deal's chat for both sides to talk through.
+              decline: "Ask for changes",
+              reasonLabel: "What should change? (optional; it goes into the chat with the seller)",
+              sendDecline: "Send back for changes",
+            }}
+            onSign={(typedName) => {
+              run(acceptTerms(deal.id, { documentSha256, typedName }));
+            }}
+            onDecline={(reason) => {
+              run(
+                declineTerms(deal.id, {
+                  documentSha256,
+                  ...(reason === undefined ? {} : { reason }),
+                }),
+              );
+            }}
+          />
+          {aside}
+        </aside>
+        <a className="pp-sign-jump" href="#pp-sign-here">
+          Sign this agreement
+        </a>
       </section>
     );
   }

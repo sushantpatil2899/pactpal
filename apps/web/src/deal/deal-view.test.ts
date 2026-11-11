@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultTab, statusBadge, stripSteps, type StripSource } from "./deal-view";
+import { defaultTab, phoneTab, statusBadge, stripSteps, type StripSource } from "./deal-view";
 
 const step = (n: number, changes: Partial<StripSource> = {}): StripSource => ({
   n,
@@ -64,5 +64,20 @@ describe("the progress strip", () => {
       "todo",
       "todo",
     ]);
+  });
+});
+
+describe("where a deal opens on a phone", () => {
+  const at = (state: string, waitingOn: "seller" | "buyer" | null) => ({ state, waitingOn });
+  it("opens the agreement while the buyer is asked to sign", () => {
+    expect(phoneTab("buyer", "awaiting_acceptance")).toBe("scope");
+    expect(phoneTab("seller", "awaiting_acceptance")).toBe("chat");
+  });
+
+  it("opens the timeline when the current step waits on this person, else the chat", () => {
+    const steps = [at("done", null), at("open", "buyer"), at("open", "seller")];
+    expect(phoneTab("buyer", "active", steps)).toBe("timeline");
+    expect(phoneTab("seller", "active", steps)).toBe("chat");
+    expect(phoneTab("buyer", "completed", steps)).toBe("chat");
   });
 });

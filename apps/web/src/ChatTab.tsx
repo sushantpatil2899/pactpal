@@ -121,12 +121,14 @@ export function ChatTab({
 }) {
   const { state } = chat;
   const [draft, setDraft] = useState("");
-  const end = useRef<HTMLLIElement>(null);
+  const thread = useRef<HTMLOListElement>(null);
   const other = state.role === "seller" ? "buyer" : "seller";
   const seenSeq = lastSeenByOther(state);
 
   useEffect(() => {
-    end.current?.scrollIntoView({ block: "nearest" });
+    // Scroll the thread itself to its newest message, never the page around it.
+    const list = thread.current;
+    if (list) list.scrollTop = list.scrollHeight;
   }, [state.messages.length, state.pending.length]);
 
   const submit = (event?: FormEvent) => {
@@ -160,7 +162,7 @@ export function ChatTab({
         Agree on the work, the stages and the payments here; the seller can turn the chat into the
         agreement.
       </p>
-      <ol aria-label="Messages" aria-live="polite" className="pp-thread">
+      <ol ref={thread} aria-label="Messages" aria-live="polite" className="pp-thread">
         {state.messages.length === 0 && state.pending.length === 0 && (
           <li className="pp-thread-empty">No messages yet.</li>
         )}
@@ -195,7 +197,6 @@ export function ChatTab({
             </small>
           </li>
         ))}
-        <li ref={end} aria-hidden="true" />
       </ol>
       {state.otherTyping && <p aria-live="polite">{otherName} is typing…</p>}
       {state.open ? (

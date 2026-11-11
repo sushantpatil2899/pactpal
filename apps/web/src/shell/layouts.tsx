@@ -242,7 +242,28 @@ export function AppLayout({ me, onSignOut, page, dealId, deals, children }: AppL
   );
 }
 
-/** The buyer's pages, and anyone's deal opened with a link: one calm column. */
+/** Who the buyer is in the top bar: their initials and name, how they got in, and the way out. */
+function BuyerAccount({ me, onSignOut }: SignedIn) {
+  const name = me.displayName ?? me.email;
+  return (
+    <section className="pp-buyer-account" aria-label="Your account">
+      <Avatar name={name} />
+      <span title={me.email}>
+        <b>{name}</b>
+        {me.access !== "full" && <small>With a link to one deal</small>}
+      </span>
+      <Button look="quiet" onClick={onSignOut}>
+        <Icon name="exit" />
+        <span>Sign out</span>
+      </Button>
+    </section>
+  );
+}
+
+/**
+ * The buyer's pages, and anyone's deal opened with a link: the app's look without the seller's
+ * sidebar. A bar with Help and the account, and the deal space as wide as the seller's.
+ */
 export function BuyerLayout({
   me,
   onSignOut,
@@ -251,9 +272,13 @@ export function BuyerLayout({
   return (
     <div className="pp-buyer">
       <SkipLink />
-      <header className="pp-bar">
+      <header className="pp-buyer-bar">
         <Logo />
-        {me && onSignOut && <Account me={me} onSignOut={onSignOut} />}
+        <a className="pp-buyer-help" href={HELP_URL}>
+          <Icon name="help" />
+          <span>Help</span>
+        </a>
+        {me && onSignOut && <BuyerAccount me={me} onSignOut={onSignOut} />}
       </header>
       <main id="content" className="pp-buyer-main">
         <Suspense fallback={<Skeleton label="Loading…" lines={6} />}>{children}</Suspense>
