@@ -375,9 +375,9 @@ export const TOUR = [
     body: "What needs you, what is overdue and what you are waiting on, across every deal.",
     url: "pact-pal.app",
     notes: [
-      { x: 30, y: 21, text: "Needs you, first" },
-      { x: 72, y: 47, text: "Overdue, in red" },
-      { x: 88, y: 5, text: "Start a deal from a chat" },
+      { x: 30, y: 23, text: "Needs you, first" },
+      { x: 76, y: 59, text: "Overdue, in red" },
+      { x: 88, y: 6, text: "Start a deal from a chat" },
     ],
   },
   {
@@ -386,9 +386,20 @@ export const TOUR = [
     body: "The live chat pinned beside the agreement, the timeline, files and the evidence log.",
     url: "pact-pal.app/deals/book-cover",
     notes: [
-      { x: 34, y: 17, text: "Every step at a glance" },
-      { x: 30, y: 58, text: "Live chat, every message kept" },
-      { x: 76, y: 50, text: "Timeline chart" },
+      { x: 40, y: 17, text: "Every step at a glance" },
+      { x: 26, y: 62, text: "Live chat, every message kept" },
+      { x: 80, y: 62, text: "Timeline chart" },
+    ],
+  },
+  {
+    id: "messages",
+    title: "Messages",
+    body: "Every deal's chat in one place, grouped by the person you deal with, beside the deal it belongs to.",
+    url: "pact-pal.app/messages",
+    notes: [
+      { x: 32, y: 21, text: "Grouped by person" },
+      { x: 60, y: 50, text: "The deal's own chat" },
+      { x: 87, y: 14, text: "Where the deal stands" },
     ],
   },
   {
@@ -397,8 +408,8 @@ export const TOUR = [
     body: "Payments due, approvals waiting, dispute deadlines: they come to you, in the app and by email.",
     url: "pact-pal.app/notifications",
     notes: [
-      { x: 82, y: 9, text: "Overdue deposit" },
-      { x: 80, y: 36, text: "Dispute deadline in 24 hours" },
+      { x: 82, y: 15, text: "Overdue deposit" },
+      { x: 66, y: 23, text: "Dispute deadline in 24 hours" },
     ],
   },
   {
@@ -407,8 +418,8 @@ export const TOUR = [
     body: "Every dated step and dispute deadline on one calendar. A dispute with no evidence yet turns red.",
     url: "pact-pal.app/deadlines",
     notes: [
-      { x: 64, y: 22, text: "Late steps" },
-      { x: 76, y: 44, text: "Today" },
+      { x: 53, y: 27, text: "Late steps" },
+      { x: 64, y: 18, text: "Today" },
     ],
   },
   {
@@ -417,9 +428,9 @@ export const TOUR = [
     body: "The time left to respond, the claim against the record, the packet and what PayPal allows now.",
     url: "pact-pal.app/deals/podcast/disputes",
     notes: [
-      { x: 74, y: 24, text: "Time left to respond" },
-      { x: 34, y: 66, text: "Claim against the record" },
-      { x: 84, y: 48, text: "What PayPal allows now" },
+      { x: 77, y: 23, text: "Time left to respond" },
+      { x: 44, y: 61, text: "Claim against the record" },
+      { x: 83, y: 34, text: "What PayPal allows now" },
     ],
   },
   {
@@ -428,8 +439,8 @@ export const TOUR = [
     body: "Search, filter, group and export every deal you have.",
     url: "pact-pal.app/deals",
     notes: [
-      { x: 52, y: 13, text: "Search and filter" },
-      { x: 72, y: 31, text: "Records complete, per deal" },
+      { x: 52, y: 12, text: "Search and filter" },
+      { x: 82, y: 30, text: "Records complete, per deal" },
     ],
   },
   {
@@ -438,8 +449,8 @@ export const TOUR = [
     body: "Charts of your own deals: by stage, by amount, by who they are waiting on.",
     url: "pact-pal.app/insights",
     notes: [
-      { x: 28, y: 50, text: "Deals by stage" },
-      { x: 68, y: 50, text: "Amounts per currency" },
+      { x: 34, y: 40, text: "Deals by stage" },
+      { x: 71, y: 42, text: "Amounts per currency" },
     ],
   },
 ] as const;

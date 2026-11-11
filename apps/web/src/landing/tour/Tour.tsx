@@ -8,11 +8,13 @@ import deal from "./shots/deal.webp";
 import deals from "./shots/deals.webp";
 import dispute from "./shots/dispute.webp";
 import insights from "./shots/insights.webp";
+import messages from "./shots/messages.webp";
 import reminders from "./shots/reminders.webp";
 
 const SHOTS: Record<(typeof TOUR)[number]["id"], string> = {
   dashboard,
   deal,
+  messages,
   reminders,
   deadlines,
   dispute,
