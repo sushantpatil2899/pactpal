@@ -52,6 +52,65 @@ export const PILLARS = [
   },
 ] as const;
 
+/** The card under the four: your own AI assistant, which a deal may or may not use. */
+export const AGENT_CARD = {
+  title: "Your own AI agent, working your deals",
+  body: "Connect Claude, Cursor or any MCP assistant. It reads your deals and builds packets. Anything it wants to send waits for a code only you can give it.",
+  link: "#agents",
+} as const;
+
+/** The assistants named on the agent section: product names, said only as facts. */
+export const AGENT_CLIENTS = ["Claude Code", "Claude Desktop", "Cursor", "Any MCP client"] as const;
+
+/**
+ * One run of an agent working a dispute, as the agent section plays it: each call, what PactPal
+ * answers, and what the scene does. `gate` stops the run until the visitor (or the timer)
+ * approves; `refused` shows a tool that does not exist.
+ */
+export const AGENT_RUN: readonly {
+  call: string;
+  answer: string;
+  kind: "read" | "build" | "gate" | "send" | "refused";
+}[] = [
+  { call: "list_deals", answer: "7 deals · 1 dispute, respond within 26 h", kind: "read" },
+  {
+    call: "get_dispute PP-R-ABC-1",
+    answer: "Not as described · 180.00 USD · PayPal allows evidence",
+    kind: "read",
+  },
+  {
+    call: "draft_evidence_packet",
+    answer: "Packet built · 4 exhibits · 3.4 MB · nothing sent",
+    kind: "build",
+  },
+  {
+    call: "request_send_evidence",
+    answer: "Waiting for Maya to approve on the deal",
+    kind: "gate",
+  },
+  {
+    call: "confirm_action code=482913",
+    answer: "Sent to PayPal · sealed #0431 · key …a91f",
+    kind: "send",
+  },
+  { call: "make_offer", answer: "No such tool. Offers stay with the seller.", kind: "refused" },
+];
+
+/** What an agent can and cannot do, short, for the agent section. */
+export const AGENT_CAN = [
+  "Read deals and disputes",
+  "Draft deals from a chat",
+  "Build evidence packets",
+  "Ask you to send an invoice or evidence",
+] as const;
+
+export const AGENT_CANNOT = [
+  "Send anything without your code",
+  "Sign, accept or act for a buyer",
+  "Message buyers, make offers or appeal",
+  "Take orders from what buyers write",
+] as const;
+
 /** The trades drifting around "who it's for", each with a deal it might send through PactPal. */
 export const STICKERS = [
   {

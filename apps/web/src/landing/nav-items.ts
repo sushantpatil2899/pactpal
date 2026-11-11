@@ -20,6 +20,7 @@ export const PAGE_ORDER = [
   "paypal",
   "ledger",
   "disputes",
+  "agents",
   "app",
   "buyer",
   "features",
@@ -40,6 +41,7 @@ export const NAV: readonly NavItem[] = [
       { id: "paypal", label: "PayPal", note: "Moves the money and keeps the proof" },
       { id: "ledger", label: "Evidence log", note: "Change one entry and watch it break" },
       { id: "disputes", label: "Disputes", note: "Every claim checked against the record" },
+      { id: "agents", label: "AI agents", note: "Your own assistant, never unsupervised" },
     ],
   },
   {

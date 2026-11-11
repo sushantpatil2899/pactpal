@@ -4,6 +4,7 @@ import { Icon } from "../design/icons";
 import { CopyButton, useSecrets } from "../IntakePanel";
 import { helpPage } from "../shell/contact";
 import { AGENT_CAN, AGENT_CANNOT, agentClients, mcpAddress } from "./agent-setup";
+import { CanCannot } from "./CanCannot";
 
 /** The key, its setup for the chosen client, and what an agent can and cannot do. */
 function AgentKey({ options }: { options: DealOptions }) {
@@ -102,24 +103,7 @@ export function AgentPanel() {
         </div>
       </header>
       {options && <AgentKey options={options} />}
-      <div className="pp-agent-limits">
-        <div>
-          <h3>It can</h3>
-          <ul>
-            {AGENT_CAN.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h3>It cannot</h3>
-          <ul>
-            {AGENT_CANNOT.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      <CanCannot className="pp-agent-limits" can={AGENT_CAN} cannot={AGENT_CANNOT} />
       <p className="pp-agent-note">
         When your agent asks to send an invoice or evidence, the request waits on the deal with its
         exact wording. Approve it there to get a one time code (10 minutes, once) to give your

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { PILLARS } from "../landing-words";
+import { AGENT_CARD, PILLARS } from "../landing-words";
 import { WarpGrid } from "../WarpGrid";
 
 const at = (i: number) => ({ "--i": i }) as CSSProperties;
@@ -124,6 +124,27 @@ const VISUALS: Record<(typeof PILLARS)[number]["id"], ReactNode> = {
   dispute: <Dispute />,
 };
 
+/** The agent asking, then waiting at the gate for the seller's code. */
+function Agent() {
+  return (
+    <div className="pp-lp-v-agent">
+      <code>
+        <b>›</b> list_deals <span>7 deals</span>
+      </code>
+      <code>
+        <b>›</b> draft_evidence_packet <span>built</span>
+      </code>
+      <code>
+        <b>›</b> request_send_evidence <span>waiting</span>
+      </code>
+      <p>
+        <i />
+        Waiting for your code
+      </p>
+    </div>
+  );
+}
+
 /** The four things every deal gets, each shown working, before anything is explained. */
 export function Pillars() {
   return (
@@ -157,6 +178,25 @@ export function Pillars() {
           </a>
         ))}
       </div>
+      <a
+        href={AGENT_CARD.link}
+        className="pp-lp-pillar pp-lp-pillar-agent"
+        data-pillar="agent"
+        data-reveal
+      >
+        <div className="pp-lp-pillar-frame" aria-hidden="true">
+          <WarpGrid />
+          <div className="pp-lp-pillar-screen">
+            <Agent />
+          </div>
+        </div>
+        <div>
+          <span className="pp-lp-pillar-n">Plus</span>
+          <h3>{AGENT_CARD.title}</h3>
+          <p>{AGENT_CARD.body}</p>
+          <span className="pp-lp-pillar-more">See how it works →</span>
+        </div>
+      </a>
     </section>
   );
 }

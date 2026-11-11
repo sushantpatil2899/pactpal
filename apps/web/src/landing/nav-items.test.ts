@@ -17,6 +17,7 @@ describe("the landing page's navigation", () => {
     expect(navOwner("get")).toBe("get");
     expect(navOwner("ledger")).toBe("how");
     expect(navOwner("disputes")).toBe("how");
+    expect(navOwner("agents")).toBe("how");
     expect(navOwner("buyer")).toBe("app");
     expect(navOwner("faq")).toBe("faq");
     expect(navOwner("hero")).toBeNull();

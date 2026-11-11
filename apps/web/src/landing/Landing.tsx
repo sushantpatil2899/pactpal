@@ -8,6 +8,7 @@ import { Tour } from "./tour/Tour";
 import { Hero } from "./hero/Hero";
 import { Ledger } from "./ledger/Ledger";
 import { Audience } from "./audience/Audience";
+import { Agents } from "./agents/Agents";
 import { Moves } from "./moves/Moves";
 import { Nav } from "./Nav";
 import { Pillars } from "./pillars/Pillars";
@@ -42,6 +43,7 @@ export function Landing({ problem }: { problem?: string }) {
         <Rails />
         <Ledger />
         <Dispute />
+        <Agents />
         <Tour />
         <Features />
 
