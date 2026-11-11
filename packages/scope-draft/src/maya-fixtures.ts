@@ -1,6 +1,6 @@
 import type { ScopeDraftV4 } from "./schema.js";
 
-/** A made-up Discord chat (the "Maya" story in docs/demo.md): price stated, no deadline, no revision limit. */
+/** A made-up Discord chat (the "Maya" story in hackathon/demo-plan.md): price stated, no deadline, no revision limit. */
 export const MAYA_CHAT = `Chris: hey Maya! love your art, are you taking commissions right now?
 Maya: Hi Chris, thank you! Yes, I have a couple of slots open.
 Chris: I'm making a game and need a full-body character illustration for the store page

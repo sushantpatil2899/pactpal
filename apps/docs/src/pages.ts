@@ -20,12 +20,6 @@ export const PAGES: readonly { file: string; slug: string; title: string; about:
     about: "What is kept, for how long, and who sees it",
   },
   {
-    file: "docs/demo.md",
-    slug: "demo",
-    title: "Demo stories",
-    about: "The deals the demo follows",
-  },
-  {
     file: "docs/decisions.md",
     slug: "decisions",
     title: "Decisions",
