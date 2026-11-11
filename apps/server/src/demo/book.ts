@@ -20,6 +20,7 @@ import {
   type SeedContext,
 } from "./actions.js";
 import { needRef, type DemoStep } from "./engine.js";
+import { peopleStep } from "./story-steps.js";
 
 /** Maya, the showcase seller, and the four studios she writes for (hackathon/demo-plan.md). */
 export const MAYA = "maya.lin@pact-pal.app";
@@ -486,7 +487,10 @@ function deliveriesStep(deal: BookDeal): DemoStep<SeedContext> {
  * the payments, then the deliveries and answers.
  */
 export function bookSteps(): DemoStep<SeedContext>[] {
-  const steps: DemoStep<SeedContext>[] = BOOK.map(createStep);
+  const steps: DemoStep<SeedContext>[] = [
+    peopleStep([{ email: MAYA, name: "Maya Lin" }, ...Object.values(BUYERS)]),
+    ...BOOK.map(createStep),
+  ];
   for (const deal of BOOK) {
     if (deal.form) steps.push(agreementStep(deal, deal.form));
     if (deal.target === "ai-draft") steps.push(aiDraftStep(deal));

@@ -1,6 +1,7 @@
 import type { DemoRefs } from "@pactpal/db";
 import {
   draftAgreement,
+  notSignedInWithPayPal,
   paidOrInstruction,
   saveAgreement,
   sendForSigning,
@@ -19,6 +20,27 @@ export interface Person {
   email: string;
   name: string;
 }
+
+/**
+ * The first step of every run: everyone in the story has signed in to PactPal with PayPal once
+ * (sellers and buyers), so each person's account is the one tied to their sandbox PayPal account.
+ */
+export const peopleStep = (people: readonly Person[]): Step => ({
+  id: "people",
+  what: "check everyone has signed in with PayPal",
+  run: async (context) => {
+    const missing = await notSignedInWithPayPal(
+      context,
+      people.map((person) => person.email),
+    );
+    return missing.length === 0
+      ? { status: "done" }
+      : {
+          status: "waiting",
+          instruction: `Sign in to pact-pal.app with PayPal once as each of these sandbox accounts: ${missing.join(", ")}. Then run this story again.`,
+        };
+  },
+});
 
 /** A step that does its work and is done, with what it made. */
 export const doStep = (

@@ -1,4 +1,4 @@
-import { createUser, listDealsForUser, readLedger } from "@pactpal/db";
+import { listDealsForUser, readLedger } from "@pactpal/db";
 import { TEST_NOW, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { describe, expect, it } from "vitest";
 import { dealTestApp, standInMember, testDrafting } from "../deals/test-app.js";
@@ -7,6 +7,7 @@ import type { SeedContext } from "./actions.js";
 import { BOOK, MAYA, bookSteps } from "./book.js";
 import { runStory } from "./engine.js";
 import { contentReader, databaseProgress, demoContentDir } from "./seed.js";
+import { DEMO_PEOPLE, signedUpWithPayPal } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 const runOptions = {
@@ -33,7 +34,7 @@ function seedApp(paypal: ReturnType<typeof fakePayPal>) {
 
 describe("Maya's book of deals (9b-2)", () => {
   it("creates all 18 deals through the routes, stops once for every payment, then finishes", async () => {
-    await createUser(db, { id: testId(1), email: MAYA, displayName: "Maya Lin" }, TEST_NOW);
+    await signedUpWithPayPal(db, [MAYA, ...DEMO_PEOPLE.slice(5, 9)]);
     const paypal = fakePayPal();
     const progress = databaseProgress(db, () => TEST_NOW);
 

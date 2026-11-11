@@ -24,7 +24,7 @@ describe("the seed-demo task (9b-2)", () => {
       },
     );
     expect(summary).toMatchObject({ story: "book", dryRun: true, alreadyDone: 0 });
-    expect(summary.steps).toHaveLength(BOOK.length + 15 + 1 + 2 + 7);
+    expect(summary.steps).toHaveLength(1 + BOOK.length + 15 + 1 + 2 + 7);
     expect(lines).toHaveLength(1);
     expect(closed).toBe(true);
   });

@@ -1,7 +1,14 @@
 import { SeedStepError, addBuyer, sign } from "../actions.js";
 import { needRef } from "../engine.js";
 import { agentFor, approveAgentRequest } from "../story-actions.js";
-import { agreementStep, doStep, paidStep, type Person, type Step } from "../story-steps.js";
+import {
+  agreementStep,
+  doStep,
+  paidStep,
+  peopleStep,
+  type Person,
+  type Step,
+} from "../story-steps.js";
 
 /** Story 6: Maya's AI agent, with Maya's approval (hackathon/demo-plan.md). */
 const MAYA: Person = { email: "maya.lin@pact-pal.app", name: "Maya Lin" };
@@ -15,6 +22,7 @@ const text = (value: unknown, what: string): string => {
 
 export function story6Steps(): Step[] {
   return [
+    peopleStep([MAYA, NORA]),
     doStep(
       "agent-create",
       "the agent lists Maya's deals and drafts Nora's deal",

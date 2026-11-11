@@ -9,7 +9,14 @@ import {
 } from "../actions.js";
 import { needRef } from "../engine.js";
 import { listingFor } from "../story-actions.js";
-import { disputeSteps, doStep, paymentSteps, type Person, type Step } from "../story-steps.js";
+import {
+  disputeSteps,
+  doStep,
+  paymentSteps,
+  peopleStep,
+  type Person,
+  type Step,
+} from "../story-steps.js";
 
 /** Story 5: Lena and Sam, physical goods and the listing as evidence (hackathon/demo-plan.md). */
 const LENA: Person = { email: "lena.fischer@pact-pal.app", name: "Lena Fischer" };
@@ -20,6 +27,7 @@ export const LISTING_URL_FILE = "chats/story5-listing-url.txt";
 
 export function story5Steps(): Step[] {
   return [
+    peopleStep([LENA, SAM]),
     doStep("create", "make the camera deal from Lena's order form", async (context) => {
       const text = context.content("chats/story5-order-form.txt").toString("utf8");
       const dealId = await dealFromText(

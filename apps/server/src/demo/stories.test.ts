@@ -8,6 +8,7 @@ import type { SeedContext } from "./actions.js";
 import { runStory, type DemoStep, type RunSummary } from "./engine.js";
 import { STORIES, contentReader, databaseProgress, demoContentDir } from "./seed.js";
 import { LISTING_URL_FILE } from "./stories/story5.js";
+import { DEMO_PEOPLE, signedUpWithPayPal } from "./test-support.js";
 
 const db = useMigratedTestDatabase();
 const read = contentReader(demoContentDir());
@@ -38,14 +39,6 @@ const products: ProductLookup = {
 
 /** Each app numbers its ids from here, so the stories' apps never clash in one database. */
 let nextIds = 100_000;
-
-const SELLERS = [
-  "maya.lin@pact-pal.app",
-  "daniel.okafor@pact-pal.app",
-  "priya.raman@pact-pal.app",
-  "jun.tanaka@pact-pal.app",
-  "lena.fischer@pact-pal.app",
-];
 
 /**
  * Plays a story through on the test database with stand-in models and PayPal, as the owner would:
@@ -112,9 +105,7 @@ const dealOf = async (sellerN: number) => {
 
 describe("the six demo stories (9b-2)", () => {
   it("play through PactPal's routes up to the point a person or PayPal's dispute is needed", async () => {
-    for (const [i, email] of SELLERS.entries()) {
-      await createUser(db, { id: testId(i + 1), email, displayName: email }, TEST_NOW);
-    }
+    await signedUpWithPayPal(db, DEMO_PEOPLE);
 
     const one = await playThrough("1");
     expect(one.outcome).toEqual({ kind: "finished" });
@@ -162,6 +153,24 @@ describe("the six demo stories (9b-2)", () => {
       expect.arrayContaining(["ACCEPTED", "INVOICE_SENT", "PAYMENT_RECEIVED"]),
     );
   }, 240_000);
+
+  it("stops before making anything until everyone in the story has signed in with PayPal", async () => {
+    await signedUpWithPayPal(db, ["daniel.okafor@pact-pal.app"]);
+    // Rosa exists only as an email a seller once added: she has not signed in with PayPal.
+    await createUser(
+      db,
+      { id: testId(50), email: "rosa.alvarez@pact-pal.app", displayName: "Rosa" },
+      TEST_NOW,
+    );
+    const played = await playThrough("2");
+    expect(played.outcome).toEqual({
+      kind: "waiting",
+      step: "people",
+      instruction:
+        "Sign in to pact-pal.app with PayPal once as each of these sandbox accounts: rosa.alvarez@pact-pal.app. Then run this story again.",
+    });
+    expect(await listDealsForUser(db, testId(1))).toEqual([]);
+  });
 
   it("names every content file the stories use, and lists each story's steps once", () => {
     for (const story of ["1", "2", "3", "4", "5", "6"]) {

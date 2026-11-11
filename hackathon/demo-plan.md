@@ -48,6 +48,7 @@ All 13 addresses are forwards at name.com to **one Proton Mail inbox**, so judge
 1. The 13 forwards and the Proton inbox (test email received).
 2. 5 sandbox Business accounts and, under each, one Merchant REST app with Invoicing, Customer disputes and Transaction search. The keys stay with the owner; each app is linked in PactPal while signed in as its seller.
 3. 8 sandbox Personal accounts with sandbox balance.
+4. Each of the 13 people (sellers and buyers) signs in to pact-pal.app with "Sign in with PayPal" once, with their sandbox account, before the seed adds them to a deal. A buyer the seed added by email alone could never sign in with PayPal later; the seed checks this first and names anyone missing.
 
 ## Story 1: Maya and Chris, a clean deal (nothing goes wrong)
 
@@ -182,7 +183,7 @@ This gives Insights a spread of buyers, amounts, stages, "waiting on" and timing
 
 Each story is one run of the `seed-demo` Workflow task with input `{"story": "1"}` (stories `"1"` to `"6"`, and `"book"`); `"dryRun": true` only lists the steps left. A run does all it can, then stops and logs one instruction; do it, then start the same story again. Nothing is ever done twice.
 
-1. Before the first run: every seller has signed in once and linked their app; `hackathon/demo/chats/story5-listing-url.txt` holds the camera's product page address (one Channel3 knows).
+1. Before the first run: all 13 people have signed in once with PayPal, every seller has linked their app; `hackathon/demo/chats/story5-listing-url.txt` holds the camera's product page address (one Channel3 knows).
 2. **"Pay stage N … as <buyer>"**: sign in to the PayPal sandbox as that buyer and pay the invoice at the link given.
 3. **"Open a dispute as <buyer>"**: in the sandbox, open it on that payment with the reason and words given.
 4. **"Send the evidence / decide"**: in PactPal as the seller, open the dispute and send the packet (or, story 3, offer the partial refund); then decide the case on the sandbox site.

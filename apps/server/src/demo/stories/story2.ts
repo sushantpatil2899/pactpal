@@ -23,6 +23,7 @@ import {
   doStep,
   draftStep,
   paymentSteps,
+  peopleStep,
   type Person,
   type Step,
 } from "../story-steps.js";
@@ -66,6 +67,7 @@ const changeStep = (
 
 export function story2Steps(): Step[] {
   return [
+    peopleStep([DANIEL, ROSA]),
     doStep(
       "create",
       "create the bakery website deal and paste the WhatsApp chat",

@@ -18,6 +18,7 @@ import {
   doStep,
   draftStep,
   paymentSteps,
+  peopleStep,
   type Person,
   type Step,
 } from "../story-steps.js";
@@ -77,6 +78,7 @@ export function story1Steps(): Step[] {
   const lines = (from: number, to: number) => (context: SeedContext) =>
     chatLines(context, CHAT, from, to);
   return [
+    peopleStep([MAYA, CHRIS]),
     doStep("create", "create Wren's deal and paste the Discord chat", async (context) => {
       const dealId = await createDeal(context, MAYA.email, {
         title: "Wren, the lantern-keeper",

@@ -15,6 +15,7 @@ import {
   disputeSteps,
   doStep,
   paymentSteps,
+  peopleStep,
   type Person,
   type Step,
 } from "../story-steps.js";
@@ -46,6 +47,7 @@ const lines = (from: number, to: number) => (context: SeedContext) =>
 
 export function story3Steps(): Step[] {
   return [
+    peopleStep([PRIYA, TOM]),
     doStep(
       "create",
       "create the candle photo deal; Tom and Priya talk it through",

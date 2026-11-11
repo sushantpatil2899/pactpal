@@ -32,6 +32,22 @@ async function userIdOf(context: SeedContext, email: string): Promise<string> {
 }
 
 /**
+ * The people among `emails` who have not yet signed in to PactPal with PayPal. The seed acts only
+ * for people who have: a buyer it added by email alone could never sign in with PayPal later.
+ */
+export async function notSignedInWithPayPal(
+  context: SeedContext,
+  emails: readonly string[],
+): Promise<string[]> {
+  const missing: string[] = [];
+  for (const email of emails) {
+    const user = await findUserByEmail(context.db, email);
+    if (user?.paypalUserId === undefined) missing.push(email);
+  }
+  return missing;
+}
+
+/**
  * Calls one of PactPal's routes as the person with this email, through a session made for this
  * call alone, and checks the status: the same checks, log entries and emails as a person's click.
  */

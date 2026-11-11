@@ -7,6 +7,7 @@ import {
   doStep,
   draftStep,
   paymentSteps,
+  peopleStep,
   type Person,
   type Step,
 } from "../story-steps.js";
@@ -20,6 +21,7 @@ const SHEETS = ["jun-budget-planner.xlsx", "jun-invoice-tracker.xlsx", "jun-cont
 
 export function story4Steps(): Step[] {
   return [
+    peopleStep([JUN, ALEX]),
     doStep(
       "create",
       "create the spreadsheet pack deal and add the marketplace screenshot",
