@@ -35,13 +35,20 @@ export function dealTestApp(
     store?: AppOptions["store"];
     /** The site's address; https by default. */
     publicBaseUrl?: string;
+    /** The first numbered id, so several apps can share one database without clashing. */
+    firstId?: number;
   } = {},
 ) {
-  let ids = 200;
   const mail = capturingEmail();
   const { sent, failEmailTo } = mail;
   const logs: string[] = [];
-  const { emailOff = false, publicBaseUrl = "https://pactpal.test", ...appOptions } = options;
+  const {
+    emailOff = false,
+    publicBaseUrl = "https://pactpal.test",
+    firstId,
+    ...appOptions
+  } = options;
+  let ids = firstId ?? 200;
   const email = emailOff ? new StandInEmailSender({ info: () => undefined }) : mail.email;
   const app = buildApp(
     { settings: [], features: [] },

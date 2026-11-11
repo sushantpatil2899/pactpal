@@ -96,17 +96,17 @@ export async function addBuyer(
   });
 }
 
-/** Uploads a content file to the deal as a source (chat, brief) or a deliverable; its file id. */
-export async function upload(
+/** Uploads bytes to the deal as a source (chat, brief) or a deliverable; the file's id. */
+export async function uploadBytes(
   context: SeedContext,
   who: string,
   dealId: string,
-  file: { path: string; name: string; kind: "source" | "deliverable" },
+  file: { bytes: Buffer; name: string; kind: "source" | "deliverable" },
 ): Promise<string> {
   const answer = await callAs(context, who, {
     method: "POST",
     path: `/api/deals/${dealId}/files?kind=${file.kind}`,
-    body: context.content(file.path),
+    body: file.bytes,
     headers: {
       "content-type": "application/octet-stream",
       [FILE_NAME_HEADER]: encodeURIComponent(file.name),
@@ -114,6 +114,15 @@ export async function upload(
   });
   return idOf(answer);
 }
+
+/** Uploads a content file to the deal as a source (chat, brief) or a deliverable; its file id. */
+export const upload = (
+  context: SeedContext,
+  who: string,
+  dealId: string,
+  file: { path: string; name: string; kind: "source" | "deliverable" },
+): Promise<string> =>
+  uploadBytes(context, who, dealId, { ...file, bytes: context.content(file.path) });
 
 /** Posts one message to the deal's chat as this person. */
 export async function chat(
@@ -134,6 +143,14 @@ export interface AgreementForm {
   milestones: { title: string; amount: string; dueDate?: string }[];
   timeline?: object[];
   draftId?: string;
+  dueDate?: string;
+  buyerProvides?: { text: string; dueDate?: string }[];
+  /** One mark per deliverable (4i-2): objective, process, or a matter of taste and its stage. */
+  deliverableKinds?: (
+    { kind: "objective" | "process" } | { kind: "subjective"; approvalStage: number }
+  )[];
+  /** What is being sold, as its listing describes it (8e). */
+  listing?: object;
 }
 
 /** Saves a version of the agreed work. */
@@ -295,7 +312,7 @@ export async function updateStep(
   who: string,
   dealId: string,
   step: number,
-  update: { status: string; note?: string },
+  update: { status: string; note?: string; fileIds?: string[] },
 ): Promise<void> {
   await callAs(context, who, {
     method: "POST",
@@ -332,16 +349,7 @@ export async function uploadTextAsPdf(
         .map((paragraph) => ({ kind: "paragraph" as const, text: paragraph.trim() })),
     ],
   });
-  const answer = await callAs(context, who, {
-    method: "POST",
-    path: `/api/deals/${dealId}/files?kind=${file.kind}`,
-    body: Buffer.from(bytes),
-    headers: {
-      "content-type": "application/octet-stream",
-      [FILE_NAME_HEADER]: encodeURIComponent(file.name),
-    },
-  });
-  return idOf(answer);
+  return uploadBytes(context, who, dealId, { ...file, bytes: Buffer.from(bytes) });
 }
 
 /** The buyer asks a question on the signing page they were sent. */
@@ -383,11 +391,12 @@ export async function dealFromText(
   seller: string,
   text: string,
   title: string,
+  defaultCategory = "writing-and-translation",
 ): Promise<string> {
   const made = await callAs(context, seller, {
     method: "POST",
     path: "/api/intake/key",
-    body: { defaultCategory: "writing-and-translation", defaultCurrency: "USD" },
+    body: { defaultCategory, defaultCurrency: "USD" },
   });
   const secret = (made.body as { secret?: unknown } | null)?.secret;
   if (typeof secret !== "string") throw new SeedStepError("no intake key was made");
@@ -409,14 +418,15 @@ const DRAFT_POLL_MS = 15_000;
 const DRAFT_WAIT_MS = 20 * 60_000;
 
 /**
- * Starts an AI draft from the deal's pasted chats (and its in-app chat), then waits for the
- * council to finish; the ready draft's id, or a failure the step reports.
+ * Starts an AI draft from the deal's pasted chats, or (`"update"`) an update of the agreement from
+ * the in-app chat since the last draft (7i), then waits for the council to finish; the ready
+ * draft's id, or a failure the step reports.
  */
 export async function draftAgreement(
   context: SeedContext,
   seller: string,
   dealId: string,
-  pastedFileIds: string[],
+  source: string[] | "update",
 ): Promise<{ ready: true; draftId: string } | { ready: false; reason: string }> {
   const started = await callAs(
     context,
@@ -424,7 +434,8 @@ export async function draftAgreement(
     {
       method: "POST",
       path: `/api/deals/${dealId}/drafts/from-chat`,
-      body: { chat: false, pastedFileIds },
+      body:
+        source === "update" ? { chat: true, update: true } : { chat: false, pastedFileIds: source },
     },
     [202],
   );

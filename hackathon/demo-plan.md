@@ -112,11 +112,11 @@ Alex buys Jun's spreadsheet pack (budget planner, invoice tracker, content calen
 
 ## Story 5: Lena and Sam, physical goods and the listing as evidence
 
-Sam emails Lena about a 1970s film camera; Lena **forwards the email** to her private PactPal address and a draft deal appears. She adds the camera's product page with Channel3: "What's being sold" fills in, and the photos are saved as evidence. The listing says "minor haze on the rear lens element, sold as is".
+Sam orders a 1970s film camera on Lena's shop; her order form sends the order to her private "deal from text" key and a draft deal appears (a forwarded email cannot be used: forwarding accepts only mail sent from the seller's own address). She adds the camera's product page with Channel3: "What's being sold" fills in, and the photos are saved as evidence. The listing says "minor haze on the rear lens element, sold as is".
 
 | Step | What happens                                                                                                                                               | Feature                           |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| 1    | Forwarded email becomes a draft deal.                                                                                                                      | Email forwarding (4p-2)           |
+| 1    | The order form's text becomes a draft deal.                                                                                                                | Deal from text (4p)               |
 | 2    | Channel3 lookup; listing details and photos in the agreement.                                                                                              | Channel3 (8e)                     |
 | 3    | Timeline: pay, ship with tracking number (a step Lena marks done with the number), receive.                                                                | Timeline (7f, 7k)                 |
 | 4    | Sam pays, receives, then disputes "not as described: lens haze". The packet shows the signed agreement quoting the haze. The owner decides for the seller. | Claim vs record (5d), packet (5e) |
@@ -164,7 +164,7 @@ This gives Insights a spread of buyers, amounts, stages, "waiting on" and timing
 
 ## Chats
 
-- **Pasted from other apps:** Discord (story 1), WhatsApp (story 2), a marketplace screenshot (story 4), a forwarded email (story 5), plain text (story 6, book #14).
+- **Pasted from other apps:** Discord (story 1), WhatsApp (story 2), a marketplace screenshot (story 4), an order form's text (story 5), plain text (story 6, book #14).
 - **In PactPal's chat, long enough to scroll:** stories 1 (about 30 messages), 2 (40+), 3 (about 35), and short threads on most book deals.
 - Every chat is written for its story: names, dates and amounts match the agreement, and the disputes' key lines (the declined blog, the missed deadline) are in them.
 
@@ -177,6 +177,18 @@ This gives Insights a spread of buyers, amounts, stages, "waiting on" and timing
 | Owner       | Open each dispute as the buyer on the sandbox site (stories 2–5) and decide it with the sandbox's decide link | During the seed, when it pauses and says which |
 | Owner       | Pay an invoice as the buyer, if PayPal needs the buyer to log in (checked when the seed is built)             | During the seed                                |
 | Seed script | Everything else, through PactPal's own server, as the seller or the buyer                                     | One run, after the redesign merge              |
+
+## Running the seed (9b-2c)
+
+Each story is one run of the `seed-demo` Workflow task with input `{"story": "1"}` (stories `"1"` to `"6"`, and `"book"`); `"dryRun": true` only lists the steps left. A run does all it can, then stops and logs one instruction; do it, then start the same story again. Nothing is ever done twice.
+
+1. Before the first run: every seller has signed in once and linked their app; `hackathon/demo/chats/story5-listing-url.txt` holds the camera's product page address (one Channel3 knows).
+2. **"Pay stage N … as <buyer>"**: sign in to the PayPal sandbox as that buyer and pay the invoice at the link given.
+3. **"Open a dispute as <buyer>"**: in the sandbox, open it on that payment with the reason and words given.
+4. **"Send the evidence / decide"**: in PactPal as the seller, open the dispute and send the packet (or, story 3, offer the partial refund); then decide the case on the sandbox site.
+5. A failed AI step (quota, a draft that did not pass PactPal's checks) is retried by running the story again; the seed waits at least 20 seconds between AI steps.
+
+Order: book first (most invoices, one pause for all of them), then stories 1 to 6.
 
 ## Video outline (final script in 9f)
 

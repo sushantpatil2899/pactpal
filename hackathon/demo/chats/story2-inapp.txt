@@ -1,40 +1,40 @@
 rosa|Hi Daniel, I signed! Paying the first invoice now.
 daniel|Thanks Rosa! Payment received. Starting on the design.
-rosa|I uploaded the menu and opening hours under Files.
+rosa|I uploaded the menu, opening hours and photos under Files.
 daniel|Got them, thank you. The photos are lovely.
 daniel|Quick question: do you want prices on the menu page?
 rosa|Yes please, people always ask.
-daniel|Done. Design preview is coming Friday.
+daniel|Done. I'll share a design preview link here on Friday.
 rosa|Can't wait!
-daniel|Design is ready, have a look at the delivery.
+daniel|Here's the preview of the home and menu pages. Colours from your awning.
 rosa|It looks beautiful. The colours feel like the shop.
-rosa|One thing: could people order cakes online? Like pick a day and pay?
+rosa|One thing: could people order cakes online? Like pick a day and pay at pickup?
 rosa|And maybe a blog where I share recipes?
-daniel|Both are outside what we agreed, but I can quote them. I'll send a change for you to look at.
-rosa|Sure, send it.
-daniel|Sent two changes: online ordering ($400) and a recipe blog ($350). Accept either or both.
-rosa|Ordering yes! The blog, not needed for now. Maybe next year.
-daniel|Perfect. Ordering is now part of the agreement.
-rosa|Approved the design too.
-daniel|Thank you! Second invoice is on its way.
-rosa|Paid.
+daniel|Both are outside what we agreed, but I can quote them as changes to the agreement.
+rosa|Sure, send them.
+daniel|Sent the online ordering change: $400, as a new payment stage.
+rosa|Accepted! Ordering would be great.
+daniel|And here's the recipe blog as a separate change, $350, in case you want it.
+rosa|The blog, not needed for now. Maybe next year.
+daniel|No problem, I've noted it. Ordering is now part of the agreement.
 daniel|Building the pages now.
 rosa|How is the speed on phones?
-daniel|Under 1.5 seconds on a mid-range phone. I'll show you the test.
+daniel|Under 1.5 seconds on a mid-range phone. I'll put the test result in the delivery.
 rosa|Amazing.
-daniel|Ordering form works: customers pick an item and a pickup day.
+daniel|The ordering form works: customers pick an item and a pickup day.
 rosa|Can it email me the orders?
 daniel|Yes, it goes to the bakery email.
 rosa|Great.
-daniel|The site is ready for your final look. Delivered under Deliveries.
+daniel|The site is ready for your final look. It's under Deliveries.
 rosa|Opening it now.
 rosa|Wow. My sister cried a little.
 daniel|Ha! That's the best review I've had.
 rosa|Approved!
-daniel|Thank you Rosa. The launch invoice is on its way.
+daniel|Thank you Rosa. The second invoice is on its way.
 rosa|Paid. Thanks for everything.
-daniel|It was a pleasure. Send me photos of the new cakes!
-rosa|Will do!
+daniel|It was a pleasure. Launch is set for the 28th.
+rosa|Will tell all my customers!
 rosa|Hi Daniel, I noticed there's no blog on the site?
-daniel|Hi Rosa, the blog was the change you declined on 9 November ("not needed for now"). Happy to quote it again.
+daniel|Hi Rosa, the blog was the change you declined ("not needed for now"). Happy to quote it again.
 rosa|Hmm, I thought it was included.
+daniel|It's in the agreement history under Changes, if you'd like to look.

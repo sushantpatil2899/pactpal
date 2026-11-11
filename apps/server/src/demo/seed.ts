@@ -7,9 +7,21 @@ import { repoFolder } from "../email/templates.js";
 import type { SeedContext } from "./actions.js";
 import { bookSteps } from "./book.js";
 import { runStory, type DemoProgress, type DemoStep } from "./engine.js";
+import { story1Steps } from "./stories/story1.js";
+import { story2Steps } from "./stories/story2.js";
+import { story3Steps } from "./stories/story3.js";
+import { story4Steps } from "./stories/story4.js";
+import { story5Steps } from "./stories/story5.js";
+import { story6Steps } from "./stories/story6.js";
 
-/** The stories the seed can run (hackathon/demo-plan.md); more join as they are written. */
+/** The stories the seed can run (hackathon/demo-plan.md): the six stories and Maya's book. */
 export const STORIES: Readonly<Record<string, () => DemoStep<SeedContext>[]>> = {
+  "1": story1Steps,
+  "2": story2Steps,
+  "3": story3Steps,
+  "4": story4Steps,
+  "5": story5Steps,
+  "6": story6Steps,
   book: bookSteps,
 };
 
