@@ -8,9 +8,10 @@ import {
 import { describe, expect, it } from "vitest";
 import { buyerVisitors, dealTestApp, signedInAs } from "../deals/test-app.js";
 import { fakePayPal } from "../payments/paypal-test-support.js";
-import { CallLimiter } from "./limiter.js";
 import { mcpClient } from "./test-support.js";
 import { AGENT_TOOLS, UNTRUSTED_NOTE } from "./tools.js";
+import { AGENT_CALLS_PER_MINUTE } from "./mcp-routes.js";
+import { memoryStore } from "../keyvalue.js";
 
 const db = useMigratedTestDatabase();
 
@@ -172,15 +173,26 @@ describe("the MCP server for agents", () => {
   });
 });
 
-describe("the agent call limit", () => {
-  it("allows a number of calls per key in a sliding window", () => {
-    const limiter = new CallLimiter(2, 1000);
-    expect([limiter.allow("a", 0), limiter.allow("a", 10), limiter.allow("a", 20)]).toEqual([
-      true,
-      true,
-      false,
-    ]);
-    expect(limiter.allow("b", 20)).toBe(true);
-    expect(limiter.allow("a", 1005)).toBe(true);
-  });
+describe("the agent call limit (9R-2)", () => {
+  it("is counted in the shared store, per key and minute, so every server copy agrees", async () => {
+    const deal = await createSignedTestDeal(db);
+    const keys: string[] = [];
+    const store = memoryStore();
+    const counting = {
+      ...store,
+      hit: (key: string, windowSeconds: number) => {
+        keys.push(key);
+        return store.hit(key, windowSeconds);
+      },
+    };
+    const env = dealTestApp(db, undefined, { store: counting });
+    const { rpc } = await mcpClient(db, env.call, deal.seller.id);
+    for (let n = 0; n < AGENT_CALLS_PER_MINUTE; n += 1) {
+      expect((await rpc("tools/list")).status).toBe(200);
+    }
+    expect((await rpc("tools/list")).status).toBe(429);
+    expect(new Set(keys).size).toBe(1);
+    expect(keys[0]).toMatch(/^agent:[0-9a-f-]+:\d+$/);
+    await env.app.close();
+  }, 60_000);
 });

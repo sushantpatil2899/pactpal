@@ -1223,4 +1223,54 @@ CREATE TABLE agent_requests (
 );
 CREATE INDEX agent_requests_by_seller ON agent_requests (seller_id, created_at DESC);`,
   },
+  {
+    id: "0041_retention",
+    // The retention clean-up (9c). Each guard below keeps refusing every UPDATE, as before, and a
+    // separate guard refuses every DELETE unless the transaction has set
+    // `pactpal.retention_purge = 'on'` (SET LOCAL, so it ends with that transaction). Only the
+    // clean-up sets it, and it removes a whole deal at once (docs/decisions.md, Retention).
+    // The list is written out here, not shared, so this migration never changes.
+    sql: [
+      ["ledger_entries", "ledger_entries_append_only", "pactpal_forbid_change"],
+      ["file_contents", "file_contents_append_only", "pactpal_forbid_change"],
+      ["artifacts", "artifacts_append_only", "pactpal_forbid_change"],
+      ["scope_versions", "scope_versions_append_only", "pactpal_forbid_change"],
+      ["acceptances", "acceptances_append_only", "pactpal_forbid_change"],
+      ["deliveries", "deliveries_append_only", "pactpal_forbid_change"],
+      ["delivery_files", "delivery_files_append_only", "pactpal_forbid_change"],
+      ["delivery_answers", "delivery_answers_append_only", "pactpal_forbid_change"],
+      ["change_orders", "change_orders_answered_once", "pactpal_change_order_answered_once"],
+      ["buyer_questions", "buyer_questions_moves_on", "pactpal_buyer_question_moves_on"],
+      ["delivery_checks", "delivery_checks_append_only", "pactpal_forbid_change"],
+      ["message_reviews", "message_reviews_moves_once", "pactpal_message_review_moves_once"],
+      ["disputes", "disputes_keeps", "pactpal_dispute_keeps"],
+      ["claim_analyses", "claim_analyses_moves_once", "pactpal_claim_analysis_moves_once"],
+      ["evidence_packets", "evidence_packets_append_only", "pactpal_forbid_change"],
+      ["dispute_actions", "dispute_actions_moves", "pactpal_dispute_action_moves"],
+      ["dispute_notices", "dispute_notices_append_only", "pactpal_forbid_change"],
+      ["deal_messages", "deal_messages_append_only", "pactpal_forbid_change"],
+      ["timeline_progress", "timeline_progress_append_only", "pactpal_forbid_change"],
+      ["timeline_reminders", "timeline_reminders_append_only", "pactpal_forbid_change"],
+    ]
+      .map(
+        ([table = "", trigger = "", guard = ""]) => `DROP TRIGGER ${trigger} ON ${table};
+CREATE TRIGGER ${trigger} BEFORE UPDATE ON ${table}
+  FOR EACH ROW EXECUTE FUNCTION ${guard}();
+CREATE TRIGGER ${table}_no_delete BEFORE DELETE ON ${table} FOR EACH ROW
+  WHEN (current_setting('pactpal.retention_purge', true) IS DISTINCT FROM 'on')
+  EXECUTE FUNCTION pactpal_forbid_change();`,
+      )
+      .concat(
+        `CREATE TABLE retention_runs (
+  id uuid PRIMARY KEY,
+  ran_at timestamptz NOT NULL,
+  dry_run boolean NOT NULL,
+  deals_before timestamptz NOT NULL,
+  short_before timestamptz NOT NULL,
+  counts jsonb NOT NULL
+);
+CREATE INDEX retention_runs_by_time ON retention_runs (ran_at DESC);`,
+      )
+      .join("\n"),
+  },
 ];

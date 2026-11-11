@@ -30,8 +30,10 @@ type Part =
   | "email"
   | "inbound"
   | "render"
+  | "retention"
   | "sellerKeys"
   | "products"
+  | "keyValue"
   | `ai:${string}`;
 
 const WEBHOOK_ID = "PAYPAL_WEBHOOK_ID";
@@ -47,8 +49,12 @@ const INBOUND_DOMAIN = "INBOUND_DOMAIN";
 /** Dispute checks (5a): a Render API key, and the Workflow task to start ("workflow/task"). */
 const RENDER_API_KEY = "RENDER_API_KEY";
 const DISPUTE_TASK_SLUG = "DISPUTE_TASK_SLUG";
+/** The retention clean-up (9c): the Workflow task its daily Cron Job starts. */
+const RETENTION_TASK_SLUG = "RETENTION_TASK_SLUG";
 /** Sellers' own apps (6h): the key that encrypts their app secrets in the database. */
 const SELLER_KEYS_ENCRYPTION_KEY = "SELLER_KEYS_ENCRYPTION_KEY";
+/** The shared store (9R-2): Render Key Value's internal address (redis://…). */
+const KEY_VALUE_URL = "KEY_VALUE_URL";
 /** Product listings (8e): Channel3's API key. */
 const CHANNEL3_API_KEY = "CHANNEL3_API_KEY";
 /** 32 bytes in standard base64, as `openssl rand -base64 32` prints them. */
@@ -73,14 +79,31 @@ function partVars(part: Part): string[] {
   if (part === "email") return [RESEND_API_KEY, EMAIL_FROM];
   if (part === "inbound") return [RESEND_INBOUND_API_KEY, RESEND_WEBHOOK_SECRET, INBOUND_DOMAIN];
   if (part === "render") return [RENDER_API_KEY, DISPUTE_TASK_SLUG];
+  if (part === "retention") return [RENDER_API_KEY, RETENTION_TASK_SLUG];
   if (part === "sellerKeys") return [SELLER_KEYS_ENCRYPTION_KEY];
   if (part === "products") return [CHANNEL3_API_KEY];
+  if (part === "keyValue") return [KEY_VALUE_URL];
   const { id, secret } = appVars(part);
   return [id, secret];
 }
 
 /** Every PayPal app PactPal uses, in report order. */
 export const APP_KEYS = Object.keys(PAYPAL_APPS) as PayPalApp[];
+
+/**
+ * The settings kept once in the Render Environment Group `pactpal-shared` (9R-3), because the
+ * website, Workflows and the Cron Job all need them; `render.yaml` points those services at it.
+ */
+export const SHARED_SETTINGS: readonly string[] = [
+  "PAYPAL_SELLER_CLIENT_ID",
+  "PAYPAL_SELLER_CLIENT_SECRET",
+  ...AI_KEYS,
+  RESEND_API_KEY,
+  EMAIL_FROM,
+  PUBLIC_BASE_URL,
+  SELLER_KEYS_ENCRYPTION_KEY,
+  RENDER_API_KEY,
+];
 
 /** Every setting in report order. */
 export const SETTING_NAMES: readonly string[] = [
@@ -91,8 +114,10 @@ export const SETTING_NAMES: readonly string[] = [
   "email" as const,
   "inbound" as const,
   "render" as const,
+  "retention" as const,
   "sellerKeys" as const,
   "products" as const,
+  "keyValue" as const,
   ...AI_KEYS.map((name): Part => `ai:${name}`),
 ].flatMap(partVars);
 
@@ -111,9 +136,12 @@ export const FEATURES: readonly { name: string; needs: readonly Part[]; runtime:
   { name: "Email forwarding (Resend inbound)", needs: ["inbound", "database"], runtime: true },
   // Without it "Check now" runs the check inside the server and nothing checks on a schedule.
   { name: "Dispute checks (Render Workflows)", needs: ["render"], runtime: true },
+  // Only the daily Cron Job uses it, so the website's health page does not ask for it.
+  { name: "Retention clean-up (Render Workflows)", needs: ["retention"], runtime: false },
   // Without it a seller cannot link their own PayPal app (6h); everything else works.
   { name: "Linked seller apps", needs: ["sellerKeys", "database"], runtime: true },
   { name: "Product listings (Channel3)", needs: ["products"], runtime: true },
+  { name: "Shared store (Render Key Value)", needs: ["keyValue"], runtime: true },
   { name: "Test setup script", needs: ["seller", "buyerBiz"], runtime: false },
   { name: "Connect with PayPal tests", needs: ["platform"], runtime: false },
   // Not runtime yet: the server starts using AI models in sub-phase 3d.
@@ -155,6 +183,11 @@ const ADDRESS_RULES: Record<string, { valid: (url: URL) => boolean; message: str
     valid: (url) => ["postgres:", "postgresql:"].includes(url.protocol),
     message: "must be a postgres:// address",
   },
+  // Render Key Value's address (9R-2): redis://, or rediss:// with TLS.
+  [KEY_VALUE_URL]: {
+    valid: (url) => ["redis:", "rediss:"].includes(url.protocol),
+    message: "must be a redis:// address",
+  },
   // The site's own address, from which PayPal's return address is built; https except locally.
   [PUBLIC_BASE_URL]: {
     valid: (url) =>
@@ -171,7 +204,7 @@ const ADDRESS_RULES: Record<string, { valid: (url: URL) => boolean; message: str
 function addressAllowed(name: string, value: string): boolean {
   if (name === EMAIL_FROM) return z.email().safeParse(value).success;
   if (name === INBOUND_DOMAIN) return /^(?=.{1,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/.test(value);
-  if (name === DISPUTE_TASK_SLUG) return TASK_SLUG.test(value);
+  if (name === DISPUTE_TASK_SLUG || name === RETENTION_TASK_SLUG) return TASK_SLUG.test(value);
   if (name === SELLER_KEYS_ENCRYPTION_KEY) return ENCRYPTION_KEY.test(value);
   const rule = ADDRESS_RULES[name];
   const url = parseUrl(value);
@@ -210,10 +243,14 @@ export interface Config {
   inbound?: { apiKey: Secret; webhookSecret: Secret; domain: string };
   /** Starting dispute checks as Render Workflow task runs (5a); absent until both are set. */
   render?: { apiKey: Secret; taskSlug: string };
+  /** The retention clean-up's Workflow task, for its Cron Job (9c). */
+  retention?: { apiKey: Secret; taskSlug: string };
   /** The 32-byte key that encrypts sellers' own app secrets (6h); absent until set. */
   sellerKeys?: { encryptionKey: Secret };
   /** Channel3's key for reading product listings (8e); absent until set. */
   channel3?: { apiKey: Secret };
+  /** Render Key Value's address, shared by every server copy (9R-2); absent until set. */
+  keyValue?: { url: Secret };
   /**
    * How many proxies stand in front of the server, from `TRUST_PROXY_HOPS`. Absent until measured:
    * visitors' IP addresses are then not recorded, because the address seen would be the proxy's.
@@ -259,7 +296,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
       const message =
         name === INBOUND_DOMAIN
           ? "must be a domain name such as in.example.com"
-          : name === DISPUTE_TASK_SLUG
+          : name === DISPUTE_TASK_SLUG || name === RETENTION_TASK_SLUG
             ? "must be a workflow and task name such as pactpal-workflows/check-disputes"
             : name === SELLER_KEYS_ENCRYPTION_KEY
               ? "must be 32 random bytes in base64 (make one with: openssl rand -base64 32)"
@@ -333,10 +370,16 @@ export function loadConfig(env: NodeJS.ProcessEnv): LoadConfigResult {
   }
   const channel3Key = values.get(CHANNEL3_API_KEY);
   if (channel3Key !== undefined) config.channel3 = { apiKey: new Secret(channel3Key) };
+  const keyValueUrl = values.get(KEY_VALUE_URL);
+  if (keyValueUrl !== undefined) config.keyValue = { url: new Secret(keyValueUrl) };
   const renderKey = values.get(RENDER_API_KEY);
   const taskSlug = values.get(DISPUTE_TASK_SLUG);
   if (renderKey !== undefined && taskSlug !== undefined) {
     config.render = { apiKey: new Secret(renderKey), taskSlug };
+  }
+  const retentionSlug = values.get(RETENTION_TASK_SLUG);
+  if (renderKey !== undefined && retentionSlug !== undefined) {
+    config.retention = { apiKey: new Secret(renderKey), taskSlug: retentionSlug };
   }
   const encryptionKey = values.get(SELLER_KEYS_ENCRYPTION_KEY);
   if (encryptionKey !== undefined) config.sellerKeys = { encryptionKey: new Secret(encryptionKey) };

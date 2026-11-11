@@ -2,7 +2,7 @@
 import { MODEL_REGISTRY } from "@pactpal/ai";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { loadConfig, settingsFor } from "./config.js";
+import { SHARED_SETTINGS, loadConfig, settingsFor } from "./config.js";
 import { PAYPAL_WEBHOOK_PATH } from "./webhooks/paypal-webhook.js";
 
 const blueprint = readFileSync(new URL("../../../render.yaml", import.meta.url), "utf8");
@@ -11,10 +11,14 @@ const ciWorkflow = readFileSync(
   "utf8",
 );
 const [servicesSection = "", databaseSection = ""] = blueprint.split(/^databases:$/m);
-// The website comes first; the Workflow service and its Cron Job (5a) follow it.
-const [serviceSection = "", workflowSection = "", cronSection = ""] = servicesSection
-  .split(/^ {2}- type: /m)
-  .slice(1);
+// Each service by its name: the website, the Workflow service and its Cron Jobs (5a, 9c), Key
+// Value (9R-2) and the docs site (9R-4).
+const sections = servicesSection.split(/^ {2}- type: /m).slice(1);
+const named = (name: string) =>
+  sections.find((section) => new RegExp(`^ {4}name: ${name}$`, "m").test(section)) ?? "";
+const serviceSection = named("pactpal-server");
+const workflowSection = named("pactpal-workflows");
+const cronSection = named("pactpal-dispute-check");
 const serverPackage = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as { name: string; scripts: { start: string } };
@@ -43,38 +47,37 @@ describe("render.yaml", () => {
     expect(PAYPAL_WEBHOOK_PATH.startsWith("/")).toBe(true);
   });
 
-  it("asks in the dashboard for every setting the Webhooks feature needs, and stores no values", () => {
-    const keys = [...serviceSection.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
-    // The database address is the exception: Render fills it in from the database itself.
-    const aiKeys = MODEL_REGISTRY.map((spec) => spec.apiKeyEnv).filter(
-      (name, index, all) => all.indexOf(name) === index,
-    );
-    expect(keys).toEqual([
-      ...settingsFor("Webhooks").filter((name) => name !== "DATABASE_URL"),
-      ...aiKeys,
-      // The email sender is not secret: it is a plain value, added once the domain is verified.
-      ...settingsFor("Email (Resend)").filter((name) => name !== "EMAIL_FROM"),
-      // The receiving domain is not secret either.
-      ...settingsFor("Email forwarding (Resend inbound)").filter(
-        (name) => name !== "INBOUND_DOMAIN" && name !== "DATABASE_URL",
-      ),
-      // The task's name is not secret either.
-      ...settingsFor("Dispute checks (Render Workflows)").filter(
-        (name) => name !== "DISPUTE_TASK_SLUG",
-      ),
-      ...settingsFor("Linked seller apps").filter((name) => name !== "DATABASE_URL"),
+  it("asks in the dashboard for every secret, shared ones once in the Environment Group (9R-3)", () => {
+    const secrets = (section: string) =>
+      [...section.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1] ?? "");
+    const needed = [
+      ...settingsFor("Webhooks"),
+      ...settingsFor("Email (Resend)"),
+      ...settingsFor("Email forwarding (Resend inbound)"),
+      ...settingsFor("Dispute checks (Render Workflows)"),
+      ...settingsFor("Linked seller apps"),
       ...settingsFor("Product listings (Channel3)"),
-    ]);
-    // Sign-in needs nothing secret beyond those.
-    for (const name of settingsFor("Sign in with PayPal")) {
-      expect(blueprint).toContain(`key: ${name}`);
+      ...settingsFor("Sign in with PayPal"),
+      ...MODEL_REGISTRY.map((spec) => spec.apiKeyEnv),
+    ];
+    // Every setting the website needs is its own secret, a plain value, from the database, from
+    // Key Value, or in the group; nothing is in two places.
+    const own = secrets(serviceSection);
+    for (const name of new Set(needed)) {
+      const plain = new RegExp(`- key: ${name}\\n\\s+(value|fromDatabase|fromService):`).test(
+        serviceSection,
+      );
+      expect([own.includes(name), plain, SHARED_SETTINGS.includes(name)].filter(Boolean)).toEqual([
+        true,
+      ]);
+    }
+    for (const name of SHARED_SETTINGS) {
+      expect(blueprint).not.toContain(`- key: ${name}\n`);
+    }
+    for (const section of [serviceSection, workflowSection, cronSection]) {
+      expect(section).toContain("- fromGroup: pactpal-shared");
     }
     expect(blueprint).not.toMatch(/key: PAYPAL_\w+\n\s+value:/);
-  });
-
-  it("tells the server its own public address, which is the service's Render address", () => {
-    const address = /- key: PUBLIC_BASE_URL\n\s+value: (\S+)\n/.exec(serviceSection)?.[1];
-    expect(address).toBe(`https://${field("name", serviceSection) ?? "missing"}.onrender.com`);
   });
 
   it("runs the built migration command before each deploy", () => {
@@ -108,13 +111,6 @@ describe("render.yaml", () => {
     expect(loaded.ok && loaded.config.trustProxyHops).toBe(2);
   });
 
-  it("sends email from the verified domain, as a plain value the server accepts", () => {
-    const from = /- key: EMAIL_FROM\n\s+value: (\S+)\n/.exec(serviceSection)?.[1];
-    expect(from).toBe("receipts@updates.pact-pal.app");
-    const loaded = loadConfig({ EMAIL_FROM: from, RESEND_API_KEY: "re_test" });
-    expect(loaded.ok && loaded.config.email?.from).toBe("PactPal <receipts@updates.pact-pal.app>");
-  });
-
   it("receives forwarded email on its own subdomain, as a plain value the server accepts", () => {
     const domain = /- key: INBOUND_DOMAIN\n\s+value: (\S+)\n/.exec(serviceSection)?.[1];
     expect(domain).toBe("in.pact-pal.app");
@@ -124,6 +120,27 @@ describe("render.yaml", () => {
       RESEND_WEBHOOK_SECRET: "whsec_dGVzdA==",
     });
     expect(loaded.ok && loaded.config.inbound?.domain).toBe("in.pact-pal.app");
+  });
+
+  it("adds Key Value, the docs site and a second website copy (9R-2, 9R-4, 9R-5)", () => {
+    const keyValue = named("pactpal-kv");
+    expect(keyValue.startsWith("keyvalue\n")).toBe(true);
+    expect(field("plan", keyValue)).toBe("free");
+    expect(field("region", keyValue)).toBe(field("region", serviceSection));
+    expect(field("ipAllowList", keyValue)).toBe("[]");
+    expect(serviceSection).toMatch(
+      /- key: KEY_VALUE_URL\n\s+fromService:\n\s+type: keyvalue\n\s+name: pactpal-kv/,
+    );
+    expect(field("numInstances", serviceSection)).toBe("2");
+    const docs = named("pactpal-docs");
+    expect(field("runtime", docs)).toBe("static");
+    // Its read-only build image keeps its own pnpm, so the repository's version runs through npx.
+    expect(field("buildCommand", docs)).toContain(
+      "npx --yes pnpm@10.28.0 --filter @pactpal/docs build",
+    );
+    expect(field("buildCommand", docs)).not.toContain("corepack");
+    expect(field("staticPublishPath", docs)).toBe("apps/docs/dist");
+    expect(docs).toContain("X-Frame-Options");
   });
 
   it("knows no settings for an unknown feature", () => {
@@ -150,21 +167,20 @@ describe("render.yaml", () => {
     expect(build).toContain("src/dispute-cron.ts");
     // The task reads the database and PayPal; the cron only needs Render's key and the task name.
     expect(workflowSection).toMatch(/- key: DATABASE_URL\n\s+fromDatabase:\n\s+name: pactpal-db/);
-    const secrets = (section: string) =>
-      [...section.matchAll(/- key: (\S+)\n\s+sync: false/g)].map((m) => m[1]);
-    // ...and, for the claim comparison council (5d), every AI host's key.
-    const aiKeys = [...new Set(MODEL_REGISTRY.map((spec) => spec.apiKeyEnv))];
-    // ...and, for the seller's dispute emails (5j), email and the site address; and the key that
-    // opens sellers' own app secrets (6h), since the checks act through those apps too.
-    expect(secrets(workflowSection)).toEqual([
+    // PayPal, the AI keys, email, the site address, the seller-app key and Render's key all come
+    // from the shared group (9R-3); none is kept on these services on its own.
+    for (const name of [
       ...settingsFor("Invoices and disputes (seller app)"),
-      ...aiKeys,
+      ...settingsFor("Linked seller apps").filter((name) => name !== "DATABASE_URL"),
       "RESEND_API_KEY",
       "EMAIL_FROM",
       "PUBLIC_BASE_URL",
-      ...settingsFor("Linked seller apps").filter((name) => name !== "DATABASE_URL"),
-    ]);
-    expect(secrets(cronSection)).toEqual(["RENDER_API_KEY"]);
+      "RENDER_API_KEY",
+    ]) {
+      expect(SHARED_SETTINGS).toContain(name);
+    }
+    expect(workflowSection).not.toMatch(/sync: false/);
+    expect(cronSection).not.toMatch(/sync: false/);
     // Both the website and the cron start the same task, by a name the settings accept.
     const slug = (section: string) =>
       /- key: DISPUTE_TASK_SLUG\n\s+value: (\S+)\n/.exec(section)?.[1];
@@ -172,5 +188,22 @@ describe("render.yaml", () => {
     expect(slug(serviceSection)).toBe(slug(cronSection));
     const loaded = loadConfig({ RENDER_API_KEY: "rnd_test", DISPUTE_TASK_SLUG: slug(cronSection) });
     expect(loaded.ok && loaded.config.render?.taskSlug).toBe("pactpal-workflows/check-disputes");
+  });
+
+  it("runs the retention clean-up once a day as a Workflow task, from its own Cron Job (9c)", () => {
+    const retention = named("pactpal-retention");
+    expect(retention.startsWith("cron\n")).toBe(true);
+    expect(field("schedule", retention)).toBe('"17 3 * * *"');
+    expect(field("region", retention)).toBe("virginia");
+    expect(field("startCommand", retention)).toBe("node apps/server/dist/retention-cron.js");
+    expect(readFileSync(new URL("../build.js", import.meta.url), "utf8")).toContain(
+      "src/retention-cron.ts",
+    );
+    expect(retention).toContain("- fromGroup: pactpal-shared");
+    expect(retention).not.toMatch(/sync: false/);
+    const slug = /- key: RETENTION_TASK_SLUG\n\s+value: (\S+)\n/.exec(retention)?.[1];
+    expect(slug).toBe(`${field("name", workflowSection) ?? "missing"}/retention-sweep`);
+    const loaded = loadConfig({ RENDER_API_KEY: "rnd_test", RETENTION_TASK_SLUG: slug });
+    expect(loaded.ok && loaded.config.retention?.taskSlug).toBe(slug);
   });
 });

@@ -20,6 +20,7 @@ import { MAYA_CHAT, MAYA_DRAFT } from "@pactpal/scope-draft/testing";
 import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
 import { PROMPT_VERSIONS } from "../drafting/draft-job.js";
+import type { DraftStarter } from "../disputes/checker.js";
 import {
   buyerVisitors,
   dealTestApp,
@@ -62,7 +63,12 @@ const councilOf = (...names: string[]) => names.map((name) => member(name));
 
 /** The test deal with a saved chat (test file 500) and the app, seller signed in with PayPal. */
 async function sellerDeal(
-  options: { runtime?: ReturnType<typeof queuedDrafting>; chat?: string; media?: boolean } = {},
+  options: {
+    runtime?: ReturnType<typeof queuedDrafting>;
+    chat?: string;
+    media?: boolean;
+    remoteDrafts?: DraftStarter;
+  } = {},
 ) {
   const { seller, buyer, dealId } = await createTestDeal(db);
   const file = await addArtifact(
@@ -79,7 +85,11 @@ async function sellerDeal(
     TEST_NOW,
   );
   const runtime = options.runtime ?? queuedDrafting(councilOf("alpha", "beta", "gamma"));
-  const env = dealTestApp(db, runtime.runtime);
+  const env = dealTestApp(
+    db,
+    runtime.runtime,
+    options.remoteDrafts ? { remoteDrafts: options.remoteDrafts } : {},
+  );
   const url = `/api/deals/${dealId}/drafts`;
   return {
     ...env,
@@ -570,5 +580,34 @@ describe("listing and reading drafts", () => {
     expect((await call("GET", `${url}/${testId(999)}`, token)).statusCode).toBe(404);
     expect((await call("GET", `${url}/not-an-id`, token)).statusCode).toBe(404);
     await app.close();
+  });
+});
+
+describe("drafts on Render (9R-1)", () => {
+  it("start the draft as a Workflow run instead of in this server", async () => {
+    const started: { dealId: string; draftId: string }[] = [];
+    const env = await sellerDeal({
+      remoteDrafts: (ids) => {
+        started.push(ids);
+        return Promise.resolve();
+      },
+    });
+    const res = await env.start(env.token);
+    expect(res.statusCode).toBe(202);
+    expect(started).toEqual([{ dealId: env.dealId, draftId: idOf(res) }]);
+    expect(env.runtime.queued()).toBe(0);
+    await env.app.close();
+  });
+
+  it("mark the draft failed when Render does not start it", async () => {
+    const env = await sellerDeal({ remoteDrafts: () => Promise.reject(new Error("down")) });
+    const res = await env.start(env.token);
+    expect(res.json()).toEqual({ error: "the draft could not be started; try again" });
+    const drafts = (await env.call("GET", env.url, env.token)).json<{ drafts: View[] }>().drafts;
+    expect(drafts[0]).toMatchObject({
+      status: "failed",
+      failureReason: "the draft could not be started",
+    });
+    await env.app.close();
   });
 });

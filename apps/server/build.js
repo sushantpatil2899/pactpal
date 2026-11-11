@@ -25,6 +25,7 @@ const result = await build({
     "src/migrate.ts",
     "src/workflow.ts",
     "src/dispute-cron.ts",
+    "src/retention-cron.ts",
   ],
   outdir: "dist",
   bundle: true,

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { checkKey, inProcessChecker, renderWorkflowChecker, type TaskStarter } from "./checker.js";
+import {
+  checkKey,
+  inProcessChecker,
+  renderDraftStarter,
+  renderWorkflowChecker,
+  type TaskStarter,
+} from "./checker.js";
 import { disputeNotifications } from "./notifications.js";
 import { keptLog } from "./test-support.js";
 
@@ -67,5 +73,22 @@ describe("dispute checkers", () => {
     await handle({ eventId: "WH-1", eventType: "INVOICING.INVOICE.PAID", body: {} });
     await handle({ eventId: "WH-2", eventType: "CUSTOMER.DISPUTE.CREATED", body: {} });
     expect(started.map((s) => [s.input, s.key])).toEqual([[["notification"], "notification:WH-2"]]);
+  });
+});
+
+describe("the draft starter (9R-1)", () => {
+  it("starts the draft task once per draft, with the ids as its input", async () => {
+    const { starter, started } = fakeRender();
+    const { log, lines } = keptLog();
+    const start = renderDraftStarter(starter, "pactpal-workflows/draft-scope", log);
+    await start({ dealId: "d1", draftId: "r1" });
+    expect(started).toEqual([
+      {
+        slug: "pactpal-workflows/draft-scope",
+        input: [{ dealId: "d1", draftId: "r1" }],
+        key: "draft:r1",
+      },
+    ]);
+    expect(JSON.stringify(lines)).toContain("trn-1");
   });
 });

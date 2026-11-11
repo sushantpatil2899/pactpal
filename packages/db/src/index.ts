@@ -431,3 +431,12 @@ export type {
   StepRefusal,
   StepUpdateRecord,
 } from "./timeline-progress.js";
+export {
+  DEAL_TABLES,
+  RETENTION,
+  dealsDue,
+  purgeDeal,
+  retentionCutoffs,
+  runRetentionSweep,
+} from "./retention.js";
+export type { RetentionCounts, RetentionSweep } from "./retention.js";

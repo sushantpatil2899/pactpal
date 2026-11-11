@@ -1,20 +1,28 @@
 import {
   DISPUTE_CHECK_SOURCES,
   MIGRATIONS,
+  failDraft,
+  getDeal,
+  getDraft,
   migrationStatus,
+  postgresContentStore,
+  runRetentionSweep,
   type Database,
   type DisputeCheckResult,
 } from "@pactpal/db";
-import type { ChatClient } from "@pactpal/ai";
+import type { ChatClient, ChatOutcome } from "@pactpal/ai";
 import { StandInEmailSender, type EmailSender } from "@pactpal/email";
 import type { PayPalAppCredentials } from "@pactpal/paypal";
 import type { Secret } from "@pactpal/net";
-import { cryptoCouncilDeps } from "../drafting/runtime.js";
+import { createDraftingRuntime, cryptoCouncilDeps } from "../drafting/runtime.js";
+import { runDraftJob } from "../drafting/draft-job.js";
+import { numberedChat } from "../drafting/draft-source.js";
+import { askModel } from "../drafting/subtask-clients.js";
 import { runDisputeJob } from "./claim-job.js";
 import { z } from "zod";
 import { formatErrors, loadConfig, type Config } from "../config.js";
 import type { LogSink } from "../payments/payment-sync.js";
-import { renderWorkflowChecker, type TaskStarter } from "./checker.js";
+import { renderWorkflowChecker, startRun, type TaskStarter } from "./checker.js";
 import { syncDisputes, type DisputeReader } from "./dispute-sync.js";
 import { LinkedApps, linkedDisputeAccounts, type ConnectApp } from "../sellers/linked-apps.js";
 import { sellerKeyBox } from "../sellers/key-box.js";
@@ -23,6 +31,9 @@ import { sendTimelineReminders } from "../chat/reminders.js";
 
 /** The Render Workflow task's name; the website and the cron start it as `<workflow>/<name>`. */
 export const DISPUTE_TASK_NAME = "check-disputes";
+
+/** The retention clean-up's Workflow task (9c), started once a day by its Cron Job. */
+export const RETENTION_TASK_NAME = "retention-sweep";
 
 /** Where the task and the cron get their outside connections; real ones in the entry files. */
 export interface TaskWiring {
@@ -129,6 +140,14 @@ async function withDatabase<T>(
   }
 }
 
+/** The council members for the AI keys that are set (on Render: each call its own run, 9R-1). */
+export type ClientsFor = (keys: Readonly<Record<string, Secret>>) => ChatClient[];
+
+/** What a council task is wired with. */
+export type CouncilTaskWiring = Pick<TaskWiring, "connect" | "clock" | "log"> & {
+  clientsFor: ClientsFor;
+};
+
 /**
  * One run of the Render Workflow task `analyze-claim` (5d): compares one dispute claim with the
  * record, with every AI model whose key is set. The job itself never throws; settings or the
@@ -137,9 +156,7 @@ async function withDatabase<T>(
 export async function runClaimTask(
   env: NodeJS.ProcessEnv,
   input: unknown,
-  wiring: Pick<TaskWiring, "connect" | "clock" | "log"> & {
-    clientsFor: (keys: Readonly<Record<string, Secret>>) => ChatClient[];
-  },
+  wiring: CouncilTaskWiring,
 ): Promise<void> {
   const analysisId = z.uuid().parse(input);
   const config = settings(env);
@@ -156,6 +173,60 @@ export async function runClaimTask(
       analysisId,
     ),
   );
+}
+
+/** The Render Workflow tasks for scope drafts (9R-1) and for one model call of any council. */
+export const DRAFT_TASK_NAME = "draft-scope";
+export const ASK_MODEL_TASK_NAME = "ask-model";
+
+/** One model call in its own task run (9R-1): the council members whose keys are set here. */
+export function runAskModel(
+  env: NodeJS.ProcessEnv,
+  modelName: unknown,
+  request: unknown,
+  clientsFor: ClientsFor,
+): Promise<ChatOutcome> {
+  return askModel(clientsFor(settings(env).ai.keys), modelName, request);
+}
+
+/**
+ * One scope draft run as a Render Workflow task (9R-1): reads the waiting draft, its deal and the
+ * chat it is made from (checked against its fingerprint), then runs the same job as the website.
+ * A draft that is gone or no longer waiting is left alone; an unreadable chat fails the draft.
+ */
+export async function runDraftTask(
+  env: NodeJS.ProcessEnv,
+  input: unknown,
+  wiring: CouncilTaskWiring,
+): Promise<void> {
+  const { dealId, draftId } = z.object({ dealId: z.uuid(), draftId: z.uuid() }).parse(input);
+  const config = settings(env);
+  if (config.database === undefined) throw new Error("Scope drafts need DATABASE_URL");
+  await withDatabase(config.database.url, wiring, async (db) => {
+    const [draft, deal] = await Promise.all([getDraft(db, dealId, draftId), getDeal(db, dealId)]);
+    if (draft?.status !== "running" || deal === undefined) {
+      wiring.log.info({ dealId, draftId }, "Draft task found nothing waiting");
+      return;
+    }
+    const store = postgresContentStore(db, wiring.clock);
+    const lines = await numberedChat({ db, deal }, draft, store, wiring.log);
+    if (lines === null) {
+      await failDraft(db, { draftId, reason: "the chat could not be read" }, wiring.clock());
+      return;
+    }
+    await runDraftJob(
+      db,
+      createDraftingRuntime({ clients: wiring.clientsFor(config.ai.keys) }),
+      {
+        draftId,
+        deal,
+        sellerId: draft.createdBy,
+        source: { artifactId: draft.sourceArtifactId, sha256: draft.sourceSha256, lines },
+      },
+      wiring.clock,
+      wiring.log,
+    );
+  });
 }
 
 /**
@@ -190,4 +261,54 @@ export function jsonLines(write: (line: string) => void): LogSink {
     write(`${JSON.stringify({ level, time: Date.now(), ...details, msg })}\n`);
   };
   return { info: line(30), warn: line(40), error: line(50) };
+}
+
+/**
+ * One run of the retention clean-up (9c): removes what is past its keeping time (docs/privacy.md)
+ * and logs the counts and the ids of deals that could not be removed (never their contents).
+ * `{ dryRun: true }` only counts.
+ */
+export async function runRetentionTask(
+  env: NodeJS.ProcessEnv,
+  input: unknown,
+  wiring: Pick<TaskWiring, "connect" | "clock" | "newId" | "log">,
+) {
+  const { dryRun } = z.object({ dryRun: z.boolean().default(false) }).parse(input ?? {});
+  const config = settings(env);
+  if (config.database === undefined) throw new Error("The retention clean-up needs DATABASE_URL");
+  return withDatabase(config.database.url, wiring, async (db) => {
+    const { counts, failedDeals } = await runRetentionSweep(db, {
+      now: wiring.clock(),
+      runId: wiring.newId(),
+      dryRun,
+    });
+    // A deal that failed stays whole and is tried again tomorrow; a retry now would redo the rest.
+    if (failedDeals.length > 0) {
+      wiring.log.error({ failedDeals }, "Some deals could not be removed");
+    }
+    wiring.log.info({ ...counts, dryRun }, "Retention clean-up finished");
+    return counts;
+  });
+}
+
+/** The daily Cron Job: starts one retention clean-up run, at most once a day. */
+export async function startScheduledRetention(
+  env: NodeJS.ProcessEnv,
+  starterFor: (apiKey: string) => TaskStarter,
+  wiring: Pick<TaskWiring, "clock" | "log">,
+): Promise<boolean> {
+  const retention = settings(env).retention;
+  if (retention === undefined) {
+    wiring.log.error({}, "The retention clean-up needs RENDER_API_KEY and RETENTION_TASK_SLUG");
+    return false;
+  }
+  const day = wiring.clock().toISOString().slice(0, 10);
+  await startRun(starterFor(retention.apiKey.reveal()), wiring.log, {
+    taskSlug: retention.taskSlug,
+    input: { dryRun: false },
+    key: `retention:${day}`,
+    ids: { day },
+    what: "Retention clean-up",
+  });
+  return true;
 }

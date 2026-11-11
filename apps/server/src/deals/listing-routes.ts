@@ -4,10 +4,12 @@ import {
   listingSnapshotSha256,
   postgresContentStore,
 } from "@pactpal/db";
-import { detectMediaType, isWebp } from "@pactpal/ledger";
+import { detectMediaType, isWebp, sha256Hex } from "@pactpal/ledger";
+import type { SharedStore } from "../keyvalue.js";
 import {
   MAX_PHOTO_BYTES,
   PHOTO_HOST,
+  productListingSchema,
   type LookupRefusal,
   type ProductLookup,
 } from "@pactpal/products";
@@ -24,7 +26,12 @@ export interface ListingRouteOptions {
   recordIp: boolean;
   /** Reads listing pages; undefined until `CHANNEL3_API_KEY` is set. */
   products: ProductLookup | undefined;
+  /** Keeps a page's listing for an hour (9R-2), so looking it up again costs no credit. */
+  store: SharedStore;
 }
+
+/** How long a looked-up listing is kept for the same page. */
+export const LISTING_CACHE_SECONDS = 3600;
 
 /** At most this many photos are kept (each within the lookup's own size limit). */
 export const MAX_LISTING_PHOTOS = 3;
@@ -62,7 +69,17 @@ class PhotoError extends Error {}
  * seller uses it. The listing joins the agreement when the seller saves the agreement.
  */
 export const listingRoutes: FastifyPluginAsync<ListingRouteOptions> = (app, options) => {
-  const { sellersDeal, clock, newId, recordIp, products } = options;
+  const { sellersDeal, clock, newId, recordIp, products, store } = options;
+
+  /** The page's listing: kept from the last hour when there is one, else read through Channel3. */
+  async function lookUp(lookup: ProductLookup, url: string) {
+    const key = `listing:${sha256Hex(url)}`;
+    const kept = productListingSchema.safeParse(await store.getJson(key));
+    if (kept.success && kept.data.url === url) return { ok: true as const, listing: kept.data };
+    const looked = await lookup.lookup(url);
+    if (looked.ok) await store.setJson(key, looked.listing, LISTING_CACHE_SECONDS);
+    return looked;
+  }
 
   app.post("/api/deals/:id/listing/lookup", async (request, reply) => {
     const found = await sellersDeal(request, reply);
@@ -73,7 +90,7 @@ export const listingRoutes: FastifyPluginAsync<ListingRouteOptions> = (app, opti
     if (!products) return reply.code(503).send({ error: "product lookup is not set up yet" });
     const body = await readBody(lookupBody, request, reply);
     if (!body) return reply;
-    const looked = await products.lookup(body.url);
+    const looked = await lookUp(products, body.url);
     if (!looked.ok) {
       const refusal = LOOKUP_REFUSALS[looked.reason];
       request.log.warn({ dealId: found.deal.id, reason: looked.reason }, "Listing lookup refused");

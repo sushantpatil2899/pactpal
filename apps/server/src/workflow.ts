@@ -19,9 +19,22 @@ import {
   STATEMENT_TASK_NAME,
   SUMMARY_TASK_NAME,
 } from "./disputes/claim-job.js";
-import { DISPUTE_TASK_NAME, jsonLines, runClaimTask, runDisputeTask } from "./disputes/task.js";
+import {
+  ASK_MODEL_TASK_NAME,
+  DISPUTE_TASK_NAME,
+  DRAFT_TASK_NAME,
+  RETENTION_TASK_NAME,
+  jsonLines,
+  runAskModel,
+  runClaimTask,
+  runDisputeTask,
+  runDraftTask,
+  runRetentionTask,
+} from "./disputes/task.js";
 import { councilClients } from "./drafting/runtime.js";
+import { subtaskClients } from "./drafting/subtask-clients.js";
 import { connectOwnApp } from "./sellers/connect-app.js";
+import type { Secret } from "@pactpal/net";
 
 const log = jsonLines((line) => process.stdout.write(line));
 const connect = (url: string) =>
@@ -60,6 +73,41 @@ task(
     }),
 );
 
+// One model call of any council, in its own run (9R-1): Render shows each model's answer and
+// ranking as a run of its own, side by side, under the council's run. Each client already retries
+// its host, so the task itself does not.
+const askModelTask = task(
+  { name: ASK_MODEL_TASK_NAME, timeoutSeconds: 150 },
+  (_context, modelName: unknown, request: unknown) =>
+    runAskModel(process.env, modelName, request, councilClients),
+);
+
+/** What a task's handler is given to start other tasks (the SDK does not export its name). */
+type TaskContext = Parameters<Parameters<typeof task>[1]>[0];
+
+/** The council members whose keys are set, each answering through its own `ask-model` run. */
+const membersFor = (context: TaskContext) => (keys: Readonly<Record<string, Secret>>) =>
+  subtaskClients(
+    councilClients(keys).map((client) => client.spec),
+    (name, request) => context.run(askModelTask, name, request),
+  );
+
+// A scope draft (3d, 7h, 9R-1): the drafting council, started by the website for one draft.
+task(
+  {
+    name: DRAFT_TASK_NAME,
+    timeoutSeconds: 600,
+    retry: { maxRetries: 1, waitDurationMs: 10_000, backoffScaling: 2 },
+  },
+  (context, input: unknown) =>
+    runDraftTask(process.env, input, {
+      connect,
+      clientsFor: membersFor(context),
+      clock: () => new Date(),
+      log,
+    }),
+);
+
 // The claim comparison (5d) and the packet summary (5f) are both dispute council jobs: the same
 // handler reads the job's kind. A council takes about a minute and a few minutes at worst (each
 // model call has its own limits). The job never throws for a model failure, so a retry only
@@ -77,12 +125,29 @@ for (const name of [
       timeoutSeconds: 600,
       retry: { maxRetries: 1, waitDurationMs: 10_000, backoffScaling: 2 },
     },
-    (_context, analysisId: unknown) =>
+    (context, analysisId: unknown) =>
       runClaimTask(process.env, analysisId, {
         connect,
-        clientsFor: councilClients,
+        clientsFor: membersFor(context),
         clock: () => new Date(),
         log,
       }),
   );
 }
+
+task(
+  // The daily retention clean-up (9c): up to 200 deals a run, each in seconds. One retry, a
+  // minute later, if the database was down; a deal that fails is tried again the next day.
+  {
+    name: RETENTION_TASK_NAME,
+    timeoutSeconds: 600,
+    retry: { maxRetries: 1, waitDurationMs: 60_000, backoffScaling: 1 },
+  },
+  (_context, input: unknown) =>
+    runRetentionTask(process.env, input, {
+      connect,
+      clock: () => new Date(),
+      newId: randomUUID,
+      log,
+    }),
+);
