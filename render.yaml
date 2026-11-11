@@ -57,6 +57,8 @@ services:
       # as both vendors intend, shipped inside the page's code; set them here, then redeploy.
       - key: VITE_AG_LICENCE_KEY
         sync: false
+      - key: VITE_AG_GRID_LICENCE_KEY
+        sync: false
       - key: VITE_BRYNTUM_LICENCE_KEY
         sync: false
       # The store shared by both copies (9R-2): agent call counts and cached listings.

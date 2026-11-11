@@ -80,7 +80,11 @@ describe("render.yaml", () => {
     expect(blueprint).not.toMatch(/key: PAYPAL_\w+\n\s+value:/);
     // The website's licence keys (9k) are read while its pages are built.
     expect(own).toEqual(
-      expect.arrayContaining(["VITE_AG_LICENCE_KEY", "VITE_BRYNTUM_LICENCE_KEY"]),
+      expect.arrayContaining([
+        "VITE_AG_LICENCE_KEY",
+        "VITE_AG_GRID_LICENCE_KEY",
+        "VITE_BRYNTUM_LICENCE_KEY",
+      ]),
     );
   });
 
