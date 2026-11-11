@@ -5,12 +5,12 @@
 export {
   Channel3Lookup,
   MAX_PHOTO_BYTES,
-  PHOTO_HOST,
   type LookupRefusal,
   type ProductLookup,
 } from "./channel3.js";
 export {
   LISTING_LIMITS,
+  PHOTO_HOST,
   channel3ProductSchema,
   productListingSchema,
   toListing,

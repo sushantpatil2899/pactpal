@@ -1,79 +1,79 @@
 # Graph Report - paypal-hackathon  (2026-11-11)
 
 ## Corpus Check
-- 807 files · ~518,956 words
+- 807 files · ~519,076 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 22 file(s) not represented in the graph (top: .css 16, (none) 5, .example 1)
 
 ## Summary
-- 6215 nodes · 19767 edges · 229 communities (206 shown, 23 thin omitted)
-- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 552 edges (avg confidence: 0.87)
+- 6216 nodes · 19771 edges · 222 communities (199 shown, 23 thin omitted)
+- Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 553 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3d0af61a`
+- Built from commit: `9cd18f00`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - App.tsx
-- errors.ts
+- PayPalRestClient
 - testId
-- timeline-routes.ts
-- DeliverPanel.tsx
+- .query
+- code-checks.ts
 - when
-- deals/routes.ts
-- scope.ts
+- milestone-routes.ts
+- timeline-routes.ts
 - receipt.ts
 - dispute-sync.ts
 - claims/src/index.ts
-- Secret
+- actions.ts
 - tools.ts
 - milestones.ts
-- DraftPanel.tsx
+- react
 - Database
 - app.test.ts
 - ScopePanel.tsx
-- AccessTokenProvider
-- access.ts
-- questions.ts
+- sandbox-check.ts
+- deals/routes.ts
+- appendLedgerEvent
 - postgresContentStore
-- test-app.ts
-- acceptance-routes.ts
-- .query
+- vitest
+- ChangeOrderPanel.tsx
+- delivery-routes.ts
 - council/src/index.ts
 - disputes/task.ts
-- claims/src/check.ts
+- qa/src/index.ts
 - net/src/index.ts
-- schema.ts
+- eval-judge.ts
 - DealPage.tsx
 - scope-draft/src/testing.ts
-- actions.ts
+- seed.ts
 - scope-draft/src/index.ts
-- action-routes.ts
+- callAs
 - email/src/index.ts
 - packet-service.ts
 - layouts.tsx
 - claim-job.ts
 - eval-report.ts
-- db/src/index.ts
-- db/src/testing.ts
+- chat.ts
+- testId
 - emailFrom
 - paypal-webhook.ts
 - chat-routes.ts
 - postgres.ts
 - listing-routes.ts
-- milestone-routes.ts
+- delivery-check-routes.ts
 - web/package.json
 - ledger/src/index.ts
-- validate.ts
-- gantt-rows.ts
-- claims/src/check.ts
-- htmlToText
+- partners.ts
+- deadline-rows.ts
+- production-app.ts
+- email/src/index.ts
 - dispute-actions.ts
 - postStep
 - verify
-- delivery-check/src/index.ts
+- delivery-check.test.ts
 - timeline/src/index.ts
 - PayPalResult
 - completeness.ts
@@ -83,54 +83,54 @@
 - Deadlines.tsx
 - scripts
 - db/package.json
-- appeal-items.ts
-- Insights.tsx
+- resend.ts
+- overview.ts
 - draft-routes.ts
-- council-record.ts
-- readLedger
+- confirmation.ts
+- QuestionsPanel.tsx
 - claims/package.json
 - paypal/src/index.ts
-- eval-runner.ts
-- app.ts
-- scope-drafts.ts
+- draft-job.ts
+- buildApp
+- delivery-check/src/index.ts
 - Sandbox feasibility tests
 - delivery-check/package.json
 - qa/package.json
 - watcher/package.json
 - ai/src/index.ts
-- app-link-routes.test.ts
-- MessagesPanel.tsx
+- engine.ts
+- SellerAppPanel.tsx
 - scope-draft/package.json
 - paypal/package.json
 - chain-scene.ts
 - devDependencies
 - products/package.json
-- deals.ts
+- db/src/index.ts
 - ai/package.json
 - sandbox-respond-report.ts
 - words/src/index.ts
 - scripts
 - sandbox-clients.ts
-- seller-connections.ts
+- Engineering
 - api.ts
 - render.ts
 - email/package.json
 - compilerOptions
-- qa/src/index.ts
+- draft-changes.ts
 - Agents.tsx
 - make_content.py
 - scripts
 - council/package.json
-- agent-requests.ts
+- auth/sign-in.ts
 - notices.ts
 - landing-words.ts
-- PaymentsPanel.tsx
+- pages.tsx
 - devDependencies
 - Demo plan
 - score/package.json
 - PactPal product spec
 - devDependencies
-- claim-routes.ts
+- TimelineStep
 - Ledger.tsx
 - Engineering standards
 - package.json
@@ -139,15 +139,15 @@
 - config.ts
 - compilerOptions
 - Build plan
-- pdf/package.json
+- image.ts
 - ledger/package.json
 - live/package.json
 - net/package.json
 - timeline/package.json
 - docs/package.json
 - IntakePanel.tsx
-- TEST_NOW
-- vitest
+- check-words.ts
+- Audience.tsx
 - README.md
 - Built (sub-phases 2b to 6h-1)
 - PactPal
@@ -174,7 +174,7 @@
 - words/tsconfig.json
 - pnpm-workspace.yaml
 - PactPal design system
-- task.test.ts
+- TimelineEditor.tsx
 - Nav.tsx
 - log-labels.ts
 - .prettierrc.json
@@ -189,24 +189,21 @@
 - pages.ts
 - index.md
 - gantt-rows.ts
-- appeal.test.ts
-- change-orders.ts
+- story5.ts
+- changeOf
 - vite-env.d.ts
 - src-app-tsx.md
-- Phase 7 (deal space)
-- retention.test.ts
+- source
+- authAssertion
 - design/tokens.ts
-- Layout
 - build.js
 - Tour.tsx
 - PayPal sandbox notes
-- pdf/src/index.ts
 - Hero.tsx
 - Getting started
 - brand/package.json
 - @pactpal/ai@workspace:*
 - log-labels.test.ts
-- receipt.test.ts
 - Connect your AI agent
 - When a buyer disputes
 - PactPal help
@@ -225,18 +222,14 @@
 - @pactpal/pdf@workspace:*
 - council
 - Pillars.tsx
-- runner.test.ts
-- src/draft-source.ts
 - pg@^8.23.1
 - zod@^4.6.7
 - dependency-cruiser@^16.10.4
 - jscpd@^4.3.0
 - photo-convert.test.ts
-- source
 - RedisCommands
 - build.ts
 - @modelcontextprotocol/sdk@1.32.1
-- useScrollStory.ts
 - @pactpal/claims@workspace:*
 - @pactpal/paypal@workspace:*
 - @pactpal/qa@workspace:*
@@ -259,199 +252,199 @@
 ## Surprising Connections (you probably didn't know these)
 - `Redesign (Phase 7R)` --references--> `phoneTab()`  [INFERRED]
   docs/decisions.md → apps/web/src/deal/deal-view.ts
-- ``retention_runs`: each daily clean-up (9c)` --references--> `purgeDeal()`  [INFERRED]
-  docs/data-model.md → packages/db/src/retention.ts
+- ``change_orders`: changes to a signed agreement` --references--> `proposed()`  [INFERRED]
+  docs/data-model.md → packages/db/src/change-orders.test.ts
 - `Retention and privacy (9c)` --references--> `purgeDeal()`  [INFERRED]
   docs/decisions.md → packages/db/src/retention.ts
+- `1. Architecture and structure` --references--> `PayPalClient`  [INFERRED]
+  docs/engineering-standards.md → packages/paypal/src/index.ts
 - `Phase 6 sub-phases` --references--> `PlatformSellerClients`  [INFERRED]
   docs/build-plan.md → packages/paypal/src/seller-clients.ts
-- `AI` --references--> `normalizeForMatch()`  [INFERRED]
-  docs/decisions.md → packages/scope-draft/src/validate.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (229 total, 23 thin omitted)
+## Communities (222 total, 23 thin omitted)
 
 ### Community 0 - "App.tsx"
-Cohesion: 0.05
-Nodes (93): createDeal(), isDeal(), listDeals(), redeemLink(), SIGN_IN_PATH, signOut(), App(), Dashboard() (+85 more)
+Cohesion: 0.04
+Nodes (75): getMe(), Me, signOut(), App(), DeadlinesPage, DealPage, dealPage(), DealRoute (+67 more)
 
-### Community 1 - "errors.ts"
+### Community 1 - "PayPalRestClient"
 Cohesion: 0.06
-Nodes (35): dollar, setup(), McpFallback, reasonOf(), PayPalInvoices, route(), draft, invoiceBody (+27 more)
+Nodes (42): checkMcp(), PayPalBuyerTestActions, dollar, setup(), PayPalErrorDetail, PayPalMcpError, PayPalResponseError, DEFAULT_FALLBACK_POLICY (+34 more)
 
 ### Community 2 - "testId"
-Cohesion: 0.05
-Nodes (60): db, ActionsView, confirmed(), db, disputedDeal(), FILES, sha(), answer (+52 more)
+Cohesion: 0.04
+Nodes (91): db, signedPayPal(), signThroughRoutes(), seedContext(), ActionsView, confirmed(), db, disputedDeal() (+83 more)
 
-### Community 3 - "timeline-routes.ts"
-Cohesion: 0.09
-Nodes (53): sendTimelineReminders(), acceptBody, changeOrderRoutes(), view(), waitingChange(), changeParams, changeView(), declineBody (+45 more)
+### Community 3 - ".query"
+Cohesion: 0.06
+Nodes (59): emailReceipt(), emailReceiptQuietly(), MAX_RECEIPT_EMAILS, ReceiptMailDeps, ReceiptMailResult, receiptSentPayload, receiptsSent(), Role (+51 more)
 
-### Community 4 - "DeliverPanel.tsx"
-Cohesion: 0.13
-Nodes (29): AnswerBox(), Revisions, revisionWords(), approveDelivery(), checksUrl(), deliveriesUrl(), DeliveriesView, DeliveryCheckView (+21 more)
+### Community 4 - "code-checks.ts"
+Cohesion: 0.27
+Nodes (10): codeChecks(), judge(), largest(), LineCodeResult, MEDIA_TYPES, CheckedFormat, FORMATS, lineRequirements() (+2 more)
 
 ### Community 5 - "when"
+Cohesion: 0.06
+Nodes (68): analysesUrl(), AppealCheckView, AppealView, checkAppeal(), checkDisputes(), ClaimAnalysesView, ClaimAnalysisView, ClaimStatement (+60 more)
+
+### Community 6 - "milestone-routes.ts"
 Cohesion: 0.08
-Nodes (59): analysesUrl(), buildPacket(), checkDisputes(), compareClaim(), CouncilView, disputesUrl(), DisputesView, draftSummary() (+51 more)
+Nodes (43): ACCEPTANCE_DOCUMENT_FORMAT, ACCEPTANCE_NOTICE_VERSION, AcceptanceDocument, acceptanceDocument(), currentDocument(), documentFor(), fingerprinted(), money (+35 more)
 
-### Community 6 - "deals/routes.ts"
-Cohesion: 0.06
-Nodes (68): ACCEPTANCE_DOCUMENT_FORMAT, ACCEPTANCE_NOTICE_VERSION, AcceptanceDocument, acceptanceDocument(), documentFor(), fingerprinted(), money, notificationRoutes() (+60 more)
-
-### Community 7 - "scope.ts"
-Cohesion: 0.06
-Nodes (34): `change_orders`: changes to a signed agreement, at(), db, ORDERING, proposed(), SIGNED, BASE, LISTING (+26 more)
+### Community 7 - "timeline-routes.ts"
+Cohesion: 0.12
+Nodes (32): Card, DealCards, Notifier, PartyNotice, sendTimelineReminders(), AcceptanceRouteOptions, changeView(), overviewOf() (+24 more)
 
 ### Community 8 - "receipt.ts"
-Cohesion: 0.13
-Nodes (20): acceptanceDocumentSchema, acceptedPayload, dateTime(), REACHED, RECEIPT_FORMAT, receiptBlocks(), ChangeAnswer, changeProposedEmail() (+12 more)
+Cohesion: 0.12
+Nodes (26): ACCEPTANCE_NOTICE, acceptanceDocumentSchema, acceptedPayload, BRANDED_RECEIPTS_FROM, dateTime(), REACHED, RECEIPT_FORMAT, receiptBlocks() (+18 more)
 
 ### Community 9 - "dispute-sync.ts"
-Cohesion: 0.07
-Nodes (44): changedSince(), Counts, readTooSoon(), readVersionOf(), sameSecond(), snapshotOf(), storedDetails, storedSnapshot() (+36 more)
+Cohesion: 0.04
+Nodes (68): changedSince(), Counts, readTooSoon(), readVersionOf(), sameSecond(), snapshotOf(), storedDetails, storedSnapshot() (+60 more)
 
 ### Community 10 - "claims/src/index.ts"
-Cohesion: 0.06
-Nodes (72): AppealCheck, appealCheckSchema, AppealContext, checkAppeal(), readAppeal(), APPEAL_PROMPT_VERSION, AppealItem, appealMessages() (+64 more)
+Cohesion: 0.07
+Nodes (69): parseJsonReply(), AppealCheck, appealCheckSchema, AppealContext, checkAppeal(), readAppeal(), APPEAL_PROMPT_VERSION, appealMessages() (+61 more)
 
-### Community 11 - "Secret"
-Cohesion: 0.15
-Nodes (16): checkMcp(), PayPalMcpError, noAnswer(), setupError(), describe(), McpClientOptions, McpTransportFactory, PayPalMcpClient (+8 more)
+### Community 11 - "actions.ts"
+Cohesion: 0.12
+Nodes (34): FILE_NAME_HEADER, AgreementForm, askQuestion(), chat(), dealFromText(), decline(), draftAgreement(), notSignedInWithPayPal() (+26 more)
 
 ### Community 12 - "tools.ts"
-Cohesion: 0.07
-Nodes (51): actingAs(), routeCaller(), AGENT_CALLS_PER_MINUTE, bearerOf(), mcpRoutes(), mcpServer(), AGENT_TOOLS, AgentContext (+43 more)
+Cohesion: 0.10
+Nodes (30): actingAs(), routeCaller(), AGENT_CALLS_PER_MINUTE, bearerOf(), mcpRoutes(), mcpServer(), AGENT_TOOLS, AgentContext (+22 more)
 
 ### Community 13 - "milestones.ts"
-Cohesion: 0.10
-Nodes (30): DEAL_STATUSES, DealNotFoundError, dropFailedInvoice(), findMilestoneByInvoice(), InvoicePaid, invoicePaidSchema, InvoiceSent, invoiceSentSchema (+22 more)
+Cohesion: 0.11
+Nodes (25): sentStage(), SendDelivery, InvoicePaid, invoicePaidSchema, InvoiceSent, invoiceSentSchema, markInvoicePaid(), markInvoiceSent() (+17 more)
 
-### Community 14 - "DraftPanel.tsx"
-Cohesion: 0.07
-Nodes (41): addFile(), addPastedChat(), DealFile, draftsUrl(), fileUrl(), getDraftById(), getScope(), isFile() (+33 more)
+### Community 14 - "react"
+Cohesion: 0.06
+Nodes (60): AnswerBox(), Revisions, revisionWords(), addFile(), addPastedChat(), approveDelivery(), CompletenessItem, CompletenessView (+52 more)
 
 ### Community 15 - "Database"
 Cohesion: 0.05
-Nodes (56): McpRouteOptions, AppOptions, ChatBus, Card, DealCards, ChatRouteOptions, HubOptions, listQuery (+48 more)
+Nodes (63): McpRouteOptions, AppOptions, SignInOptions, ChatBus, HubOptions, NotificationRouteOptions, NotifierOptions, ReminderDeps (+55 more)
 
 ### Community 16 - "app.test.ts"
 Cohesion: 0.23
 Nodes (12): assertUnchanged(), assertWellFormed(), checksumOf(), migrate(), MigrationError, MigrationStatus, migrationStatus(), readApplied() (+4 more)
 
 ### Community 17 - "ScopePanel.tsx"
-Cohesion: 0.06
-Nodes (75): acceptChange(), changeOrdersUrl(), ChangeOrdersView, ChangeOrderView, changeStep(), ChangeView, declineChange(), DeliverableKind (+67 more)
-
-### Community 18 - "AccessTokenProvider"
-Cohesion: 0.08
-Nodes (29): APP_KEYS, PayPalApp, checkAsSellerApp(), checks, message(), result, APP_LABELS, appSection() (+21 more)
-
-### Community 19 - "access.ts"
 Cohesion: 0.11
-Nodes (22): AgentRequestRouteOptions, agentRequestRoutes(), listQuery, params, REFUSED, view(), dealAccess(), visibleDeal() (+14 more)
+Nodes (35): DeliverableKind, ProposedRows, FromTheChat(), Suggestion, DueDateField(), EMPTY_LINE, EMPTY_PROVIDE, EMPTY_STAGE (+27 more)
 
-### Community 20 - "questions.ts"
+### Community 18 - "sandbox-check.ts"
+Cohesion: 0.17
+Nodes (15): APP_KEYS, PayPalApp, checkAsSellerApp(), message(), result, APP_LABELS, appSection(), formatSandboxReport() (+7 more)
+
+### Community 19 - "deals/routes.ts"
 Cohesion: 0.06
-Nodes (39): namedQuestion(), result, webDir, failRunningMessageReviews(), AiAnswer, aiAnswerSchema, AnswerQuestion, answerQuestion() (+31 more)
+Nodes (79): AgentRequestRouteOptions, agentRequestRoutes(), listQuery, params, REFUSED, view(), afterQuery, chatNames() (+71 more)
+
+### Community 20 - "appendLedgerEvent"
+Cohesion: 0.05
+Nodes (72): AcceptanceNotAllowedError, AcceptanceRefusal, acceptanceRow, AcceptTerms, acceptTerms(), DeclineTerms, declineTerms(), declineTermsSchema (+64 more)
 
 ### Community 21 - "postgresContentStore"
-Cohesion: 0.11
-Nodes (30): afterQuery, chatRoutes(), messageView(), postBody, REFUSALS, addedByRole(), fileNameFrom(), fileParams (+22 more)
+Cohesion: 0.10
+Nodes (30): attachmentHeader(), sendCheckedFile(), sendDownload(), addedByRole(), fileNameFrom(), fileParams, FileRouteOptions, fileRoutes() (+22 more)
 
-### Community 22 - "test-app.ts"
-Cohesion: 0.05
-Nodes (75): chatDeal(), db, MessageBody, councilRecordOf(), Card, db, savedDeal(), send() (+67 more)
+### Community 22 - "vitest"
+Cohesion: 0.03
+Nodes (159): agentDeal(), db, db, SESSION_COOKIE, chatDeal(), db, MessageBody, db (+151 more)
 
-### Community 23 - "acceptance-routes.ts"
-Cohesion: 0.13
-Nodes (28): currentDocument(), buildReceipt(), emailReceipt(), emailReceiptQuietly(), MAX_RECEIPT_EMAILS, ReceiptMailDeps, ReceiptMailResult, receiptSentPayload (+20 more)
+### Community 23 - "ChangeOrderPanel.tsx"
+Cohesion: 0.12
+Nodes (27): acceptChange(), changeOrdersUrl(), ChangeOrdersView, ChangeOrderView, changeStep(), ChangeView, declineChange(), getChangeOrders() (+19 more)
 
-### Community 24 - ".query"
-Cohesion: 0.06
-Nodes (82): originOf(), recordReceiptSent(), answerAgentRequest(), createAgentRequest(), finishAgentRequest(), lockedRequest(), acceptChangeOrder(), answer() (+74 more)
+### Community 24 - "delivery-routes.ts"
+Cohesion: 0.07
+Nodes (62): accessSummary(), answerView(), changesBody, deliveryId, deliveryParams, deliveryRoutes(), answer(), answerRoute() (+54 more)
 
 ### Community 25 - "council/src/index.ts"
-Cohesion: 0.09
-Nodes (44): JsonSchema, TokenUsage, aggregate(), AggregateOptions, kendallW(), validateBallot(), anonymize(), filterValid() (+36 more)
+Cohesion: 0.08
+Nodes (52): TokenUsage, aggregate(), AggregateOptions, kendallW(), validateBallot(), anonymize(), filterValid(), labelFor() (+44 more)
 
 ### Community 26 - "disputes/task.ts"
-Cohesion: 0.09
-Nodes (38): publishingBus(), Config, CronStart, runCronJob(), SEED_TASK_NAME, renderClaimRunner(), renderDraftStarter(), renderWorkflowChecker() (+30 more)
-
-### Community 27 - "claims/src/check.ts"
 Cohesion: 0.12
-Nodes (36): runPrepared(), toCouncilRecord(), toJson(), DraftJob, JobLog, PROMPT_VERSIONS, runDraftJob(), MESSAGE_PROMPT_VERSIONS (+28 more)
+Nodes (31): publishingBus(), Config, CronStart, runCronJob(), renderWorkflowChecker(), ClientsFor, CouncilTaskWiring, jsonLines() (+23 more)
+
+### Community 27 - "qa/src/index.ts"
+Cohesion: 0.07
+Nodes (55): attempt(), MessageJob, checkAnalysis(), ClaimContext, invalid(), MAX_STATEMENTS, readAnalysis(), claimCouncilTask() (+47 more)
 
 ### Community 28 - "net/src/index.ts"
 Cohesion: 0.05
-Nodes (48): defaultHttpDeps, fakeNetwork(), policy, Step, urlOf(), DEFAULT_RETRY_POLICY, Call, item (+40 more)
+Nodes (66): checks, ClientOptions, ResendOptions, defaultHttpDeps, HttpDeps, NetworkErrorFactory, SendOptions, sendWithRetry() (+58 more)
 
-### Community 29 - "schema.ts"
-Cohesion: 0.08
-Nodes (34): DraftStepKind, EVAL_CASES, EvalCase, EvalGold, buyerProvidesScore(), categoryVerdict(), cites(), FieldVerdict (+26 more)
+### Community 29 - "eval-judge.ts"
+Cohesion: 0.21
+Nodes (18): buyerProvidesScore(), categoryVerdict(), cites(), FieldVerdict, lineSet(), listScore(), marksScore(), normal() (+10 more)
 
 ### Community 30 - "DealPage.tsx"
 Cohesion: 0.05
-Nodes (83): checkLedger(), getDeal(), getMe(), LedgerCheck, LedgerEntryView, ScopeTerms, ScopeView, chatUrl() (+75 more)
+Nodes (79): checkLedger(), getDeal(), getScope(), ScopeTerms, ScopeView, chatUrl(), ChatView, getChat() (+71 more)
 
 ### Community 31 - "scope-draft/src/testing.ts"
-Cohesion: 0.11
-Nodes (35): two, chatCaseRuns(), InjectionOptions, rankingCaseRuns(), runInjectionCheck(), taskFor(), usageTokens(), answerRecord() (+27 more)
+Cohesion: 0.07
+Nodes (49): two, chatCaseRuns(), InjectionOptions, rankingCaseRuns(), runInjectionCheck(), taskFor(), usageTokens(), input (+41 more)
 
-### Community 32 - "actions.ts"
-Cohesion: 0.06
-Nodes (117): RouteAnswer, FILE_NAME_HEADER, addBuyer(), AgreementForm, answerDelivery(), askQuestion(), callAs(), chat() (+109 more)
+### Community 32 - "seed.ts"
+Cohesion: 0.15
+Nodes (45): addBuyer(), answerDelivery(), createDeal(), deliver(), upload(), needRef(), seedInputSchema, STORIES (+37 more)
 
 ### Community 33 - "scope-draft/src/index.ts"
-Cohesion: 0.08
-Nodes (46): claimLines(), linesOf(), BLOCKED_CATEGORIES, RANK_CRITERIA, scopeDraftCouncilTask(), ScopeDraftTask, build(), input (+38 more)
+Cohesion: 0.05
+Nodes (83): JsonSchema, claimLines(), ClaimText, linesOf(), allowedCategoryIds(), BLOCKED_CATEGORIES, BLOCKED_IDS, CategoryVerdict (+75 more)
 
-### Community 34 - "action-routes.ts"
-Cohesion: 0.11
-Nodes (34): acceptBody, actionParams, actionRoutes(), checkCoverage(), confirmedSend(), filesOf(), noteSend(), send() (+26 more)
+### Community 34 - "callAs"
+Cohesion: 0.16
+Nodes (27): callAs(), idOf(), SeedStepError, sign(), signingPage(), uploadBytes(), userIdOf(), MAYA (+19 more)
 
 ### Community 35 - "email/src/index.ts"
-Cohesion: 0.07
-Nodes (43): EMAIL_LOGO_PATH, NOTICE_LOOK, notificationEmail(), emailLogo(), EmailTemplates, loadEmailTemplates(), repoFolder(), templatesDir() (+35 more)
+Cohesion: 0.08
+Nodes (35): EMAIL_LOGO_PATH, emailLogo(), EmailTemplates, loadEmailTemplates(), repoFolder(), templatesDir(), loaded, app (+27 more)
 
 ### Community 36 - "packet-service.ts"
-Cohesion: 0.11
-Nodes (38): aiBlocks(), dateTime(), ExhibitPlan, ExhibitSource, HOW_TO_CHECK, LeftOut, ORDER, PACKET_FORMAT (+30 more)
+Cohesion: 0.04
+Nodes (122): buildReceipt(), ReceiptIntegrityError, sendRefusal(), acceptBody, actionParams, actionRoutes(), checkCoverage(), confirmedSend() (+114 more)
 
 ### Community 37 - "layouts.tsx"
 Cohesion: 0.05
-Nodes (79): Me, Money, CommandPalette(), PLACES, Cell, COLUMNS, EXPORT, SIDE_BAR (+71 more)
+Nodes (83): ag-studio@3.1.0, DealSummary, Money, giveAgLicence(), grid, load(), studio, CommandPalette() (+75 more)
 
 ### Community 38 - "claim-job.ts"
-Cohesion: 0.27
+Cohesion: 0.28
 Nodes (20): Analysis, buyersClaim(), comparisonRowsOf(), dealOf(), fingerprintOf(), JOB_WORDS, NotBuilt, prepareAppeal() (+12 more)
 
 ### Community 39 - "eval-report.ts"
-Cohesion: 0.16
-Nodes (26): DroppedDraft, droppedSection(), ruleOf(), aloneRow(), aloneSection(), cell(), chatSection(), councilSection() (+18 more)
+Cohesion: 0.10
+Nodes (39): DroppedDraft, droppedSection(), ruleOf(), aloneRow(), aloneSection(), cell(), chatSection(), councilSection() (+31 more)
 
-### Community 40 - "db/src/index.ts"
-Cohesion: 0.03
-Nodes (110): body, ChatIntegrityError, ChatMessage, chatNoticeSchema, ChatRefusal, ChatRole, checkedMessage(), CHAT_CHANNEL (+102 more)
+### Community 40 - "chat.ts"
+Cohesion: 0.04
+Nodes (56): addCard(), disputedDeal(), body, ChatIntegrityError, ChatNotAllowedError, chatNoticeSchema, ChatRefusal, ChatRole (+48 more)
 
-### Community 41 - "db/src/testing.ts"
+### Community 41 - "testId"
 Cohesion: 0.05
-Nodes (65): agentDeal(), db, mcpClient(), ToolResult, Conversation, db, db, goodsDeal() (+57 more)
+Nodes (58): mcpClient(), ToolResult, dealWithBuyer(), db, goodsDeal(), SCOPE, WEBP, db (+50 more)
 
 ### Community 42 - "emailFrom"
-Cohesion: 0.17
-Nodes (25): answerEmail(), AnswerFacts, revisionLine(), buyerFileEmail(), changeAnswerEmail(), amountOf(), SANDBOX_FOOTER, StageFacts (+17 more)
+Cohesion: 0.16
+Nodes (27): answerEmail(), AnswerFacts, revisionLine(), buyerFileEmail(), ChangeAnswer, changeAnswerEmail(), changeProposedEmail(), amountOf() (+19 more)
 
 ### Community 43 - "paypal-webhook.ts"
-Cohesion: 0.06
-Nodes (29): blueprint, ciWorkflow, cronSection, sections, serverPackage, serviceSection, [servicesSection = "", databaseSection = ""], workflowSection (+21 more)
+Cohesion: 0.09
+Nodes (20): settingsFor(), SHARED_SETTINGS, blueprint, ciWorkflow, cronSection, sections, serverPackage, serviceSection (+12 more)
 
 ### Community 44 - "chat-routes.ts"
-Cohesion: 0.06
-Nodes (37): BusSignal, Listen, listeners(), memoryBus(), postgresBus(), addCard(), db, hubOnTestDeal() (+29 more)
+Cohesion: 0.07
+Nodes (30): BusSignal, Listen, listeners(), memoryBus(), postgresBus(), db, hubOnTestDeal(), LiveHub (+22 more)
 
 ### Community 45 - "postgres.ts"
 Cohesion: 0.09
@@ -459,79 +452,79 @@ Nodes (15): Row, databaseFromPool(), fakeClient(), Handler, setup(), ListenOptio
 
 ### Community 46 - "listing-routes.ts"
 Cohesion: 0.13
-Nodes (20): Channel3Lookup, LookupRefusal, MAX_PHOTO_BYTES, NoAnswerError, PHOTO_HOST, fakeChannel3(), NOW, attributeName() (+12 more)
+Nodes (21): Channel3Lookup, LookupRefusal, MAX_PHOTO_BYTES, NoAnswerError, fakeChannel3(), NOW, attributeName(), capped() (+13 more)
 
-### Community 47 - "milestone-routes.ts"
+### Community 47 - "delivery-check-routes.ts"
 Cohesion: 0.12
-Nodes (28): milestoneRoutes(), emailInvoice(), sellerApp(), paypalProblem(), sendBody, SendOutcome, sendToPayPal(), stageParams (+20 more)
+Nodes (21): checkBody, checkView(), deliveryCheckRoutes(), looks(), LookResult, MAX_LOOKS_PER_CHECK, REFUSALS, askImageModels() (+13 more)
 
 ### Community 48 - "web/package.json"
 Cohesion: 0.06
-Nodes (46): dependencies, ag-grid-community@36.3.0, ag-grid-enterprise@36.3.0, ag-grid-react@36.3.0, ag-studio-react@3.1.0, @bryntum/core-enterprise@8.0.0, @bryntum/gantt-enterprise@8.0.0, @bryntum/gantt-react-enterprise@8.0.0 (+38 more)
+Nodes (50): dependencies, ag-grid-community@36.3.0, ag-grid-enterprise@36.3.0, ag-grid-react@36.3.0, ag-studio-react@3.1.0, @bryntum/core-enterprise@8.0.0, @bryntum/gantt-enterprise@8.0.0, @bryntum/gantt-react-enterprise@8.0.0 (+42 more)
 
 ### Community 49 - "ledger/src/index.ts"
-Cohesion: 0.05
-Nodes (70): isPicture(), one(), DISPUTE_EVENT_PREFIX, agentBodySha256(), ARTIFACT_KINDS, ARTIFACT_LIMITS, ArtifactKind, ArtifactLimits (+62 more)
+Cohesion: 0.04
+Nodes (100): isPicture(), lookUp(), withReadyDraft(), one(), DISPUTE_EVENT_PREFIX, waitingDraft(), agentBodySha256(), addArtifact() (+92 more)
 
-### Community 50 - "validate.ts"
-Cohesion: 0.09
-Nodes (36): allowedCategoryIds(), BLOCKED_IDS, CategoryVerdict, UNCLEAR_CATEGORY, paymentFromShare(), Share, shareOf(), sharesIn() (+28 more)
+### Community 50 - "partners.ts"
+Cohesion: 0.12
+Nodes (15): links, lookupAnswer, MerchantLookup, MerchantStatus, ownerAnswer, PARTNER_FEATURES, PartnerFeature, partnerPath() (+7 more)
 
-### Community 51 - "gantt-rows.ts"
-Cohesion: 0.20
-Nodes (16): addDays(), daysBetween(), earlierDay(), laterDay(), DeadlineEvent, DeadlineRow, deadlineRows(), Deadlines (+8 more)
+### Community 51 - "deadline-rows.ts"
+Cohesion: 0.27
+Nodes (7): DeadlineEvent, DeadlineRow, deadlineRows(), Deadlines, EVIDENCE_EVENTS, hasEvidence(), other()
 
-### Community 52 - "claims/src/check.ts"
-Cohesion: 0.09
-Nodes (31): checkAnalysis(), ClaimAnalysis, invalid(), MAX_STATEMENTS, readAnalysis(), ClaimText, AGREEMENT, CLAIM (+23 more)
+### Community 52 - "production-app.ts"
+Cohesion: 0.16
+Nodes (16): SEED_TASK_NAME, APPEAL_TASK_NAME, CLAIM_TASK_NAME, RESPONSE_TASK_NAME, STATEMENT_TASK_NAME, SUMMARY_TASK_NAME, ASK_MODEL_TASK_NAME, DISPUTE_TASK_NAME (+8 more)
 
-### Community 53 - "htmlToText"
-Cohesion: 0.50
-Nodes (3): ENTITIES, entity(), htmlToText()
+### Community 53 - "email/src/index.ts"
+Cohesion: 0.07
+Nodes (35): createIntakeDeal(), intakeFilename(), NOTICE_LOOK, notificationEmail(), envelope, forwardingCode(), passed(), RESEND_INBOUND_PATH (+27 more)
 
 ### Community 54 - "dispute-actions.ts"
-Cohesion: 0.10
-Nodes (25): ActionFile, actionFileSchema, ActionOutcome, actionRow, amountSchema, common, countOf(), DISPUTE_ACTION_KINDS (+17 more)
+Cohesion: 0.11
+Nodes (27): actionFileSchema, ActionOutcome, actionRow, amountSchema, common, countOf(), DISPUTE_ACTION_KINDS, DisputeActionKind (+19 more)
 
 ### Community 55 - "postStep"
-Cohesion: 0.13
-Nodes (32): acceptDisputeClaim(), checkAppeal(), DisputeActionsView, DisputeActionView, disputeStepUrl(), draftResponse(), draftStatement(), escalateDispute() (+24 more)
+Cohesion: 0.14
+Nodes (29): acceptDisputeClaim(), DisputeActionsView, DisputeActionView, disputeStepUrl(), escalateDispute(), getDisputeActions(), isActionAnswer(), makeRefundOffer() (+21 more)
 
 ### Community 56 - "verify"
 Cohesion: 0.06
 Nodes (30): concurrency, cancel-in-progress, group, POSTGRES_PASSWORD, TEST_DATABASE_URL, jobs, verify, name (+22 more)
 
-### Community 57 - "delivery-check/src/index.ts"
-Cohesion: 0.06
-Nodes (50): factsWords(), FORMAT_WORDS, MARKS, sizeWords(), TYPE_WORDS, VERDICT_WORDS, CheckedFile, CheckLine (+42 more)
+### Community 57 - "delivery-check.test.ts"
+Cohesion: 0.16
+Nodes (13): CheckedFile, IMAGE, LINES, ImageFacts, BPP, chunk(), figure(), filterRows() (+5 more)
 
 ### Community 58 - "timeline/src/index.ts"
-Cohesion: 0.07
-Nodes (45): DealOverview, dealOverview(), DealStage, disputeStep(), NextStep, OverviewFacts, STEPS, waiting() (+37 more)
+Cohesion: 0.10
+Nodes (34): Deal space (Phase 7), allowedUpdates(), done(), latest(), reviewProgress(), StageFacts, StepState, StepUpdate (+26 more)
 
 ### Community 59 - "PayPalResult"
 Cohesion: 0.08
-Nodes (25): send(), `buyer_questions`: questions about the agreement before signing, PayPal integration, 1. Architecture and structure, answered(), DisputeAnswer, DisputeList, EscalateInput (+17 more)
+Nodes (25): send(), `buyer_questions`: questions about the agreement before signing, PayPal integration, answered(), DisputeAnswer, DisputeList, EscalateInput, evidenceForm() (+17 more)
 
 ### Community 60 - "completeness.ts"
 Cohesion: 0.11
 Nodes (25): Completeness, CompletenessInput, CompletenessItem, completenessScore(), Facts, field(), ItemStatus, Measure (+17 more)
 
 ### Community 61 - "testSpec"
-Cohesion: 0.06
-Nodes (47): councilDeps(), isRankingRequest(), CheckView, db, FAILED, model(), shown, store (+39 more)
+Cohesion: 0.04
+Nodes (62): councilDeps(), councilRecordOf(), isRankingRequest(), model(), isRanking(), member(), model(), model() (+54 more)
 
 ### Community 62 - "DraftReview.tsx"
-Cohesion: 0.08
-Nodes (38): ChangeProposal, ChatLine, Citation, DraftCandidate, DraftCategory, DraftContent, DraftMark, DraftView (+30 more)
+Cohesion: 0.10
+Nodes (29): ChatLine, Citation, DraftCandidate, DraftCategory, DraftMark, ChatLines(), ChatPane(), HIGHLIGHT (+21 more)
 
 ### Community 63 - "services"
 Cohesion: 0.05
 Nodes (40): databases, diskSizeGB, ipAllowList, name, plan, postgresMajorVersion, region, fromDatabase (+32 more)
 
 ### Community 64 - "Deadlines.tsx"
-Cohesion: 0.15
-Nodes (12): @bryntum/scheduler-enterprise@8.0.0, BAR_COLOURS, TODAY_LINE, giveBryntumLicence(), holder, COLUMNS, DealGantt(), LOCKED (+4 more)
+Cohesion: 0.16
+Nodes (15): BAR_COLOURS, TODAY_LINE, giveBryntumLicence(), holder, daysBetween(), COLUMNS, Deadlines(), LABELS (+7 more)
 
 ### Community 65 - "scripts"
 Cohesion: 0.08
@@ -541,45 +534,45 @@ Nodes (26): scripts, ai:check, audit:prod, build, deps:check, dev, dup, env:chec
 Cohesion: 0.09
 Nodes (27): dependencies, @pactpal/ledger@workspace:*, @pactpal/products@workspace:*, @pactpal/timeline@workspace:*, pg@^8.23.1, zod@^4.6.7, devDependencies, @electric-sql/pglite@^0.5.13 (+19 more)
 
-### Community 67 - "appeal-items.ts"
-Cohesion: 0.14
-Nodes (15): appealGaps(), missingFromPacket(), AlreadySent, appealFacts(), appealItems(), DISPUTE_PROCESS, docItemId(), entryItemId() (+7 more)
+### Community 67 - "resend.ts"
+Cohesion: 0.13
+Nodes (14): RFC-2606, EmailNetworkError, errorAnswer, errorName(), isReservedTestAddress(), reasonFor(), RESEND_EMAILS_URL, RESERVED_DOMAINS (+6 more)
 
-### Community 68 - "Insights.tsx"
-Cohesion: 0.08
-Nodes (28): ag-studio@3.1.0, giveAgLicence(), grid, load(), studio, count, dealsSource(), Source (+20 more)
+### Community 68 - "overview.ts"
+Cohesion: 0.19
+Nodes (10): DealOverview, dealOverview(), DealStage, disputeStep(), NextStep, OverviewFacts, STEPS, waiting() (+2 more)
 
 ### Community 69 - "draft-routes.ts"
-Cohesion: 0.06
-Nodes (61): CHAT_TRANSCRIPT_PREFIX, chatNames(), readBody(), sendRefusal(), checkBody, checkView(), DeliveryCheckRouteOptions, deliveryCheckRoutes() (+53 more)
+Cohesion: 0.05
+Nodes (62): CHAT_TRANSCRIPT_PREFIX, LiveRouteOptions, DealLookup, featureAnswers(), DeliveryCheckRouteOptions, draftParams, DraftRouteOptions, draftRoutes() (+54 more)
 
-### Community 70 - "council-record.ts"
-Cohesion: 0.12
-Nodes (22): chosenDraft(), compare(), compareMarks(), compareWithDraft(), draftedPriceMinor(), FieldChange, plain(), provided() (+14 more)
+### Community 70 - "confirmation.ts"
+Cohesion: 0.27
+Nodes (10): compare(), compareMarks(), compareWithDraft(), draftedPriceMinor(), FieldChange, plain(), provided(), compare() (+2 more)
 
-### Community 71 - "readLedger"
-Cohesion: 0.14
-Nodes (13): db, types(), disputeTypes(), capturingEmail(), db, payments(), sentStage(), counts() (+5 more)
+### Community 71 - "QuestionsPanel.tsx"
+Cohesion: 0.23
+Nodes (15): answerBuyerQuestion(), askAboutAgreement(), askSellerInstead(), ForwardReason, getQuestions(), isQuestions(), questionStep(), questionsUrl() (+7 more)
 
 ### Community 72 - "claims/package.json"
 Cohesion: 0.11
 Nodes (23): dependencies, @pactpal/ai@workspace:*, @pactpal/council@workspace:*, @pactpal/qa@workspace:*, @pactpal/scope-draft@workspace:*, @pactpal/words@workspace:*, zod@^4.6.7, devDependencies (+15 more)
 
 ### Community 73 - "paypal/src/index.ts"
-Cohesion: 0.06
-Nodes (62): buyer, buyerActions, disputes, invoices, parsed, argsSchema, formatPayInstructions(), formatPayTimeout() (+54 more)
+Cohesion: 0.05
+Nodes (69): buyer, buyerActions, disputes, invoices, parsed, argsSchema, formatPayInstructions(), formatPayTimeout() (+61 more)
 
-### Community 74 - "eval-runner.ts"
-Cohesion: 0.21
-Nodes (14): draftCategories, alone(), councilRecord(), run(), score(), AloneRecord, CouncilEvalRecord, EvalOptions (+6 more)
+### Community 74 - "draft-job.ts"
+Cohesion: 0.13
+Nodes (22): chosenDraft(), runPrepared(), draftCategories, councilRecordSchema, isUnranked(), toCouncilRecord(), toJson(), usage (+14 more)
 
-### Community 75 - "app.ts"
-Cohesion: 0.04
-Nodes (60): buildApp(), closeOnSignals(), requestLog(), socketOrigin(), report, setup(), LinkOptions, linkRoutes() (+52 more)
+### Community 75 - "buildApp"
+Cohesion: 0.08
+Nodes (25): buildApp(), closeOnSignals(), requestLog(), socketOrigin(), report, setup(), setup(), CALLBACK_PATH (+17 more)
 
-### Community 76 - "scope-drafts.ts"
-Cohesion: 0.11
-Nodes (24): checkedDraft(), countRow, DraftIntegrityError, DraftNotAllowedError, DraftRecord, DraftRefusal, draftRow, DraftStateError (+16 more)
+### Community 76 - "delivery-check/src/index.ts"
+Cohesion: 0.22
+Nodes (12): CheckLine, checkableLines(), Mark, CheckedLook, Look, LOOK_VERDICTS, lookSchema, LookVerdict (+4 more)
 
 ### Community 77 - "Sandbox feasibility tests"
 Cohesion: 0.08
@@ -598,16 +591,16 @@ Cohesion: 0.12
 Nodes (21): dependencies, @pactpal/ai@workspace:*, @pactpal/council@workspace:*, @pactpal/qa@workspace:*, @pactpal/scope-draft@workspace:*, zod@^4.6.7, devDependencies, @types/node@^22.10.2 (+13 more)
 
 ### Community 81 - "ai/src/index.ts"
-Cohesion: 0.11
-Nodes (29): AI_CHECK_PROMPT, describe(), formatAiReport(), isStatusOk(), ModelCheck, summarizeOutcome(), spec, candidates() (+21 more)
+Cohesion: 0.08
+Nodes (35): AI_CHECK_PROMPT, describe(), formatAiReport(), isStatusOk(), ModelCheck, summarizeOutcome(), spec, Prepared (+27 more)
 
-### Community 82 - "app-link-routes.test.ts"
-Cohesion: 0.11
-Nodes (24): db, invoiceEntries(), signedPayPal(), StageView, seedContext(), fakeAppWebhooks(), fakePayPal(), FakePayPalMode (+16 more)
+### Community 82 - "engine.ts"
+Cohesion: 0.20
+Nodes (6): DemoProgress, DemoStep, RunOptions, RunSummary, StepResult, DemoRefs
 
-### Community 83 - "MessagesPanel.tsx"
-Cohesion: 0.25
-Nodes (11): checkMessage(), getMessages(), isMessages(), MessageReviewView, messagesUrl(), MessagesView, LABEL_WORDS, revisionNote() (+3 more)
+### Community 83 - "SellerAppPanel.tsx"
+Cohesion: 0.13
+Nodes (19): getSellerApp(), linkSellerApp(), MessageReviewView, MessagesView, SellerAppLink, SellerAppProblem, SellerAppState, unlinkSellerApp() (+11 more)
 
 ### Community 84 - "scope-draft/package.json"
 Cohesion: 0.12
@@ -629,17 +622,17 @@ Nodes (11): devDependencies, @types/react@^18.3.18, @types/react-dom@^18.3.5, @t
 Cohesion: 0.13
 Nodes (17): dependencies, @pactpal/net@workspace:*, zod@^4.6.7, devDependencies, @types/node@^22.10.2, exports, ./testing, @pactpal/net (+9 more)
 
-### Community 89 - "deals.ts"
-Cohesion: 0.06
-Nodes (51): AddBuyer, addBuyer(), addBuyerSchema, BuyerNotAllowedError, BuyerRefusal, CATEGORY_IDS, DEAL_CATEGORIES, DEAL_CURRENCIES (+43 more)
+### Community 89 - "db/src/index.ts"
+Cohesion: 0.03
+Nodes (122): PayPalWebhookOptions, acceptTermsSchema, ARTIFACT_KINDS, ArtifactRejection, BUYER_MEDIA_TYPES, newArtifactSchema, AcceptChange, acceptChangeSchema (+114 more)
 
 ### Community 90 - "ai/package.json"
 Cohesion: 0.13
 Nodes (17): dependencies, @pactpal/net@workspace:*, zod@^4.6.7, devDependencies, @types/node@^22.10.2, exports, ./testing, @pactpal/net (+9 more)
 
 ### Community 91 - "sandbox-respond-report.ts"
-Cohesion: 0.06
-Nodes (68): AMOUNT_OPTIONS, amountOption(), Checked, disputeIdOption, issuesText(), message(), payPalIdOption(), readChecked() (+60 more)
+Cohesion: 0.05
+Nodes (83): AMOUNT_OPTIONS, amountOption(), Checked, disputeIdOption, issuesText(), message(), payPalIdOption(), readChecked() (+75 more)
 
 ### Community 92 - "words/src/index.ts"
 Cohesion: 0.19
@@ -650,20 +643,20 @@ Cohesion: 0.12
 Nodes (17): scripts, ai:check, build, dev, env:check, eval:injection, eval:scope, migrate (+9 more)
 
 ### Community 94 - "sandbox-clients.ts"
-Cohesion: 0.07
-Nodes (36): connectKeyValue(), keyValueStore(), APP_NAMES, appClients(), appCredentials(), disputeClients(), fail(), platformSellers() (+28 more)
+Cohesion: 0.08
+Nodes (23): parsed, argsSchema, formatEvents(), formatPreview(), formatRegistered(), formatRegistrations(), parseWebhookArgs(), USAGE (+15 more)
 
-### Community 95 - "seller-connections.ts"
-Cohesion: 0.13
-Nodes (22): `deliveries` and `delivery_files`: delivered work, claimAccount(), confirmConnection(), ConfirmRefusal, connectedSellers(), ConnectionBase, connectionRow, disconnectSeller() (+14 more)
+### Community 95 - "Engineering"
+Cohesion: 0.31
+Nodes (9): seller(), `acceptances`: signed agreements, `deal_messages`: the deal's chat (7b), `deliveries` and `delivery_files`: delivered work, `ledger_entries`: the evidence log, Engineering, candidates(), link() (+1 more)
 
 ### Community 96 - "api.ts"
-Cohesion: 0.03
-Nodes (126): AcceptancePanel(), ReceiptEmails(), AgentRequestsPanel(), acceptanceStep(), acceptanceUrl(), AcceptanceView, acceptTerms(), addBuyer() (+118 more)
+Cohesion: 0.04
+Nodes (107): AcceptancePanel(), ReceiptEmails(), AgentRequestsPanel(), acceptanceStep(), acceptanceUrl(), AcceptanceView, acceptTerms(), addBuyer() (+99 more)
 
 ### Community 97 - "render.ts"
-Cohesion: 0.10
-Nodes (20): ACCENT_INK, Branding, breakWord(), CharacterSet, columnWidths(), drawable(), Fonts, INK (+12 more)
+Cohesion: 0.05
+Nodes (46): dependencies, pdf-lib@1.17.1, zod@^4.6.7, devDependencies, @types/node@^22.10.2, exports, ./testing, @types/node (+38 more)
 
 ### Community 98 - "email/package.json"
 Cohesion: 0.13
@@ -673,9 +666,9 @@ Nodes (19): dependencies, mustache@4.2.0, @pactpal/net@workspace:*, zod@^4.6.7, 
 Cohesion: 0.12
 Nodes (15): compilerOptions, declaration, esModuleInterop, exactOptionalPropertyTypes, forceConsistentCasingInFileNames, isolatedModules, module, moduleResolution (+7 more)
 
-### Community 100 - "qa/src/index.ts"
-Cohesion: 0.18
-Nodes (15): AnswerRefusal, CheckedAnswer, citation, replySchema, AgreementPage, numberedText(), buildQuestionMessages(), QUESTION_PROMPT_VERSION (+7 more)
+### Community 100 - "draft-changes.ts"
+Cohesion: 0.21
+Nodes (12): DraftContent, draftChanges(), FILLER, Item, items(), listChange(), overlap(), plain() (+4 more)
 
 ### Community 101 - "Agents.tsx"
 Cohesion: 0.15
@@ -689,21 +682,21 @@ Nodes (5): scripts, build, dev, preview, typecheck
 Cohesion: 0.15
 Nodes (14): dependencies, @pactpal/ai@workspace:*, zod@^4.6.7, exports, ./testing, @pactpal/ai, zod, main (+6 more)
 
-### Community 105 - "agent-requests.ts"
-Cohesion: 0.13
-Nodes (17): AGENT_CODE_LIFETIME_MS, AGENT_REQUEST_KINDS, AGENT_REQUEST_STATUSES, AgentRequest, AgentRequestKind, AgentRequestRefusal, AgentRequestStatus, claimAgentRequest() (+9 more)
+### Community 105 - "auth/sign-in.ts"
+Cohesion: 0.05
+Nodes (66): LinkOptions, linkRoutes(), REDEEM_PATH, redeemBody, backHome(), callbackQuery, cookieRules, currentSession() (+58 more)
 
 ### Community 106 - "notices.ts"
-Cohesion: 0.20
-Nodes (16): doneKeys(), DueNotice, EVENT_KINDS, eventNotice(), NOTICE_WINDOW_MS, REMINDER_MARKS, reminderKey(), reminderNotice() (+8 more)
+Cohesion: 0.13
+Nodes (23): doneKeys(), DueNotice, EVENT_KINDS, eventNotice(), NOTICE_WINDOW_MS, REMINDER_MARKS, reminderKey(), reminderNotice() (+15 more)
 
 ### Community 107 - "landing-words.ts"
-Cohesion: 0.15
-Nodes (21): Audience(), GLYPHS, SPOTS, Sticker(), Dispute(), drift(), AGENT_RUN, CLAIM (+13 more)
+Cohesion: 0.19
+Nodes (19): at(), Closing(), LIMIT_GLYPHS, Tagline(), Dispute(), drift(), AGENT_RUN, CLAIM (+11 more)
 
-### Community 108 - "PaymentsPanel.tsx"
-Cohesion: 0.22
-Nodes (15): AcceptanceDocument(), AcceptanceDocument, checkPayments(), getMilestones(), isMilestones(), milestonesUrl(), MilestonesView, sendInvoice() (+7 more)
+### Community 108 - "pages.tsx"
+Cohesion: 0.08
+Nodes (52): AcceptanceDocument(), AcceptanceDocument, createDeal(), LinkProblem, listDeals(), MilestonesView, redeemLink(), SIGN_IN_PATH (+44 more)
 
 ### Community 109 - "devDependencies"
 Cohesion: 0.22
@@ -725,17 +718,17 @@ Nodes (14): AI roles, Deal space (Phase 7), End-to-end flow, Evidence completene
 Cohesion: 0.17
 Nodes (12): devDependencies, @eslint/js@^9.17.0, prettier@^3.4.2, typescript@^5.7.2, typescript-eslint@^8.18.1, vitest@^2.1.8, @vitest/coverage-v8@^2.1.9, @eslint/js (+4 more)
 
-### Community 114 - "claim-routes.ts"
-Cohesion: 0.17
-Nodes (25): appealApplies(), RunnerBusyError, analysisView(), appealView(), claimRoutes(), answer(), startJob(), councilView (+17 more)
+### Community 114 - "TimelineStep"
+Cohesion: 0.23
+Nodes (10): ChangeProposal, ScopeInput, StepView, dated(), DraftedItem, DraftedStep, planFromDraft(), same() (+2 more)
 
 ### Community 115 - "Ledger.tsx"
 Cohesion: 0.26
 Nodes (12): checkChain(), DemoEntry, EntryCheck, GENESIS, sealChain(), sha256(), shortHash(), CHECK_WORDS (+4 more)
 
 ### Community 116 - "Engineering standards"
-Cohesion: 0.18
-Nodes (11): 10. Documentation and change hygiene, 2. No duplication, 3. TypeScript, 4. Server (Node + Fastify), 5. Web (React), 6. Data, 7. Security and privacy, 8. Testing (+3 more)
+Cohesion: 0.17
+Nodes (12): 10. Documentation and change hygiene, 1. Architecture and structure, 2. No duplication, 3. TypeScript, 4. Server (Node + Fastify), 5. Web (React), 6. Data, 7. Security and privacy (+4 more)
 
 ### Community 117 - "package.json"
 Cohesion: 0.17
@@ -750,8 +743,8 @@ Cohesion: 0.11
 Nodes (19): dependencies, fastify@^5.12.7, @fastify/cookie@^11.1.5, @fastify/static@^10.1.8, @fastify/websocket@^11.3.7, @pactpal/ledger@workspace:*, @pactpal/live@workspace:*, @pactpal/products@workspace:* (+11 more)
 
 ### Community 120 - "config.ts"
-Cohesion: 0.10
-Nodes (28): result, loadConfigOrExit(), ADDRESS_RULES, addressAllowed(), AI_KEYS, appVars(), FEATURES, formatErrors() (+20 more)
+Cohesion: 0.09
+Nodes (27): result, ADDRESS_RULES, addressAllowed(), AI_KEYS, appVars(), FEATURES, formatReport(), hopsValue (+19 more)
 
 ### Community 121 - "compilerOptions"
 Cohesion: 0.18
@@ -761,9 +754,9 @@ Nodes (10): compilerOptions, declaration, jsx, lib, module, moduleResolution, no
 Cohesion: 0.17
 Nodes (12): Build plan, Decision gates, Dependencies, Open points, Phase 4 sub-phases, Phase 5 sub-phases, Phase 6 sub-phases, Phase 7 follow-ups (+4 more)
 
-### Community 123 - "pdf/package.json"
-Cohesion: 0.13
-Nodes (17): dependencies, pdf-lib@1.17.1, zod@^4.6.7, devDependencies, @types/node@^22.10.2, exports, ./testing, @types/node (+9 more)
+### Community 123 - "image.ts"
+Cohesion: 0.33
+Nodes (12): ALPHA_LAYOUT, ascii(), byte(), imageFacts(), jpegSize(), pngChunks(), PngHeader, pngTransparency() (+4 more)
 
 ### Community 124 - "ledger/package.json"
 Cohesion: 0.20
@@ -787,15 +780,15 @@ Nodes (25): dependencies, @fontsource/instrument-serif@5.3.0, @fontsource-variab
 
 ### Community 129 - "IntakePanel.tsx"
 Cohesion: 0.13
-Nodes (25): AGENT_CAN, AGENT_CANNOT, AgentClient, agentClients(), KEY_PLACEHOLDER, mcpAddress(), AgentKey(), AgentPanel() (+17 more)
+Nodes (24): AGENT_CAN, AGENT_CANNOT, AgentClient, agentClients(), KEY_PLACEHOLDER, mcpAddress(), AgentKey(), AgentPanel() (+16 more)
 
-### Community 130 - "TEST_NOW"
-Cohesion: 0.10
-Nodes (32): dealWithBuyer(), db, newDeal, sellerDeal(), setup(), signedIn(), standInMember(), testDrafting() (+24 more)
+### Community 130 - "check-words.ts"
+Cohesion: 0.31
+Nodes (8): factsWords(), FORMAT_WORDS, MARKS, requirementWords(), sizeWords(), TYPE_WORDS, VERDICT_WORDS, RequirementResult
 
-### Community 131 - "vitest"
-Cohesion: 0.21
-Nodes (11): db, SESSION_COOKIE, db, liveDeal(), closePagesAfterEach(), opened, openLiveDeal(), page() (+3 more)
+### Community 131 - "Audience.tsx"
+Cohesion: 0.33
+Nodes (6): Audience(), GLYPHS, SPOTS, Sticker(), NOT_YET, StickerIcon
 
 ### Community 132 - "README.md"
 Cohesion: 0.17
@@ -803,7 +796,7 @@ Nodes (8): How long, Privacy, What PactPal keeps, Who else sees it, Explicitly o
 
 ### Community 133 - "Built (sub-phases 2b to 6h-1)"
 Cohesion: 0.12
-Nodes (19): seller(), `acceptances`: signed agreements, `agent_requests`: what an agent asks the seller to let it do (8c), Built (sub-phases 2b to 6h-1), `deal_messages`: the deal's chat (7b), `delivery_checks`: the seller's pre-delivery checks, `dispute_notices`: emails sent to the seller about disputes, `disputes`: PayPal disputes found by checking (+11 more)
+Nodes (16): outcome(), `agent_requests`: what an agent asks the seller to let it do (8c), Built (sub-phases 2b to 6h-1), `change_orders`: changes to a signed agreement, `delivery_checks`: the seller's pre-delivery checks, `dispute_notices`: emails sent to the seller about disputes, `disputes`: PayPal disputes found by checking, Evidence completeness score: computed, not stored (+8 more)
 
 ### Community 134 - "PactPal"
 Cohesion: 0.17
@@ -870,8 +863,8 @@ Cohesion: 0.29
 Nodes (6): compilerOptions, noEmit, types, extends, include, ./tsconfig.base.json
 
 ### Community 150 - "checker.ts"
-Cohesion: 0.16
-Nodes (10): BUTTON_WINDOW_MS, checkKey(), CheckRequest, inProcessChecker(), SCHEDULE_WINDOW_MS, TaskStarter, db, late (+2 more)
+Cohesion: 0.11
+Nodes (19): BUTTON_WINDOW_MS, checkKey(), CheckRequest, inProcessChecker(), renderClaimRunner(), renderDraftStarter(), RunnerBusyError, sameWorkflowTask() (+11 more)
 
 ### Community 151 - "council/tsconfig.json"
 Cohesion: 0.33
@@ -901,9 +894,9 @@ Nodes (4): onlyBuiltDependencies, overrides, @fastify/static>glob, packages
 Cohesion: 0.14
 Nodes (14): Colour, Components, Do and don't, Logo, Motion, PactPal design system, Principles, Shape, depth, space (+6 more)
 
-### Community 158 - "task.test.ts"
-Cohesion: 0.20
-Nodes (14): runAskModel(), runClaimTask(), runDraftTask(), runRetentionTask(), settings(), db, env, treeOfRuns() (+6 more)
+### Community 158 - "TimelineEditor.tsx"
+Cohesion: 0.47
+Nodes (5): LABEL, OwnFields(), pointedWords(), StepTargets, TimelineEditor()
 
 ### Community 159 - "Nav.tsx"
 Cohesion: 0.32
@@ -918,8 +911,8 @@ Cohesion: 0.29
 Nodes (6): compilerOptions, noEmit, types, extends, include, ../../tsconfig.base.json
 
 ### Community 164 - "Council.tsx"
-Cohesion: 0.17
-Nodes (14): Agreement(), at(), BALLOTS, Borda(), CHAT, Council(), Drafting(), LINES (+6 more)
+Cohesion: 0.19
+Nodes (12): Agreement(), at(), BALLOTS, Borda(), CHAT, Drafting(), LINES, MODELS (+4 more)
 
 ### Community 165 - "server/package.json"
 Cohesion: 0.12
@@ -930,16 +923,16 @@ Cohesion: 0.29
 Nodes (6): compilerOptions, noEmit, types, extends, include, ../../tsconfig.base.json
 
 ### Community 167 - "Landing.tsx"
-Cohesion: 0.19
-Nodes (9): ART, at(), dots(), Features(), Landing(), at(), Moves(), SHOTS (+1 more)
+Cohesion: 0.15
+Nodes (12): Council(), ART, at(), dots(), Features(), Landing(), at(), Moves() (+4 more)
 
 ### Community 168 - "eval-scope.ts"
-Cohesion: 0.23
-Nodes (12): logProgress(), valueOrExit(), modelNames(), pickModels(), selectedClientsOrExit(), councilClients(), clients, parsed (+4 more)
+Cohesion: 0.20
+Nodes (14): logProgress(), valueOrExit(), loadConfigOrExit(), modelNames(), pickModels(), selectedClientsOrExit(), formatErrors(), councilClients() (+6 more)
 
 ### Community 169 - "Secret"
-Cohesion: 0.04
-Nodes (66): RFC-2606, Engineering, AI_RETRY_POLICY, ClientOptions, errorBody, failure(), kindOfStatus(), ModelNetworkError (+58 more)
+Cohesion: 0.06
+Nodes (33): linkBody, paypalUnavailable(), SELLER_APP_PATH, SellerAppLinking, sellerAppRoutes(), registerAlerts(), removeAlerts(), SellerAppView (+25 more)
 
 ### Community 170 - "Redesign plan (proposed Phase 7R)"
 Cohesion: 0.22
@@ -954,28 +947,24 @@ Cohesion: 0.20
 Nodes (6): Five steps, How the AI drafts, What the AI never does, Getting paid through PayPal, Invoices for each stage, When your buyer pays
 
 ### Community 173 - "gantt-rows.ts"
-Cohesion: 0.23
-Nodes (8): StageView, RunningStepView, doneDay(), GanttLink, ganttRows(), GanttTask, noteFor(), PAYMENT_WORDS
+Cohesion: 0.22
+Nodes (12): StageView, RunningStepView, addDays(), earlierDay(), laterDay(), doneDay(), GanttLink, GanttRows (+4 more)
 
-### Community 174 - "appeal.test.ts"
-Cohesion: 0.15
-Nodes (11): context, GOOD, input, ITEMS, RECORD, context, GOOD, input (+3 more)
+### Community 174 - "story5.ts"
+Cohesion: 0.40
+Nodes (4): updateStep(), LENA, LISTING_URL_FILE, SAM
 
-### Community 175 - "change-orders.ts"
-Cohesion: 0.05
-Nodes (62): Acceptance, AcceptanceIntegrityError, AcceptanceNotAllowedError, AcceptanceRefusal, acceptanceRow, AcceptTerms, acceptTerms(), acceptTermsSchema (+54 more)
+### Community 175 - "changeOf"
+Cohesion: 1.00
+Nodes (3): changeOf(), extension(), same()
 
 ### Community 176 - "vite-env.d.ts"
 Cohesion: 0.50
 Nodes (3): ImportMeta, ImportMetaEnv, *.webp
 
-### Community 178 - "Phase 7 (deal space)"
-Cohesion: 0.33
-Nodes (6): review(), Data model, `message_reviews`: council reviews of the buyer's messages, Phase 7 (deal space), Planned, Rules that apply everywhere
-
-### Community 179 - "retention.test.ts"
-Cohesion: 0.10
-Nodes (31): db, later, sellerWithDeal(), sellerWithoutBuyer(), createDeal(), disputed(), lockedDispute(), recordDispute() (+23 more)
+### Community 178 - "source"
+Cohesion: 0.17
+Nodes (12): review(), at(), source(), `artifacts` and `file_contents`: the deal's files, Data model, `dispute_checks`: each check of the seller's disputes, `message_reviews`: council reviews of the buyer's messages, Phase 7 (deal space) (+4 more)
 
 ### Community 180 - "design/tokens.ts"
 Cohesion: 0.28
@@ -988,10 +977,6 @@ Nodes (6): builtins, { dependencies = {} }, external, missing, packageOf(), setu
 ### Community 184 - "PayPal sandbox notes"
 Cohesion: 0.18
 Nodes (11): Accounts and apps, Acting on behalf of a seller, Creating test disputes, Documentation, Log in with PayPal, MCP and REST, Moving a dispute to a verdict, PayPal sandbox notes (+3 more)
-
-### Community 185 - "pdf/src/index.ts"
-Cohesion: 0.26
-Nodes (7): Block, blockSchema, PdfDocumentInput, pdfDocumentSchema, text, RenderedPdf, AT
 
 ### Community 186 - "Hero.tsx"
 Cohesion: 0.31
@@ -1008,10 +993,6 @@ Nodes (7): main, name, private, scripts, typecheck, type, version
 ### Community 190 - "log-labels.test.ts"
 Cohesion: 0.32
 Nodes (7): paid(), changes(), entry(), sent(), `delivery_answers`: the buyer's answer to a delivery, `dispute_actions`: what the seller sent PayPal for a dispute, `milestones`: payment stages invoiced through PayPal
-
-### Community 191 - "receipt.test.ts"
-Cohesion: 0.24
-Nodes (8): ACCEPTANCE_NOTICE, BRANDED_RECEIPTS_FROM, receiptFormatAt(), document, signed(), SIGNED_AT, signedPayload(), pdfTextLines()
 
 ### Community 192 - "Connect your AI agent"
 Cohesion: 0.33
@@ -1073,29 +1054,13 @@ Nodes (9): title(), draft(), unchanged(), `claim_analyses`: council comparisons 
 Cohesion: 0.24
 Nodes (12): Agent(), at(), Countdown(), Dispute(), Draft(), Paid(), Pillars(), Sealed() (+4 more)
 
-### Community 211 - "runner.test.ts"
-Cohesion: 0.28
-Nodes (6): DRAFTS, isRankingCall(), ranking(), rankingRequests(), shown(), task
-
-### Community 212 - "src/draft-source.ts"
-Cohesion: 0.32
-Nodes (6): DraftSourceParts, draftSourceText(), messageLines(), minuteOf(), ROLE_WORDS, TranscriptMessage
-
 ### Community 217 - "photo-convert.test.ts"
 Cohesion: 0.43
 Nodes (4): sharp@0.35.5, MAX_PHOTO_SIDE, toJpeg(), sharp
 
-### Community 218 - "source"
-Cohesion: 0.33
-Nodes (6): at(), source(), `artifacts` and `file_contents`: the deal's files, `dispute_checks`: each check of the seller's disputes, `webhook_events`: notifications as received, Agents (Phase 8)
-
 ### Community 220 - "build.ts"
 Cohesion: 0.20
 Nodes (9): css, dist, faces, FONTS, home, problems, root, PAGES (+1 more)
-
-### Community 222 - "useScrollStory.ts"
-Cohesion: 0.40
-Nodes (3): @fiddle-digital/string-tune@1.2.7, useScrollStory(), @fiddle-digital/string-tune
 
 ## Knowledge Gaps
 - **25 isolated node(s):** `../../tsconfig.base.json`, `RFC-5987`, `../../tsconfig.base.json`, `../../tsconfig.base.json`, `../../tsconfig.base.json` (+20 more)
@@ -1105,17 +1070,17 @@ Nodes (3): @fiddle-digital/string-tune@1.2.7, useScrollStory(), @fiddle-digital/
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `vitest` connect `vitest` to `App.tsx`, `errors.ts`, `testId`, `scope.ts`, `receipt.ts`, `dispute-sync.ts`, `claims/src/index.ts`, `Secret`, `milestones.ts`, `DraftPanel.tsx`, `app.test.ts`, `ScopePanel.tsx`, `AccessTokenProvider`, `questions.ts`, `test-app.ts`, `.query`, `council/src/index.ts`, `claims/src/check.ts`, `net/src/index.ts`, `schema.ts`, `DealPage.tsx`, `scope-draft/src/testing.ts`, `actions.ts`, `scope-draft/src/index.ts`, `email/src/index.ts`, `packet-service.ts`, `layouts.tsx`, `eval-report.ts`, `db/src/index.ts`, `db/src/testing.ts`, `emailFrom`, `paypal-webhook.ts`, `chat-routes.ts`, `postgres.ts`, `listing-routes.ts`, `milestone-routes.ts`, `ledger/src/index.ts`, `validate.ts`, `gantt-rows.ts`, `claims/src/check.ts`, `htmlToText`, `dispute-actions.ts`, `postStep`, `delivery-check/src/index.ts`, `timeline/src/index.ts`, `PayPalResult`, `completeness.ts`, `testSpec`, `DraftReview.tsx`, `Deadlines.tsx`, `appeal-items.ts`, `Insights.tsx`, `council-record.ts`, `readLedger`, `paypal/src/index.ts`, `eval-runner.ts`, `app.ts`, `scope-drafts.ts`, `ai/src/index.ts`, `app-link-routes.test.ts`, `MessagesPanel.tsx`, `deals.ts`, `sandbox-respond-report.ts`, `words/src/index.ts`, `sandbox-clients.ts`, `seller-connections.ts`, `api.ts`, `qa/src/index.ts`, `Agents.tsx`, `agent-requests.ts`, `notices.ts`, `landing-words.ts`, `devDependencies`, `Ledger.tsx`, `package.json`, `config.ts`, `IntakePanel.tsx`, `TEST_NOW`, `checker.ts`, `task.test.ts`, `Nav.tsx`, `Secret`, `pages.ts`, `gantt-rows.ts`, `appeal.test.ts`, `change-orders.ts`, `retention.test.ts`, `design/tokens.ts`, `pdf/src/index.ts`, `log-labels.test.ts`, `receipt.test.ts`, `runner.test.ts`, `src/draft-source.ts`, `photo-convert.test.ts`?**
-  _High betweenness centrality (0.244) - this node is a cross-community bridge._
+- **Why does `vitest` connect `vitest` to `App.tsx`, `PayPalRestClient`, `testId`, `milestone-routes.ts`, `receipt.ts`, `dispute-sync.ts`, `actions.ts`, `milestones.ts`, `react`, `app.test.ts`, `ScopePanel.tsx`, `sandbox-check.ts`, `appendLedgerEvent`, `delivery-routes.ts`, `council/src/index.ts`, `disputes/task.ts`, `qa/src/index.ts`, `net/src/index.ts`, `DealPage.tsx`, `scope-draft/src/testing.ts`, `scope-draft/src/index.ts`, `email/src/index.ts`, `packet-service.ts`, `layouts.tsx`, `eval-report.ts`, `chat.ts`, `testId`, `emailFrom`, `paypal-webhook.ts`, `chat-routes.ts`, `postgres.ts`, `listing-routes.ts`, `ledger/src/index.ts`, `partners.ts`, `deadline-rows.ts`, `email/src/index.ts`, `dispute-actions.ts`, `postStep`, `delivery-check.test.ts`, `timeline/src/index.ts`, `PayPalResult`, `completeness.ts`, `testSpec`, `DraftReview.tsx`, `Deadlines.tsx`, `resend.ts`, `overview.ts`, `confirmation.ts`, `paypal/src/index.ts`, `buildApp`, `ai/src/index.ts`, `engine.ts`, `SellerAppPanel.tsx`, `db/src/index.ts`, `sandbox-respond-report.ts`, `words/src/index.ts`, `sandbox-clients.ts`, `render.ts`, `draft-changes.ts`, `Agents.tsx`, `auth/sign-in.ts`, `landing-words.ts`, `pages.tsx`, `devDependencies`, `TimelineStep`, `Ledger.tsx`, `package.json`, `config.ts`, `IntakePanel.tsx`, `check-words.ts`, `checker.ts`, `Nav.tsx`, `Secret`, `pages.ts`, `gantt-rows.ts`, `authAssertion`, `design/tokens.ts`, `log-labels.test.ts`, `photo-convert.test.ts`?**
+  _High betweenness centrality (0.236) - this node is a cross-community bridge._
 - **What connects `../../tsconfig.base.json`, `RFC-5987`, `../../tsconfig.base.json` to the rest of the system?**
   _25 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `App.tsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.045512010113780026 - nodes in this community are weakly interconnected._
-- **Why does `Decisions` connect `Decisions` to `Deadlines.tsx`, `README.md`, `timeline/src/index.ts`, `Secret`, `source`, `PayPalResult`?**
-  _High betweenness centrality (0.045) - this node is a cross-community bridge._
-- **Should `errors.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.05649717514124294 - nodes in this community are weakly interconnected._
-- **Why does `react` connect `when` to `App.tsx`, `IntakePanel.tsx`, `DeliverPanel.tsx`, `DraftPanel.tsx`, `ScopePanel.tsx`, `DealPage.tsx`, `Nav.tsx`, `Council.tsx`, `layouts.tsx`, `Landing.tsx`, `web/package.json`, `gantt-rows.ts`, `postStep`, `Tour.tsx`, `Hero.tsx`, `Deadlines.tsx`, `Insights.tsx`, `brand/src/index.ts`, `Pillars.tsx`, `MessagesPanel.tsx`, `useScrollStory.ts`, `api.ts`, `Agents.tsx`, `landing-words.ts`, `PaymentsPanel.tsx`, `Ledger.tsx`?**
-  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+  _Cohesion score 0.04381443298969072 - nodes in this community are weakly interconnected._
+- **Why does `Decisions` connect `Decisions` to `Deadlines.tsx`, `README.md`, `source`, `timeline/src/index.ts`, `PayPalResult`, `Engineering`?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
+- **Should `PayPalRestClient` be split into smaller, more focused modules?**
+  _Cohesion score 0.060455486542443065 - nodes in this community are weakly interconnected._
+- **Why does `react` connect `react` to `App.tsx`, `IntakePanel.tsx`, `Audience.tsx`, `when`, `ScopePanel.tsx`, `ChangeOrderPanel.tsx`, `DealPage.tsx`, `Nav.tsx`, `Council.tsx`, `layouts.tsx`, `Landing.tsx`, `web/package.json`, `postStep`, `Tour.tsx`, `Hero.tsx`, `DraftReview.tsx`, `Deadlines.tsx`, `QuestionsPanel.tsx`, `brand/src/index.ts`, `Pillars.tsx`, `SellerAppPanel.tsx`, `api.ts`, `Agents.tsx`, `landing-words.ts`, `pages.tsx`, `Ledger.tsx`?**
+  _High betweenness centrality (0.035) - this node is a cross-community bridge._
 - **Should `testId` be split into smaller, more focused modules?**
-  _Cohesion score 0.05411392405063291 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.036840554081933395 - nodes in this community are weakly interconnected._

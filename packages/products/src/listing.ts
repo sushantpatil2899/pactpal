@@ -1,6 +1,15 @@
 import { z } from "zod";
 
 /** Text caps, so a listing stays readable and small in the agreement. */
+/** Listing photos are only fetched from Channel3's image server. */
+export const PHOTO_HOST = "cdn.trychannel3.com";
+
+/** Whether PactPal may save a listing photo from this address: https on Channel3's image server. */
+export const savablePhoto = (url: string): boolean => {
+  const parsed = URL.canParse(url) ? new URL(url) : undefined;
+  return parsed?.protocol === "https:" && parsed.hostname === PHOTO_HOST;
+};
+
 export const LISTING_LIMITS = {
   description: 1500,
   line: 200,
@@ -104,7 +113,8 @@ export function toListing(
   const images = [...(product.images ?? [])]
     .sort((a, b) => Number(b.is_main_image === true) - Number(a.is_main_image === true))
     .map((image) => image.url)
-    .filter((url) => url.startsWith("https://"));
+    // Only photos PactPal may save; Channel3 sometimes gives the shop's own addresses instead.
+    .filter(savablePhoto);
   const brand = capped(product.brands?.[0]?.name, LISTING_LIMITS.line);
   const description = capped(product.description, LISTING_LIMITS.description);
   return productListingSchema.parse({

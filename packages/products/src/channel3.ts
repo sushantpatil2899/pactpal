@@ -1,14 +1,12 @@
 import { DEFAULT_RETRY_POLICY, sendWithRetry, type HttpDeps, type Secret } from "@pactpal/net";
 import { z } from "zod";
-import { channel3ProductSchema, toListing, type ProductListing } from "./listing.js";
+import { channel3ProductSchema, savablePhoto, toListing, type ProductListing } from "./listing.js";
 
 /** Why a listing could not be read. */
 export type LookupRefusal = "not-found" | "unsupported" | "unavailable";
 
 /** The largest listing photo kept. */
 export const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
-/** Listing photos are only fetched from Channel3's image server. */
-export const PHOTO_HOST = "cdn.trychannel3.com";
 
 /** Reads a product listing page as structured facts, and its photos (8e). The port callers use. */
 export interface ProductLookup {
@@ -70,8 +68,7 @@ export class Channel3Lookup implements ProductLookup {
   }
 
   async photo(url: string): Promise<Uint8Array | undefined> {
-    const parsed = URL.canParse(url) ? new URL(url) : undefined;
-    if (parsed?.protocol !== "https:" || parsed.hostname !== PHOTO_HOST) return undefined;
+    if (!savablePhoto(url)) return undefined;
     let response: Response;
     try {
       response = await sendWithRetry(

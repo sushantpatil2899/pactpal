@@ -13,9 +13,11 @@ describe("a listing from Channel3's product", () => {
         description: long,
         brands: [],
         images: [
-          { url: "https://cdn.example/1.jpg", is_main_image: false },
-          { url: "http://insecure.example/2.jpg", is_main_image: false },
-          { url: "https://cdn.example/main.jpg", is_main_image: true },
+          { url: "https://cdn.trychannel3.com/1.jpg", is_main_image: false },
+          { url: "http://cdn.trychannel3.com/2.jpg", is_main_image: false },
+          // A shop's own address (as Channel3 gave for a live page): PactPal could not save it.
+          { url: "https://www.shop.example.com/cdn/3.jpg", is_main_image: false },
+          { url: "https://cdn.trychannel3.com/main.jpg", is_main_image: true },
         ],
         materials: ["Cotton canvas", "Cotton canvas", " "],
         key_features: Array.from({ length: 15 }, (_, n) => `Feature ${String(n)}`),
@@ -33,7 +35,7 @@ describe("a listing from Channel3's product", () => {
       materials: ["Cotton canvas"],
       attributes: [{ name: "Strap length", values: ["60 cm"] }],
       price: { amount: "24.50", currency: "EUR" },
-      imageUrls: ["https://cdn.example/main.jpg", "https://cdn.example/1.jpg"],
+      imageUrls: ["https://cdn.trychannel3.com/main.jpg", "https://cdn.trychannel3.com/1.jpg"],
     });
     expect(listing.brand).toBeUndefined();
     expect(listing.weight).toBeUndefined();
