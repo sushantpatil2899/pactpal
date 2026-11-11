@@ -1,4 +1,7 @@
-import { BryntumGantt, type BryntumGanttProps } from "@bryntum/gantt-react";
+import { BryntumGantt, type BryntumGanttProps } from "@bryntum/gantt-react-enterprise";
+// Bryntum 8 registers a product's features when its package loads; the "today" line is a
+// Scheduler feature (timeRanges), so the Scheduler package is loaded here too.
+import "@bryntum/scheduler-enterprise";
 import { useMemo } from "react";
 import type { StageView } from "../api";
 import type { RunningStepView } from "../chat-api";
@@ -6,6 +9,10 @@ import { BAR_COLOURS, TODAY_LINE } from "./bar-colours";
 import { daysBetween } from "./days";
 import { ganttRows } from "./gantt-rows";
 import "./bryntum.css";
+import { giveBryntumLicence } from "./bryntum-licence";
+
+// Before the first chart is made, so Bryntum never starts in trial mode with a key available.
+giveBryntumLicence();
 
 const STATE_WORDS = {
   done: "Done",

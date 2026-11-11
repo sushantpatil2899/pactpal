@@ -3,10 +3,10 @@
  * light and dark themes. These sit outside the `pp` layer because they adjust Bryntum's look,
  * and on the page's root because Bryntum reads its variables there (its tooltips live there too).
  */
-@import "@bryntum/gantt/gantt.css";
-@import "@bryntum/gantt/svalbard-light.css";
-@import "@bryntum/gantt/fontawesome/css/fontawesome.css";
-@import "@bryntum/gantt/fontawesome/css/solid.css";
+@import "@bryntum/gantt-enterprise/gantt.css";
+@import "@bryntum/gantt-enterprise/svalbard-light.css";
+@import "@bryntum/core-enterprise/fontawesome/css/fontawesome.css";
+@import "@bryntum/core-enterprise/fontawesome/css/solid.css";
 
 :root:not(.b-nothing) {
   --b-primary: var(--color-accent);

@@ -53,6 +53,12 @@ services:
       # Product listings (8e): Channel3's API key. Without it, "Look up" says it is not set up.
       - key: CHANNEL3_API_KEY
         sync: false
+      # Licence keys for AG Grid / AG Studio and Bryntum (9k). Read while the web pages are built and,
+      # as both vendors intend, shipped inside the page's code; set them here, then redeploy.
+      - key: VITE_AG_LICENCE_KEY
+        sync: false
+      - key: VITE_BRYNTUM_LICENCE_KEY
+        sync: false
       # The store shared by both copies (9R-2): agent call counts and cached listings.
       - key: KEY_VALUE_URL
         fromService:

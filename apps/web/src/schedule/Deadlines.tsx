@@ -1,4 +1,4 @@
-import { BryntumScheduler, type BryntumSchedulerProps } from "@bryntum/gantt-react";
+import { BryntumScheduler, type BryntumSchedulerProps } from "@bryntum/scheduler-react-enterprise";
 import { useEffect, useMemo, useState } from "react";
 import { getDisputePage } from "../api";
 import type { DealOverview } from "../overview-api";
@@ -7,6 +7,10 @@ import { BAR_COLOURS, TODAY_LINE } from "./bar-colours";
 import { addDays, daysBetween } from "./days";
 import { deadlineRows, hasEvidence } from "./deadline-rows";
 import "./bryntum.css";
+import { giveBryntumLicence } from "./bryntum-licence";
+
+// Before the first chart is made, so Bryntum never starts in trial mode with a key available.
+giveBryntumLicence();
 
 const COLUMNS: BryntumSchedulerProps["columns"] = [
   { text: "Deal", field: "name", width: 230 },
