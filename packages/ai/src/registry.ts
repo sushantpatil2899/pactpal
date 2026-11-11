@@ -48,7 +48,8 @@ export const MODEL_REGISTRY: readonly ModelSpec[] = [
     family: "nemotron",
     baseUrl: "https://openrouter.ai/api/v1",
     apiKeyEnv: "OPENROUTER_API_KEY",
-    model: "nvidia/nemotron-3-ultra-550b-a55b:free",
+    // The paid tier (from 11 Nov 2026): the free one gave empty replies and timed out in the demo.
+    model: "nvidia/nemotron-3-ultra-550b-a55b",
     structuredOutput: "none",
   },
 ];

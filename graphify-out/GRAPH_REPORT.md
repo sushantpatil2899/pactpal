@@ -1,7 +1,7 @@
 # Graph Report - paypal-hackathon  (2026-11-11)
 
 ## Corpus Check
-- 807 files · ~518,887 words
+- 807 files · ~518,956 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 22 file(s) not represented in the graph (top: .css 16, (none) 5, .example 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5e7a3699`
+- Built from commit: `3d0af61a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
