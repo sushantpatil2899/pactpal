@@ -1,4 +1,5 @@
 import type { ScopeTerms } from "./api";
+import { Field } from "./design/parts";
 import { ListingCard } from "./ListingCard";
 import { dayWords, markWords, stepLine } from "@pactpal/words";
 
@@ -9,13 +10,20 @@ export const dateOf = dayWords;
 export function ScopeDetails({ scope, dealId }: { scope: ScopeTerms; dealId: string }) {
   return (
     <>
-      <p>
-        Version {scope.version} ·{" "}
-        <code title="Fingerprint (SHA-256) of this version">
-          {scope.contentSha256.slice(0, 12)}…
-        </code>
-      </p>
       <p>{scope.summary}</p>
+      <div className="pp-facts">
+        <Field caption="Version">
+          {scope.version} ·{" "}
+          <code title="Fingerprint (SHA-256) of this version">
+            {scope.contentSha256.slice(0, 12)}…
+          </code>
+        </Field>
+        {scope.revisionsIncluded !== null && (
+          <Field caption="Revisions included">{scope.revisionsIncluded}</Field>
+        )}
+        {scope.dueDate !== null && <Field caption="Due">{dateOf(scope.dueDate)}</Field>}
+        <Field caption="Total">{scope.total.text}</Field>
+      </div>
       {scope.listing && <ListingCard dealId={dealId} listing={scope.listing} />}
       <h4>What will be delivered</h4>
       <ul>
@@ -24,7 +32,7 @@ export function ScopeDetails({ scope, dealId }: { scope: ScopeTerms; dealId: str
           return (
             <li key={n}>
               {item}
-              {words !== "" && <span style={{ color: "#555" }}> {words}</span>}
+              {words !== "" && <small> {words}</small>}
             </li>
           );
         })}
@@ -55,15 +63,13 @@ export function ScopeDetails({ scope, dealId }: { scope: ScopeTerms; dealId: str
       {(scope.timeline ?? scope.steps) !== undefined && (
         <>
           <h4>Timeline (in this order)</h4>
-          <ul style={{ listStyle: "none", paddingLeft: 0 }}>
+          <ul className="pp-plain-list">
             {(scope.timeline ?? scope.steps ?? []).map((step) => (
               <li key={step.n}>{stepLine(step, scope.currency)}</li>
             ))}
           </ul>
         </>
       )}
-      {scope.revisionsIncluded !== null && <p>Revisions included: {scope.revisionsIncluded}</p>}
-      {scope.dueDate !== null && <p>Due: {dateOf(scope.dueDate)}</p>}
       <table>
         <caption>Payment stages</caption>
         <thead>

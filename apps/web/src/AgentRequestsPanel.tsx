@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { answerAgentRequest, getAgentRequests, type AgentRequestView } from "./api";
 import { when } from "./format";
-import { WRAP } from "./styles";
 
 /**
  * What the seller's agent asks to do on this deal (8c): each request in full words, to approve
@@ -43,10 +42,10 @@ export function AgentRequestsPanel({ dealId, refreshKey }: { dealId: string; ref
   };
 
   return (
-    <section aria-labelledby="agent-requests" style={WRAP}>
+    <section aria-labelledby="agent-requests" className="pp-agent-asks">
       <h3 id="agent-requests">Your agent is asking</h3>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

@@ -23,6 +23,14 @@ import { NotificationsList } from "./NotificationsList";
 import { AgentRequestsPanel } from "./AgentRequestsPanel";
 import { markNotificationsRead } from "./chat-api";
 import { tabFromHash } from "./tab-address";
+import { Avatar } from "./app/parts";
+import { StatusBadge } from "./design/Badge";
+import { Alert, Skeleton } from "./design/parts";
+import { useWide } from "./design/useWide";
+import { defaultTab, statusBadge } from "./deal/deal-view";
+import { ProgressStrip } from "./deal/ProgressStrip";
+import { useDealTimeline } from "./deal/useDealTimeline";
+import "./deal/deal.css";
 import {
   SIGN_IN_PATH,
   checkLedger,
@@ -59,8 +67,10 @@ export function DealPage({ dealId }: { dealId: string }) {
   // The chat stays connected on every tab, so the Chat tab can count new messages.
   // Changes when the server says this person's notifications changed.
   const [notesKey, setNotesKey] = useState(0);
+  // On a wide window the chat stays pinned beside the working view, so it is always being read.
+  const wide = useWide(72);
   const chat = useLiveChat(dealId, {
-    reading: tab === "chat",
+    reading: wide || tab === "chat",
     onNotify: () => {
       setNotesKey((n) => n + 1);
     },
@@ -85,6 +95,7 @@ export function DealPage({ dealId }: { dealId: string }) {
     );
   }, [dealId]);
 
+  const steps = useDealTimeline(dealId, revision * 100_000 + lastSeq(chat.state));
   const refreshLog = useCallback(() => {
     getLedger(dealId).then(setEntries, () => undefined);
   }, [dealId]);
@@ -121,20 +132,25 @@ export function DealPage({ dealId }: { dealId: string }) {
 
   if (problem) {
     return (
-      <p role="alert" style={{ color: "#8a1c1c" }}>
+      <Alert problem>
         {problem} <a href="/">Back to your deals</a>
-      </p>
+      </Alert>
     );
   }
-  if (!deal || !entries) return <p aria-busy="true">Loading the deal…</p>;
+  if (!deal || !entries) return <Skeleton label="Loading the deal…" lines={6} />;
   const labels = logLabels(entries);
   const otherName =
     deal.role === "seller"
       ? (deal.buyer?.name ?? "The buyer")
       : (deal.seller?.name ?? "The seller");
   const unread = unreadCount(chat.state);
+  // Beside a pinned chat, "chat" in the address opens the view that fits where the deal stands.
+  const view = wide && tab === "chat" ? defaultTab(deal.status) : tab;
+  const status = statusBadge(deal.status);
   const tabs: (TabDefinition & { id: DealTab })[] = [
-    { id: "chat", label: unread > 0 ? `Chat (${String(unread)} new)` : "Chat" },
+    ...(wide
+      ? []
+      : [{ id: "chat" as const, label: unread > 0 ? `Chat (${String(unread)} new)` : "Chat" }]),
     { id: "scope", label: "Agreement" },
     { id: "timeline", label: "Timeline" },
     { id: "files", label: "Files" },
@@ -143,18 +159,20 @@ export function DealPage({ dealId }: { dealId: string }) {
     { id: "log", label: "Evidence log" },
   ];
   return (
-    <>
-      <p>
-        <a href="/">← Your deals</a>
-      </p>
-      <h2>{deal.title}</h2>
-      <p>
-        {deal.categoryLabel} · {deal.currency} · status: {deal.status} · you are the {deal.role}
-        {!deal.hasBuyer && " · no buyer added yet"}
-      </p>
-      {deal.seller && <p>Seller: {deal.seller.name}</p>}
-      {linkOnly && (
+    <div className="pp-deal">
+      <header className="pp-deal-head">
+        <h1>{deal.title}</h1>
         <p>
+          <Avatar name={otherName} />
+          <span>
+            {otherName} · {deal.categoryLabel} · {deal.currency} · you are the {deal.role}
+            {!deal.hasBuyer && " · no buyer added yet"}
+          </span>
+          <StatusBadge status={status.badge}>{status.word}</StatusBadge>
+        </p>
+      </header>
+      {linkOnly && (
+        <p data-tone="note-block">
           You opened this deal with a link.{" "}
           <a href={`${SIGN_IN_PATH}?return=${encodeURIComponent(`/deals/${deal.id}`)}`}>
             Sign in with PayPal
@@ -162,6 +180,13 @@ export function DealPage({ dealId }: { dealId: string }) {
           to keep access without it (use the PayPal account with the email the link was sent to).
         </p>
       )}
+      <ProgressStrip
+        steps={steps}
+        role={deal.role}
+        onOpen={() => {
+          openTab("timeline");
+        }}
+      />
       <NotificationsList
         dealId={deal.id}
         refreshKey={notesKey}
@@ -170,127 +195,135 @@ export function DealPage({ dealId }: { dealId: string }) {
         }}
       />
       {deal.role === "seller" && <AgentRequestsPanel dealId={deal.id} refreshKey={notesKey} />}
-      <Tabs tabs={tabs} current={tab} onChange={openTab} label="Deal space" />
-      <TabPanel id="chat" current={tab}>
-        <ChatTab dealId={deal.id} chat={chat} otherName={otherName} onOpenTab={openTab} />
-      </TabPanel>
-      <TabPanel id="scope" current={tab}>
-        {deal.role === "buyer" && (
-          <>
-            <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
-            <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
-            <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
-          </>
-        )}
-        {deal.role === "seller" && (
-          <BuyerPanel
-            deal={deal}
-            onDealChange={(updated) => {
-              setDeal(updated);
-              refreshLog();
-            }}
-          />
-        )}
-        {deal.role === "seller" && !linkOnly && (
-          <DraftPanel
-            dealId={deal.id}
-            canDraft={deal.status === "draft"}
-            dealCategory={deal.categoryLabel}
-            onUse={setFill}
-            onLogChange={refreshLog}
-            revision={revision}
-          />
-        )}
-        {/* While the buyer is asked to sign, the acceptance page above is their one view of the terms. */}
-        {(deal.role === "seller" || deal.status !== "awaiting_acceptance") && (
-          <ScopePanel
-            key={revision}
-            dealId={deal.id}
-            currency={deal.currency}
-            canEdit={deal.role === "seller" && deal.status === "draft"}
-            listingAllowed={deal.kind !== "service"}
-            fill={fill}
-            onClearFill={() => {
-              setFill(undefined);
-            }}
-            onSaved={() => {
-              setFill(undefined);
-              setRevision((n) => n + 1);
-              refreshLog();
-            }}
-          />
-        )}
-        {deal.role === "seller" && (
-          <>
-            <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
-            <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
-            {!linkOnly && (
-              <MessagesPanel
-                dealId={deal.id}
-                onLogChange={refreshLog}
-                onUseChange={(lines) => {
-                  setChangeFill((current) => ({ key: (current?.key ?? 0) + 1, lines }));
+      <div className="pp-deal-work" data-chat={wide || tab === "chat" ? "shown" : "hidden"}>
+        <div className="pp-panel pp-deal-chat">
+          <ChatTab dealId={deal.id} chat={chat} otherName={otherName} onOpenTab={openTab} />
+        </div>
+        <div className="pp-panel pp-deal-view">
+          <Tabs tabs={tabs} current={view} onChange={openTab} label="Deal space" />
+          <TabPanel id="scope" current={view}>
+            {deal.role === "buyer" && (
+              <>
+                <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+                <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
+                <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
+              </>
+            )}
+            {deal.role === "seller" && (
+              <BuyerPanel
+                deal={deal}
+                onDealChange={(updated) => {
+                  setDeal(updated);
+                  refreshLog();
                 }}
               />
             )}
-            <ChangeOrderPanel deal={deal} onChange={refreshAgreement} fill={changeFill} />
-          </>
-        )}
-      </TabPanel>
-      <TabPanel id="timeline" current={tab}>
-        <TimelineTab
-          dealId={deal.id}
-          role={deal.role}
-          refreshKey={revision * 100_000 + newestMessage}
-        />
-        <PaymentsPanel key={`payments-${String(revision)}`} deal={deal} onChange={refreshLog} />
-        <DeliveriesPanel key={`deliveries-${String(revision)}`} deal={deal} onChange={refreshLog} />
-      </TabPanel>
-      <TabPanel id="files" current={tab}>
-        <FilesPanel
-          dealId={deal.id}
-          addAs={deal.role === "buyer" ? "buyer" : linkOnly ? undefined : "seller"}
-          onAdded={refreshLog}
-        />
-      </TabPanel>
-      {deal.role === "seller" && (
-        <TabPanel id="disputes" current={tab}>
-          <DisputesPanel deal={deal} onChange={refreshLog} />
-        </TabPanel>
-      )}
-      <TabPanel id="log" current={tab}>
-        {deal.role === "seller" && (
-          <CompletenessPanel dealId={deal.id} logLength={entries.length} />
-        )}
-        <section aria-labelledby="evidence-log">
-          <h3 id="evidence-log">Evidence log</h3>
-          <ol>
-            {entries.map((entry, i) => (
-              <li key={entry.seq}>
-                {labels[i]} by {who(entry)}, {when(entry.serverTime)}{" "}
-                <code title="This entry's fingerprint">{entry.entryHash.slice(0, 12)}…</code>
-              </li>
-            ))}
-          </ol>
-          <button type="button" onClick={onCheck}>
-            Check this log
-          </button>
-          {check?.status === "unchanged" && (
-            <p role="status">
-              Unchanged:{" "}
-              {check.entries === 1
-                ? "the 1 entry matches its fingerprint"
-                : `all ${String(check.entries)} entries match their fingerprints`}{" "}
-              (latest <code>{check.latestFingerprint.slice(0, 12)}…</code>).
-            </p>
+            {deal.role === "seller" && !linkOnly && (
+              <DraftPanel
+                dealId={deal.id}
+                canDraft={deal.status === "draft"}
+                dealCategory={deal.categoryLabel}
+                onUse={setFill}
+                onLogChange={refreshLog}
+                revision={revision}
+              />
+            )}
+            {/* While the buyer is asked to sign, the acceptance page above is their one view of the terms. */}
+            {(deal.role === "seller" || deal.status !== "awaiting_acceptance") && (
+              <ScopePanel
+                key={revision}
+                dealId={deal.id}
+                currency={deal.currency}
+                canEdit={deal.role === "seller" && deal.status === "draft"}
+                listingAllowed={deal.kind !== "service"}
+                fill={fill}
+                onClearFill={() => {
+                  setFill(undefined);
+                }}
+                onSaved={() => {
+                  setFill(undefined);
+                  setRevision((n) => n + 1);
+                  refreshLog();
+                }}
+              />
+            )}
+            {deal.role === "seller" && (
+              <>
+                <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
+                <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
+                {!linkOnly && (
+                  <MessagesPanel
+                    dealId={deal.id}
+                    onLogChange={refreshLog}
+                    onUseChange={(lines) => {
+                      setChangeFill((current) => ({ key: (current?.key ?? 0) + 1, lines }));
+                    }}
+                  />
+                )}
+                <ChangeOrderPanel deal={deal} onChange={refreshAgreement} fill={changeFill} />
+              </>
+            )}
+          </TabPanel>
+          <TabPanel id="timeline" current={view}>
+            <TimelineTab
+              dealId={deal.id}
+              role={deal.role}
+              refreshKey={revision * 100_000 + newestMessage}
+            />
+            <PaymentsPanel key={`payments-${String(revision)}`} deal={deal} onChange={refreshLog} />
+            <DeliveriesPanel
+              key={`deliveries-${String(revision)}`}
+              deal={deal}
+              onChange={refreshLog}
+            />
+          </TabPanel>
+          <TabPanel id="files" current={view}>
+            <FilesPanel
+              dealId={deal.id}
+              addAs={deal.role === "buyer" ? "buyer" : linkOnly ? undefined : "seller"}
+              onAdded={refreshLog}
+            />
+          </TabPanel>
+          {deal.role === "seller" && (
+            <TabPanel id="disputes" current={view}>
+              <DisputesPanel deal={deal} onChange={refreshLog} />
+            </TabPanel>
           )}
-          {check?.status === "changed" && (
-            <p role="alert" style={{ color: "#8a1c1c" }}>
-              Changed at entry {check.atEntry + 1}: {check.reason}.
-            </p>
-          )}
-        </section>
-      </TabPanel>
-    </>
+          <TabPanel id="log" current={view}>
+            {deal.role === "seller" && (
+              <CompletenessPanel dealId={deal.id} logLength={entries.length} />
+            )}
+            <section aria-labelledby="evidence-log">
+              <h3 id="evidence-log">Evidence log</h3>
+              <ol className="pp-log">
+                {entries.map((entry, i) => (
+                  <li key={entry.seq}>
+                    {labels[i]} by {who(entry)}, {when(entry.serverTime)}{" "}
+                    <code title="This entry's fingerprint">{entry.entryHash.slice(0, 12)}…</code>
+                  </li>
+                ))}
+              </ol>
+              <button type="button" onClick={onCheck}>
+                Check this log
+              </button>
+              {check?.status === "unchanged" && (
+                <p role="status">
+                  Unchanged:{" "}
+                  {check.entries === 1
+                    ? "the 1 entry matches its fingerprint"
+                    : `all ${String(check.entries)} entries match their fingerprints`}{" "}
+                  (latest <code>{check.latestFingerprint.slice(0, 12)}…</code>).
+                </p>
+              )}
+              {check?.status === "changed" && (
+                <p role="alert" data-tone="problem">
+                  Changed at entry {check.atEntry + 1}: {check.reason}.
+                </p>
+              )}
+            </section>
+          </TabPanel>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -20,17 +20,16 @@ function Check({ view, items }: { view: AppealCheckView; items: AppealView["item
   return (
     <>
       <ReviewFlag council={view.council} />
-      <p>
+      <p className="pp-ai-note">
         <strong>AI summary:</strong> {view.check.summary}
       </p>
-      <ul>
+      <ul className="pp-findings">
         {view.check.items.map((item) => (
           <li key={item.id}>
             {words.get(item.id) ?? item.id}
-            <br />
-            <strong>
+            <strong className="pp-ai-line">
               {item.answers ? "AI: speaks to the claim" : "AI: does not add to what was sent"}
-            </strong>{" "}
+            </strong>
             {item.why}
             {item.record.length > 0 && (
               <small> (log entries: {item.record.map((entry) => entry.text).join("; ")})</small>
@@ -73,7 +72,7 @@ function Statement({ dealId, disputeId }: { dealId: string; disputeId: string })
   };
   return (
     <>
-      <h4>Appeal statement (AI draft)</h4>
+      <h4 data-ai>Appeal statement (AI draft)</h4>
       {problem && <p role="alert">{problem}</p>}
       {latest?.status === "ready" && latest.statement !== null && (
         <CitedDraft
@@ -126,10 +125,10 @@ export function AppealPanel({ dealId, disputeId }: { dealId: string; disputeId: 
     );
   };
   return (
-    <section aria-labelledby="appeal-check">
+    <section aria-labelledby="appeal-check" className="pp-ai-panel">
       <h3 id="appeal-check">Appeal check (AI draft)</h3>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

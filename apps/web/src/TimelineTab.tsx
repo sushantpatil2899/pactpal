@@ -1,10 +1,21 @@
 import type { StepUpdateStatus } from "@pactpal/timeline";
 import { stepLine } from "@pactpal/words";
-import { useEffect, useState, type FormEvent } from "react";
-import { getScope, listFiles, type DealFile, type ScopeView } from "./api";
+import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
+import {
+  getMilestones,
+  getScope,
+  listFiles,
+  type DealFile,
+  type ScopeView,
+  type StageView,
+} from "./api";
 import { getTimeline, updateStep, type RunningStepView, type TimelineView } from "./chat-api";
 import { when } from "./format";
-import { FULL_WIDTH } from "./styles";
+
+// Bryntum is large; it loads only when a signed timeline is opened.
+const DealGantt = lazy(() =>
+  import("./schedule/DealGantt").then((m) => ({ default: m.DealGantt })),
+);
 
 const STATE_WORDS: Record<RunningStepView["state"], string> = {
   open: "To do",
@@ -73,19 +84,19 @@ function StepActions({
       }}
     >
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
       <label>
         Note (optional; the other side sees it)
-        <textarea name="note" rows={2} maxLength={1000} style={FULL_WIDTH} />
+        <textarea name="note" rows={2} maxLength={1000} />
       </label>
       {files.length > 0 && (
         <fieldset>
           <legend>Files to go with it (add new ones in the Files tab)</legend>
           {files.map((file) => (
-            <label key={file.id} style={{ display: "block" }}>
+            <label key={file.id} className="pp-check">
               <input type="checkbox" name="file" value={file.id} /> {file.filename}
             </label>
           ))}
@@ -118,8 +129,15 @@ export function TimelineTab({
   const [timeline, setTimeline] = useState<TimelineView | undefined>();
   const [scope, setScope] = useState<ScopeView | null | undefined>();
   const [files, setFiles] = useState<DealFile[]>([]);
+  const [stages, setStages] = useState<StageView[]>([]);
   useEffect(() => {
     getTimeline(dealId).then(setTimeline, () => undefined);
+    getMilestones(dealId).then(
+      (view) => {
+        setStages(view.stages);
+      },
+      () => undefined,
+    );
     getScope(dealId).then(setScope, () => {
       setScope(null);
     });
@@ -144,7 +162,7 @@ export function TimelineTab({
         ) : (
           <>
             <p>Version {scope.version} · not signed yet. The steps start once the buyer signs.</p>
-            <ol style={{ listStyle: "none", paddingLeft: 0 }}>
+            <ol className="pp-steps">
               {scope.steps.map((step) => (
                 <li key={step.n}>{stepLine(step, scope.currency)}</li>
               ))}
@@ -164,20 +182,18 @@ export function TimelineTab({
           ? `next: step ${String(current.n)}, waiting for the ${current.waitingOn ?? "other side"}`
           : "every step is done"}
       </p>
-      <ol style={{ listStyle: "none", paddingLeft: 0 }}>
+      <Suspense fallback={<p aria-busy="true">Loading the chart…</p>}>
+        <DealGantt steps={timeline.steps} stages={stages} />
+      </Suspense>
+      <ol className="pp-steps">
         {timeline.steps.map((step) => (
           <li
             key={step.n}
-            style={{
-              margin: "0.75rem 0",
-              padding: "0.5rem",
-              border: `1px solid ${step === current ? "#b58900" : "#ccc"}`,
-              borderRadius: 8,
-            }}
+            data-state={step.state}
+            aria-current={step === current ? "step" : undefined}
           >
             <strong>{stepLine(step, timeline.currency)}</strong>
-            <br />
-            {STATE_WORDS[step.state]}
+            <span className="pp-step-state">{STATE_WORDS[step.state]}</span>
             {step.waitingOn !== null && (
               <>
                 {" · "}
@@ -201,7 +217,7 @@ export function TimelineTab({
               <StepActions dealId={dealId} step={step} files={files} onDone={setTimeline} />
             )}
             {(step.kind === "payment" || step.kind === "delivery") && step.state !== "done" && (
-              <p style={{ fontSize: 14, color: "#555" }}>
+              <p data-tone="note">
                 {step.kind === "payment"
                   ? "Payments go through PayPal invoices, below."
                   : "Deliveries are sent and answered below."}

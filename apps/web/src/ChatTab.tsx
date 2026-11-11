@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { getPastedChats, type PastedChat } from "./chat-api";
 import { lastSeenByOther, type ChatState } from "./chat-state";
 import { when } from "./format";
-import { FULL_WIDTH, WRAP } from "./styles";
+import { WRAP } from "./styles";
 import type { LiveChat } from "./useLiveChat";
 
 /** The longest message the server takes. */
@@ -27,17 +27,6 @@ const NOTICE_TABS: Record<string, { tab: DealTab; words: string }> = {
 
 export type DealTab = "chat" | "scope" | "timeline" | "files" | "disputes" | "log";
 
-const bubble = (mine: boolean) =>
-  ({
-    maxWidth: "85%",
-    marginLeft: mine ? "auto" : 0,
-    padding: "0.4rem 0.6rem",
-    borderRadius: 8,
-    background: mine ? "#e6f0ff" : "#f2f2f2",
-    whiteSpace: "pre-wrap",
-    ...WRAP,
-  }) as const;
-
 function Message({
   message,
   mine,
@@ -52,14 +41,7 @@ function Message({
   if (message.kind === "notice") {
     const link = NOTICE_TABS[message.notice?.type ?? ""];
     return (
-      <li
-        style={{
-          margin: "0.5rem 0",
-          padding: "0.4rem 0.6rem",
-          border: "1px solid #ccc",
-          borderRadius: 8,
-        }}
-      >
+      <li className="pp-msg-card">
         <strong>PactPal:</strong> {message.body}{" "}
         {link && (
           <button
@@ -77,19 +59,15 @@ function Message({
     );
   }
   return (
-    <li style={{ margin: "0.5rem 0", listStyle: "none" }}>
-      <div style={bubble(mine)}>
+    <li className="pp-msg" data-mine={mine}>
+      <div>
         <small>
           <strong>{mine ? "You" : message.name}</strong> · {when(message.createdAt)}
         </small>
         <br />
         {message.body}
       </div>
-      {seen && (
-        <small style={{ display: "block", textAlign: "right" }} aria-label="Seen by the other side">
-          Seen
-        </small>
-      )}
+      {seen && <small aria-label="Seen by the other side">Seen</small>}
     </li>
   );
 }
@@ -129,11 +107,17 @@ export function ChatTab({
   chat,
   otherName,
   onOpenTab,
+  about,
+  pasted = true,
 }: {
   dealId: string;
   chat: LiveChat;
   otherName: string;
   onOpenTab: (tab: DealTab) => void;
+  /** The deal this chat belongs to, named under the heading where the page does not say it. */
+  about?: string;
+  /** Whether to list the chats pasted in from elsewhere (the deal space does). */
+  pasted?: boolean;
 }) {
   const { state } = chat;
   const [draft, setDraft] = useState("");
@@ -157,9 +141,12 @@ export function ChatTab({
   };
 
   return (
-    <section aria-labelledby="chat-heading">
-      <h3 id="chat-heading">Chat</h3>
-      <p role="status">
+    <section aria-labelledby="chat-heading" className="pp-chat">
+      <h3 id="chat-heading">
+        Chat with {otherName}
+        {about !== undefined && <small className="pp-chat-about">{about}</small>}
+      </h3>
+      <p role="status" data-connection={state.connection}>
         {CONNECTION_WORDS[state.connection]}
         {state.role !== undefined && (
           <>
@@ -168,18 +155,14 @@ export function ChatTab({
           </>
         )}
       </p>
-      <p style={{ fontSize: 14, color: "#555" }}>
+      <p className="pp-chat-note">
         Every message is saved with the time and a fingerprint in the deal&apos;s evidence log.
         Agree on the work, the stages and the payments here; the seller can turn the chat into the
         agreement.
       </p>
-      <ol
-        aria-label="Messages"
-        aria-live="polite"
-        style={{ paddingLeft: 0, maxHeight: "60vh", overflowY: "auto" }}
-      >
+      <ol aria-label="Messages" aria-live="polite" className="pp-thread">
         {state.messages.length === 0 && state.pending.length === 0 && (
-          <li style={{ listStyle: "none" }}>No messages yet.</li>
+          <li className="pp-thread-empty">No messages yet.</li>
         )}
         {state.messages.map((message) => (
           <Message
@@ -191,9 +174,9 @@ export function ChatTab({
           />
         ))}
         {state.pending.map((pending) => (
-          <li key={pending.clientId} style={{ margin: "0.5rem 0", listStyle: "none" }}>
-            <div style={bubble(true)}>{pending.body}</div>
-            <small style={{ display: "block", textAlign: "right" }}>
+          <li key={pending.clientId} className="pp-msg" data-mine>
+            <div>{pending.body}</div>
+            <small>
               {pending.status === "sending" ? (
                 "Sending…"
               ) : (
@@ -212,16 +195,18 @@ export function ChatTab({
             </small>
           </li>
         ))}
-        <li ref={end} style={{ listStyle: "none" }} aria-hidden="true" />
+        <li ref={end} aria-hidden="true" />
       </ol>
       {state.otherTyping && <p aria-live="polite">{otherName} is typing…</p>}
       {state.open ? (
-        <form onSubmit={submit}>
-          <label htmlFor="chat-message">Message</label>
+        <form onSubmit={submit} className="pp-compose">
+          <label htmlFor="chat-message" className="pp-hidden">
+            Message
+          </label>
           <textarea
             id="chat-message"
-            rows={3}
-            style={FULL_WIDTH}
+            rows={2}
+            placeholder={`Message ${otherName}…`}
             value={draft}
             maxLength={MAX_CHARS}
             onChange={(event) => {
@@ -237,7 +222,7 @@ export function ChatTab({
       ) : (
         <p>This deal was cancelled; its chat is closed.</p>
       )}
-      <PastedChats dealId={dealId} />
+      {pasted && <PastedChats dealId={dealId} />}
     </section>
   );
 }

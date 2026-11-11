@@ -37,7 +37,7 @@ export function DisputesPanel({ deal, onChange }: { deal: DealSummary; onChange:
     <section aria-labelledby="disputes">
       <h3 id="disputes">Disputes</h3>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

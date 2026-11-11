@@ -1,0 +1,602 @@
+/* Everything PactPal styles sits in one layer, so AG Grid and AG Studio keep their own look. */
+@layer pp {
+  /*
+ * Base styles for every page (docs/DESIGN.md). Plain elements carry the system, so a page that
+ * uses semantic HTML looks right without classes; classes (pp-*) are for the shared components.
+ * Token values come from tokens.ts, in a light and a dark set.
+ */
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-text);
+    font-size: var(--text-15);
+    line-height: 1.55;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    caret-color: var(--color-accent);
+    accent-color: var(--color-accent-strong);
+    overflow-wrap: break-word;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* Text */
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: var(--space-32) 0 var(--space-12);
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: var(--text-24);
+  }
+
+  h2 {
+    font-size: var(--text-20);
+  }
+
+  h3 {
+    font-size: var(--text-17);
+    margin-top: var(--space-24);
+  }
+
+  h4 {
+    font-size: var(--text-15);
+    margin-top: var(--space-24);
+    letter-spacing: -0.01em;
+  }
+
+  :is(h1, h2, h3, h4):first-child {
+    margin-top: 0;
+  }
+
+  p,
+  ul,
+  ol,
+  dl,
+  table,
+  fieldset,
+  details,
+  pre {
+    margin: 0 0 var(--space-16);
+  }
+
+  ul,
+  ol {
+    padding-left: 1.25rem;
+  }
+
+  li + li {
+    margin-top: var(--space-4);
+  }
+
+  a {
+    color: var(--color-accent-ink);
+    text-decoration-color: color-mix(in srgb, currentcolor 40%, transparent);
+    text-underline-offset: 0.2em;
+  }
+
+  a:hover {
+    text-decoration-color: currentcolor;
+  }
+
+  small {
+    font-size: var(--text-13);
+    color: var(--color-ink-3);
+  }
+
+  code,
+  kbd,
+  pre {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+  }
+
+  code {
+    padding: 0.1em 0.35em;
+    border-radius: 6px;
+    background: var(--color-bg-sunk);
+    color: var(--color-ink-2);
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--color-line);
+    margin: var(--space-24) 0;
+  }
+
+  section + section,
+  section + form,
+  form + section {
+    margin-top: var(--space-32);
+  }
+
+  [aria-busy="true"] {
+    color: var(--color-ink-3);
+  }
+
+  /* Controls */
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  button,
+  .pp-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+    min-height: 2.5rem;
+    padding: 0 var(--space-16);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: var(--text-15);
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color var(--time-fast) var(--ease),
+      border-color var(--time-fast) var(--ease),
+      box-shadow var(--time-base) var(--ease),
+      transform var(--time-fast) var(--ease);
+  }
+
+  :is(button, .pp-button):hover:not(:disabled) {
+    border-color: var(--color-ink-3);
+    background: var(--color-surface-2);
+  }
+
+  :is(button, .pp-button):active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .pp-button-primary,
+  .pp-button-primary:hover:not(:disabled) {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--color-accent-strong), var(--color-accent-strong-2));
+    color: var(--color-on-accent);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.22) inset,
+      0 6px 16px -6px color-mix(in srgb, var(--color-accent) 70%, transparent);
+  }
+
+  .pp-button-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.22) inset,
+      0 10px 22px -6px color-mix(in srgb, var(--color-accent) 80%, transparent);
+  }
+
+  .pp-button-large {
+    min-height: 3rem;
+    padding: 0 var(--space-24);
+    border-radius: var(--radius-box);
+    font-size: var(--text-17);
+  }
+
+  .pp-button-quiet {
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-ink-2);
+  }
+
+  input:not([type="checkbox"], [type="radio"], [type="file"]),
+  select,
+  textarea {
+    min-height: 2.5rem;
+    max-width: 100%;
+    padding: var(--space-8) var(--space-12);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+    transition:
+      border-color var(--time-fast) var(--ease),
+      box-shadow var(--time-fast) var(--ease);
+  }
+
+  :is(input, select, textarea):focus-visible {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 18%, transparent);
+  }
+
+  textarea {
+    line-height: 1.45;
+  }
+
+  ::placeholder {
+    color: var(--color-ink-3);
+    opacity: 1;
+  }
+
+  label {
+    font-weight: 550;
+  }
+
+  fieldset {
+    padding: var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+  }
+
+  legend {
+    padding: 0 var(--space-8);
+    font-weight: 600;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  /* Tables */
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th,
+  td {
+    padding: var(--space-8) var(--space-12);
+    border-bottom: 1px solid var(--color-line);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th,
+  caption {
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  caption {
+    padding-bottom: var(--space-8);
+    text-align: left;
+  }
+
+  tfoot th,
+  tfoot td {
+    border-bottom: 0;
+    color: var(--color-ink);
+    font-size: var(--text-15);
+    font-weight: 650;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* Messages. Pages mark them with roles; the look follows the role. */
+
+  /* AG and Bryntum mark parts of their own interface as statuses; those keep their look. */
+  [role="alert"]:not(.pp-vendor *),
+  [role="status"]:not(.pp-vendor *) {
+    padding: var(--space-12) var(--space-16);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-radius: var(--radius-box);
+    background: color-mix(in srgb, var(--color-accent) 9%, transparent);
+  }
+
+  [role="alert"]:not(.pp-vendor *) {
+    border-color: color-mix(in srgb, var(--color-alert) 35%, transparent);
+    background: color-mix(in srgb, var(--color-alert) 9%, transparent);
+    color: var(--color-alert-ink);
+  }
+
+  /* Tabs: one sunk track, the open tab lifted out of it. */
+
+  [role="tablist"] {
+    display: inline-flex;
+    max-width: 100%;
+    gap: 2px;
+    padding: 3px;
+    margin-bottom: var(--space-24);
+    border: 1px solid var(--color-line);
+    border-radius: calc(var(--radius-control) + 2px);
+    background: var(--color-bg-sunk);
+    overflow-x: auto;
+  }
+
+  [role="tab"] {
+    flex: none;
+    min-height: 2.125rem;
+    padding: 0 var(--space-12);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--color-ink-2);
+    font-weight: 550;
+  }
+
+  [role="tab"]:hover:not(:disabled) {
+    background: transparent;
+    color: var(--color-ink);
+  }
+
+  [role="tab"][aria-selected="true"],
+  [role="tab"][aria-selected="true"]:hover {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-1);
+  }
+
+  /* Small tones a page can ask for without its own styles. */
+  [data-tone^="problem"] {
+    color: var(--color-alert-ink);
+  }
+
+  [data-tone^="note"] {
+    color: var(--color-ink-3);
+    font-size: var(--text-13);
+  }
+
+  [data-tone$="-block"] {
+    display: block;
+  }
+
+  /* What is waiting for the person. */
+  .pp-needs {
+    padding: var(--space-16);
+    border: 1px solid color-mix(in srgb, var(--color-wait) 35%, transparent);
+    border-radius: var(--radius-box);
+    background: color-mix(in srgb, var(--color-wait) 9%, transparent);
+  }
+
+  .pp-needs > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* Shared components */
+
+  .pp-skip {
+    position: absolute;
+    left: var(--space-16);
+    top: -4rem;
+    z-index: 10;
+    padding: var(--space-8) var(--space-16);
+    border-radius: var(--radius-control);
+    background: var(--color-ink);
+    color: var(--color-bg);
+  }
+
+  .pp-skip:focus {
+    top: var(--space-16);
+  }
+
+  /* Another company's logo beside words (simple-icons, 24 by 24). */
+  .pp-brand-logo {
+    flex: none;
+    width: 1.1em;
+    height: 1.1em;
+    vertical-align: -0.18em;
+  }
+
+  .pp-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    color: var(--color-ink);
+    font-size: var(--text-20);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    text-decoration: none;
+  }
+
+  .pp-logo svg {
+    flex: none;
+    height: 1.5em;
+    width: auto;
+  }
+
+  .pp-caption {
+    display: block;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+    font-weight: 550;
+  }
+
+  .pp-mono {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+  }
+
+  /* Headlines on public and buyer pages. */
+  .pp-display {
+    margin-bottom: var(--space-16);
+    font-size: clamp(1.75rem, 5vw, 2.5rem);
+    font-weight: 650;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  /* A card: the container for one record or one task. */
+  .pp-card {
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-1);
+    overflow: hidden;
+  }
+
+  .pp-card > * {
+    padding: var(--space-24);
+  }
+
+  .pp-card > * + * {
+    border-top: 1px solid var(--color-line);
+  }
+
+  .pp-card > * > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* The band inside a card that holds its one action. */
+  .pp-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-12) var(--space-16);
+    background: var(--color-surface-2);
+  }
+
+  .pp-band > :is(a, button) {
+    white-space: normal;
+  }
+
+  .pp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--badge, var(--color-ink-3)) 13%, transparent);
+    color: var(--badge-ink, var(--color-ink-2));
+    font-size: var(--text-12);
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  .pp-badge svg {
+    width: 0.9em;
+    height: 0.9em;
+  }
+
+  .pp-badge-draft {
+    outline: 1px dashed var(--color-line-strong);
+    outline-offset: -1px;
+    background: transparent;
+  }
+
+  .pp-badge-awaiting {
+    --badge: var(--color-wait);
+    --badge-ink: var(--color-wait-ink);
+  }
+
+  .pp-badge-signed,
+  .pp-badge-paid {
+    --badge: var(--color-accent);
+    --badge-ink: var(--color-accent-ink);
+  }
+
+  .pp-badge-delivered {
+    background: var(--color-ink);
+    color: var(--color-bg);
+  }
+
+  .pp-badge-disputed {
+    --badge: var(--color-alert);
+    --badge-ink: var(--color-alert-ink);
+  }
+
+  .pp-badge-changed {
+    background: var(--color-alert);
+    color: var(--color-on-alert);
+  }
+
+  .pp-empty {
+    padding: var(--space-32) var(--space-24);
+    border: 1px dashed var(--color-line-strong);
+    border-radius: var(--radius-box);
+    color: var(--color-ink-2);
+    text-align: center;
+  }
+
+  .pp-empty > :last-child {
+    margin-bottom: 0;
+  }
+
+  .pp-skeleton {
+    display: grid;
+    gap: var(--space-12);
+  }
+
+  .pp-skeleton i {
+    display: block;
+    height: 0.875rem;
+    border-radius: 6px;
+    background: var(--color-bg-sunk);
+    animation: pp-breathe 1.6s ease-in-out infinite;
+  }
+
+  .pp-skeleton i:nth-child(3n + 1) {
+    width: 62%;
+  }
+
+  .pp-skeleton i:nth-child(3n + 2) {
+    width: 88%;
+  }
+
+  .pp-skeleton i:nth-child(3n) {
+    width: 40%;
+  }
+
+  @keyframes pp-breathe {
+    50% {
+      opacity: 0.45;
+    }
+  }
+
+  .pp-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

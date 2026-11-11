@@ -34,8 +34,8 @@ export function CouncilPanel({ council }: { council: CouncilView }) {
   const winner = council.scores[0];
   const tokens = council.usage.promptTokens + council.usage.completionTokens;
   return (
-    <section aria-labelledby="council-heading">
-      <h4 id="council-heading">How the council worked</h4>
+    <details className="pp-council">
+      <summary>How the council worked</summary>
       <div style={SCROLL_X}>
         <table>
           <caption>Each model&apos;s draft</caption>
@@ -93,7 +93,7 @@ export function CouncilPanel({ council }: { council: CouncilView }) {
         </div>
       )}
       {council.scores.length > 0 && (
-        <p style={{ color: "#555", fontSize: 14 }}>
+        <p data-tone="note">
           Score: 1 means every counted model ranked that draft first, 0 last. Counted: how many
           models&apos; rankings were used (a model&apos;s ranking of its own draft is ignored).
         </p>
@@ -126,6 +126,6 @@ export function CouncilPanel({ council }: { council: CouncilView }) {
           ` (${String(council.usage.callsWithoutUsage)} ${council.usage.callsWithoutUsage === 1 ? "call" : "calls"} did not report tokens)`}
         .
       </p>
-    </section>
+    </details>
   );
 }

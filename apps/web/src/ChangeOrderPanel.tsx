@@ -39,7 +39,7 @@ import { SignOrDecline } from "./SignOrDecline";
 import { OwnFields } from "./TimelineEditor";
 import { FULL_WIDTH, WRAP } from "./styles";
 
-const ALERT = { color: "#8a1c1c" } as const;
+const ALERT = { color: "var(--color-alert-ink)" } as const;
 
 /** The most timeline steps one change may add (as the server allows). */
 const MAX_ADDED_STEPS = 20;

@@ -1,93 +1,126 @@
-import { useEffect, useState } from "react";
-import { SIGN_IN_PATH, getMe, signOut, type Me } from "./api";
-import { DisputePage } from "./DisputePage";
-import { DealPage } from "./DealPage";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { getMe, signOut, type Me } from "./api";
 import { DealsHome } from "./DealsHome";
+import { LegalPage } from "./landing/LegalPage";
 import { LinkPage } from "./LinkPage";
-import { SellerAppPanel } from "./SellerAppPanel";
+import { useOverview, type Overview } from "./app/useOverview";
+import { Alert } from "./design/parts";
+import { SIGN_IN_PAGE, type Route } from "./router/routes";
+import { SignInPage } from "./SignInPage";
+import { signInReturn } from "./sign-in-words";
+import { navigate, useRoute } from "./router/useRoute";
+import { AppLayout, BuyerLayout, PublicLayout, Splash } from "./shell/layouts";
 
-/** Messages for the reasons the server gives when a sign-in did not finish (`?signin=`). */
-const SIGN_IN_PROBLEMS: Record<string, string> = {
-  unavailable: "Signing in is not available right now.",
-  cancelled: "Sign-in was cancelled on PayPal.",
-  expired: "That sign-in took too long or was not started here. Please try again.",
-  failed: "PayPal could not confirm who you are. Please try again.",
-  "email-taken":
-    "Your PayPal email already belongs to another PactPal account. Open the link we emailed you first.",
-  "no-email": "PayPal did not share an email address, which PactPal needs.",
-  "other-account":
-    "You signed in with a PayPal account that is not the one invited to that deal. Sign in with the PayPal account that uses the invited email, or open your link again to continue without an account.",
-};
+// The landing page is only for visitors who are signed out; it loads on its own, and starts
+// loading at once on the home address, alongside the check of who is signed in.
+const loadLanding = () => import("./landing/Landing");
+const Landing = lazy(() => loadLanding().then((m) => ({ default: m.Landing })));
+if (window.location.pathname === "/") void loadLanding();
 
-type View = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };
+// The signed-in pages load only when someone signed in (or with a buyer's link) opens them,
+// so a visitor to the landing page downloads none of them.
+const pages = () => import("./app/pages");
+const DealPage = lazy(() => import("./DealPage").then((m) => ({ default: m.DealPage })));
+const DisputePage = lazy(() => import("./DisputePage").then((m) => ({ default: m.DisputePage })));
+const Dashboard = lazy(() => import("./app/Dashboard").then((m) => ({ default: m.Dashboard })));
+const NewDealPage = lazy(() =>
+  import("./app/NewDealPage").then((m) => ({ default: m.NewDealPage })),
+);
+const DealsPage = lazy(() => pages().then((m) => ({ default: m.DealsPage })));
+const DeadlinesPage = lazy(() => pages().then((m) => ({ default: m.DeadlinesPage })));
+const DisputesPage = lazy(() => pages().then((m) => ({ default: m.DisputesPage })));
+const MessagesPage = lazy(() =>
+  import("./messages/MessagesPage").then((m) => ({ default: m.MessagesPage })),
+);
+const InsightsPage = lazy(() => pages().then((m) => ({ default: m.InsightsPage })));
+const NotificationsPage = lazy(() => pages().then((m) => ({ default: m.NotificationsPage })));
+const SettingsPage = lazy(() => pages().then((m) => ({ default: m.SettingsPage })));
 
-/** Reads and removes the sign-in problem from the address, so a reload does not repeat it. */
-function takeSignInProblem(): string | undefined {
-  const url = new URL(window.location.href);
-  const code = url.searchParams.get("signin");
-  if (code === null) return undefined;
-  url.searchParams.delete("signin");
-  window.history.replaceState(null, "", url.toString());
-  return SIGN_IN_PROBLEMS[code] ?? SIGN_IN_PROBLEMS.failed;
-}
+type Session = { kind: "loading" } | { kind: "signed-out" } | { kind: "signed-in"; me: Me };
 
-// Read once when the page loads (React may run state set-up twice in development).
-const initialProblem = takeSignInProblem();
+// Read once when the page loads (React may run state set-up twice in development): a sign-in
+// that did not finish comes back as `/?signin=reason` and is shown on the sign-in page.
+const signInBack = signInReturn(window.location.href, SIGN_IN_PAGE);
+if (signInBack) window.history.replaceState(null, "", signInBack.address);
 
-/** The page shell: the buyer link page at /link, the home page everywhere else. */
-export function App() {
-  const path = window.location.pathname;
-  const dealId = /^\/deals\/([0-9a-f-]{36})$/.exec(path)?.[1];
-  const disputeMatch = /^\/deals\/([0-9a-f-]{36})\/disputes\/([A-Za-z0-9-]{1,100})$/.exec(path);
-  return (
-    <main
-      style={{
-        fontFamily: "system-ui, sans-serif",
-        maxWidth: 640,
-        margin: "4rem auto",
-        padding: "0 1rem",
-      }}
-    >
-      <h1>PactPal</h1>
-      <p>AI that seals the deal.</p>
-      {path === "/link" ? (
-        <LinkPage />
-      ) : disputeMatch?.[1] !== undefined && disputeMatch[2] !== undefined ? (
-        <DisputePage dealId={disputeMatch[1]} disputeId={disputeMatch[2]} />
-      ) : dealId !== undefined ? (
-        <DealPage dealId={dealId} />
-      ) : (
-        <Home />
-      )}
-      <p style={{ color: "#555", fontSize: 14 }}>
-        Sandbox only. Not legal advice. PactPal records what was agreed and delivered; it does not
-        guarantee any dispute outcome. Signing in with PayPal shows control of a PayPal account, not
-        legal identity.
-      </p>
-    </main>
+type DealRoute = Extract<Route, { page: "deal" | "dispute" }>;
+const isDealRoute = (route: Route): route is DealRoute =>
+  route.page === "deal" || route.page === "dispute";
+
+/** The deal pages; `key` gives each deal a fresh page when the person moves between deals. */
+function dealPage(route: DealRoute) {
+  return route.page === "dispute" ? (
+    <DisputePage key={route.disputeId} dealId={route.dealId} disputeId={route.disputeId} />
+  ) : (
+    <DealPage key={route.dealId} dealId={route.dealId} />
   );
 }
 
-function Home() {
-  const [view, setView] = useState<View>({ kind: "loading" });
-  const [problem, setProblem] = useState<string | undefined>(initialProblem);
+/** The page a signed-in seller sees at this address. */
+function sellerPage(route: Route, overview: Overview) {
+  switch (route.page) {
+    case "deal":
+    case "dispute":
+      return dealPage(route);
+    case "deals":
+      return <DealsPage overview={overview} />;
+    case "new-deal":
+      return <NewDealPage />;
+    case "messages":
+      return <MessagesPage overview={overview} />;
+    case "notifications":
+      return <NotificationsPage />;
+    case "disputes":
+      return <DisputesPage overview={overview} />;
+    case "deadlines":
+      return <DeadlinesPage overview={overview} />;
+    case "insights":
+      return <InsightsPage overview={overview} />;
+    case "settings":
+      return <SettingsPage />;
+    case "home":
+    case "sign-in":
+    case "link":
+    case "privacy":
+    case "terms":
+      return <Dashboard overview={overview} />;
+  }
+}
 
+/** The whole app: finds out who is signed in, then shows the address's page in its layout. */
+export function App() {
+  const route = useRoute();
+  const [session, setSession] = useState<Session>({ kind: "loading" });
+  const [problem, setProblem] = useState<string | undefined>();
+
+  // Asked again on each page: a buyer link signs the person in while the app is open.
   useEffect(() => {
     getMe().then(
       (me) => {
-        setView(me ? { kind: "signed-in", me } : { kind: "signed-out" });
+        setSession(me ? { kind: "signed-in", me } : { kind: "signed-out" });
       },
       (error: unknown) => {
-        setView({ kind: "signed-out" });
+        setSession({ kind: "signed-out" });
         setProblem(error instanceof Error ? error.message : "Something went wrong.");
       },
     );
-  }, []);
+  }, [route.page]);
+
+  // Someone already signed in has no use for the sign-in page.
+  const signedIn = session.kind === "signed-in";
+  useEffect(() => {
+    if (route.page === "sign-in" && signedIn) navigate("/");
+  }, [route.page, signedIn]);
+
+  // The seller's deals, for the rail and the list pages; read again as the address changes.
+  const fullAccess = session.kind === "signed-in" && session.me.access === "full";
+  const overview = useOverview(fullAccess, window.location.pathname);
 
   const onSignOut = () => {
     signOut().then(
       () => {
-        setView({ kind: "signed-out" });
+        setSession({ kind: "signed-out" });
+        navigate("/");
       },
       (error: unknown) => {
         setProblem(error instanceof Error ? error.message : "Could not sign out.");
@@ -95,32 +128,67 @@ function Home() {
     );
   };
 
+  if (route.page === "link") {
+    return (
+      <BuyerLayout>
+        <LinkPage />
+      </BuyerLayout>
+    );
+  }
+  if (route.page === "privacy" || route.page === "terms") {
+    return (
+      <PublicLayout>
+        <LegalPage page={route.page} />
+      </PublicLayout>
+    );
+  }
+  if (route.page === "sign-in") {
+    return (
+      <PublicLayout briefFooter>
+        <SignInPage problem={signInBack?.problem ?? problem} />
+      </PublicLayout>
+    );
+  }
+  if (session.kind === "loading") {
+    return (
+      <Splash>
+        <p aria-busy="true">Checking whether you are signed in…</p>
+      </Splash>
+    );
+  }
+  const alert = problem !== undefined && <Alert problem>{problem}</Alert>;
+  if (session.kind === "signed-out") {
+    if (isDealRoute(route)) return <BuyerLayout>{dealPage(route)}</BuyerLayout>;
+    return (
+      <Suspense
+        fallback={
+          <Splash>
+            <p aria-busy="true">Loading PactPal…</p>
+          </Splash>
+        }
+      >
+        <Landing problem={problem} />
+      </Suspense>
+    );
+  }
+  const account = { me: session.me, onSignOut };
+  if (session.me.access !== "full") {
+    return (
+      <BuyerLayout {...account}>
+        {alert}
+        {isDealRoute(route) ? dealPage(route) : <DealsHome />}
+      </BuyerLayout>
+    );
+  }
   return (
-    <>
-      {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
-          {problem}
-        </p>
-      )}
-      {view.kind === "loading" && <p aria-busy="true">Checking whether you are signed in…</p>}
-      {view.kind === "signed-out" && (
-        <p>
-          <a href={SIGN_IN_PATH}>Sign in with PayPal</a>
-        </p>
-      )}
-      {view.kind === "signed-in" && (
-        <section aria-label="Your account">
-          <p>
-            Signed in as <strong>{view.me.displayName ?? view.me.email}</strong> ({view.me.email})
-            {view.me.access !== "full" && " with a link to one deal"}
-          </p>
-          <button type="button" onClick={onSignOut}>
-            Sign out
-          </button>
-        </section>
-      )}
-      {view.kind === "signed-in" && <DealsHome />}
-      {view.kind === "signed-in" && view.me.access === "full" && <SellerAppPanel />}
-    </>
+    <AppLayout
+      {...account}
+      page={route.page}
+      dealId={"dealId" in route ? route.dealId : undefined}
+      deals={overview.deals}
+    >
+      {alert}
+      {sellerPage(route, overview)}
+    </AppLayout>
   );
 }

@@ -62,7 +62,7 @@ function Linked({ link, onUnlinked }: { link: SellerAppLink; onUnlinked: () => v
           : "Automatic payment alerts: off. Use \u201cCheck payment status\u201d on a deal to see payments."}
       </p>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
@@ -160,7 +160,7 @@ function LinkForm({ onLinked }: { onLinked: (link: SellerAppLink) => void }) {
         />
       </p>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
@@ -192,12 +192,12 @@ export function SellerAppPanel() {
         Link your own sandbox PayPal app so PactPal can send your invoices and answer your disputes
         from your own PayPal account. Sandbox keys only: never enter live keys.
       </p>
-      <p style={{ color: "#555" }}>
+      <p data-tone="note">
         Invoices for stages you send after linking come from your app's account. Invoices already
         sent stay with the account that sent them.
       </p>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

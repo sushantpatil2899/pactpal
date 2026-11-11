@@ -171,7 +171,7 @@ export function DraftPanel({
     <section aria-labelledby="drafts">
       <h3 id="drafts">Draft the agreed work from a chat</h3>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
@@ -281,13 +281,13 @@ export function DraftPanel({
         </p>
       )}
       {lostContact && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           Lost contact with the server. The draft keeps running there; reload this page to check.
         </p>
       )}
       {detail?.status === "failed" && (
         <>
-          <p role="alert" style={{ color: "#8a1c1c" }}>
+          <p role="alert" data-tone="problem">
             This draft did not work: {detail.failureReason ?? "unknown reason"}. You can try again.
           </p>
           {detail.council !== null && <CouncilPanel council={detail.council} />}

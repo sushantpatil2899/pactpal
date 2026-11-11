@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { getNotifications, markNotificationsRead, type NotificationView } from "./chat-api";
 import { when } from "./format";
 
@@ -10,32 +10,34 @@ import { when } from "./format";
 export function NotificationsList({
   dealId,
   refreshKey,
+  empty,
   onOpen,
 }: {
   dealId?: string;
   refreshKey: number;
+  /** Shown once the list is known to be empty; nothing by default. */
+  empty?: ReactNode;
   onOpen: (note: NotificationView) => void;
 }) {
   const [notes, setNotes] = useState<NotificationView[]>([]);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     getNotifications(dealId).then(
       (all) => {
         setNotes(all.filter((note) => !note.read));
+        setLoaded(true);
       },
       () => undefined,
     );
   }, [dealId, refreshKey]);
-  if (notes.length === 0) return null;
+  if (notes.length === 0) return loaded ? (empty ?? null) : null;
   const open = (note: NotificationView) => {
     setNotes((current) => current.filter((n) => n.id !== note.id));
     markNotificationsRead({ ids: [note.id] }).catch(() => undefined);
     onOpen(note);
   };
   return (
-    <section
-      aria-labelledby="notifications"
-      style={{ border: "1px solid #b58900", padding: "0 0.75rem", borderRadius: 8 }}
-    >
+    <section aria-labelledby="notifications" className="pp-needs">
       <h3 id="notifications">Needs you ({notes.length})</h3>
       <ul>
         {notes.map((note) => (

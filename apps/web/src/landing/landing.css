@@ -1,0 +1,430 @@
+/*
+ * The landing page. Scroll motion reads `--progress` (0 to 1), which StringTune writes on each
+ * element marked `data-string="progress"` as it travels through the window. With reduced motion
+ * StringTune never starts and every part shows its finished state.
+ */
+@property --pp-score {
+  syntax: "<integer>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@layer pp {
+  .pp-lp {
+    --lp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --lp-width: 72rem;
+    --lp-gutter: clamp(1rem, 4vw, 2.5rem);
+
+    min-height: 100dvh;
+    background:
+      radial-gradient(
+        70rem 36rem at 70% -12rem,
+        color-mix(in srgb, var(--color-accent) 14%, transparent),
+        transparent
+      ),
+      radial-gradient(
+        50rem 30rem at -10% 30rem,
+        color-mix(in srgb, var(--color-ai) 8%, transparent),
+        transparent
+      ),
+      var(--color-bg);
+    overflow-x: clip;
+  }
+
+  .pp-lp main > section {
+    width: 100%;
+    max-width: var(--lp-width);
+    margin: 0 auto;
+    padding-inline: var(--lp-gutter);
+  }
+
+  .pp-lp h1,
+  .pp-lp h2 {
+    text-wrap: balance;
+    letter-spacing: -0.03em;
+  }
+
+  .pp-lp p {
+    text-wrap: pretty;
+  }
+
+  /* Navigation: a bar floating off the top edge, shrinking once the hero is gone. */
+
+  .pp-lp-top {
+    position: absolute;
+    top: 0;
+    height: 6rem;
+  }
+
+  .pp-lp-nav {
+    position: fixed;
+    z-index: 20;
+    top: var(--space-12);
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-24);
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    padding: var(--space-8) var(--space-8) var(--space-8) var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+    box-shadow: var(--shadow-1);
+    transform: translateX(-50%);
+    transition:
+      padding 500ms var(--lp-ease),
+      box-shadow 300ms var(--lp-ease);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+
+  .pp-lp-nav[data-scrolled="true"] {
+    padding-block: var(--space-4);
+    box-shadow: var(--shadow-2);
+  }
+
+  .pp-lp-nav nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .pp-lp-navlink {
+    padding: var(--space-8) var(--space-12);
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+    font-weight: 550;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      background 300ms var(--lp-ease),
+      color 300ms var(--lp-ease);
+  }
+
+  .pp-lp-nav nav > .pp-lp-navlink:hover,
+  .pp-lp-group:is(:hover, [data-open="true"]) {
+    background: var(--color-line);
+  }
+
+  .pp-lp-navlink:hover,
+  .pp-lp-navlink[aria-current],
+  .pp-lp-group[data-open="true"] .pp-lp-navlink {
+    color: var(--color-ink);
+  }
+
+  /* Where the visitor is: the item holding the section in view. */
+  .pp-lp-nav nav > .pp-lp-navlink[aria-current],
+  .pp-lp-group:has(> [aria-current]) {
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  }
+
+  /* A group: its own link, then a small button that opens its menu. */
+  .pp-lp-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border-radius: var(--radius-pill);
+    transition: background 300ms var(--lp-ease);
+  }
+
+  .pp-lp-group > .pp-lp-navlink {
+    padding-right: 0;
+  }
+
+  .pp-lp-more,
+  .pp-lp-more:hover:not(:disabled) {
+    width: 1.75rem;
+    min-height: 1.75rem;
+    margin-right: var(--space-4);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--color-ink-2);
+  }
+
+  .pp-lp-more svg {
+    width: 0.75rem;
+    height: 0.75rem;
+    transition: transform 400ms var(--lp-ease);
+  }
+
+  .pp-lp-more path {
+    fill: none;
+    stroke: currentcolor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .pp-lp-group[data-open="true"] .pp-lp-more svg {
+    transform: rotate(180deg);
+  }
+
+  .pp-lp-menu {
+    position: absolute;
+    top: calc(100% + var(--space-12));
+    left: 50%;
+    display: grid;
+    gap: 2px;
+    width: 19rem;
+    margin: 0;
+    padding: var(--space-8);
+    border: 1px solid var(--color-line);
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--color-surface) 97%, transparent);
+    box-shadow: var(--shadow-2);
+    list-style: none;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -0.5rem) scale(0.97);
+    transform-origin: 50% 0;
+    transition:
+      opacity 220ms var(--lp-ease),
+      transform 420ms var(--lp-ease),
+      visibility 0s 420ms;
+  }
+
+  /* Bridges the gap under the bar so moving the pointer down does not close the menu. */
+  .pp-lp-menu::before {
+    position: absolute;
+    inset: calc(-1 * var(--space-12) - 1px) 0 100%;
+    content: "";
+  }
+
+  .pp-lp-group[data-open="true"] .pp-lp-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+    transition:
+      opacity 220ms var(--lp-ease),
+      transform 420ms var(--lp-ease),
+      visibility 0s;
+  }
+
+  .pp-lp-menu li {
+    opacity: 0;
+    transform: translateY(0.375rem);
+    transition:
+      opacity 300ms var(--lp-ease),
+      transform 420ms var(--lp-ease);
+  }
+
+  .pp-lp-group[data-open="true"] .pp-lp-menu li {
+    opacity: 1;
+    transform: none;
+    transition-delay: calc(60ms + var(--n) * 40ms);
+  }
+
+  .pp-lp-menu a {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-8) var(--space-12);
+    border-radius: 12px;
+    color: var(--color-ink);
+    text-decoration: none;
+    transition: background 250ms var(--lp-ease);
+  }
+
+  .pp-lp-menu a:hover,
+  .pp-lp-menu a:focus-visible {
+    background: var(--color-line);
+  }
+
+  .pp-lp-menu b {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    font-size: var(--text-15);
+    font-weight: 600;
+  }
+
+  .pp-lp-menu a[aria-current] b::after {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    content: "";
+  }
+
+  .pp-lp-menu small {
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-lp-nav .pp-button {
+    min-height: 2.25rem;
+    font-size: var(--text-13);
+  }
+
+  .pp-lp-toggle {
+    display: none;
+    place-content: center;
+    gap: 5px;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .pp-lp-toggle i {
+    display: block;
+    width: 1rem;
+    height: 1.5px;
+    border-radius: 1px;
+    background: currentcolor;
+    transition: transform 500ms var(--lp-ease);
+  }
+
+  .pp-lp-nav[data-open="true"] .pp-lp-toggle i:first-child {
+    transform: translateY(3.25px) rotate(45deg);
+  }
+
+  .pp-lp-nav[data-open="true"] .pp-lp-toggle i:last-child {
+    transform: translateY(-3.25px) rotate(-45deg);
+  }
+
+  /* Reveals: rise once into place the first time they come into view. */
+
+  :root:not([data-motion="reduced"]) .pp-lp [data-reveal] {
+    transition:
+      opacity 700ms var(--lp-ease),
+      transform 700ms var(--lp-ease);
+  }
+
+  :root:not([data-motion="reduced"]) .pp-lp [data-reveal]:not([data-shown]) {
+    opacity: 0;
+    transform: translateY(2rem);
+  }
+
+  /* Phones and small tablets: no holding, scenes follow their text, a full height menu. */
+
+  @media (max-width: 64rem) {
+    .pp-lp-nav {
+      gap: var(--space-8);
+    }
+
+    .pp-lp-toggle {
+      display: grid;
+    }
+
+    .pp-lp-nav nav {
+      display: none;
+    }
+
+    /* The open menu: the bar grows into a full height panel. */
+    .pp-lp-nav[data-open="true"] {
+      top: 0;
+      left: 0;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      width: 100vw;
+      max-width: none;
+      height: 100dvh;
+      padding: var(--space-16) var(--lp-gutter);
+      border: 0;
+      border-radius: 0;
+      background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+      transform: none;
+      backdrop-filter: blur(24px);
+    }
+
+    .pp-lp-nav[data-open="true"] .pp-logo {
+      flex: 1;
+    }
+
+    .pp-lp-nav[data-open="true"] nav {
+      display: flex;
+      order: 1;
+      flex: 1 0 100%;
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-4);
+      max-height: calc(100dvh - 5rem);
+      padding: var(--space-24) 0 var(--space-32);
+      overflow-y: auto;
+    }
+
+    .pp-lp-nav[data-open="true"] nav > .pp-lp-navlink,
+    .pp-lp-nav[data-open="true"] .pp-lp-group {
+      animation: pp-lp-menu 500ms calc(var(--i) * 60ms) var(--lp-ease) both;
+    }
+
+    .pp-lp-nav[data-open="true"] .pp-lp-navlink {
+      padding: var(--space-8) 0;
+      border-radius: 0;
+      background: none;
+      font-size: var(--text-24);
+    }
+
+    /* On phones every group shows its places under it; there is nothing to open. */
+    .pp-lp-nav[data-open="true"] .pp-lp-group {
+      display: block;
+      background: none;
+    }
+
+    .pp-lp-more {
+      display: none;
+    }
+
+    .pp-lp-nav[data-open="true"] .pp-lp-menu {
+      position: static;
+      width: auto;
+      padding: 0 0 var(--space-8);
+      border: 0;
+      background: none;
+      box-shadow: none;
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+    }
+
+    .pp-lp-nav[data-open="true"] .pp-lp-menu li {
+      opacity: 1;
+      transform: none;
+    }
+
+    .pp-lp-nav[data-open="true"] .pp-lp-menu a {
+      padding: var(--space-8) var(--space-16);
+      border-left: 1px solid var(--color-line);
+      border-radius: 0;
+    }
+
+    .pp-lp-nav[data-open="true"] .pp-lp-menu a[aria-current] {
+      border-left-color: var(--color-accent);
+    }
+
+    .pp-lp-nav[data-open="true"] .pp-lp-menu small {
+      display: none;
+    }
+
+    @keyframes pp-lp-menu {
+      from {
+        opacity: 0;
+        transform: translateY(1.5rem);
+      }
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .pp-lp-nav .pp-button {
+      padding-inline: var(--space-12);
+    }
+  }
+
+  /* Reduced motion: every part in its finished state, nothing moving. */
+
+  @media (prefers-reduced-motion: reduce) {
+    .pp-lp [data-string],
+    .pp-lp-tagline {
+      --progress: 0.5;
+    }
+
+    .pp-lp *,
+    .pp-lp *::before,
+    .pp-lp *::after {
+      animation: none !important;
+    }
+  }
+}

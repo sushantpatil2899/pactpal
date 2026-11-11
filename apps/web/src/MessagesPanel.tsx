@@ -5,7 +5,7 @@ import { LABEL_WORDS, revisionNote } from "./message-words";
 import { FULL_WIDTH, WRAP } from "./styles";
 
 const POLL_MS = 3000;
-const ALERT = { color: "#8a1c1c" } as const;
+const ALERT = { color: "var(--color-alert-ink)" } as const;
 
 /** One review: each request with its label and quotes, the drafted reply and change lines. */
 function ReviewResult({

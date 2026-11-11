@@ -1,0 +1,47 @@
+@layer pp {
+  /* The sign-in page: one card, one action. */
+
+  .pp-signin {
+    max-width: 30rem;
+    margin: clamp(0rem, 8vh, 5rem) auto 0;
+    box-shadow: var(--shadow-2);
+  }
+
+  .pp-signin > div:first-child {
+    padding: var(--space-32) var(--space-32) var(--space-24);
+  }
+
+  .pp-signin-mark {
+    display: block;
+    width: 3rem;
+    margin-bottom: var(--space-24);
+  }
+
+  .pp-signin p {
+    color: var(--color-ink-2);
+  }
+
+  .pp-signin [role="alert"] {
+    margin: 0 0 var(--space-16);
+  }
+
+  .pp-signin .pp-button-large {
+    width: 100%;
+    margin-top: var(--space-8);
+  }
+
+  .pp-signin-facts {
+    display: grid;
+    gap: var(--space-16);
+    padding: var(--space-24) var(--space-32) var(--space-32);
+    background: var(--color-surface-2);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-signin-facts .pp-caption {
+    color: var(--color-ink);
+    font-size: var(--text-13);
+    font-weight: 600;
+  }
+}

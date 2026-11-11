@@ -140,7 +140,7 @@ export function TimelineEditor({
   return (
     <fieldset>
       <legend>Timeline: every step, in the agreed order</legend>
-      <p style={{ fontSize: 14, color: "#555" }}>
+      <p data-tone="note">
         Payments and what the buyer provides are added from their lists above. Add reviews (you
         share a sketch, the buyer approves it), deliveries and anything else, then put the steps in
         order. The buyer signs this order, and PactPal reminds whoever a step is waiting for.

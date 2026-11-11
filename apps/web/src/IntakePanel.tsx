@@ -18,10 +18,6 @@ export const intakeExample = (origin: string, key: string) =>
   -H "Content-Type: application/json" \\
   -d '{"title": "New commission", "text": "Paste the chat or email here"}'`;
 
-/** How to add PactPal to Claude Code with an agent key (8a); `origin` is this site's address. */
-export const agentSetup = (origin: string, key: string) =>
-  `claude mcp add --transport http pactpal ${origin}/mcp --header "Authorization: Bearer ${key}"`;
-
 /** The words that differ between the key and the forwarding address. */
 const WORDS: Record<IntakeKind, { name: string; make: string; shown: string }> = {
   key: { name: "key", make: "Make a key", shown: "Your new key (shown only now):" },
@@ -38,7 +34,7 @@ const WORDS: Record<IntakeKind, { name: string; make: string; shown: string }> =
 };
 
 /** A button that copies `text`, saying so once it has. */
-function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -93,31 +89,38 @@ function SecretPart({
     });
   };
   return (
-    <>
+    <div className="pp-secret">
       {current && (
-        <p>
-          Your {words.name} ends in <code>…{current.ending}</code>, made {when(current.createdAt)}
-          {current.lastUsedAt === null
-            ? ", not used yet"
-            : `, last used ${when(current.lastUsedAt)}`}
-          . New deals: {label(current.defaultCategory)}, {current.defaultCurrency}.{" "}
-          <button type="button" disabled={busy} onClick={onOff}>
+        <div className="pp-secret-status">
+          <p>
+            <span>
+              Your {words.name} ends in <code>…{current.ending}</code>
+            </span>
+            <small>
+              Made {when(current.createdAt)} ·{" "}
+              {current.lastUsedAt === null
+                ? "not used yet"
+                : `last used ${when(current.lastUsedAt)}`}{" "}
+              · New deals: {label(current.defaultCategory)}, {current.defaultCurrency}
+            </small>
+          </p>
+          <button type="button" className="pp-secret-off" disabled={busy} onClick={onOff}>
             Turn off
           </button>
-        </p>
+        </div>
       )}
       {secret && (
-        <div role="status" style={WRAP}>
+        <div role="status" className="pp-secret-new" style={WRAP}>
           <p>
             <strong>{words.shown}</strong> <code>{secret}</code> <CopyButton text={secret} />
           </p>
           {children}
         </div>
       )}
-      <form onSubmit={submit}>
-        <p>
+      <form onSubmit={submit} className="pp-secret-form">
+        <div className="pp-secret-fields">
           <label>
-            Default category{" "}
+            <span>Default category</span>
             <select name="defaultCategory" defaultValue={current?.defaultCategory}>
               {options.categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -125,9 +128,9 @@ function SecretPart({
                 </option>
               ))}
             </select>
-          </label>{" "}
+          </label>
           <label>
-            Currency{" "}
+            <span>Currency</span>
             <select name="defaultCurrency" defaultValue={current?.defaultCurrency}>
               {options.currencies.map((c) => (
                 <option key={c} value={c}>
@@ -136,22 +139,20 @@ function SecretPart({
               ))}
             </select>
           </label>
-        </p>
+        </div>
         <button type="submit" disabled={busy}>
           {current ? `Make a new ${words.name} (the old one stops working)` : words.make}
         </button>
       </form>
-    </>
+    </div>
   );
 }
 
 /**
- * "Create deals from other tools" (4p, 4p-2): the seller makes a private key for other tools to
- * post text with, and a private address to forward emails to, each with default category and
- * currency. Each text or email becomes a draft deal with it saved as its chat. A new key or
- * address is shown once. Hidden for someone not signed in with PayPal.
+ * The seller's private keys and forwarding address (4p, 4p-2, 8a), loaded once: `part(kind)`
+ * draws one of them with its make and turn-off controls, and the new secret shown once.
  */
-export function IntakePanel({ options }: { options: DealOptions }) {
+export function useSecrets(options: DealOptions) {
   const [view, setView] = useState<IntakeKeyView | undefined>();
   const [shown, setShown] = useState<{ kind: IntakeKind; secret: string } | undefined>();
   const [busy, setBusy] = useState(false);
@@ -160,7 +161,6 @@ export function IntakePanel({ options }: { options: DealOptions }) {
   useEffect(() => {
     getIntakeKey().then(setView, () => undefined);
   }, []);
-  if (!view) return null;
 
   const run = (kind: IntakeKind, work: Promise<IntakeKeyView>) => {
     setBusy(true);
@@ -177,29 +177,43 @@ export function IntakePanel({ options }: { options: DealOptions }) {
       },
     );
   };
-  const part = (kind: IntakeKind, children?: ReactNode) => (
-    <SecretPart
-      kind={kind}
-      current={view[kind]}
-      secret={shown?.kind === kind ? shown.secret : undefined}
-      busy={busy}
-      options={options}
-      onMake={(defaults) => {
-        run(kind, makeIntakeSecret(kind, defaults));
-      }}
-      onOff={() => {
-        run(kind, turnOffIntakeSecret(kind));
-      }}
-    >
-      {children}
-    </SecretPart>
-  );
+  const part = (kind: IntakeKind, children?: ReactNode) =>
+    view && (
+      <SecretPart
+        kind={kind}
+        current={view[kind]}
+        secret={shown?.kind === kind ? shown.secret : undefined}
+        busy={busy}
+        options={options}
+        onMake={(defaults) => {
+          run(kind, makeIntakeSecret(kind, defaults));
+        }}
+        onOff={() => {
+          run(kind, turnOffIntakeSecret(kind));
+        }}
+      >
+        {children}
+      </SecretPart>
+    );
+  return { view, shown, problem, part };
+}
+
+/**
+ * "Create deals from other tools" (4p, 4p-2): the seller makes a private key for other tools to
+ * post text with, and a private address to forward emails to, each with default category and
+ * currency. Each text or email becomes a draft deal with it saved as its chat. A new key or
+ * address is shown once. Hidden for someone not signed in with PayPal. The agent key has its
+ * own card in Settings.
+ */
+export function IntakePanel({ options }: { options: DealOptions }) {
+  const { view, shown, problem, part } = useSecrets(options);
+  if (!view) return null;
 
   return (
     <section aria-labelledby="intake">
       <h2 id="intake">Create deals from other tools</h2>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}
@@ -232,25 +246,9 @@ export function IntakePanel({ options }: { options: DealOptions }) {
         <p>Email forwarding is not set up yet.</p>
       )}
       <h3>Connect your AI agent</h3>
-      <p style={WRAP}>
-        Make an agent key, then add PactPal to an AI assistant that supports MCP (such as Claude
-        Code, Claude Desktop or Cursor) at <code>{window.location.origin}/mcp</code>. It can read
-        your deals and disputes, create draft deals and build evidence packets.{" "}
-        <strong>
-          It cannot send anything to PayPal by itself: each invoice or evidence upload it asks for
-          waits for you to approve it on the deal, and only then gives you a one-time code to pass
-          to it.
-        </strong>
+      <p>
+        Your agent key and setup are in <a href="/settings#agent">Settings</a>.
       </p>
-      {part(
-        "agent",
-        <>
-          <p>Add it to Claude Code:</p>
-          <pre style={{ ...FULL_WIDTH, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            {agentSetup(window.location.origin, shown?.secret ?? "")}
-          </pre>
-        </>,
-      )}
     </section>
   );
 }

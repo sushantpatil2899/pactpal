@@ -1,0 +1,818 @@
+/*
+ * The agent section: the copy beside a scene. The scene is a small isometric deck drawn in CSS 3D:
+ * the seller's AI (a violet cube) on the left, PactPal's gate in the middle, PayPal and the
+ * evidence log on the right. Every size is in container units, so the scene scales with its box.
+ */
+@layer pp {
+  .pp-lp main > .pp-lp-agents {
+    max-width: none;
+    margin: 0;
+  }
+
+  .pp-lp-agents {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: center;
+    gap: clamp(2rem, 5vw, 5rem);
+    padding: 9rem max(var(--lp-gutter), calc((100vw - 84rem) / 2));
+    overflow: hidden;
+    background:
+      radial-gradient(46rem 30rem at 80% 40%, rgb(143 129 255 / 0.16), transparent 70%),
+      radial-gradient(30rem 24rem at 10% 90%, rgb(34 201 151 / 0.08), transparent 70%), #05070a;
+  }
+
+  .pp-lp-agents-copy > p:not(.pp-lp-kicker) {
+    max-width: 34rem;
+    color: var(--color-ink-2);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+
+  .pp-lp-agents-clients {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    margin: var(--space-24) 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pp-lp-agents-clients li {
+    padding: 6px var(--space-12);
+    border: 1px solid rgb(143 129 255 / 0.35);
+    border-radius: var(--radius-pill);
+    background: rgb(143 129 255 / 0.08);
+    color: #d5cfff;
+    font: 550 var(--text-12) / 1.4 var(--font-mono);
+  }
+
+  .pp-lp-agents-lists {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-24);
+    margin-bottom: var(--space-24);
+  }
+
+  .pp-lp-agents-lists h3 {
+    margin: 0 0 var(--space-8);
+    color: var(--color-ink-3);
+    font: 550 var(--text-12) / 1.4 var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .pp-lp-agents-lists ul {
+    display: grid;
+    gap: var(--space-8);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.9375rem;
+  }
+
+  .pp-lp-agents-lists li {
+    display: flex;
+    gap: var(--space-8);
+  }
+
+  .pp-lp-agents-lists li::before {
+    flex: none;
+    color: #4fdcb0;
+    content: "✓";
+  }
+
+  .pp-lp-agents-lists div + div li::before {
+    color: #ff9484;
+    content: "✕";
+  }
+
+  .pp-lp-agents-guide {
+    color: #b3a9ff;
+    font-weight: 600;
+  }
+
+  /* ───────────── The scene ───────────── */
+
+  .pp-lp-agents-stage {
+    position: relative;
+    aspect-ratio: 1 / 0.92;
+    container-type: inline-size;
+  }
+
+  /* The console: the agent's calls as it makes them. */
+  .pp-lp-console {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    left: 0;
+    width: 64cqw;
+    border: 1px solid rgb(255 255 255 / 0.1);
+    border-radius: 2.2cqw;
+    background: linear-gradient(160deg, rgb(23 28 36 / 0.92), rgb(10 12 16 / 0.92));
+    box-shadow: 0 2cqw 6cqw -2cqw rgb(0 0 0 / 0.7);
+    backdrop-filter: blur(10px);
+    font: 400 max(10px, 1.75cqw) / 1.5 var(--font-mono);
+  }
+
+  .pp-lp-console header {
+    display: flex;
+    align-items: center;
+    gap: 1.6cqw;
+    padding: 1.4cqw 2cqw;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+    color: var(--color-ink-3);
+  }
+
+  .pp-lp-console header span {
+    display: flex;
+    gap: 0.8cqw;
+  }
+
+  .pp-lp-console header i {
+    width: 1.2cqw;
+    height: 1.2cqw;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.18);
+  }
+
+  /* The newest lines stay in view; older ones slide off the top. */
+  .pp-lp-console ol {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 1cqw;
+    height: 33cqw;
+    margin: 0;
+    padding: 1.6cqw 2cqw;
+    overflow: hidden;
+    list-style: none;
+  }
+
+  .pp-lp-console li {
+    display: grid;
+    flex: none;
+    gap: 0.2cqw;
+    animation: pp-lp-line 400ms var(--lp-ease) both;
+  }
+
+  .pp-lp-console code {
+    color: #eef2f6;
+  }
+
+  .pp-lp-console code b {
+    color: #8f81ff;
+  }
+
+  .pp-lp-console span {
+    padding-left: 2cqw;
+    color: #4fdcb0;
+  }
+
+  .pp-lp-console li[data-kind="gate"] span {
+    color: #e6b450;
+  }
+
+  .pp-lp-console li[data-kind="refused"] span {
+    color: #ff9484;
+  }
+
+  .pp-lp-caret {
+    display: inline-block;
+    width: 0.9cqw;
+    height: 1.9cqw;
+    margin-left: 0.3cqw;
+    vertical-align: -0.3cqw;
+    background: #8f81ff;
+    animation: pp-lp-blink 900ms steps(2) infinite;
+  }
+
+  @keyframes pp-lp-line {
+    from {
+      opacity: 0;
+      transform: translateY(0.6cqw);
+    }
+  }
+
+  @keyframes pp-lp-blink {
+    to {
+      opacity: 0;
+    }
+  }
+
+  /* The deck, tilted into an isometric view. */
+  .pp-lp-deck-wrap {
+    position: absolute;
+    inset: 22cqw 0 0;
+    perspective: 220cqw;
+  }
+
+  .pp-lp-deck {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 78cqw;
+    height: 46cqw;
+    border: 1px solid rgb(255 255 255 / 0.08);
+    border-radius: 3cqw;
+    background:
+      linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px) 0 0 / 4cqw 4cqw,
+      linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px) 0 0 / 4cqw 4cqw,
+      radial-gradient(closest-side, rgb(143 129 255 / 0.12), transparent),
+      rgb(12 15 20 / 0.6);
+    transform: translate(-50%, -46%) rotateX(58deg) rotateZ(-34deg);
+    transform-style: preserve-3d;
+  }
+
+  .pp-lp-lane {
+    position: absolute;
+    top: calc(50% - 0.6cqw);
+    left: 12%;
+    width: 76%;
+    height: 1.2cqw;
+    border-radius: 1cqw;
+    background: linear-gradient(90deg, #8f81ff, #22c997);
+    box-shadow: 0 0 3cqw rgb(143 129 255 / 0.5);
+    opacity: 0.55;
+  }
+
+  /* A cube: centred on its spot, standing on the deck, six faces. */
+  .pp-lp-cube {
+    --s: 9cqw;
+    --a: #8f81ff;
+    --b: #6d5cf6;
+
+    position: absolute;
+    width: var(--s);
+    height: var(--s);
+    transform: translate(-50%, -50%) translateZ(calc(var(--s) / 2));
+    transform-style: preserve-3d;
+  }
+
+  .pp-lp-cube > i {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgb(255 255 255 / 0.18);
+    background: linear-gradient(135deg, var(--a), var(--b));
+  }
+
+  .pp-lp-cube .top {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--a) 80%, #fff), var(--a));
+    transform: translateZ(calc(var(--s) / 2));
+  }
+
+  .pp-lp-cube .top b {
+    color: #05070a;
+    font: 700 max(9px, 1.9cqw) / 1 var(--font-text);
+    letter-spacing: -0.01em;
+    transform: rotate(34deg);
+  }
+
+  .pp-lp-cube .bottom {
+    transform: translateZ(calc(var(--s) / -2));
+  }
+
+  .pp-lp-cube .n {
+    filter: brightness(0.75);
+    transform: rotateX(90deg) translateZ(calc(var(--s) / 2));
+  }
+
+  .pp-lp-cube .s {
+    filter: brightness(0.6);
+    transform: rotateX(-90deg) translateZ(calc(var(--s) / 2));
+  }
+
+  .pp-lp-cube .e {
+    filter: brightness(0.85);
+    transform: rotateY(90deg) translateZ(calc(var(--s) / 2));
+  }
+
+  .pp-lp-cube .w {
+    filter: brightness(0.5);
+    transform: rotateY(-90deg) translateZ(calc(var(--s) / 2));
+  }
+
+  /* Side faces centre what they carry: the assistants' logos, PayPal's. */
+  .pp-lp-cube > i:not(.top) {
+    display: grid;
+    place-items: center;
+  }
+
+  .pp-lp-cube .pp-brand-logo {
+    width: 52%;
+    height: 52%;
+  }
+
+  .pp-lp-cube-word {
+    color: #d5cfff;
+    font: 700 max(9px, 2.2cqw) / 1 var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+
+  /* The seller's AI: dark glass sides with the assistants on them, slowly turning. */
+  .pp-lp-cube-ai {
+    --s: 11cqw;
+    --a: #222838;
+    --b: #141822;
+
+    top: 50%;
+    left: 12%;
+    animation: pp-lp-turn 14s linear infinite;
+  }
+
+  .pp-lp-cube-ai > i {
+    border-color: rgb(143 129 255 / 0.55);
+  }
+
+  .pp-lp-cube-ai .top {
+    background: linear-gradient(135deg, #b3a9ff, #8f81ff);
+  }
+
+  @keyframes pp-lp-turn {
+    to {
+      transform: translate(-50%, -50%) translateZ(calc(var(--s) / 2)) rotateZ(1turn);
+    }
+  }
+
+  .pp-lp-cube-paypal {
+    --s: 10cqw;
+    --a: #f7f9fc;
+    --b: #dfe6f0;
+
+    top: 62%;
+    left: 88%;
+  }
+
+  .pp-lp-cube-paypal .top b {
+    color: #002991;
+  }
+
+  @keyframes pp-lp-hover {
+    50% {
+      transform: translate(-50%, -50%) translateZ(calc(var(--s) / 2 + 1.4cqw));
+    }
+  }
+
+  /* PactPal's gate: two posts, a barrier across the lane, a lock floating above. */
+  .pp-lp-gate {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform-style: preserve-3d;
+  }
+
+  .pp-lp-post {
+    --s: 3.4cqw;
+    --a: #2a313c;
+    --b: #171c24;
+
+    top: 0;
+    left: 0;
+  }
+
+  .pp-lp-post-a {
+    margin-top: -9cqw;
+  }
+
+  .pp-lp-post-b {
+    margin-top: 9cqw;
+  }
+
+  .pp-lp-post > i {
+    border-color: rgb(79 220 176 / 0.4);
+  }
+
+  .pp-lp-barrier {
+    position: absolute;
+    top: -9cqw;
+    left: 0;
+    width: 9cqw;
+    height: 18cqw;
+    border: 1px solid rgb(230 180 80 / 0.6);
+    border-radius: 0.6cqw;
+    background: repeating-linear-gradient(
+      0deg,
+      rgb(230 180 80 / 0.5) 0 1.4cqw,
+      rgb(230 180 80 / 0.12) 1.4cqw 2.8cqw
+    );
+    box-shadow: 0 0 3cqw rgb(230 180 80 / 0.35);
+    transform: rotateY(-90deg);
+    transform-origin: left center;
+    transition:
+      transform 700ms var(--lp-ease),
+      opacity 700ms var(--lp-ease),
+      border-color 300ms,
+      box-shadow 300ms;
+  }
+
+  .pp-lp-lock {
+    position: absolute;
+    top: -3cqw;
+    left: -3cqw;
+    width: 6cqw;
+    height: 6cqw;
+    transform: translateZ(12.5cqw) rotateZ(34deg) rotateX(-58deg);
+    transform-style: preserve-3d;
+  }
+
+  .pp-lp-lock i {
+    position: absolute;
+    inset: 0;
+    border: 0.7cqw solid #e6b450;
+    border-radius: 50%;
+    box-shadow:
+      0 0 3cqw rgb(230 180 80 / 0.6),
+      inset 0 0 2cqw rgb(230 180 80 / 0.4);
+    transition:
+      border-color 300ms,
+      box-shadow 300ms;
+    animation: pp-lp-spin 8s linear infinite;
+  }
+
+  .pp-lp-lock i::after {
+    position: absolute;
+    top: -0.9cqw;
+    left: 50%;
+    width: 1.4cqw;
+    height: 1.4cqw;
+    border-radius: 50%;
+    background-color: #e6b450;
+    content: "";
+    transform: translateX(-50%);
+  }
+
+  @keyframes pp-lp-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+  .pp-lp-agents-stage[data-gate="waiting"] .pp-lp-lock i {
+    animation-duration: 1.6s;
+  }
+
+  .pp-lp-agents-stage[data-gate="waiting"] .pp-lp-barrier {
+    box-shadow: 0 0 5cqw rgb(230 180 80 / 0.7);
+  }
+
+  .pp-lp-agents-stage[data-gate="open"] .pp-lp-barrier {
+    opacity: 0.15;
+    transform: rotateY(-90deg) scaleX(0.08);
+  }
+
+  .pp-lp-agents-stage[data-gate="open"] .pp-lp-lock i {
+    border-color: #22c997;
+    box-shadow: 0 0 4cqw rgb(34 201 151 / 0.7);
+  }
+
+  .pp-lp-agents-stage[data-gate="open"] .pp-lp-lock i::after {
+    background-color: #22c997;
+  }
+
+  .pp-lp-agents-stage[data-gate="refused"] .pp-lp-barrier,
+  .pp-lp-agents-stage[data-gate="refused"] .pp-lp-lock i {
+    border-color: #ff7a66;
+    box-shadow: 0 0 5cqw rgb(255 122 102 / 0.7);
+  }
+
+  .pp-lp-agents-stage[data-gate="refused"] .pp-lp-lock i::after {
+    background-color: #ff7a66;
+  }
+
+  /* The packet the agent built, standing by the gate until it may go. */
+  .pp-lp-cube-packet {
+    --s: 5cqw;
+    --a: #e6b450;
+    --b: #b8862b;
+
+    top: 78%;
+    left: 44%;
+    animation: pp-lp-drop 600ms var(--lp-ease) both;
+  }
+
+  .pp-lp-cube-packet .top b {
+    font-size: max(7px, 1cqw);
+  }
+
+  @keyframes pp-lp-drop {
+    from {
+      transform: translate(-50%, -50%) translateZ(18cqw);
+      opacity: 0;
+    }
+  }
+
+  /* One call travelling along the lane; what it does depends on the call. */
+  .pp-lp-packet {
+    --s: 3cqw;
+    --a: #b3a9ff;
+    --b: #8f81ff;
+
+    top: 50%;
+    left: 12%;
+    animation: pp-lp-read 1100ms var(--lp-ease) both;
+  }
+
+  .pp-lp-packet-build {
+    animation-name: pp-lp-read;
+  }
+
+  .pp-lp-packet-gate {
+    --a: #e6b450;
+    --b: #b8862b;
+
+    animation: pp-lp-to-gate 700ms var(--lp-ease) forwards;
+  }
+
+  .pp-lp-packet-send {
+    --a: #4fdcb0;
+    --b: #22c997;
+
+    animation: pp-lp-send 1300ms var(--lp-ease) forwards;
+  }
+
+  .pp-lp-packet-refused {
+    --a: #ff9484;
+    --b: #c93a25;
+
+    animation: pp-lp-refused 1100ms var(--lp-ease) forwards;
+  }
+
+  @keyframes pp-lp-read {
+    45%,
+    55% {
+      left: 44%;
+    }
+
+    100% {
+      left: 12%;
+      opacity: 0.4;
+    }
+  }
+
+  @keyframes pp-lp-to-gate {
+    to {
+      left: 44%;
+    }
+  }
+
+  @keyframes pp-lp-send {
+    from {
+      left: 44%;
+    }
+
+    85% {
+      left: 88%;
+      opacity: 1;
+    }
+
+    to {
+      left: 88%;
+      opacity: 0;
+    }
+  }
+
+  @keyframes pp-lp-refused {
+    50% {
+      left: 44%;
+      opacity: 1;
+    }
+
+    to {
+      left: 40%;
+      opacity: 0;
+      transform: translate(-50%, -50%) translateZ(4cqw) scale(0.2);
+    }
+  }
+
+  /* The evidence log: a short chain of blocks behind the lane; the new one slides onto the end. */
+  .pp-lp-log {
+    position: absolute;
+    top: 26%;
+    left: 66%;
+    transform-style: preserve-3d;
+  }
+
+  .pp-lp-log-block {
+    --s: 5cqw;
+    --a: #3a4250;
+    --b: #232a35;
+    --x: 0;
+
+    top: 0;
+    left: 0;
+    transform: translate(-50%, -50%) translateX(calc(var(--x) * 6.5cqw))
+      translateZ(calc(var(--s) / 2));
+  }
+
+  .pp-lp-log-block:nth-child(2) {
+    --x: 1;
+  }
+
+  .pp-lp-log-block .top b {
+    color: #eef2f6;
+    font-size: max(7px, 1.2cqw);
+  }
+
+  .pp-lp-log-new {
+    --x: 2;
+    --a: #22c997;
+    --b: #0b8f8c;
+
+    animation: pp-lp-seal 800ms 900ms var(--lp-ease) both;
+  }
+
+  .pp-lp-log-new .top b {
+    color: #05070a;
+  }
+
+  @keyframes pp-lp-seal {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -50%) translateX(calc(var(--x) * 6.5cqw)) translateZ(14cqw);
+    }
+  }
+
+  /* The seller's side: the approval in PactPal, then the one time code. */
+  .pp-lp-approve {
+    position: absolute;
+    z-index: 4;
+    right: 0;
+    bottom: 6cqw;
+    display: grid;
+    gap: 1.4cqw;
+    width: 40cqw;
+    padding: 2.2cqw;
+    border: 1px solid rgb(230 180 80 / 0.45);
+    border-radius: 2.2cqw;
+    background: rgb(18 22 28 / 0.94);
+    box-shadow: 0 2cqw 6cqw -2cqw rgb(0 0 0 / 0.8);
+    opacity: 0;
+    transform: translateY(2cqw) scale(0.96);
+    transition:
+      opacity 400ms var(--lp-ease),
+      transform 500ms var(--lp-ease);
+    pointer-events: none;
+  }
+
+  .pp-lp-approve[data-show="true"] {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .pp-lp-approve p {
+    display: grid;
+    gap: 0.6cqw;
+    margin: 0;
+    color: #eef2f6;
+    font-size: max(12px, 2cqw);
+    line-height: 1.35;
+  }
+
+  .pp-lp-approve small {
+    color: var(--color-ink-3);
+    font: 550 max(10px, 1.5cqw) / 1.3 var(--font-mono);
+  }
+
+  .pp-lp-approve b {
+    color: #4fdcb0;
+    font: 600 max(18px, 4cqw) / 1 var(--font-mono);
+    letter-spacing: 0.08em;
+  }
+
+  .pp-lp-approve .pp-button {
+    justify-self: start;
+    min-height: max(32px, 5cqw);
+  }
+
+  .pp-lp-agents-legend {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1cqw 2.4cqw;
+    margin: 0;
+    padding: 0;
+    color: var(--color-ink-3);
+    font: 550 max(10px, 1.5cqw) / 1.4 var(--font-mono);
+    letter-spacing: 0.04em;
+    list-style: none;
+  }
+
+  .pp-lp-agents-legend li::before {
+    display: inline-block;
+    width: 1cqw;
+    height: 1cqw;
+    margin-right: 0.8cqw;
+    border-radius: 50%;
+    background: #8f81ff;
+    content: "";
+  }
+
+  .pp-lp-agents-legend li:nth-child(2)::before {
+    background: #e6b450;
+  }
+
+  .pp-lp-agents-legend li:nth-child(3)::before {
+    background: #22c997;
+  }
+
+  @media (max-width: 64rem) {
+    .pp-lp-agents {
+      grid-template-columns: minmax(0, 1fr);
+      padding-block: var(--space-96);
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .pp-lp-agents-lists {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pp-lp-agents-stage {
+      aspect-ratio: 1 / 1.15;
+    }
+
+    .pp-lp-console {
+      width: 100%;
+    }
+
+    .pp-lp-approve {
+      width: 70cqw;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pp-lp-agents-stage * {
+      animation: none !important;
+    }
+  }
+}
+
+/* The agent's card on "What you get": its little console. */
+@layer pp {
+  .pp-lp-v-agent {
+    display: grid;
+    gap: 6px;
+    font-family: var(--lp-mono);
+  }
+
+  .pp-lp-v-agent small {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+    color: var(--color-ink-3);
+  }
+
+  .pp-lp-v-agent small .pp-brand-logo {
+    width: 12px;
+    height: 12px;
+  }
+
+  .pp-lp-v-agent code {
+    display: flex;
+    gap: 6px;
+    color: #eef2f6;
+    white-space: nowrap;
+    animation: pp-lp-line 500ms calc(var(--n, 0) * 1ms) var(--lp-ease) both;
+  }
+
+  .pp-lp-v-agent code b {
+    color: #8f81ff;
+  }
+
+  .pp-lp-v-agent code span {
+    margin-left: auto;
+    color: #4fdcb0;
+  }
+
+  .pp-lp-v-agent code:nth-child(3) span {
+    color: #e6b450;
+  }
+
+  .pp-lp-pillar .pp-lp-v-agent p {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-self: start;
+    margin: 4px 0 0;
+    padding: 4px 10px;
+    border: 1px solid rgb(230 180 80 / 0.5);
+    border-radius: 999px;
+    color: #e6b450;
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+
+  .pp-lp-pillar .pp-lp-v-agent p i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e6b450;
+    box-shadow: 0 0 8px #e6b450;
+    animation: pp-lp-blink 1.2s ease-in-out infinite alternate;
+  }
+}

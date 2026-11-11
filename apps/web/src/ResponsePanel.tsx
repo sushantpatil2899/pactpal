@@ -16,12 +16,11 @@ function Draft({ view }: { view: ResponseView }) {
   return (
     <>
       <ReviewFlag council={view.council} />
-      <ul>
+      <ul className="pp-findings">
         {view.draft.options.map((option) => (
           <li key={option.code}>
             <strong>{option.facts}</strong>
-            <br />
-            AI note on this case: {option.fits}
+            <span className="pp-ai-line">AI note on this case: {option.fits}</span>
             {option.record.length > 0 && (
               <small> (log entries: {option.record.map((entry) => entry.text).join("; ")})</small>
             )}
@@ -33,11 +32,11 @@ function Draft({ view }: { view: ResponseView }) {
           <p>
             <strong>Draft message to the buyer</strong> (you can change it before sending, below):
           </p>
-          <blockquote style={{ whiteSpace: "pre-wrap" }}>{view.draft.message}</blockquote>
+          <blockquote>{view.draft.message}</blockquote>
         </>
       )}
       {offered.has("make_offer") && (
-        <p>
+        <p className="pp-ai-note">
           <strong>Draft note for a refund offer:</strong> {view.draft.offerNote}
         </p>
       )}
@@ -76,7 +75,7 @@ export function ResponsePanel({ dealId, disputeId }: { dealId: string; disputeId
     );
   };
   return (
-    <section aria-labelledby="answer-help">
+    <section aria-labelledby="answer-help" className="pp-ai-panel">
       <h3 id="answer-help">Help me answer (AI draft)</h3>
       <p>
         AI models read the claim, the record and what PayPal allows now, then draft a message to the
@@ -84,7 +83,7 @@ export function ResponsePanel({ dealId, disputeId }: { dealId: string; disputeId
         <strong>AI draft: check every line.</strong>
       </p>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

@@ -32,7 +32,7 @@ export function PacketSummary({
   const latest = view.summaries[0];
   return (
     <>
-      <h4>Summary and document picks (AI draft)</h4>
+      <h4 data-ai>Summary and document picks (AI draft)</h4>
       <p>
         AI models read the comparison above, the evidence log and the list below, then write a
         neutral summary, suggest which documents to send and draft PayPal&apos;s note.{" "}

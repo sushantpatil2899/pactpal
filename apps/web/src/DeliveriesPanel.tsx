@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { AnswerBox } from "./AnswerBox";
 import { DeliverPanel } from "./DeliverPanel";
+import { Button, ButtonLink, EmptyState, Card } from "./design/parts";
 import { when } from "./format";
 import { WRAP } from "./styles";
 
@@ -76,14 +77,17 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
   };
 
   return (
-    <section aria-labelledby="deliveries">
+    <section aria-labelledby="deliveries" className="pp-stack">
       <h3 id="deliveries">Deliveries</h3>
-      {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
-          {problem}
-        </p>
+      {problem && <p role="alert">{problem}</p>}
+      {view.deliveries.length === 0 && (
+        <EmptyState>
+          <p>
+            Nothing delivered yet. {seller ? "Deliveries you send" : "Work the seller delivers"}{" "}
+            will appear here, with each file&apos;s fingerprint.
+          </p>
+        </EmptyState>
       )}
-      {view.deliveries.length === 0 && <p>Nothing delivered yet.</p>}
       {seller && view.revisions && (
         <p>
           Change requests so far: {view.revisions.used}
@@ -97,65 +101,89 @@ export function DeliveriesPanel({ deal, onChange }: { deal: DealSummary; onChang
         const visible = seller || opened.has(delivery.id) || delivery.access.opened.count > 0;
         return (
           <article key={delivery.id} aria-label={`Delivery for stage ${String(delivery.stage)}`}>
-            <h4>
-              Stage {delivery.stage}: {delivery.stageTitle} · sent {when(delivery.sentAt)}
-            </h4>
-            {!visible && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  run(openDelivery(deal.id, delivery.id), () => {
-                    setOpened(new Set([...opened, delivery.id]));
-                  });
-                }}
-              >
-                Open delivery
-              </button>
-            )}
-            {visible && (
-              <>
-                {delivery.message !== null && (
-                  <p style={WRAP}>Message: &ldquo;{delivery.message}&rdquo;</p>
-                )}
-                <ul>
-                  {delivery.files.map((file) => (
-                    <li key={file.id} style={WRAP}>
-                      <a href={deliveryFileUrl(deal.id, delivery.id, file.id)} download>
-                        Download {file.filename}
-                      </a>{" "}
-                      ({sizeOf(file.sizeBytes)}){" "}
-                      <code title="Fingerprint (SHA-256)">{file.sha256.slice(0, 12)}…</code>
-                    </li>
-                  ))}
-                </ul>
-                {!seller && <p>Each download is recorded with the file&apos;s fingerprint.</p>}
-              </>
-            )}
-            {view.revisions && (
-              <AnswerBox
-                dealId={deal.id}
-                delivery={delivery}
-                revisions={view.revisions}
-                canAnswer={!seller && visible}
-                busy={busy}
-                run={(work) => {
-                  run(work);
-                }}
-              />
-            )}
-            {seller && <AccessLine delivery={delivery} />}
-            {seller && view.emailOn && delivery.access.emailCount < 3 && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  run(emailDeliveryAgain(deal.id, delivery.id));
-                }}
-              >
-                Email the delivery again
-              </button>
-            )}
+            <Card>
+              <header>
+                <h4>
+                  Stage {delivery.stage}: {delivery.stageTitle}
+                </h4>
+                <small>Sent {when(delivery.sentAt)}</small>
+              </header>
+              {!visible && (
+                <div className="pp-band">
+                  <Button
+                    look="primary"
+                    large
+                    disabled={busy}
+                    onClick={() => {
+                      run(openDelivery(deal.id, delivery.id), () => {
+                        setOpened(new Set([...opened, delivery.id]));
+                      });
+                    }}
+                  >
+                    Open delivery
+                  </Button>
+                </div>
+              )}
+              {visible && (
+                <div>
+                  {delivery.message !== null && (
+                    <p style={WRAP}>Message: &ldquo;{delivery.message}&rdquo;</p>
+                  )}
+                  <ul className="pp-files">
+                    {delivery.files.map((file) => (
+                      <li key={file.id}>
+                        <span>
+                          {file.filename}
+                          <small>
+                            {sizeOf(file.sizeBytes)} ·{" "}
+                            <code title="Fingerprint (SHA-256)">{file.sha256.slice(0, 12)}…</code>
+                          </small>
+                        </span>
+                        <ButtonLink
+                          href={deliveryFileUrl(deal.id, delivery.id, file.id)}
+                          download
+                          aria-label={`Download ${file.filename}`}
+                        >
+                          Download
+                        </ButtonLink>
+                      </li>
+                    ))}
+                  </ul>
+                  {!seller && (
+                    <small>Each download is recorded with the file&apos;s fingerprint.</small>
+                  )}
+                </div>
+              )}
+              {/* A buyer answers a delivery only after opening it. */}
+              {(seller || visible) && (
+                <div>
+                  {view.revisions && (
+                    <AnswerBox
+                      dealId={deal.id}
+                      delivery={delivery}
+                      revisions={view.revisions}
+                      canAnswer={!seller && visible}
+                      busy={busy}
+                      run={(work) => {
+                        run(work);
+                      }}
+                    />
+                  )}
+                  {seller && <AccessLine delivery={delivery} />}
+                  {seller && view.emailOn && delivery.access.emailCount < 3 && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        run(emailDeliveryAgain(deal.id, delivery.id));
+                      }}
+                    >
+                      Email the delivery again
+                    </button>
+                  )}
+                </div>
+              )}
+            </Card>
           </article>
         );
       })}

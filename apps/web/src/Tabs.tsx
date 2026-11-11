@@ -52,11 +52,7 @@ export function Tabs<T extends string>({
     document.getElementById(`tab-${next}`)?.focus();
   };
   return (
-    <div
-      role="tablist"
-      aria-label={label}
-      style={{ display: "flex", flexWrap: "wrap", gap: 4, borderBottom: "1px solid #ccc" }}
-    >
+    <div role="tablist" aria-label={label}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -70,7 +66,6 @@ export function Tabs<T extends string>({
             onChange(tab.id);
           }}
           onKeyDown={onKey}
-          style={{ fontWeight: tab.id === current ? "bold" : "normal" }}
         >
           {tab.label}
         </button>

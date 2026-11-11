@@ -387,12 +387,12 @@ export function ScopePanel({
                 stages={stages.map((stage) => stage.title)}
               >
                 {suggested && (
-                  <span style={{ display: "block", color: "#555", fontSize: 14 }}>
+                  <span data-tone="note-block">
                     Mark suggested by the draft: {markWords(suggested, stages)}
                   </span>
                 )}
                 {hints.map((hint) => (
-                  <span key={hint} style={{ display: "block", color: "#555", fontSize: 14 }}>
+                  <span key={hint} data-tone="note-block">
                     {hint}
                   </span>
                 ))}
@@ -476,7 +476,7 @@ export function ScopePanel({
               <>
                 <ProvideFields number={n + 1} row={row} change={change} />
                 {source && (
-                  <span style={{ display: "block", color: "#555", fontSize: 14 }}>
+                  <span data-tone="note-block">
                     Suggested by the draft <FromTheChat lines={source.lines} onShow={show} />
                   </span>
                 )}
@@ -508,7 +508,7 @@ export function ScopePanel({
         Agreed work
       </h3>
       {problem && (
-        <p role="alert" style={{ color: "#8a1c1c" }}>
+        <p role="alert" data-tone="problem">
           {problem}
         </p>
       )}

@@ -19,7 +19,7 @@ export function CitedDraft({
   return (
     <>
       <ReviewFlag council={council} />
-      <ol>
+      <ol className="pp-cited">
         {sentences.map((sentence, i) => (
           <li key={i}>
             {sentence.text}{" "}
@@ -36,7 +36,7 @@ export function CitedDraft({
       <p>
         <strong>{noteLabel}</strong> (you can change it before anything is sent):
       </p>
-      <blockquote style={{ whiteSpace: "pre-wrap" }}>{note}</blockquote>
+      <blockquote>{note}</blockquote>
       {council !== null && <CouncilPanel council={council} />}
     </>
   );

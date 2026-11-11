@@ -2,7 +2,16 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/coverage/**",
+      // Working files of the browser-check and design tools.
+      "**/.playwright-mcp/**",
+      "**/.impeccable/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -28,6 +37,20 @@ export default tseslint.config(
   {
     files: ["**/*.js", "**/*.cjs"],
     extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
+    // The help site's one script runs in the browser.
+    files: ["apps/docs/src/site.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: {
+        document: "readonly",
+        window: "readonly",
+        navigator: "readonly",
+        getComputedStyle: "readonly",
+        IntersectionObserver: "readonly",
+      },
+    },
   },
   {
     files: ["**/*.cjs"],

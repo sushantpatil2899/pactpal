@@ -13,7 +13,7 @@ import {
 import { when } from "./format";
 import { FULL_WIDTH, WRAP } from "./styles";
 
-const ALERT = { color: "#8a1c1c" } as const;
+const ALERT = { color: "var(--color-alert-ink)" } as const;
 
 /** Why a question reached the seller, in the seller's words. */
 const FORWARD_WORDS: Record<ForwardReason, string> = {

@@ -63,7 +63,7 @@ The bar for every change in this repository. Rules marked **[gate]** are enforce
 ## 8. Testing
 
 - Domain logic: unit tests for behaviour, including edge cases and failure paths.
-- Adapters: integration tests against recorded fixtures or the sandbox.
+- Adapters: integration tests against recorded fixtures or PayPal's test environment.
 - **[gate]** Coverage of `packages/*` at least 90% for lines, branches, functions and statements.
 - Tests are deterministic: inject clock and randomness.
 

@@ -10,17 +10,32 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@bryntum/gantt": "npm:@bryntum/gantt-trial@7.3.8",
+    "@bryntum/gantt-react": "7.3.8",
+    "@fiddle-digital/string-tune": "1.2.7",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource/instrument-serif": "5.3.0",
+    "@pactpal/brand": "workspace:*",
     "@pactpal/delivery-check": "workspace:*",
     "@pactpal/live": "workspace:*",
     "@pactpal/timeline": "workspace:*",
     "@pactpal/watcher": "workspace:*",
     "@pactpal/words": "workspace:*",
+    "ag-grid-community": "36.3.0",
+    "ag-grid-enterprise": "36.3.0",
+    "ag-grid-react": "36.3.0",
+    "ag-studio": "3.1.0",
+    "ag-studio-react": "3.1.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "simple-icons": "16.35.0",
+    "three": "0.181.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@types/three": "0.181.0",
     "@vitejs/plugin-react": "^4.3.4",
     "vite": "^6.0.6"
   }
