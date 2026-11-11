@@ -36,17 +36,100 @@
     padding: var(--space-32) clamp(1rem, 4vw, 2.5rem) var(--space-64);
   }
 
-  .pp-buyer .pp-bar {
+  /* The buyer's bar: the logo, Help, and who is signed in; it stays at the top. */
+  .pp-buyer-bar {
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-16);
+    min-height: 3.75rem;
+    padding: var(--space-8) clamp(1rem, 3vw, 2.5rem);
     border-bottom: 1px solid var(--color-line);
-    background: var(--color-surface);
+    background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+    backdrop-filter: blur(12px) saturate(1.3);
+  }
+
+  .pp-buyer-help {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-8);
+    margin-left: auto;
+    padding: var(--space-8) var(--space-12);
+    border-radius: var(--radius-pill);
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+    font-weight: 550;
+    text-decoration: none;
+  }
+
+  .pp-buyer-help:hover {
+    background: var(--color-line);
+    color: var(--color-ink);
+  }
+
+  .pp-buyer-account {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    min-width: 0;
+    padding-left: var(--space-16);
+    border-left: 1px solid var(--color-line);
+  }
+
+  .pp-buyer-account > span {
+    display: grid;
+    min-width: 0;
+    line-height: 1.25;
+  }
+
+  .pp-buyer-account b {
+    overflow: hidden;
+    font-size: var(--text-13);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pp-buyer-account small {
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-buyer-account button {
+    min-height: 2.25rem;
+    padding: 0 var(--space-12);
+    font-size: var(--text-13);
   }
 
   .pp-buyer-main {
     flex: 1;
     width: 100%;
-    max-width: 46rem;
+    max-width: 96rem;
     margin: 0 auto;
-    padding: var(--space-32) var(--space-16) var(--space-64);
+    padding: var(--space-32) clamp(1rem, 3vw, 2.5rem) var(--space-64);
+  }
+
+  @media (max-width: 40rem) {
+    .pp-buyer-bar {
+      gap: var(--space-8);
+    }
+
+    .pp-buyer-help span,
+    .pp-buyer-account > span,
+    .pp-buyer-account button span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .pp-buyer-account {
+      padding-left: var(--space-8);
+    }
   }
 
   .pp-account {
@@ -355,5 +438,130 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-8) var(--space-16);
+  }
+}
+
+@layer pp {
+  /* The buyer link: one calm card, the two ways in. */
+  .pp-link {
+    display: grid;
+    place-items: center;
+    min-height: 60dvh;
+  }
+
+  .pp-link-card {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-16);
+    width: 100%;
+    max-width: 30rem;
+    padding: clamp(1.5rem, 5vw, 2.5rem);
+    border: 1px solid var(--color-line);
+    border-radius: 24px;
+    background:
+      radial-gradient(
+        24rem 12rem at 50% -4rem,
+        color-mix(in srgb, var(--color-accent) 12%, transparent),
+        transparent
+      ),
+      var(--color-surface);
+    box-shadow: var(--shadow-2);
+    text-align: center;
+  }
+
+  .pp-link-mark {
+    width: auto;
+    height: 3rem;
+  }
+
+  .pp-link-card h1 {
+    margin: 0;
+    font-size: var(--text-32);
+    letter-spacing: -0.02em;
+  }
+
+  .pp-link-lead {
+    margin: 0;
+    color: var(--color-ink-2);
+  }
+
+  .pp-link-choices {
+    display: grid;
+    gap: var(--space-12);
+    width: 100%;
+    margin-top: var(--space-8);
+  }
+
+  .pp-link-choices button,
+  .pp-link-card > .pp-button {
+    width: 100%;
+  }
+
+  .pp-link-choices small {
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-link-or {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    margin: 0;
+    color: var(--color-ink-3);
+    font-size: var(--text-12);
+  }
+
+  .pp-link-or::before,
+  .pp-link-or::after {
+    flex: 1;
+    height: 1px;
+    background: var(--color-line);
+    content: "";
+  }
+
+  /* The buyer's deals: each a row that opens the deal. */
+  .pp-deals-home-page {
+    max-width: 60rem;
+  }
+
+  .pp-deals-home h1 {
+    margin: 0 0 var(--space-16);
+  }
+
+  .pp-deals-home ul {
+    display: grid;
+    gap: var(--space-8);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .pp-deals-home a {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-box);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-1);
+    color: var(--color-ink);
+    text-decoration: none;
+    transition: border-color var(--time-fast) var(--ease);
+  }
+
+  .pp-deals-home a:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+  }
+
+  .pp-deals-home-text {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pp-deals-home small {
+    color: var(--color-ink-3);
+    font-size: var(--text-13);
   }
 }

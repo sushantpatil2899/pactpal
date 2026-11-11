@@ -131,3 +131,125 @@
     margin-top: var(--space-16);
   }
 }
+
+@layer pp {
+  /*
+   * The buyer's signing view: the agreement to read, beside a card that stays in view with the
+   * one action. Below a comfortable width they stack, and a bar at the bottom jumps to the card.
+   */
+  .pp-sign-view {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 21rem);
+    align-items: start;
+    gap: var(--space-24);
+  }
+
+  /* The signing view sizes to the panel it sits in (the pinned chat takes part of the width). */
+  .pp-deal-view {
+    container-type: inline-size;
+  }
+
+  .pp-sign-doc {
+    min-width: 0;
+  }
+
+  .pp-sign-doc > h3 {
+    margin-top: 0;
+  }
+
+  .pp-sign-side {
+    position: sticky;
+    top: 5rem;
+    display: grid;
+    gap: var(--space-16);
+    padding: var(--space-16);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-2);
+  }
+
+  .pp-sign-side .pp-sign {
+    display: grid;
+    margin: 0;
+  }
+
+  .pp-sign-side .pp-sign button {
+    width: 100%;
+  }
+
+  .pp-sign-side .pp-sign-after {
+    margin: 0;
+  }
+
+  .pp-sign-side section {
+    padding-top: var(--space-16);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .pp-sign-side section h3 {
+    margin-top: 0;
+    font-size: var(--text-15);
+  }
+
+  .pp-sign-lead {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    color: var(--color-ink-2);
+    font-size: var(--text-13);
+  }
+
+  .pp-sign-lead b {
+    color: var(--color-ink);
+    font-size: var(--text-17);
+  }
+
+  details.pp-fingerprint summary {
+    cursor: pointer;
+  }
+
+  .pp-sign-jump {
+    display: none;
+  }
+
+  @container (width < 46rem) {
+    .pp-sign-view {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pp-sign-side {
+      position: static;
+      scroll-margin-top: 5rem;
+    }
+  }
+
+  /* Phones: a bar at the bottom jumps to the signing card. */
+  @media (max-width: 46rem) {
+    .pp-sign-jump {
+      position: fixed;
+      z-index: 15;
+      right: var(--space-16);
+      bottom: var(--space-16);
+      left: var(--space-16);
+      display: grid;
+      place-items: center;
+      min-height: 3rem;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(135deg, var(--color-accent-strong), var(--color-accent-strong-2));
+      box-shadow: var(--shadow-2);
+      color: var(--color-on-accent);
+      font-weight: 650;
+      text-decoration: none;
+    }
+  }
+}
+
+@layer pp {
+  /* The buyer's payment action, on its own line under the stage's status. */
+  .pp-pay {
+    display: flex;
+    width: max-content;
+    margin-top: var(--space-8);
+  }
+}

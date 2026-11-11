@@ -1,3 +1,5 @@
+import { ButtonLink } from "./design/parts";
+import { BrandLogo } from "./design/brand-logos";
 import { useEffect, useState } from "react";
 import {
   checkPayments,
@@ -145,14 +147,27 @@ export function PaymentsPanel({ deal, onChange }: { deal: DealSummary; onChange:
                   {stage.status === "paid" && stage.paidAt !== null
                     ? ` on ${when(stage.paidAt)}${stage.transactionId === null ? "" : ` (PayPal transaction ${stage.transactionId})`}`
                     : stage.sentAt !== null && ` on ${when(stage.sentAt)}`}
-                  {stage.payUrl !== null && (
-                    <>
-                      {" "}
-                      <a href={stage.payUrl} target="_blank" rel="noopener noreferrer">
-                        {seller ? "View invoice on PayPal" : "View and pay on PayPal"}
-                      </a>
-                    </>
-                  )}
+                  {stage.payUrl !== null &&
+                    (seller || stage.status === "paid" ? (
+                      <>
+                        {" "}
+                        <a href={stage.payUrl} target="_blank" rel="noopener noreferrer">
+                          {seller ? "View invoice on PayPal" : "View and pay on PayPal"}
+                        </a>
+                      </>
+                    ) : (
+                      // What the buyer is here to do: the one action on the stage, with PayPal's mark.
+                      <ButtonLink
+                        look="primary"
+                        className="pp-pay"
+                        href={stage.payUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <BrandLogo name="paypal" color="currentColor" />
+                        View and pay on PayPal
+                      </ButtonLink>
+                    ))}
                   {seller && view.invoicing && stage.invoice && open !== stage.stage && (
                     <>
                       {" "}

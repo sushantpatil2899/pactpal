@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { SIGN_IN_PATH, redeemLink, type LinkProblem } from "./api";
-import { Alert, Button, ButtonLink, Card, Skeleton } from "./design/parts";
+import { BrandLogo } from "./design/brand-logos";
+import { LogoMark } from "./design/Logo";
+import { Alert, Button, ButtonLink, Skeleton } from "./design/parts";
 
 const PROBLEMS: Record<LinkProblem, string> = {
   unknown: "This link is not valid. Please ask the seller to send it again.",
@@ -67,59 +69,53 @@ export function LinkPage() {
   };
 
   return (
-    <section aria-labelledby="link-title">
-      <Card>
-        <div>
-          <h1 id="link-title" className="pp-display">
-            Your deal on PactPal
-          </h1>
-          {view.kind === "ready" && (
-            <p>
-              You were sent a private link to a deal on PactPal. How would you like to continue?
-            </p>
-          )}
-          {view.kind === "working" && <Skeleton label="Opening your deal…" lines={2} />}
-          {view.kind === "in" && <Alert>You&apos;re in for this deal.</Alert>}
-          {view.kind === "problem" && <Alert problem>{view.message}</Alert>}
-        </div>
+    <section aria-labelledby="link-title" className="pp-link">
+      <div className="pp-link-card">
+        <LogoMark className="pp-link-mark" />
+        <h1 id="link-title">Your deal on PactPal</h1>
         {view.kind === "ready" && (
-          <>
-            <div className="pp-band">
-              <Button
-                look="primary"
-                large
-                onClick={() => {
-                  onUse(view.secret, false);
-                }}
-              >
-                Continue without an account
-              </Button>
-            </div>
-            <div>
-              <p>
-                <Button
-                  onClick={() => {
-                    onUse(view.secret, true);
-                  }}
-                >
-                  Sign in with PayPal
-                </Button>
-              </p>
-              <small>
-                Signing in with PayPal keeps your access without the link. Use the PayPal account
-                with the email this link was sent to.
-              </small>
-            </div>
-          </>
+          <p className="pp-link-lead">
+            You were sent a private link to a deal on PactPal. How would you like to continue?
+          </p>
         )}
-        {view.kind === "in" && (
-          <div className="pp-band">
-            <ButtonLink look="primary" large href={`/deals/${view.dealId}`}>
-              Open your deal
-            </ButtonLink>
+        {view.kind === "working" && <Skeleton label="Opening your deal…" lines={2} />}
+        {view.kind === "in" && <Alert>You&apos;re in for this deal.</Alert>}
+        {view.kind === "problem" && <Alert problem>{view.message}</Alert>}
+        {view.kind === "ready" && (
+          <div className="pp-link-choices">
+            <Button
+              look="primary"
+              large
+              onClick={() => {
+                onUse(view.secret, false);
+              }}
+            >
+              Continue without an account
+            </Button>
+            <p className="pp-link-or">
+              <span>or</span>
+            </p>
+            <Button
+              large
+              onClick={() => {
+                onUse(view.secret, true);
+              }}
+            >
+              <BrandLogo name="paypal" />
+              Sign in with PayPal
+            </Button>
+            <small>
+              Signing in with PayPal keeps your access without the link. Use the PayPal account with
+              the email this link was sent to.
+            </small>
           </div>
         )}
-      </Card>
+        {view.kind === "in" && (
+          <ButtonLink look="primary" large href={`/deals/${view.dealId}`}>
+            Open your deal
+          </ButtonLink>
+        )}
+      </div>
     </section>
   );
 }

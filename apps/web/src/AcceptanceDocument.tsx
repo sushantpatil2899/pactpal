@@ -9,9 +9,12 @@ import { ScopeDetails } from "./ScopeDetails";
 export function AcceptanceDocument({
   document,
   documentSha256,
+  foldFingerprint = false,
 }: {
   document: Document;
   documentSha256: string;
+  /** Tuck the fingerprint into a "details" fold, for the buyer reading to sign. */
+  foldFingerprint?: boolean;
 }) {
   return (
     <article aria-label="Terms to agree to">
@@ -34,9 +37,16 @@ export function AcceptanceDocument({
             ))}
           </ul>
         </aside>
-        <p className="pp-fingerprint">
-          Page fingerprint (SHA-256): <code>{documentSha256}</code>
-        </p>
+        {foldFingerprint ? (
+          <details className="pp-fingerprint">
+            <summary>This page&apos;s fingerprint</summary>
+            SHA-256: <code>{documentSha256}</code>
+          </details>
+        ) : (
+          <p className="pp-fingerprint">
+            Page fingerprint (SHA-256): <code>{documentSha256}</code>
+          </p>
+        )}
       </Card>
     </article>
   );

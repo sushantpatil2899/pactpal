@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AcceptancePanel } from "./AcceptancePanel";
 import { DeliveriesPanel } from "./DeliveriesPanel";
 import { PaymentsPanel } from "./PaymentsPanel";
@@ -27,7 +27,7 @@ import { Avatar } from "./app/parts";
 import { StatusBadge } from "./design/Badge";
 import { Alert, Skeleton } from "./design/parts";
 import { useWide } from "./design/useWide";
-import { defaultTab, statusBadge } from "./deal/deal-view";
+import { defaultTab, phoneTab, statusBadge } from "./deal/deal-view";
 import { ProgressStrip } from "./deal/ProgressStrip";
 import { useDealTimeline } from "./deal/useDealTimeline";
 import "./deal/deal.css";
@@ -96,6 +96,15 @@ export function DealPage({ dealId }: { dealId: string }) {
   }, [dealId]);
 
   const steps = useDealTimeline(dealId, revision * 100_000 + lastSeq(chat.state));
+  // On a phone, with no view in the address, open where the deal needs this person (once).
+  const placed = useRef(window.location.hash !== "");
+  const timelineSteps = steps.timeline?.steps;
+  useEffect(() => {
+    if (placed.current || wide || !deal || (deal.status === "active" && !timelineSteps)) return;
+    placed.current = true;
+    const start = phoneTab(deal.role, deal.status, timelineSteps);
+    if (start !== "chat") openTab(start);
+  }, [deal, timelineSteps, wide, openTab]);
   const refreshLog = useCallback(() => {
     getLedger(dealId).then(setEntries, () => undefined);
   }, [dealId]);
@@ -204,9 +213,23 @@ export function DealPage({ dealId }: { dealId: string }) {
           <TabPanel id="scope" current={view}>
             {deal.role === "buyer" && (
               <>
-                <AcceptancePanel deal={deal} revision={revision} onChange={refreshDeal} />
-                <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
-                <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
+                {/* While signing, the questions sit in the signing card beside the agreement. */}
+                <AcceptancePanel
+                  deal={deal}
+                  revision={revision}
+                  onChange={refreshDeal}
+                  aside={
+                    deal.status === "awaiting_acceptance" && (
+                      <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
+                    )
+                  }
+                />
+                {deal.status !== "awaiting_acceptance" && (
+                  <QuestionsPanel deal={deal} revision={revision} onChange={refreshLog} />
+                )}
+                {deal.status !== "awaiting_acceptance" && (
+                  <ChangeOrderPanel deal={deal} onChange={refreshAgreement} />
+                )}
               </>
             )}
             {deal.role === "seller" && (

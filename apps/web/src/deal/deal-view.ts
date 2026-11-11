@@ -10,6 +10,21 @@ export function defaultTab(status: string): Exclude<DealTab, "chat"> {
   return "scope";
 }
 
+/**
+ * Where a deal opens on a phone when the address names no view: the agreement while the buyer is
+ * asked to sign, the timeline when its current step waits on this person, else the chat.
+ */
+export function phoneTab(
+  role: "seller" | "buyer",
+  status: string,
+  steps: readonly { state: string; waitingOn: "seller" | "buyer" | null }[] = [],
+): DealTab {
+  if (role === "buyer" && status === "awaiting_acceptance") return "scope";
+  const current = steps.find((step) => step.state !== "done");
+  if (status === "active" && current?.waitingOn === role) return "timeline";
+  return "chat";
+}
+
 /** A deal's status as a badge and a word. */
 export function statusBadge(status: string): { badge: Status; word: string } {
   switch (status) {
