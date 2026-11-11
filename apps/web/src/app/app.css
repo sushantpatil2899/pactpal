@@ -109,6 +109,37 @@
 
   /* Pages */
 
+  /* The dashboard: one column, then "Needs you" beside the deal lists once there is room. */
+  .pp-dash-split {
+    display: grid;
+    gap: var(--space-16);
+  }
+
+  .pp-dash-split > * {
+    min-width: 0;
+  }
+
+  .pp-dash-side:empty {
+    display: none;
+  }
+
+  @media (min-width: 100rem) {
+    .pp-dash-split {
+      grid-template-columns: minmax(0, 1fr) minmax(24rem, 32rem);
+      align-items: start;
+    }
+
+    .pp-dash-split:has(> .pp-dash-side:empty) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pp-dash-side {
+      position: sticky;
+      top: var(--space-16);
+      order: 1;
+    }
+  }
+
   .pp-page-head {
     display: flex;
     flex-wrap: wrap;

@@ -78,21 +78,28 @@ export function Dashboard({ overview }: { overview: Overview }) {
             <Field caption="Open disputes">{disputed.length}</Field>
             <Field caption="Open deals">{open.length}</Field>
           </div>
-          <NotificationsList
-            refreshKey={deals.length}
-            onOpen={(note) => {
-              navigate(noteAddress(note));
-            }}
-          />
-          <DealList title="Waiting for you" deals={mine} empty="Nothing is waiting for you." />
-          {disputed.length > 0 && (
-            <DealList title="Disputes" deals={disputed} empty="No open disputes." />
-          )}
-          <DealList
-            title="Waiting for others"
-            deals={theirs}
-            empty="Nothing is waiting on a buyer or on PayPal."
-          />
+          {/* On wide screens what needs the seller sits beside the deal lists. */}
+          <div className="pp-dash-split">
+            <div className="pp-dash-side">
+              <NotificationsList
+                refreshKey={deals.length}
+                onOpen={(note) => {
+                  navigate(noteAddress(note));
+                }}
+              />
+            </div>
+            <div className="pp-stack">
+              <DealList title="Waiting for you" deals={mine} empty="Nothing is waiting for you." />
+              {disputed.length > 0 && (
+                <DealList title="Disputes" deals={disputed} empty="No open disputes." />
+              )}
+              <DealList
+                title="Waiting for others"
+                deals={theirs}
+                empty="Nothing is waiting on a buyer or on PayPal."
+              />
+            </div>
+          </div>
         </>
       )}
     </div>

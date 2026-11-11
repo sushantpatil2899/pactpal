@@ -160,7 +160,9 @@
       height: 1.875rem;
     }
 
-    .pp-app[data-rail="closed"] :is(.pp-rail-label, .pp-jump span, .pp-jump kbd, .pp-caption),
+    .pp-app[data-rail="closed"]
+      .pp-rail
+      :is(.pp-rail-label, .pp-jump span, .pp-jump kbd, .pp-caption),
     .pp-app[data-rail="closed"] .pp-account > span {
       position: absolute;
       width: 1px;
@@ -269,8 +271,7 @@
   .pp-app-main {
     flex: 1;
     width: 100%;
-    max-width: 70rem;
-    padding: var(--space-32) clamp(1rem, 4vw, 2.5rem) var(--space-64);
+    padding: var(--space-32) clamp(1rem, 3vw, 2.5rem) var(--space-64);
   }
 
   .pp-footer {

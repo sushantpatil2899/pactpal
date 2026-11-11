@@ -1,9 +1,5 @@
 /* The deal space: a header, the steps across the top, the chat pinned beside one working view. */
 @layer pp {
-  .pp-app-main:has(.pp-deal) {
-    max-width: 96rem;
-  }
-
   .pp-deal {
     display: grid;
     gap: var(--space-16);
