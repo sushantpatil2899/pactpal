@@ -9,10 +9,10 @@ import {
   type IntakeKey,
 } from "@pactpal/db";
 import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from "fastify";
-import { SESSION_COOKIE } from "../auth/sign-in.js";
 import type { Notifier } from "../chat/notifier.js";
 import type { SharedStore } from "../keyvalue.js";
-import { AGENT_TOOLS, sellersDealOf, type AgentContext, type RouteCaller } from "./tools.js";
+import { routeCaller } from "../acting-as.js";
+import { AGENT_TOOLS, sellersDealOf, type AgentContext } from "./tools.js";
 
 export interface McpRouteOptions {
   database: Database | undefined;
@@ -31,29 +31,6 @@ const MCP_BODY_LIMIT = 256 * 1024;
 /** The key in `Authorization: Bearer …`, or an empty string. */
 const bearerOf = (request: FastifyRequest) =>
   /^Bearer\s+(\S+)$/.exec(request.headers.authorization ?? "")?.[1] ?? "";
-
-/**
- * Calls PactPal's own routes for one agent request as the key's seller, through a session made
- * for this request alone (never given out). Every check, refusal and log entry of the routes
- * applies unchanged.
- */
-function routeCaller(app: FastifyInstance, token: string): RouteCaller {
-  return async (method, url, body) => {
-    const answer = await app.inject({
-      method,
-      url,
-      cookies: { [SESSION_COOKIE]: token },
-      ...(body === undefined ? {} : { payload: body }),
-    });
-    let parsed: unknown = null;
-    try {
-      parsed = answer.body === "" ? null : (JSON.parse(answer.body) as unknown);
-    } catch {
-      parsed = null;
-    }
-    return { status: answer.statusCode, body: parsed };
-  };
-}
 
 /** A new MCP server with the tools, for one request (stateless). */
 function mcpServer(context: AgentContext): McpServer {

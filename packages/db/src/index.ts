@@ -440,3 +440,5 @@ export {
   runRetentionSweep,
 } from "./retention.js";
 export type { RetentionCounts, RetentionSweep } from "./retention.js";
+export { listDemoSteps, recordDemoStep } from "./demo-seed.js";
+export type { DemoRefs } from "./demo-seed.js";

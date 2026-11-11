@@ -1273,4 +1273,16 @@ CREATE INDEX retention_runs_by_time ON retention_runs (ran_at DESC);`,
       )
       .join("\n"),
   },
+  {
+    id: "0042_demo_seed_steps",
+    // The demo seed's finished steps (9b-2): which step of which story is done and what it made
+    // (ids only, never personal data), so a run continues where the last one stopped.
+    sql: `CREATE TABLE demo_seed_steps (
+  story text NOT NULL CHECK (story ~ '^[a-z0-9-]{1,20}$'),
+  step text NOT NULL CHECK (step ~ '^[a-z0-9-]{1,60}$'),
+  refs jsonb NOT NULL DEFAULT '{}',
+  done_at timestamptz NOT NULL,
+  PRIMARY KEY (story, step)
+)`,
+  },
 ];

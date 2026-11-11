@@ -27,7 +27,9 @@ export interface RouteAnswer {
 export type RouteCaller = (
   method: "GET" | "POST",
   path: string,
+  /** JSON, or the raw bytes of an upload. */
   body?: object,
+  headers?: Record<string, string>,
 ) => Promise<RouteAnswer>;
 
 /** Everything a tool may use: the routes, the key it came with, and the seller notice. */
