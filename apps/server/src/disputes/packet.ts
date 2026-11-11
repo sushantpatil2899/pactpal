@@ -5,7 +5,7 @@ import { renderPdf, type Block } from "@pactpal/pdf";
 import { disputeReasonWords, sizeWords } from "@pactpal/words";
 
 /** Changes whenever the packet's wording or layout changes; printed on every page. */
-export const PACKET_FORMAT = 1;
+export const PACKET_FORMAT = 2;
 
 /**
  * PayPal's limits for one evidence upload: 10 MB a file, and the total for all files (50 MB as
@@ -356,6 +356,8 @@ export async function renderPacket(facts: PacketFacts, exhibits: readonly SentEx
     title: `Evidence packet: ${facts.disputeId}`,
     author: "PactPal",
     createdAt: facts.builtAt,
+    // PactPal's look (9h), in black: PayPal's reviewers read it. Packets are stored once built.
+    brand: { reference: `Evidence packet, PayPal case ${facts.disputeId}`, headings: "ink" },
     blocks: packetBlocks(facts, exhibits),
     footer: `PactPal evidence packet, format ${String(PACKET_FORMAT)}, dispute ${facts.disputeId}`,
     replacedCharactersNote:

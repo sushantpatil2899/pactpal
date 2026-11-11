@@ -1,0 +1,12 @@
+subject: Changes requested: {{about}}
+tag: Needs you
+tone: wait
+heading: The buyer asked for changes
+fact: Revisions | {{revisionCount}}
+---
+The buyer asked for changes to your delivery for {{which}}
+{{revisionLine}}
+
+Their request: "{{request}}"
+
+Open the deal in PactPal to deliver again.

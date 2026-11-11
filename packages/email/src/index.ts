@@ -21,3 +21,15 @@ export {
 } from "./received.js";
 export type { ReadResult, ReceivedEmail, ReceivedEmails, SenderChecks } from "./received.js";
 export { htmlToText } from "./html-text.js";
+export {
+  EMAIL_TONES,
+  EmailTemplateError,
+  SANDBOX_NOTICE,
+  brandSchema,
+  emailTemplateSchema,
+  escapeHtml,
+  missingFields,
+  parseEmailTemplate,
+  renderEmail,
+} from "./template.js";
+export type { Brand, EmailTemplate, EmailTone, EmailView, RenderedEmail } from "./template.js";

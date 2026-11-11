@@ -1,0 +1,11 @@
+subject: Approved: {{about}}
+tag: Approved
+tone: ok
+heading: The buyer approved your delivery
+---
+The buyer approved your delivery for {{which}}
+{{#completesDeal}}
+Every stage of the agreement is now approved.
+{{/completesDeal}}
+
+The approval is in this deal's evidence log.

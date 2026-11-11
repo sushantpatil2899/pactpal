@@ -3,7 +3,12 @@ import type { LedgerEntry } from "@pactpal/ledger";
 import { pdfTextLines } from "@pactpal/pdf/testing";
 import { describe, expect, it } from "vitest";
 import { ACCEPTANCE_NOTICE, type AcceptanceDocument } from "./document.js";
-import { ReceiptIntegrityError, buildReceipt } from "./receipt.js";
+import {
+  BRANDED_RECEIPTS_FROM,
+  ReceiptIntegrityError,
+  buildReceipt,
+  receiptFormatAt,
+} from "./receipt.js";
 
 const SIGNED_AT = new Date("2026-11-01T22:06:00.000Z");
 
@@ -181,6 +186,23 @@ describe("buildReceipt", () => {
       "Warm hand-drawn style (a matter of taste: settled when the buyer approves stage 1, Sketch)",
     );
     expect(text).toMatch(/Notes(?! \()/);
+  });
+
+  it("keeps receipts signed before 9h plain, and draws later ones in PactPal's look", async () => {
+    expect(receiptFormatAt(SIGNED_AT)).toBe(1);
+    expect(receiptFormatAt(BRANDED_RECEIPTS_FROM)).toBe(2);
+    const before = signed();
+    const plain = pdfTextLines((await buildReceipt(before.acceptance, before.accepted)).bytes);
+    expect(plain.join(" ")).toContain("format 1");
+    expect(plain).not.toContain("PactPal");
+    const at = BRANDED_RECEIPTS_FROM;
+    const after = signed(document, { serverTime: at.toISOString() });
+    const branded = pdfTextLines(
+      (await buildReceipt({ ...after.acceptance, createdAt: at }, after.accepted)).bytes,
+    );
+    expect(branded.join(" ")).toContain("format 2");
+    expect(branded).toContain("PactPal");
+    expect(branded).toContain("Agreement receipt, version 2");
   });
 
   it("gives the same bytes every time, dated at the signing time", async () => {

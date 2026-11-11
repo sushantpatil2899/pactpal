@@ -1,0 +1,13 @@
+subject: Answer from {{sellerName}}: "{{dealTitle}}"
+tag: Answered
+tone: info
+heading: {{sellerName}} answered your question
+button: Open the deal | {{link}}
+---
+{{sellerName}} answered your question about "{{dealTitle}}" on {{at}} UTC.
+
+Your question: "{{question}}"
+Their answer: "{{answer}}"
+
+The agreement itself is what you sign; this answer does not change it. Read it on the deal page (private link, works until {{until}} UTC, this deal only; please do not forward it):
+{{link}}

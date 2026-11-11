@@ -142,6 +142,7 @@ Agreed with the owner on 10 November 2026: of the sponsors' tools, the MCP serve
 | 9c        | Security and privacy pass: daily retention clean-up (Workflow task and Cron Job; 210 days for deals, 60 for notifications and drafts), privacy page, AI hosts' data terms, git history check                     | ✅ built (10 Nov 2026)                                                                                                    |
 | 9b-1      | Demo stories rewritten (owner, 11 Nov 2026): 6 stories covering every outcome, Maya's book of 18 written-work deals, the cast with real inboxes, one sandbox account and app per seller (hackathon/demo-plan.md) | ✅ written; owner reviews                                                                                                 |
 | 9b-2      | Seed script that builds the demo through PactPal's own code and the PayPal sandbox; run after the redesign merge                                                                                                 | Planned                                                                                                                   |
+| 9h        | Branded emails, receipt and evidence packet; email wording and look in `templates/`, editable without code                                                                                                       | ✅ built (11 Nov 2026)                                                                                                    |
 
 ## Where things stand (5 November 2026)
 

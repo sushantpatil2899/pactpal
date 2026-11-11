@@ -80,6 +80,13 @@ describe("ResendEmailSender", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.init.headers).not.toHaveProperty("idempotency-key");
     expect(sentBody(calls[0]?.init)).not.toHaveProperty("attachments");
+    expect(sentBody(calls[0]?.init)).not.toHaveProperty("html");
+  });
+
+  it("sends the designed version with the plain text when the email has one (9h)", async () => {
+    const { deps, calls } = network([json(200, { id: "msg_3" })]);
+    await sender(deps).send({ ...message, html: "<p>Designed</p>" });
+    expect(sentBody(calls[0]?.init)).toMatchObject({ text: message.text, html: "<p>Designed</p>" });
   });
 
   it.each([

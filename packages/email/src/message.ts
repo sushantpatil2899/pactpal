@@ -13,6 +13,8 @@ export const emailMessageSchema = z.object({
   to: z.email(),
   subject: z.string().min(1).max(300),
   text: z.string().min(1),
+  /** The designed version (9h); mail apps that block designs show `text`. */
+  html: z.string().min(1).optional(),
   /**
    * The same key sent twice within a day is treated as one email by the provider, so retries
    * and repeats after a crash never send twice. Up to 256 characters.

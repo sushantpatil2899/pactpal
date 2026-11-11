@@ -1,5 +1,6 @@
 import type { EmailMessage } from "@pactpal/email";
-import { SANDBOX_FOOTER, stageOf, utcDateTime, type StageFacts } from "./common.js";
+import { stageOf, utcDateTime, type StageFacts } from "./common.js";
+import { emailFrom } from "./templates.js";
 
 /**
  * The email telling the buyer that work was delivered for a stage, with a private link into the
@@ -15,25 +16,20 @@ export function deliveryEmail(input: {
   linkExpiresAt: Date;
   idempotencyKey: string;
 }): EmailMessage {
-  const { facts, sellerName } = input;
-  const files = input.fileCount === 1 ? "1 file" : `${String(input.fileCount)} files`;
+  const { facts } = input;
   return {
     kind: "delivery",
     to: input.to,
-    subject: `Delivery for "${facts.dealTitle}": ${stageOf(facts)}, ${facts.stageTitle}`,
-    text: [
-      `${sellerName} delivered work for ${stageOf(facts)} of "${facts.dealTitle}" (${facts.stageTitle}): ${files}.`,
-      ...(input.message === undefined
-        ? []
-        : ["", `Message from ${sellerName}: "${input.message}"`]),
-      "",
-      `Open the delivery (private link, works until ${utcDateTime(input.linkExpiresAt)} UTC, this deal only; please do not forward it):`,
-      input.link,
-      "",
-      "PactPal records when you open the delivery and when you download each file, with the file's fingerprint. A typed name and an IP address are not proof of identity.",
-      "",
-      SANDBOX_FOOTER,
-    ].join("\n"),
+    ...emailFrom("delivery", {
+      sellerName: input.sellerName,
+      dealTitle: facts.dealTitle,
+      stage: stageOf(facts),
+      stageTitle: facts.stageTitle,
+      files: input.fileCount === 1 ? "1 file" : `${String(input.fileCount)} files`,
+      message: input.message,
+      until: utcDateTime(input.linkExpiresAt),
+      link: input.link,
+    }),
     idempotencyKey: input.idempotencyKey,
   };
 }

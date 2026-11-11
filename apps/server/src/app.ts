@@ -20,6 +20,7 @@ import type { DisputeWriter } from "./disputes/action-service.js";
 import type { ClaimRunner, DisputeChecker } from "./disputes/checker.js";
 import { disputeNotifications } from "./disputes/notifications.js";
 import { registerWebPages } from "./web-pages.js";
+import { emailLogo } from "./email/templates.js";
 import {
   paypalWebhookRoutes,
   type PayPalWebhookOptions,
@@ -77,6 +78,9 @@ export interface AppOptions {
   /** This copy's id for chat presence; random by default. */
   serverId?: string;
 }
+
+/** Where the email logo is served (`templates/brand.json` names this address). */
+export const EMAIL_LOGO_PATH = "/brand/logo-email.png";
 
 /** The site's own WebSocket address (wss for https), for the pages' connection rule. */
 export function socketOrigin(publicBaseUrl: string | undefined): string[] {
@@ -136,6 +140,16 @@ export function buildApp(report: ConfigReport, opts: AppOptions = {}): FastifyIn
       service: "pactpal-server",
       missingEnv: missingRuntimeSettings(report),
     }),
+  );
+
+  // The logo every email shows (9h). Mail apps load it from other sites, so it may be embedded
+  // anywhere, unlike the rest of the site.
+  app.get(EMAIL_LOGO_PATH, (_request, reply) =>
+    reply
+      .header("content-type", "image/png")
+      .header("cache-control", "public, max-age=86400")
+      .header("cross-origin-resource-policy", "cross-origin")
+      .send(emailLogo()),
   );
 
   const { database, migrations = MIGRATIONS } = opts;

@@ -1,0 +1,18 @@
+subject: Delivery for "{{dealTitle}}": {{stage}}, {{stageTitle}}
+tag: Delivered
+tone: ok
+heading: {{sellerName}} delivered work for "{{dealTitle}}"
+button: Open the delivery | {{link}}
+fact: Stage | {{stage}}, {{stageTitle}}
+fact: Files | {{files}}
+---
+{{sellerName}} delivered work for {{stage}} of "{{dealTitle}}" ({{stageTitle}}): {{files}}.
+{{#message}}
+
+Message from {{sellerName}}: "{{message}}"
+{{/message}}
+
+Open the delivery (private link, works until {{until}} UTC, this deal only; please do not forward it):
+{{link}}
+
+PactPal records when you open the delivery and when you download each file, with the file's fingerprint. A typed name and an IP address are not proof of identity.

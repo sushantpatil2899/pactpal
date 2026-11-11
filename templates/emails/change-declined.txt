@@ -1,0 +1,12 @@
+subject: Change declined: "{{dealTitle}}" (version {{version}})
+tag: Declined
+tone: wait
+heading: The buyer declined your change
+---
+The buyer declined your change to "{{dealTitle}}" {{at}}.
+{{#reason}}
+
+Their reason: "{{reason}}"
+{{/reason}}
+
+The signed agreement (version {{fromVersion}}) stays as it was. The decline is in this deal's evidence log.

@@ -1,0 +1,12 @@
+subject: {{subject}}
+tag: {{tag}}
+tone: {{tone}}
+heading: {{subject}}
+button: Open the deal | {{link}}
+---
+{{#lines}}
+{{.}}
+{{/lines}}
+
+{{linkNote}}
+{{link}}

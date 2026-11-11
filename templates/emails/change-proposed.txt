@@ -1,0 +1,19 @@
+subject: Change proposed: "{{dealTitle}}" (version {{version}})
+tag: Needs you
+tone: wait
+heading: {{sellerName}} proposed a change to "{{dealTitle}}"
+button: Read the change | {{link}}
+---
+{{sellerName}} proposed a change to your agreement "{{dealTitle}}" on {{at}} UTC.
+{{#message}}
+
+Message from {{sellerName}}: "{{message}}"
+{{/message}}
+
+What changes:
+{{#changes}}
+- {{.}}
+{{/changes}}
+
+Nothing changes unless you agree. Read the full new agreement, then agree or decline (private link, works until {{until}} UTC, this deal only; please do not forward it):
+{{link}}

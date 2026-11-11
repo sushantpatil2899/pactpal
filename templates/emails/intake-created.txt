@@ -1,0 +1,12 @@
+subject: Draft deal created: "{{dealTitle}}"
+tag: New draft
+tone: info
+heading: Your forwarded email became a draft deal
+button: Open the draft | {{link}}
+---
+PactPal made a draft deal from the email you forwarded on {{at}} UTC, with its text saved as the deal's chat.
+
+Open it to check the text and draft the agreed work:
+{{link}}
+
+Only emails from this address are accepted at your forwarding address. If you did not forward this, make a new address on "Your deals".

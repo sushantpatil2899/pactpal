@@ -1,0 +1,15 @@
+subject: {{leftTitle}} to answer the PayPal dispute on "{{dealTitle}}"
+tag: Deadline
+tone: alert
+heading: {{leftTitle}} to answer the PayPal dispute
+button: Review the dispute | {{link}}
+fact: Respond by | {{respondBy}}
+---
+PayPal is waiting for your answer to dispute {{disputeId}} on "{{dealTitle}}" until {{respondBy}}.
+PayPal lets you:
+{{#actions}}
+- {{.}}
+{{/actions}}
+After that date PayPal no longer waits for your answer.
+
+Open the dispute in PactPal: {{link}}

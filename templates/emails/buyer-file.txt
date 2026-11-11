@@ -1,0 +1,9 @@
+subject: The buyer added a file: "{{dealTitle}}"
+tag: New file
+tone: info
+heading: The buyer added a file to "{{dealTitle}}"
+fact: File | {{filename}} ({{size}})
+---
+The buyer added a file to "{{dealTitle}}" on {{at}} UTC: {{filename}} ({{size}}).
+
+It is saved with its fingerprint and recorded in this deal's evidence log as added by the buyer. Open the deal in PactPal to see it under "Files".

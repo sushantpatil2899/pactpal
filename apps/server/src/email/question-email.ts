@@ -1,6 +1,7 @@
 import type { EmailMessage } from "@pactpal/email";
 import type { ForwardReason } from "@pactpal/db";
-import { SANDBOX_FOOTER, utcDateTime } from "./common.js";
+import { utcDateTime } from "./common.js";
+import { emailFrom } from "./templates.js";
 
 /** Why a question reached the seller, as their email says it. */
 const REASON_LINES: Record<ForwardReason, string> = {
@@ -25,22 +26,16 @@ export function questionForSellerEmail(input: {
   reason: ForwardReason;
   idempotencyKey: string;
 }): EmailMessage {
-  const { dealTitle } = input;
   return {
     kind: "question-asked",
     to: input.to,
-    subject: `Question from the buyer: "${dealTitle}"`,
-    text: [
-      `The buyer asked a question about "${dealTitle}" (version ${String(input.version)}) on ${utcDateTime(input.askedAt)} UTC:`,
-      "",
-      `"${input.question}"`,
-      "",
-      REASON_LINES[input.reason],
-      "",
-      `Open the deal in PactPal to answer it under "Questions from the buyer". The buyer sees your answer there, and it is recorded in this deal's evidence log.`,
-      "",
-      SANDBOX_FOOTER,
-    ].join("\n"),
+    ...emailFrom("question-asked", {
+      dealTitle: input.dealTitle,
+      version: input.version,
+      at: utcDateTime(input.askedAt),
+      question: input.question,
+      reasonLine: REASON_LINES[input.reason],
+    }),
     idempotencyKey: input.idempotencyKey,
   };
 }
@@ -60,22 +55,18 @@ export function sellerAnswerEmail(input: {
   linkExpiresAt: Date;
   idempotencyKey: string;
 }): EmailMessage {
-  const { sellerName, dealTitle } = input;
   return {
     kind: "question-answered",
     to: input.to,
-    subject: `Answer from ${sellerName}: "${dealTitle}"`,
-    text: [
-      `${sellerName} answered your question about "${dealTitle}" on ${utcDateTime(input.answeredAt)} UTC.`,
-      "",
-      `Your question: "${input.question}"`,
-      `Their answer: "${input.answer}"`,
-      "",
-      `The agreement itself is what you sign; this answer does not change it. Read it on the deal page (private link, works until ${utcDateTime(input.linkExpiresAt)} UTC, this deal only; please do not forward it):`,
-      input.link,
-      "",
-      SANDBOX_FOOTER,
-    ].join("\n"),
+    ...emailFrom("question-answered", {
+      sellerName: input.sellerName,
+      dealTitle: input.dealTitle,
+      at: utcDateTime(input.answeredAt),
+      question: input.question,
+      answer: input.answer,
+      until: utcDateTime(input.linkExpiresAt),
+      link: input.link,
+    }),
     idempotencyKey: input.idempotencyKey,
   };
 }

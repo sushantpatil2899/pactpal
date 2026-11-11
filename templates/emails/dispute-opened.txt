@@ -1,0 +1,21 @@
+subject: PayPal dispute on "{{dealTitle}}"{{#dueShort}}: respond by {{dueShort}}{{/dueShort}}
+tag: Dispute
+tone: alert
+heading: The buyer opened a PayPal dispute
+button: Review the dispute | {{link}}
+fact: Amount | {{amountText}}
+fact: Respond by | {{respondBy}}
+---
+The buyer opened a PayPal dispute{{about}} of "{{dealTitle}}"{{amount}}.
+Reason given to PayPal: {{reason}}.
+PayPal lets you:
+{{#actions}}
+- {{.}}
+{{/actions}}
+{{#respondBy}}
+Respond by {{respondBy}}.
+{{/respondBy}}
+
+Open the dispute in PactPal to see the claim against your record and the AI drafts: {{link}}
+
+PactPal is a record-keeping tool and does not decide disputes.

@@ -1,0 +1,13 @@
+subject: PayPal changed the dispute on "{{dealTitle}}"
+tag: Dispute update
+tone: alert
+heading: PayPal changed the dispute
+button: Open the dispute | {{link}}
+---
+PayPal changed dispute {{disputeId}} on "{{dealTitle}}": {{what}}.
+PayPal lets you now:
+{{#actions}}
+- {{.}}
+{{/actions}}
+
+Open the dispute in PactPal: {{link}}

@@ -6,7 +6,18 @@ import { z } from "zod";
 import { acceptanceDocumentSchema, type AcceptanceDocument } from "./document.js";
 
 /** Changes whenever the receipt's wording or layout changes; printed on every page. */
-export const RECEIPT_FORMAT = 1;
+export const RECEIPT_FORMAT = 2;
+
+/**
+ * Receipts are drawn again on every download, and their fingerprints were sent by email, so a
+ * receipt keeps the look it was signed under: format 1 (plain) before this moment, format 2
+ * (PactPal's look, 9h) from it.
+ */
+export const BRANDED_RECEIPTS_FROM = new Date("2026-11-11T06:00:00.000Z");
+
+/** The receipt format an acceptance signed at `signedAt` is drawn in. */
+export const receiptFormatAt = (signedAt: Date): 1 | 2 =>
+  signedAt.getTime() >= BRANDED_RECEIPTS_FROM.getTime() ? RECEIPT_FORMAT : 1;
 
 /** The signed copy and its log entry do not agree, so no receipt is made from them. */
 export class ReceiptIntegrityError extends Error {
@@ -173,8 +184,17 @@ export async function buildReceipt(acceptance: Acceptance, entry: LedgerEntry | 
       `Deal ${acceptance.dealId}: the signed copy of version ${String(acceptance.version)} does not match its log entry`,
     );
   }
+  const format = receiptFormatAt(acceptance.createdAt);
   const { bytes } = await renderPdf({
     title: `Agreement receipt: ${document.data.title}`,
+    ...(format === 2
+      ? {
+          brand: {
+            reference: `Agreement receipt, version ${String(acceptance.version)}`,
+            headings: "accent" as const,
+          },
+        }
+      : {}),
     author: "PactPal",
     createdAt: acceptance.createdAt,
     blocks: receiptBlocks(document.data, {
@@ -184,7 +204,7 @@ export async function buildReceipt(acceptance: Acceptance, entry: LedgerEntry | 
       documentSha256: acceptance.documentSha256,
       entry,
     }),
-    footer: `PactPal agreement receipt, format ${String(RECEIPT_FORMAT)}`,
+    footer: `PactPal agreement receipt, format ${String(format)}`,
     replacedCharactersNote:
       "Some characters could not be shown here; the exact text is in the signed record.",
   });

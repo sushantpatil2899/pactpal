@@ -1,5 +1,7 @@
-/** The last line of every PactPal email. */
-export const SANDBOX_FOOTER = "PactPal (sandbox demo: no real money moves). Not legal advice.";
+import { SANDBOX_NOTICE } from "@pactpal/email";
+
+/** The last line of every PactPal email (added by the templates, 9h). */
+export const SANDBOX_FOOTER = SANDBOX_NOTICE;
 
 /** A date and time in UTC as emails show it, e.g. "2 Nov 2026, 18:40" (callers add "UTC"). */
 export const utcDateTime = (at: Date): string =>

@@ -42,6 +42,12 @@ export const pdfDocumentSchema = z.object({
   /** Written into the file's details, so the same input always gives the same bytes. */
   createdAt: z.date(),
   blocks: z.array(blockSchema),
+  /**
+   * PactPal's look (9h): the logo and a reference line at the top of every page, and section
+   * headings in green (`accent`) or black (`ink`, for documents PayPal's reviewers read). Left
+   * out, the document looks exactly as it did before 9h, byte for byte.
+   */
+  brand: z.object({ reference: z.string(), headings: z.enum(["accent", "ink"]) }).optional(),
   /** Small text at the bottom left of every page, next to "Page n of m". */
   footer: z.string().optional(),
   /**

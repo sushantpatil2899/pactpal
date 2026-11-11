@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>{{subject}}</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=Geist+Mono&display=swap");
+      @media (max-width: 600px) {
+        .card {
+          border-radius: 0 !important;
+        }
+        .pad {
+          padding-left: 20px !important;
+          padding-right: 20px !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:{{brand.colors.background}};">
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      style="background:{{brand.colors.background}};"
+    >
+      <tr>
+        <td align="center" style="padding: 28px 12px">
+          <table
+            role="presentation"
+            class="card"
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            style="max-width:560px;background:{{brand.colors.surface}};border-radius:16px;border:1px solid {{brand.colors.line}};font-family:Geist,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:{{brand.colors.ink}};"
+          >
+            <tr>
+              <td
+                class="pad"
+                style="padding:18px 28px;border-bottom:1px solid {{brand.colors.line}};"
+              >
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="font-size:18px;font-weight:700;color:{{brand.colors.ink}};">
+                      <img
+                        src="{{brand.logoUrl}}"
+                        width="30"
+                        height="25"
+                        alt=""
+                        style="vertical-align: middle; border: 0; margin-right: 8px"
+                      />{{brand.productName}}
+                    </td>
+                    <td align="right">
+                      <span
+                        style="display:inline-block;font-size:11px;font-weight:600;color:{{brand.colors.wait}};background:{{brand.colors.waitSoft}};border-radius:999px;padding:3px 9px;"
+                        >Sandbox demo</span
+                      >
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="pad" style="padding: 26px 28px 8px">
+                <span
+                  style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:{{toneColor}};background:{{toneSoft}};border-radius:999px;padding:4px 10px;"
+                  >{{tag}}</span
+                >
+                <h1
+                  style="margin:14px 0 16px;font-size:22px;line-height:1.3;font-weight:700;color:{{brand.colors.ink}};"
+                >
+                  {{heading}}
+                </h1>
+                {{{body}}} {{#hasFacts}}
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="margin:4px 0 18px;border:1px solid {{brand.colors.line}};border-radius:12px;background:{{brand.colors.surfaceSoft}};"
+                >
+                  {{#facts}}
+                  <tr>
+                    <td
+                      style="padding:10px 14px;font-size:14px;color:{{brand.colors.muted}};border-bottom:1px solid {{brand.colors.line}};"
+                    >
+                      {{label}}
+                    </td>
+                    <td
+                      align="right"
+                      style="padding:10px 14px;font-size:14px;font-weight:600;color:{{brand.colors.ink}};border-bottom:1px solid {{brand.colors.line}};"
+                    >
+                      {{value}}
+                    </td>
+                  </tr>
+                  {{/facts}}
+                </table>
+                {{/hasFacts}} {{#button}}
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  style="margin: 6px 0 20px"
+                >
+                  <tr>
+                    <td style="background:{{brand.colors.button}};border-radius:10px;">
+                      <a
+                        href="{{url}}"
+                        style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:{{brand.colors.onButton}};text-decoration:none;"
+                        >{{label}}</a
+                      >
+                    </td>
+                  </tr>
+                </table>
+                {{/button}}
+              </td>
+            </tr>
+            <tr>
+              <td
+                class="pad"
+                style="padding:18px 28px 24px;border-top:1px solid {{brand.colors.line}};font-size:12px;line-height:1.6;color:{{brand.colors.muted}};"
+              >
+                {{#brand.footerLines}}
+                <div>{{.}}</div>
+                {{/brand.footerLines}}
+                <div>
+                  {{sandboxNotice}} ·
+                  <a href="{{brand.links.privacy}}" style="color:{{brand.colors.ok}};">Privacy</a> ·
+                  <a href="{{brand.links.help}}" style="color:{{brand.colors.ok}};">Help</a>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

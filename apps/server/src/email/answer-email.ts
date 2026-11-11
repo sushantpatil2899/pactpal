@@ -1,5 +1,6 @@
 import type { EmailMessage } from "@pactpal/email";
-import { SANDBOX_FOOTER, stageOf, utcDateTime, type StageFacts } from "./common.js";
+import { stageOf, utcDateTime, type StageFacts } from "./common.js";
+import { emailFrom } from "./templates.js";
 
 /** The buyer's answer, as the seller's email needs it. */
 export type AnswerFacts =
@@ -27,29 +28,24 @@ export function answerEmail(input: {
   idempotencyKey: string;
 }): EmailMessage {
   const { facts, answer } = input;
-  const which = `${stageOf(facts)} of "${facts.dealTitle}" (${facts.stageTitle}) on ${utcDateTime(input.answeredAt)} UTC.`;
-  const about = `"${facts.dealTitle}", ${stageOf(facts)} (${facts.stageTitle})`;
-  const body =
-    answer.kind === "approved"
-      ? [
-          `The buyer approved your delivery for ${which}`,
-          ...(answer.completesDeal ? ["Every stage of the agreement is now approved."] : []),
-          "",
-          "The approval is in this deal's evidence log.",
-        ]
-      : [
-          `The buyer asked for changes to your delivery for ${which}`,
-          revisionLine(answer),
-          "",
-          `Their request: "${answer.request}"`,
-          "",
-          "Open the deal in PactPal to deliver again.",
-        ];
+  const shared = {
+    which: `${stageOf(facts)} of "${facts.dealTitle}" (${facts.stageTitle}) on ${utcDateTime(input.answeredAt)} UTC.`,
+    about: `"${facts.dealTitle}", ${stageOf(facts)} (${facts.stageTitle})`,
+  };
   return {
-    kind: answer.kind === "approved" ? "approved" : "changes",
+    kind: answer.kind,
     to: input.to,
-    subject: `${answer.kind === "approved" ? "Approved" : "Changes requested"}: ${about}`,
-    text: [...body, "", SANDBOX_FOOTER].join("\n"),
+    ...(answer.kind === "approved"
+      ? emailFrom("approved", { ...shared, completesDeal: answer.completesDeal })
+      : emailFrom("changes", {
+          ...shared,
+          revisionLine: revisionLine(answer),
+          revisionCount:
+            answer.revisionsIncluded === undefined
+              ? String(answer.revision)
+              : `${String(answer.revision)} of ${String(answer.revisionsIncluded)}`,
+          request: answer.request,
+        })),
     idempotencyKey: input.idempotencyKey,
   };
 }

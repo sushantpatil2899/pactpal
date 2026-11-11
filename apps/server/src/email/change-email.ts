@@ -1,6 +1,7 @@
 import type { EmailMessage } from "@pactpal/email";
 import { changeLines, type ChangeFacts } from "@pactpal/words";
-import { SANDBOX_FOOTER, utcDateTime } from "./common.js";
+import { utcDateTime } from "./common.js";
+import { emailFrom } from "./templates.js";
 
 /**
  * The email telling the buyer the seller proposed a change, with what changes and a private
@@ -21,25 +22,19 @@ export function changeProposedEmail(input: {
   linkExpiresAt: Date;
   idempotencyKey: string;
 }): EmailMessage {
-  const { sellerName, dealTitle } = input;
   return {
     kind: "change-proposed",
     to: input.to,
-    subject: `Change proposed: "${dealTitle}" (version ${String(input.version)})`,
-    text: [
-      `${sellerName} proposed a change to your agreement "${dealTitle}" on ${utcDateTime(input.proposedAt)} UTC.`,
-      ...(input.message === undefined
-        ? []
-        : ["", `Message from ${sellerName}: "${input.message}"`]),
-      "",
-      "What changes:",
-      ...changeLines(input.change, input.currency, input.stages).map((line) => `- ${line}`),
-      "",
-      `Nothing changes unless you agree. Read the full new agreement, then agree or decline (private link, works until ${utcDateTime(input.linkExpiresAt)} UTC, this deal only; please do not forward it):`,
-      input.link,
-      "",
-      SANDBOX_FOOTER,
-    ].join("\n"),
+    ...emailFrom("change-proposed", {
+      sellerName: input.sellerName,
+      dealTitle: input.dealTitle,
+      version: input.version,
+      at: utcDateTime(input.proposedAt),
+      message: input.message,
+      changes: changeLines(input.change, input.currency, input.stages),
+      until: utcDateTime(input.linkExpiresAt),
+      link: input.link,
+    }),
     idempotencyKey: input.idempotencyKey,
   };
 }
@@ -62,31 +57,19 @@ export function changeAnswerEmail(input: {
   answeredAt: Date;
   idempotencyKey: string;
 }): EmailMessage {
-  const { dealTitle, answer } = input;
-  const at = `on ${utcDateTime(input.answeredAt)} UTC`;
-  const version = String(input.toVersion);
-  const body =
-    answer.kind === "accepted"
-      ? [
-          `${answer.typedName} agreed to your change to "${dealTitle}" ${at}. Version ${version} is now the signed agreement; its receipt comes in a separate email.`,
-          ...(answer.addsStages
-            ? ["", "You can send the invoice for the new payment stages from the deal page."]
-            : []),
-        ]
-      : [
-          `The buyer declined your change to "${dealTitle}" ${at}.`,
-          ...(answer.reason === undefined ? [] : ["", `Their reason: "${answer.reason}"`]),
-          "",
-          `The signed agreement (version ${String(input.fromVersion)}) stays as it was. The decline is in this deal's evidence log.`,
-        ];
+  const { answer } = input;
+  const shared = {
+    dealTitle: input.dealTitle,
+    at: `on ${utcDateTime(input.answeredAt)} UTC`,
+    version: input.toVersion,
+  };
+  const kind = answer.kind === "accepted" ? "change-accepted" : "change-declined";
   return {
-    kind: answer.kind === "accepted" ? "change-accepted" : "change-declined",
+    kind,
     to: input.to,
-    subject:
-      answer.kind === "accepted"
-        ? `Change accepted: "${dealTitle}" (now version ${version})`
-        : `Change declined: "${dealTitle}" (version ${version})`,
-    text: [...body, "", SANDBOX_FOOTER].join("\n"),
+    ...(answer.kind === "accepted"
+      ? emailFrom(kind, { ...shared, typedName: answer.typedName, addsStages: answer.addsStages })
+      : emailFrom(kind, { ...shared, reason: answer.reason, fromVersion: input.fromVersion })),
     idempotencyKey: input.idempotencyKey,
   };
 }

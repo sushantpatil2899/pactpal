@@ -1,0 +1,29 @@
+{
+  "productName": "PactPal",
+  "logoUrl": "https://pactpal-server.onrender.com/brand/logo-email.png",
+  "colors": {
+    "background": "#f4f6f8",
+    "surface": "#ffffff",
+    "surfaceSoft": "#f8fafb",
+    "ink": "#0d1219",
+    "muted": "#4a5564",
+    "line": "#e6e9ed",
+    "button": "#088060",
+    "onButton": "#ffffff",
+    "ok": "#087a58",
+    "okSoft": "#e3f6ef",
+    "wait": "#8a5a00",
+    "waitSoft": "#fdf3e1",
+    "alert": "#b3311f",
+    "alertSoft": "#fbe7e3",
+    "ai": "#5343d6",
+    "aiSoft": "#f0eeff",
+    "info": "#07727a",
+    "infoSoft": "#e3f3f3"
+  },
+  "footerLines": ["Every message, file and step of a deal is saved in its evidence log."],
+  "links": {
+    "help": "https://pactpal-docs.onrender.com/",
+    "privacy": "https://pactpal-docs.onrender.com/privacy.html"
+  }
+}

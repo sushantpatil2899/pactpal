@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { renderPdf, type Block, type PdfDocumentInput } from "./index.js";
@@ -171,6 +172,48 @@ describe("renderPdf", () => {
     const withoutNote = await renderPdf(doc([{ kind: "heading", text: "李" }], { footer: "李" }));
     expect(withoutNote.replacedCharacters).toBe(true);
     expect(linesOf(withoutNote.bytes)).toEqual(["?", "Page 1 of 1", "?"]);
+  });
+
+  it("draws a plain document exactly as before the branded look existed (9h)", async () => {
+    // Receipts signed before 9h are drawn again on every download; their bytes must not move.
+    const { bytes } = await renderPdf({
+      title: "T",
+      author: "PactPal",
+      createdAt: new Date("2026-11-02T10:00:00Z"),
+      footer: "PactPal receipt, format 1",
+      blocks: [
+        { kind: "title", text: "PactPal agreement receipt" },
+        { kind: "heading", text: "The deal" },
+        { kind: "paragraph", text: "Hello world ".repeat(80) },
+        { kind: "list", items: ["a", "b"] },
+        { kind: "table", columns: ["x", "y"], rows: [["1", "2"]] },
+        { kind: "code", label: "SHA", value: "a".repeat(64) },
+      ],
+    });
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(
+      "aab75caf4fb2cf6a333caccc495b77d2db4da43c3f04cdee4c92d2255399486c",
+    );
+  });
+
+  it("puts the logo, name and reference on every page of a branded document, the same every time", async () => {
+    const input = doc(
+      [
+        { kind: "title", text: "Agreement receipt" },
+        { kind: "heading", text: "The deal" },
+        { kind: "paragraph", text: words(900) },
+      ],
+      { brand: { reference: "Receipt, version 2", headings: "accent" }, footer: "Receipt" },
+    );
+    const branded = await renderPdf(input);
+    expect(branded.pageCount).toBeGreaterThan(1);
+    const lines = linesOf(branded.bytes);
+    expect(lines.filter((line) => line === "PactPal")).toHaveLength(branded.pageCount);
+    expect(lines.filter((line) => line === "Receipt, version 2")).toHaveLength(branded.pageCount);
+    expect((await renderPdf(input)).bytes).toEqual(branded.bytes);
+    const plain = await renderPdf({ ...input, brand: undefined });
+    expect(linesOf(plain.bytes)).not.toContain("Receipt, version 2");
+    const ink = await renderPdf({ ...input, brand: { reference: "Packet", headings: "ink" } });
+    expect(ink.bytes).not.toEqual(branded.bytes);
   });
 
   it("refuses a document without a title", async () => {

@@ -1,0 +1,19 @@
+subject: Invoice for "{{dealTitle}}": {{stage}}, {{stageTitle}} ({{amount}})
+tag: Invoice
+tone: wait
+heading: {{sellerName}} sent you an invoice for {{amount}}
+button: View and pay on PayPal | {{payUrl}}
+fact: Stage | {{stage}}, {{stageTitle}}
+fact: Amount | {{amount}}
+---
+{{sellerName}} sent you a PayPal invoice for {{stage}} of "{{dealTitle}}": {{stageTitle}}, {{amount}}.
+
+{{#payUrl}}
+View and pay it on PayPal:
+{{payUrl}}
+{{/payUrl}}
+{{^payUrl}}
+Log in to PayPal to view and pay it.
+{{/payUrl}}
+
+The invoice's note names the agreement you signed and its fingerprint. You pay PayPal directly; PactPal does not hold money.

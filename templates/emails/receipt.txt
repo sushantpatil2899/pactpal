@@ -1,0 +1,14 @@
+subject: Receipt: "{{dealTitle}}" was signed on PactPal
+tag: Signed
+tone: ok
+heading: {{#buyer}}You signed "{{dealTitle}}" with {{sellerName}}{{/buyer}}{{^buyer}}{{typedName}} signed "{{dealTitle}}"{{/buyer}}
+fact: Signed | {{when}}
+footer: tight
+---
+{{#buyer}}You signed the agreement "{{dealTitle}}" with {{sellerName}} on {{when}}.{{/buyer}}{{^buyer}}{{typedName}} signed your agreement "{{dealTitle}}" on {{when}}.{{/buyer}}
+
+The receipt is attached as a PDF. It lists every agreed term and the fingerprints that let anyone check the record has not changed.
+
+Receipt fingerprint (SHA-256): {{sha256}}
+
+A typed name and an IP address are not proof of identity.

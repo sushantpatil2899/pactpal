@@ -1,0 +1,13 @@
+subject: PayPal decided the dispute on "{{dealTitle}}"
+tag: Decision
+tone: alert
+heading: PayPal decided the dispute
+button: Open the dispute | {{link}}
+fact: Outcome | {{outcome}}
+---
+PayPal decided dispute {{disputeId}} on "{{dealTitle}}": {{outcome}}.
+{{#buyerFavour}}
+If PayPal allows an appeal, the appeal check on the dispute page lists what you hold that was not sent to PayPal before.
+{{/buyerFavour}}
+
+Open the dispute in PactPal: {{link}}

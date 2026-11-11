@@ -1,0 +1,17 @@
+subject: {{sellerName}} shared "{{dealTitle}}" with you on PactPal
+tag: Shared with you
+tone: info
+heading: {{sellerName}} shared "{{dealTitle}}" with you
+button: Open the deal | {{link}}
+fact: Link works until | {{until}} (UTC)
+footer: none
+---
+{{sellerName}} uses PactPal to keep a clear record of what you agree and what is delivered.
+
+Open the deal "{{dealTitle}}":
+{{link}}
+
+This private link works until {{until}} (UTC) and only opens this deal. Please do not forward it.
+PactPal records when the link is used. A typed name and an IP address are not proof of identity.
+
+PactPal (sandbox). Not legal advice.

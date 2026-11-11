@@ -1,0 +1,14 @@
+subject: Payment received: "{{dealTitle}}", {{stage}} ({{amount}})
+tag: Paid
+tone: ok
+heading: Payment received: {{amount}}
+fact: Stage | {{stage}}, {{stageTitle}}
+fact: Amount | {{amount}}
+fact: PayPal transaction | {{transactionId}}
+---
+{{#buyer}}PayPal confirmed your payment of {{what}}{{/buyer}}{{^buyer}}PayPal confirmed that the buyer paid {{what}}{{/buyer}}
+
+{{#transactionId}}
+PayPal transaction: {{transactionId}}
+{{/transactionId}}
+The payment is now in this deal's evidence log.

@@ -1,0 +1,10 @@
+subject: Change accepted: "{{dealTitle}}" (now version {{version}})
+tag: Agreed
+tone: ok
+heading: {{typedName}} agreed to your change
+---
+{{typedName}} agreed to your change to "{{dealTitle}}" {{at}}. Version {{version}} is now the signed agreement; its receipt comes in a separate email.
+{{#addsStages}}
+
+You can send the invoice for the new payment stages from the deal page.
+{{/addsStages}}

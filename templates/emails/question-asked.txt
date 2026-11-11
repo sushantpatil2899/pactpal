@@ -1,0 +1,12 @@
+subject: Question from the buyer: "{{dealTitle}}"
+tag: Needs you
+tone: wait
+heading: The buyer asked a question about "{{dealTitle}}"
+---
+The buyer asked a question about "{{dealTitle}}" (version {{version}}) on {{at}} UTC:
+
+"{{question}}"
+
+{{reasonLine}}
+
+Open the deal in PactPal to answer it under "Questions from the buyer". The buyer sees your answer there, and it is recorded in this deal's evidence log.

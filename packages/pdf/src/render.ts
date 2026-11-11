@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { LineCapStyle, PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { pdfDocumentSchema, type Block, type PdfDocumentInput } from "./blocks.js";
 
 /** US Letter, in points (1/72 inch): the demo runs on US sandbox accounts. */
@@ -14,6 +14,40 @@ const INK = rgb(0.1, 0.1, 0.1);
 const MUTED = rgb(0.35, 0.35, 0.35);
 const RULE = rgb(0.7, 0.7, 0.7);
 const LIST_INDENT = 16;
+/** The branded look's colours (9h), fixed here because the documents are evidence. */
+const ACCENT_INK = rgb(8 / 255, 122 / 255, 88 / 255);
+const LOGO_GREEN = rgb(20 / 255, 180 / 255, 138 / 255);
+const LOGO_DARK = rgb(11 / 255, 111 / 255, 99 / 255);
+const LOGO_VIOLET = rgb(109 / 255, 92 / 255, 246 / 255);
+/** Height of the logo and of the header band above the content, in points. */
+const LOGO_HEIGHT = 20;
+const HEADER_SPACE = 34;
+/** The logo's shapes, in its own 875 by 730 drawing (the redesign's mark, flat colours). */
+const LOGO_SHAPES = [
+  {
+    fill: LOGO_DARK,
+    d: "M435 158C400 125 345 82 285 82C240 82 205 105 175 135L120 190C85 225 66 265 68 310C70 365 100 420 135 462Z",
+  },
+  {
+    fill: LOGO_GREEN,
+    d: "M845 462L650 268C625 243 590 243 565 265L440 372C415 393 380 385 362 360C345 337 350 308 370 290L590 105C625 78 665 72 705 78C745 84 775 100 800 125L885 210C905 232 915 265 915 305C915 365 885 420 845 462Z",
+  },
+  {
+    fill: LOGO_DARK,
+    d: "M570 325C585 305 612 305 628 322L790 485C808 503 808 525 792 542L775 558C765 568 750 568 740 558L690 505C678 492 660 480 648 492C636 504 640 520 652 532L710 592C725 607 725 628 712 642L700 652C688 664 668 664 655 652L470 462C452 445 452 425 470 410Z",
+  },
+];
+const LOGO_STROKES = [
+  { color: LOGO_GREEN, d: "M212 515L300 428M302 605L398 512" },
+  { color: LOGO_DARK, d: "M398 685L497 592" },
+  { color: LOGO_VIOLET, d: "M522 742L595 672" },
+];
+
+/** What the branded look needs to draw. */
+interface Branding {
+  reference: string;
+  headingColor: ReturnType<typeof rgb>;
+}
 const CELL_PADDING = 6;
 
 interface Fonts {
@@ -92,6 +126,7 @@ class Layout {
     private readonly pdf: PDFDocument,
     readonly fonts: Fonts,
     private readonly characters: CharacterSet,
+    readonly branding: Branding | undefined,
   ) {
     this.newPage();
   }
@@ -100,6 +135,40 @@ class Layout {
     this.page = this.pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     this.pages.push(this.page);
     this.y = PAGE_HEIGHT - MARGIN;
+    if (this.branding) this.header(this.branding);
+  }
+
+  /** The logo, the name and the reference line, ruled off, at the top of a branded page. */
+  private header({ reference }: Branding): void {
+    const top = PAGE_HEIGHT - MARGIN + 14;
+    const scale = LOGO_HEIGHT / 730;
+    const origin = { x: MARGIN - 55 * scale, y: top + 65 * scale };
+    for (const shape of LOGO_SHAPES) {
+      this.page.drawSvgPath(shape.d, { ...origin, scale, color: shape.fill });
+    }
+    for (const stroke of LOGO_STROKES) {
+      this.page.drawSvgPath(stroke.d, {
+        ...origin,
+        scale,
+        borderColor: stroke.color,
+        // The scale applies to the line width too, so it is given in the drawing's own units.
+        borderWidth: 76,
+        borderLineCap: LineCapStyle.Round,
+      });
+    }
+    const name = { font: this.fonts.bold, size: 14, color: INK };
+    this.page.drawText("PactPal", { ...name, x: MARGIN + 26, y: top - 15 });
+    const small = { font: this.fonts.regular, size: SIZE.small, color: MUTED };
+    const line = this.wrap(reference, small, CONTENT_WIDTH / 2)[0] ?? "";
+    const width = small.font.widthOfTextAtSize(line, small.size);
+    this.page.drawText(line, { ...small, x: PAGE_WIDTH - MARGIN - width, y: top - 13 });
+    this.page.drawLine({
+      start: { x: MARGIN, y: top - 24 },
+      end: { x: PAGE_WIDTH - MARGIN, y: top - 24 },
+      thickness: 1.5,
+      color: this.branding?.headingColor ?? INK,
+    });
+    this.y = PAGE_HEIGHT - MARGIN - HEADER_SPACE + 14;
   }
 
   /** Starts a new page unless `height` points still fit above the footer. */
@@ -227,11 +296,13 @@ function drawBlock(layout: Layout, block: Block): void {
       layout.gap(4);
       return;
     case "heading": {
-      const style: Style = { font: bold, size: SIZE.heading };
+      const color = layout.branding?.headingColor;
+      const style: Style = { font: bold, size: SIZE.heading, ...(color ? { color } : {}) };
       layout.gap(10);
       // Keep the heading with at least two lines of what follows.
       layout.ensure(layout.lineHeight(style) + 2 * layout.lineHeight(normal));
       layout.text(block.text, style);
+      if (layout.branding) layout.rule();
       layout.gap(2);
       return;
     }
@@ -355,7 +426,11 @@ export async function renderPdf(input: PdfDocumentInput): Promise<RenderedPdf> {
         ]
       : document.blocks;
 
-  const layout = new Layout(pdf, fonts, characters);
+  const branding: Branding | undefined = document.brand && {
+    reference: document.brand.reference,
+    headingColor: document.brand.headings === "accent" ? ACCENT_INK : INK,
+  };
+  const layout = new Layout(pdf, fonts, characters, branding);
   for (const block of blocks) drawBlock(layout, block);
   layout.footers(document.footer);
   const bytes = await pdf.save({ useObjectStreams: false });
