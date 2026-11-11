@@ -112,7 +112,7 @@ Alex buys Jun's spreadsheet pack (budget planner, invoice tracker, content calen
 
 ## Story 5: Lena and Sam, physical goods and the listing as evidence
 
-Sam orders a 1970s film camera on Lena's shop; her order form sends the order to her private "deal from text" key and a draft deal appears (a forwarded email cannot be used: forwarding accepts only mail sent from the seller's own address). She adds the camera's product page with Channel3: "What's being sold" fills in, and the photos are saved as evidence. The listing says "minor haze on the rear lens element, sold as is".
+Sam orders a 1970s film camera on Lena's shop; her order form sends the order to her private "deal from text" key and a draft deal appears (a forwarded email cannot be used: forwarding accepts only mail sent from the seller's own address). She adds the camera's product page with Channel3: "What's being sold" fills in, and the photos are saved as evidence. The camera is a Pentax K1000 with a Pentax-A 50mm f/2; its product page ([Coastal Film Lab](https://www.coastalfilmlab.com/products/pentax-k1000-35mm-slr-film-camera-pentax-a-50mm-f-2-lens)) lists it at $299.99 and says the lens has "slight haze". Lena sells it for **$185**, and the signed agreement says why: "Sold for $185, below the listed price of $299.99, as is because of the haze on the rear lens element".
 
 | Step | What happens                                                                                                                                               | Feature                           |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |

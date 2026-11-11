@@ -184,6 +184,7 @@ describe("render.yaml", () => {
       "EMAIL_FROM",
       "PUBLIC_BASE_URL",
       "RENDER_API_KEY",
+      "CHANNEL3_API_KEY",
     ]) {
       expect(SHARED_SETTINGS).toContain(name);
     }

@@ -26,7 +26,7 @@ export function story5Steps(): Step[] {
         context,
         LENA.email,
         text,
-        "1970s 35mm film camera",
+        "Pentax K1000 film camera",
         "handmade-goods",
       );
       await addBuyer(context, LENA.email, dealId, SAM);
@@ -50,13 +50,20 @@ export function story5Steps(): Step[] {
           kind: "source",
         });
         await saveAgreement(context, LENA.email, dealId, {
-          summary: "A 1970s 35mm SLR film camera with its 50mm lens, sold as listed.",
+          summary:
+            "A Pentax K1000 35mm SLR (1970s) with its Pentax-A 50mm f/2 lens, sold as listed.",
           deliverables: [
-            "The camera and 50mm lens as listed: fully working, light meter works",
-            "Minor haze on the rear lens element, as shown in the photos; sold as is",
+            "The Pentax K1000 and Pentax-A 50mm f/2 lens as listed: fully working, light meter works",
+            "Slight haze on the rear lens element, as shown in the photos; sold as is",
+            "Sold for $185, below the listed price of $299.99, as is because of the haze on the rear lens element",
             "Shipped tracked within 3 days of payment, well packed",
           ],
-          deliverableKinds: [{ kind: "objective" }, { kind: "objective" }, { kind: "process" }],
+          deliverableKinds: [
+            { kind: "objective" },
+            { kind: "objective" },
+            { kind: "objective" },
+            { kind: "process" },
+          ],
           exclusions: [
             "Returns for the rear-element haze described in the listing",
             "Film and batteries",

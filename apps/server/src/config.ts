@@ -103,6 +103,8 @@ export const SHARED_SETTINGS: readonly string[] = [
   PUBLIC_BASE_URL,
   SELLER_KEYS_ENCRYPTION_KEY,
   RENDER_API_KEY,
+  // Product listings (8e): the website looks pages up; the demo seed (Workflows) does too.
+  CHANNEL3_API_KEY,
 ];
 
 /** Every setting in report order. */

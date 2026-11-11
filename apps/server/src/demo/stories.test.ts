@@ -1,4 +1,4 @@
-import { createUser, listDealsForUser, readLedger } from "@pactpal/db";
+import { createUser, getLatestScope, listDealsForUser, readLedger } from "@pactpal/db";
 import { TEST_NOW, testId, useMigratedTestDatabase } from "@pactpal/db/testing";
 import { PHOTO_HOST, type ProductLookup } from "@pactpal/products";
 import { describe, expect, it } from "vitest";
@@ -136,10 +136,17 @@ describe("the six demo stories (9b-2)", () => {
         /^In the PayPal sandbox, sign in as .+@pact-pal\.app and open a dispute/,
       );
       expectOnlyAiPassedOver(played);
-      const { types } = await dealOf(seller);
+      const { deal, types } = await dealOf(seller);
       expect(types).toContain("PAYMENT_RECEIVED");
       // Goods are shipped as a timeline step (with the tracking number), work is delivered.
       expect(types).toContain(story === "5" ? "STEP_DONE" : "DELIVERY_SENT");
+      if (story === "5") {
+        // The camera sold below its listed price, and the signed agreement says why.
+        const scope = await getLatestScope(db, deal?.id ?? "");
+        expect(scope?.content.deliverables).toContain(
+          "Sold for $185, below the listed price of $299.99, as is because of the haze on the rear lens element",
+        );
+      }
       if (story === "2") {
         expect(types).toContain("CHANGE_ORDER_ACCEPTED");
         expect(types).toContain("CHANGE_ORDER_DECLINED");

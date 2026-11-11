@@ -1,6 +1,6 @@
 New order from lenasvintagecameras.example (order form)
 Buyer: Sam Patel (sam.patel@pact-pal.app)
-Item: 1970s 35mm SLR film camera, silver and black, with 50mm lens
-Condition (from the listing): Fully working, light meter works. Minor haze on the rear lens element, sold as is.
-Price: $185 including tracked shipping
+Item: Pentax K1000 35mm SLR with Pentax-A 50mm f/2 lens (1970s), silver and black
+Condition: Fully working, light meter works. Slight haze on the lens (rear element), sold as is.
+Price: $185 including tracked shipping (listed at $299.99; reduced, sold as is, because of the haze)
 Ship by: 20 November 2026
