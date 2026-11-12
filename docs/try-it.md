@@ -43,13 +43,14 @@ Tom's address contains `allowappeal` because PayPal's sandbox offers the seller 
 
 Every address above forwards to one inbox, **`pactpal.demo@zohomail.com`** (Zoho Mail), with the same password. Sign in once to see every email PactPal sent, each addressed to its person: signing receipts, invoices, reminders, delivery notices, dispute updates and decisions.
 
-## Five things to open
+## Six things to open
 
-1. **A dispute won from the record.** Sign in as Daniel → **Disputes** → the bakery dispute. Read **The claim against the record**: the AI matches each point of Rosa's claim to the agreement and the evidence log. Then open the evidence packet and **History**.
+1. **A dispute won from the record.** Sign in as Daniel → **Deals** → "Rosa's Corner Bakery website" → **Disputes** tab → open the dispute. Read **The claim against the record**: the AI matches each point of Rosa's claim to the agreement and the evidence log. Then open the evidence packet and **History**.
 2. **A dispute the seller rightly lost.** Sign in as Priya → **Disputes** → Tom's dispute. The comparison sides with the buyer, and the **appeal check** says honestly that there is nothing new to send.
 3. **The record nobody can quietly edit.** Sign in as Maya → **Deals** → "Wren, the lantern-keeper" → **Evidence log** → **Check this log** ([how it works](https://help.pact-pal.app/evidence-log.html)).
 4. **What is being sold, from a link.** Sign in as Lena → the camera deal → **Agreement** → "What is being sold".
 5. **A seller's day.** Sign in as Maya → **Dashboard**, **Needs you**, **Deadlines** and **Insights**. Then open the shared inbox and search "Reminder".
+6. **The evidence itself (not shown in the video).** Sign in as Daniel, open the bakery dispute as in 1, and under **Evidence packet** open **packet PDF**: the claim against the record, the timeline from the log, every file's SHA-256 fingerprint and the record's seal. Then sign in as Maya → "Wren, the lantern-keeper" → **Evidence log**: the **evidence score** out of 100 shows what the record has and what's missing, and **Check this log** confirms every entry still matches its fingerprint.
 
 ## Try it with your own sandbox accounts
 
