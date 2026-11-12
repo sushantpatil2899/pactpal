@@ -16,7 +16,7 @@ Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.d
 
 - **Why:** [The problem](#the-problem) · [What PactPal is](#what-pactpal-is) · [Who it's for](#who-its-for)
 - **What:** [How it works](#how-it-works) · [Features](#features) · [Against the judging criteria](#against-the-judging-criteria)
-- **How:** [PayPal integration](#paypal-integration) · [AI](#ai) · [AI assistants (MCP)](#ai-assistants-mcp) · [Disputes](#disputes) · [The evidence log](#the-evidence-log) · [Architecture](#architecture) · [Running on Render](#running-on-render)
+- **How:** [PayPal integration](#paypal-integration) · [AI](#ai) · [AI assistants (MCP)](#ai-assistants-mcp) · [Disputes](#disputes) · [The evidence log](#the-evidence-log) · [Architecture](#architecture) · [Running on Render](#running-on-render) · [Sponsor tools](#sponsor-tools)
 - **Use it:** [Try it](#try-it) · [Run it locally](#run-it-locally) · [Quality](#quality) · [Scope and limits](#scope-and-limits) · [Docs](#docs)
 
 ## The problem
@@ -389,6 +389,56 @@ What this gives us:
 - **Schedules without a server loop.** Cron Jobs start Workflow runs and exit in seconds.
 
 Deploy it yourself: [docs/deploy.md](docs/deploy.md).
+
+## Sponsor tools
+
+Four of the hackathon's sponsors power real parts of PactPal. Each one does a job sellers rely on every day.
+
+### Render: where all of PactPal runs
+
+The website, the help site, every background task and both databases run on Render, from one Blueprint. Workflows run each AI model call as its own task, so a council of five models answers side by side. Cron Jobs start the dispute checks and the daily clean-up. Postgres and Key Value sit on the private network. The full picture, with its diagram: **[Running on Render](#running-on-render)**.
+
+### AG Grid: every deal in one table
+
+<img alt="The Deals page: an AG Grid table of deals with stage, who each deal is waiting on, due date, amount, records score and unread messages, with the Columns and Filters panels on the right" src="docs/images/sponsors/ag-grid-deals.webp">
+
+- Every deal at a glance: its stage, who it is waiting on, the next due date, the amount, the records score and unread messages.
+- Enterprise features at work: filters by value, the Columns and Filters panels, grouping by stage or by who a deal is waiting on, live row counts, and CSV and Excel export.
+- Search across title, buyer and category. Late steps turn red. A click, or Enter, opens the deal.
+- Styled from PactPal's own design tokens, so it follows light and dark mode.
+
+Code: [`DealsTable.tsx`](apps/web/src/app/DealsTable.tsx)
+
+### AG Studio: the Insights dashboard
+
+<img alt="The Insights page: AG Studio charts of deals by stage, agreed amount by stage per currency, who deals are waiting on, and average records score by stage" src="docs/images/sponsors/ag-studio-insights.webp">
+
+- Charts of the seller's whole book: deals by stage, agreed amounts by stage and currency, who deals are waiting on, and the records score by stage.
+- The seller can edit the charts and filters. Their layout is kept in the browser.
+- Charts take PactPal's colors in light and dark mode, and stack into one column on a phone.
+
+Code: [`Insights.tsx`](apps/web/src/app/Insights.tsx), [`insight-report.ts`](apps/web/src/app/insight-report.ts)
+
+### Bryntum: timelines and deadlines
+
+<img alt="The Deadlines page: a Bryntum Scheduler with one row per deal, showing each next dated step and the dispute deadlines, with a red bar for a dispute that has no evidence prepared yet" src="docs/images/sponsors/bryntum-scheduler-deadlines.webp">
+
+<img width="640" alt="A deal's timeline as a Bryntum Gantt chart: deposit, references, pencil sketch, sketch approval and final files, linked in a chain, with a line for today" src="docs/images/sponsors/bryntum-gantt-timeline.webp">
+
+- **Scheduler, across all deals.** Every dated step and every dispute deadline on one calendar. A dispute with no evidence prepared yet shows in red, so a response date is hard to miss. A click opens the deal.
+- **Gantt, on each deal.** The signed timeline as a chain of steps: deposit, references, sketch, approval, payments, delivery. A late step visibly pushes the ones after it. Colors show done, current, late and held up, with a line for today.
+- Dates come from the signed record. Bryntum only shows them, so a chart can never move an agreed date.
+
+Code: [`Deadlines.tsx`](apps/web/src/schedule/Deadlines.tsx), [`DealGantt.tsx`](apps/web/src/schedule/DealGantt.tsx)
+
+### Channel3: what exactly is being sold
+
+- For goods and digital products, the seller pastes the product's listing link. Channel3 reads it into clean facts: title, brand, description, materials, features, price and up to 3 photos.
+- The buyer signs those facts with the rest of the agreement. The photos are saved and fingerprinted, so they become exhibits in a dispute packet.
+- When a buyer later says "not as described", the AI compares the claim with the listed facts the buyer signed.
+- AI assistants can read listings too, with the `lookup_listing` MCP tool. Lookups are cached in Render Key Value.
+
+Code: [`channel3.ts`](packages/products/src/channel3.ts) · More: [What's being sold](docs/product.md#whats-being-sold-channel3)
 
 ## Try it
 
