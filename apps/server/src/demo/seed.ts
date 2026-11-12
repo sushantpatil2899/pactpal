@@ -25,11 +25,25 @@ export const STORIES: Readonly<Record<string, () => DemoStep<SeedContext>[]>> = 
   book: bookSteps,
 };
 
-/** What a `seed-demo` run is asked to do: one story, or only list its steps. */
-export const seedInputSchema = z.object({
-  story: z.enum(Object.keys(STORIES) as [string, ...string[]]),
-  dryRun: z.boolean().default(false),
-});
+/**
+ * What a `seed-demo` run is asked to do: one story (or only list its steps), or have PayPal's
+ * sandbox decide one named dispute, for a deal filmed live rather than seeded (9f).
+ */
+export const seedInputSchema = z.union([
+  z.object({
+    story: z.enum(Object.keys(STORIES) as [string, ...string[]]),
+    dryRun: z.boolean().default(false),
+  }),
+  z.object({
+    settle: z.object({
+      disputeId: z
+        .string()
+        .max(64)
+        .regex(/^PP-[A-Z0-9-]+$/),
+      winner: z.enum(["seller", "buyer"]),
+    }),
+  }),
+]);
 
 /** The demo's content folder (`hackathon/demo/`) in the repository checkout. */
 export function demoContentDir(from = dirname(fileURLToPath(import.meta.url))): string {
@@ -69,24 +83,27 @@ const RUN_LIMIT_MS = 25 * 60_000;
 /** Least time between two AI steps, so model quotas last. */
 const AI_GAP_MS = 20_000;
 
+/** What a seed run is given: the app built from the settings, the clock, sleeping and the log. */
+interface SeedWiring {
+  app: () => Promise<{
+    app: SeedContext["app"];
+    database: Database | undefined;
+    settle?: SeedContext["settle"];
+  }>;
+  clock: () => Date;
+  sleep: (ms: number) => Promise<void>;
+  log: { info(details: object, msg: string): void };
+}
+
 /**
  * One run of the demo seed: builds the same app as the website from the settings, runs one
- * story's steps (or lists them in a dry run) and closes the app. Logs ids only.
+ * story's steps (or lists them in a dry run), or asks for one dispute's decision, and closes the
+ * app. Logs ids only.
  */
-export async function runSeedTask(
-  input: unknown,
-  wiring: {
-    app: () => Promise<{
-      app: SeedContext["app"];
-      database: Database | undefined;
-      settle?: SeedContext["settle"];
-    }>;
-    clock: () => Date;
-    sleep: (ms: number) => Promise<void>;
-    log: { info(details: object, msg: string): void };
-  },
-) {
-  const { story, dryRun } = seedInputSchema.parse(input ?? {});
+export async function runSeedTask(input: unknown, wiring: SeedWiring) {
+  const asked = seedInputSchema.parse(input ?? {});
+  if ("settle" in asked) return settleOne(asked.settle, wiring);
+  const { story, dryRun } = asked;
   const steps = STORIES[story];
   if (!steps) throw new Error(`no story ${story}`);
   const { app, database, settle } = await wiring.app();
@@ -116,6 +133,26 @@ export async function runSeedTask(
     );
     wiring.log.info({ ...summary }, "Demo seed run finished");
     return summary;
+  } finally {
+    await app.close();
+  }
+}
+
+/**
+ * Asks PayPal's sandbox to decide one dispute for `winner`, through the seller's own linked app
+ * (the call a story's last step makes), for a dispute filmed live. Logs ids only.
+ */
+async function settleOne(
+  { disputeId, winner }: { disputeId: string; winner: "seller" | "buyer" },
+  wiring: SeedWiring,
+) {
+  const { app, database, settle } = await wiring.app();
+  try {
+    if (!database) throw new Error("The demo seed needs DATABASE_URL");
+    if (!settle) throw new Error("Deciding a dispute needs PayPal's sandbox settings");
+    const result = await settle(disputeId, winner);
+    wiring.log.info({ disputeId, winner, result: result.kind }, "Demo seed asked for a decision");
+    return { settle: disputeId, winner, result };
   } finally {
     await app.close();
   }

@@ -187,7 +187,8 @@ Each story is one run of the `seed-demo` Workflow task with input `{"story": "1"
 2. **"Pay stage N … as <buyer>"**: sign in to the PayPal sandbox as that buyer and pay the invoice at the link given.
 3. **"Open a dispute as <buyer>"**: in the sandbox, open it on that payment with the reason and words given.
 4. **"Send the evidence"**: in PactPal as the seller, escalate the dispute and send the packet (or, story 3, offer the partial refund). The next run asks PayPal's sandbox to decide for the story's winner, through the seller's own linked app; run it once more a few minutes later to see the outcome.
-5. A failed AI step (quota, a draft that did not pass PactPal's checks) is retried by running the story again; the seed waits at least 20 seconds between AI steps.
+5. **A dispute filmed live** (not a seed story): once the seller has escalated it and sent the evidence, start `seed-demo` with `{"settle": {"disputeId": "PP-…", "winner": "seller"}}` (or `"buyer"`). It asks PayPal's sandbox to decide through the seller's linked app and reports "asked", "not-allowed" (escalate and send the evidence first) or "failed"; "Check now" on the dispute page shows the outcome a few minutes later.
+6. A failed AI step (quota, a draft that did not pass PactPal's checks) is retried by running the story again; the seed waits at least 20 seconds between AI steps.
 
 Order: book first (most invoices, one pause for all of them), then stories 1 to 6.
 

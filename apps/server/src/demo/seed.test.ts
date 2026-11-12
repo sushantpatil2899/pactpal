@@ -24,6 +24,7 @@ describe("the seed-demo task (9b-2)", () => {
       },
     );
     expect(summary).toMatchObject({ story: "book", dryRun: true, alreadyDone: 0 });
+    if (!("steps" in summary)) throw new Error("expected a story run");
     expect(summary.steps).toHaveLength(1 + BOOK.length + 15 + 1 + 2 + 7);
     expect(lines).toHaveLength(1);
     expect(closed).toBe(true);
@@ -43,6 +44,61 @@ describe("the seed-demo task (9b-2)", () => {
         },
       ),
     ).rejects.toThrow(/DATABASE_URL/);
+  });
+
+  it("asks PayPal's sandbox to decide one named dispute, logs ids only and closes the app", async () => {
+    const env = dealTestApp(db);
+    const lines: object[] = [];
+    const asked: [string, string][] = [];
+    let closed = false;
+    env.app.addHook("onClose", () => {
+      closed = true;
+    });
+    const result = await runSeedTask(
+      { settle: { disputeId: "PP-R-CGD-10199674", winner: "seller" } },
+      {
+        app: () =>
+          Promise.resolve({
+            app: env.app,
+            database: db,
+            settle: (disputeId, winner) => {
+              asked.push([disputeId, winner]);
+              return Promise.resolve({ kind: "asked" as const });
+            },
+          }),
+        clock: () => TEST_NOW,
+        sleep: () => Promise.resolve(),
+        log: { info: (details) => lines.push(details) },
+      },
+    );
+    expect(result).toEqual({
+      settle: "PP-R-CGD-10199674",
+      winner: "seller",
+      result: { kind: "asked" },
+    });
+    expect(asked).toEqual([["PP-R-CGD-10199674", "seller"]]);
+    expect(lines).toEqual([{ disputeId: "PP-R-CGD-10199674", winner: "seller", result: "asked" }]);
+    expect(closed).toBe(true);
+  });
+
+  it("refuses a decision without PayPal's sandbox settings, a database or a proper id", async () => {
+    const settleInput = { settle: { disputeId: "PP-D-1", winner: "buyer" } };
+    for (const bad of [
+      { settle: { disputeId: "INV2-1", winner: "seller" } },
+      { settle: { disputeId: "PP-D-1", winner: "nobody" } },
+      { settle: { disputeId: `PP-${"1".repeat(70)}`, winner: "seller" } },
+    ]) {
+      expect(seedInputSchema.safeParse(bad).success).toBe(false);
+    }
+    const env = dealTestApp(db);
+    const wiring = (database: typeof db | undefined) => ({
+      app: () => Promise.resolve({ app: env.app, database }),
+      clock: () => TEST_NOW,
+      sleep: () => Promise.resolve(),
+      log: { info: () => undefined },
+    });
+    await expect(runSeedTask(settleInput, wiring(db))).rejects.toThrow(/sandbox settings/);
+    await expect(runSeedTask(settleInput, wiring(undefined))).rejects.toThrow(/DATABASE_URL/);
   });
 
   it("reads content inside the folder only, and names a missing image", () => {
