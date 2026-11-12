@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "0d63d030-f0d8-43fb-9316-b34504263586",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/var/folders/mr/l4vtj4dx2sv5tc_7lfhd4s340000gn/T/pactpal-diagrams-wKZzUs/deal-journey.workflow.json",
+  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/public/deal-journey.html",
+  "specification": {
+    "sha256": "8d0fd81e44601574a0526110aa45fe8718ef19f2c26b47c8ca6093fc144f05f3",
+    "bytes": 4891
+  },
+  "artifact": {
+    "sha256": "e0545b5ecad2925bd4a812bb0f3a911e11e1ae085efcf2163de78a7d10a87d86",
+    "bytes": 847684
+  }
+}

@@ -31,4 +31,5 @@ PactPal is for freelancers and small sellers who are paid through PayPal. It tur
 ## Under the hood
 
 - [How PactPal is built](architecture.md): the code base, the services and how a council runs.
+- [PactPal in diagrams](diagrams.md): the deal, the AI, disputes and the services, drawn.
 - [Product spec](../product.md), [Scope](../scope.md), [Data model](../data-model.md), [Design system](../DESIGN.md) and [Engineering standards](../engineering-standards.md).

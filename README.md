@@ -1,131 +1,455 @@
 # PactPal
 
-**AI that seals the deal.** PactPal turns a deal made anywhere (a chat, an email, a platform message) into a signed, timestamped record tied to a PayPal invoice. When a buyer later opens a dispute, that record becomes a ready evidence packet, and an appeal check if the decision goes the wrong way.
+**AI that seals the deal.** PactPal turns a deal agreed in a chat into a signed record tied to PayPal invoices. Every step after that is logged in a record nobody can quietly edit. If the buyer disputes the payment, the record becomes a ready evidence packet.
 
-Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.devpost.com/) hackathon.
+**[Live app](https://pact-pal.app)** · **[Help](https://help.pact-pal.app)** · **[Diagrams](https://help.pact-pal.app/diagrams.html)** · **[How judges can try it](#try-it)**
 
-## Status
+<!-- TODO(video): replace with the YouTube thumbnail and link once the demo video is published. -->
 
-Early development. What exists today:
+> **Demo video:** coming soon (under 3 minutes).
 
-| Part               | State                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| `packages/ledger`  | Hash-chained, append-only evidence ledger with tamper verification                         |
-| `packages/council` | Vote aggregation for the LLM council (Borda count, agreement score)                        |
-| `packages/paypal`  | PayPal access: login, invoices, disputes, answers, notifications; MCP first, REST fallback |
-| `apps/server`      | Fastify server: health check, verified PayPal notifications, sandbox commands              |
-| `apps/web`         | React app placeholder                                                                      |
+Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.devpost.com/) hackathon. Runs on PayPal's sandbox: no real money moves.
 
-## Docs
+---
 
-| Doc                                                              | What it covers                                                       |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [`docs/product.md`](docs/product.md)                             | Product spec: flow, AI roles, ledger, evidence packet, screens       |
-| [`docs/scope.md`](docs/scope.md)                                 | Supported deals, what is out of scope and why, roadmap               |
-| [`docs/engineering-standards.md`](docs/engineering-standards.md) | Engineering standards and the verify gate                            |
-| [`docs/build-plan.md`](docs/build-plan.md)                       | End-to-end build phases, dependencies and decision gates             |
-| [`docs/decisions.md`](docs/decisions.md)                         | Design decisions and their reasons                                   |
-| [`docs/sandbox-notes.md`](docs/sandbox-notes.md)                 | PayPal sandbox lessons learned                                       |
-| [`docs/spike-results.md`](docs/spike-results.md)                 | Sandbox feasibility tests                                            |
-| [`hackathon/demo-plan.md`](hackathon/demo-plan.md)               | Hackathon only: demo stories, cast, seed plan (not on the docs site) |
+## The problem
 
-## Running locally
+Freelancers and small sellers paid through PayPal keep losing disputes they should win.
 
-Requirements: Node 22+, pnpm 10+.
+PayPal knows money moved. It does not know what was agreed, what was delivered, or whether the buyer accepted it. That proof lives in chats, emails and screenshots, and the seller pulls it together only after a dispute opens, with a deadline running.
+
+PayPal's own rules say what is missing. For digital goods and services, proof of delivery means:
+
+> "a system of record showing the date the item was sent and that it was either: Electronically sent to the recipient … or Received or accessed by the recipient."
+>
+> [PayPal's Seller Protection Program (US)](https://www.paypal.com/us/legalhub/paypal/seller-protection), updated 26 Jan 2026
+
+The same page excludes a buyer saying "the item you sent isn't what was ordered". Most small sellers have no such system of record.
+
+Sellers have said the same thing for over a decade:
+
+<table>
+<tr>
+<td valign="top" width="50%"><img alt="A 2025 Shopify merchant: despite providing all evidence, the dispute was closed in the customer's favor" src="docs/media/problem/01-shopify-2025-lost-despite-delivery-highlighted.png"></td>
+<td valign="top" width="50%"><img alt="A 2021 digital seller: there are no shipping labels we can provide, just screenshots of the downloads" src="docs/media/problem/02-shopify-2021-digital-no-shipping-label-highlighted.png"></td>
+</tr>
+<tr>
+<td valign="top" width="50%"><img alt="A 2023 digital music seller: PayPal seems to side with customers regardless of the evidence" src="docs/media/problem/05-hise-2023-regardless-of-evidence-highlighted.png"></td>
+<td valign="top" width="50%"><img alt="A 2012 digital pattern seller: PayPal seems to invariably side with the buyer" src="docs/media/problem/07-pattern-seller-blog-2012-invariably-side-with-buyer-highlighted.png"></td>
+</tr>
+</table>
+
+Buyers lose too. A 2026 buyer wrote that PayPal decided a service "was delivered" based on the seller's own records. Neither side had a record they both agreed to.
+
+The size of it:
+
+- **About 45%** of retailer chargebacks are fraud, first-party or third-party. Chargebacks are expected to reach **324 million a year by 2028** ([Mastercard, 2025 State of Chargebacks](https://www.mastercard.com/sea/en/news-and-trends/Insights/2025/what-s-the-true-cost-of-a-chargeback-in-2025.html)).
+- **71%** of freelancers struggle to get paid at least once in their career ([Freelancers Union](https://blog.freelancersunion.org/2015/12/10/costs-nonpayment/)).
+- PayPal has **42,422 reviews on Trustpilot, 88% of them one star** (checked 11 Nov 2026).
+
+All posts, figures and sources: [docs/problem-evidence.md](docs/problem-evidence.md). Names in every screenshot are blurred.
+
+## What PactPal is
+
+A deal space for one seller and one buyer that records the deal **while it happens**, not after a dispute.
+
+- They agree in a live chat. AI drafts the agreement from it, citing a chat line for every term.
+- The buyer signs. PayPal invoices each agreed payment step.
+- Deliveries go through tracked links. Approvals are logged.
+- Every step is written to a hash-chained evidence log.
+- If a dispute opens, PactPal compares the claim with the record and builds the packet. The seller confirms, and PactPal sends it to PayPal.
+
+PactPal never holds money, never gives legal advice, and never predicts an outcome.
+
+## Who it's for
+
+| Who                                                          | What they get                                                                                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Seller**: freelancer, artist, creator, small online seller | A clear agreement, a PayPal invoice per stage, tracked deliveries, a records score, and a ready packet when a dispute opens          |
+| **Buyer**                                                    | One link by email, no account needed. A one-page agreement to sign, answers from the agreement, and approve or ask-for-changes pages |
+| **AI assistants**                                            | An MCP server to read deals and prepare work. Sending anything needs the seller's one-time code                                      |
+
+## How it works
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/deal-journey-dark.svg">
+  <img alt="A deal from chat to paid: agree in chat, AI drafts terms, seller checks and sends, buyer signs, signed record, PayPal invoice, buyer pays, seller delivers, buyer approves, paid and done; a dispute leads to an evidence packet" src="docs/images/deal-journey-light.svg">
+</picture>
+
+**[Open the interactive version](https://help.pact-pal.app/diagrams/deal-journey.html)**
+
+1. **Agree.** Seller and buyer talk in the deal's live chat. Every message is logged with a fingerprint and the server's time.
+2. **Draft.** A council of five AI models drafts the agreement and timeline from the chat. Every term cites its chat line, or stays blank.
+3. **Sign.** The buyer gets one page with every key term, types their name and signs. Both get a receipt PDF with fingerprints.
+4. **Pay.** Each payment step becomes a PayPal invoice. A signed PayPal webhook marks it paid.
+5. **Deliver.** Files go through a unique link. Opens and downloads are logged with time, IP address and file fingerprint.
+6. **Approve.** The buyer approves or asks for changes, counted against the agreed revisions.
+7. **Dispute.** PactPal finds the dispute within 5 minutes, compares the claim with the record, builds the packet, and sends it after the seller confirms.
+8. **Appeal.** If the decision goes against the seller, PactPal checks for evidence PayPal has not seen yet, and says plainly if there is none.
+
+## Features
+
+**Deal space**
+
+- One page per deal for both sides, with Chat, Agreement, Timeline, Files and Log tabs
+- Live chat with typing, online and "seen" marks; every message is evidence
+- Paste a chat or email, upload files, or forward an email to start a deal
+- Agreement versions: "Update from the latest chat" drafts the next version from new messages only and shows what changed
+- A timeline of every agreed step (references, sketches, reviews, payments, deliveries), each with who does it and when
+- Reminders by email and in the chat when a step is due or late
+- Change orders when the work changes after signing
+
+**Buyers**
+
+- No account: one emailed link, with an option to sign in with PayPal later
+- A one-page agreement, a typed-name signature and a receipt PDF
+- Questions answered from the agreement only, with citations, or passed to the seller
+
+**Payments and delivery**
+
+- A PayPal invoice for each payment step, with the agreement's fingerprint in the invoice note
+- Payments matched to the deal by signed PayPal webhooks
+- Tracked delivery links, approvals and revision limits
+- An AI check before delivery: does the file match the agreed lines?
+- Product listings read through Channel3: the buyer signs the listing's facts and photos with the rest
+
+**Evidence and disputes**
+
+- A hash-chained, append-only evidence log with a **Check this log** button
+- A records score from 0 to 100 that lists what helps and what is missing. It never predicts an outcome
+- Disputes found every 5 minutes, matched to their deal, with the deadline and the actions PayPal allows
+- Claim vs record: each line of the buyer's claim tied to a term or log entry, or marked "no record covers this"
+- An evidence packet PDF: cover sheet, claim vs record, neutral summary, timeline, exhibits, fingerprint list and how to check it
+- Answer, make an offer, accept, or appeal, always after the seller confirms
+- An appeal check that compares what was sent to PayPal with what else the log holds
+
+**AI**
+
+- A council of five models from five families for every high-stakes draft
+- A message watcher that labels new buyer requests as in scope, an extra revision, or new work, with a drafted reply
+- A category check: what is really being sold vs. what the seller picked
+- Vague words flagged with measurable rewrites
+
+**For AI assistants**
+
+- An MCP server at `/mcp` with 11 tools, a per-seller agent key and 30 drafts a day
+- Approval with a one-time code for anything sent to PayPal
+
+**Dashboard and help**
+
+- A dashboard of every deal with records score, next action and deadlines (AG Grid, AG Studio charts)
+- Timeline and deadlines as a Gantt chart (Bryntum)
+- Branded emails from editable templates
+- A help site with 20 pages, including [the diagrams](https://help.pact-pal.app/diagrams.html)
+- Retention rules: deals are removed 210 days after their last activity
+
+## Built for the PayPal AI Hackathon
+
+The hackathon has no tracks. Projects are judged on five equal criteria, and can win one main prize and one sponsor prize.
+
+| Judging criterion                | Where PactPal meets it                                                                                                                                                                                                                    |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Technological implementation** | Six PayPal capabilities, MCP first with REST fallback, signed webhooks, a five-model AI council with code-checked citations, and an MCP server of its own. See [PayPal](#paypal-integration), [AI](#ai) and [Architecture](#architecture) |
+| **Design**                       | One product from the first chat to the appeal, for seller, buyer and AI assistant, with a help site and branded emails                                                                                                                    |
+| **Potential impact**             | A real, sourced problem ([the problem](#the-problem)) and a fix that matches what PayPal's own rules ask for                                                                                                                              |
+| **Innovation**                   | The record is built during the deal and signed by both sides. AI drafts, but never creates evidence                                                                                                                                       |
+| **Presentation**                 | Demo video (coming soon) and [interactive diagrams](https://help.pact-pal.app/diagrams.html)                                                                                                                                              |
+
+**Prizes we are aiming for**
+
+| Prize                            | What we built for it                                                                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Best Use of PayPal + AI**      | AI drafts the agreement behind each PayPal invoice and answers PayPal disputes from the record                                                  |
+| **Best Use of Agentic Commerce** | An MCP server so AI assistants can work a seller's deals, with human approval by one-time code                                                  |
+| **Most Impactful**               | Small sellers lose money to disputes they should win; PactPal gives them the record PayPal asks for                                             |
+| **Best Use of Render**           | Everything runs on Render from one Blueprint, with Workflows running each AI model as its own task. See [Running on Render](#running-on-render) |
+
+**Tools used, and how**
+
+| Tool                                      | How PactPal uses it                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| PayPal Invoicing v2                       | One invoice per agreed payment step                                                         |
+| PayPal Disputes v1                        | List and read disputes; provide evidence, make offers, accept claims, appeal, send messages |
+| PayPal Webhooks                           | Payment notifications, signature-checked                                                    |
+| Log in with PayPal                        | Seller sign-in, and optional buyer sign-in                                                  |
+| PayPal MCP server                         | Tried first for every call, with automatic REST fallback                                    |
+| Gemini 3.6 Flash (Google)                 | Council member; also reads images for the delivery check                                    |
+| Qwen 3.8 27B (Alibaba, via Groq)          | Council member; also reads images                                                           |
+| GPT-OSS 120B (OpenAI, via Groq)           | Council member                                                                              |
+| Ministral 14B (Mistral)                   | Council member                                                                              |
+| Nemotron 3 Ultra (NVIDIA, via OpenRouter) | Council member                                                                              |
+| Render                                    | Hosting, Workflows, Cron Jobs, Postgres, Key Value, Static Site                             |
+| Channel3                                  | Reads product listing pages for goods and digital products                                  |
+| AG Grid, AG Studio                        | The deals dashboard and its charts                                                          |
+| Bryntum                                   | The timeline and deadlines Gantt chart                                                      |
+| Resend                                    | Sending emails, and receiving forwarded emails                                              |
+
+## PayPal integration
+
+| PayPal capability  | Used for                                                                  | Code                                                              |
+| ------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Invoicing v2       | An invoice per payment step, with the agreement fingerprint in the note   | [`invoices.ts`](packages/paypal/src/invoices.ts)                  |
+| Disputes v1        | Read disputes; provide evidence, offer, accept, appeal, message           | [`disputes.ts`](packages/paypal/src/disputes.ts)                  |
+| Webhooks           | `INVOICING.INVOICE.PAID` and more, verified with PayPal's signature check | [`paypal-webhook.ts`](apps/server/src/webhooks/paypal-webhook.ts) |
+| Log in with PayPal | Sign-in through OpenID Connect                                            | [`login.ts`](packages/paypal/src/login.ts)                        |
+| PayPal MCP server  | Every call tries MCP first and falls back to REST                         | [`fallback.ts`](packages/paypal/src/fallback.ts)                  |
+| Seller apps        | Each seller links their own PayPal app; secrets are encrypted at rest     | [`seller-app.ts`](packages/paypal/src/seller-app.ts)              |
+
+**A note on MCP.** PayPal's hosted sandbox MCP server lists its tools, but tool calls failed in our tests in October 2026 with `PAYPAL_API_SETUP_ERROR`. PactPal falls back to REST automatically, so every live call is currently served over REST. `pnpm sandbox:check` shows when MCP works again. Details: [docs/sandbox-notes.md](docs/sandbox-notes.md#mcp-and-rest).
+
+## AI
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/ai-council-dark.svg">
+  <img alt="How the AI council picks one draft: numbered source, five models draft alone, code checks citations, authors hidden, models rank the others, Borda count, seller reviews; bad citations are thrown out and low agreement is flagged" src="docs/images/ai-council-light.svg">
+</picture>
+
+**[Open the interactive version](https://help.pact-pal.app/diagrams/ai-council.html)**
+
+High-stakes drafts go to a **council** of five models from five families:
+
+1. Each model drafts the whole answer alone, citing a source line for every term.
+2. Code checks every citation. A draft that cites a line that is not there is thrown out.
+3. The remaining drafts are shown without their authors. Every model ranks the others; its own vote is ignored.
+4. A Borda count picks one whole draft. Drafts are never stitched together.
+5. Low agreement flags the draft for the seller.
+
+Each model call runs as its own Render Workflow task, so a slow or failing model never holds up the others. The seller can open the council's record: who answered, who was thrown out and why, and how the votes went.
+
+| AI task                                           | When            | Engine           |
+| ------------------------------------------------- | --------------- | ---------------- |
+| Agreement, timeline, category check, vague words  | Drafting        | Council          |
+| Claim vs record                                   | Dispute         | Council          |
+| Neutral packet summary, reply                     | Dispute         | Council          |
+| Appeal statement                                  | Appeal          | Council          |
+| Buyer questions, answered from the agreement only | Before signing  | One model        |
+| Message watcher                                   | During the deal | One model        |
+| Pre-delivery file check                           | Before delivery | One vision model |
+
+**Guardrails**
+
+- Citations or blank. Code checks every citation.
+- AI never creates evidence, times, approvals or statements.
+- Pasted chats are untrusted. Lines that try to give the AI orders are hidden from it.
+- Nothing goes to a buyer or to PayPal until the seller confirms.
+- No outcome promises, no legal conclusions.
+- `pnpm eval:injection` runs a prompt-injection test set. `pnpm eval:scope` scores each model and the council against known right answers.
+
+More: [How the AI drafts](docs/help/ai-council.md) · [Product spec](docs/product.md#ai-roles)
+
+## AI assistants (MCP)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent-approval-dark.svg">
+  <img alt="An AI agent asks, the seller decides: the assistant requests to send an invoice, PactPal saves the exact request, the seller approves and gets a one-time code, the assistant confirms with the code, PactPal sends the invoice and logs it" src="docs/images/agent-approval-light.svg">
+</picture>
+
+**[Open the interactive version](https://help.pact-pal.app/diagrams/agent-approval.html)**
+
+PactPal is also an MCP server. The seller makes an agent key on the home page, then adds the server to Claude Code, Claude Desktop, Cursor or any MCP client:
+
+```bash
+claude mcp add --transport http pactpal https://pact-pal.app/mcp --header "Authorization: Bearer ppk_..."
+```
+
+| Tool                                            | What it does                                                                |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| `list_deals`, `get_deal`                        | Deals: terms, timeline, records score, payment stages                       |
+| `list_disputes`, `get_dispute`                  | Disputes: reason, amount, deadline, allowed actions                         |
+| `create_deal_from_text`                         | A draft deal from pasted text (30 a day)                                    |
+| `draft_evidence_packet`                         | Builds a packet; nothing goes to PayPal                                     |
+| `request_send_invoice`, `request_send_evidence` | Asks the seller; waits in the app with its exact wording                    |
+| `confirm_action`                                | Runs an approved request with the seller's one-time code (10 minutes, once) |
+| `get_request`                                   | Where a request stands                                                      |
+| `lookup_listing`                                | Reads a product listing through Channel3                                    |
+
+There is no tool to sign, accept, act for a buyer, make offers, send messages or appeal. Every request and action is logged with the key's last 4 characters. More: [Connect your AI agent](docs/help/ai-agents.md).
+
+## Disputes
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dispute-answer-dark.svg">
+  <img alt="Answering a dispute from the record: a cron job starts the dispute check, PactPal reads PayPal disputes, matches and logs them, emails the seller, the AI council compares the claim with the record, the seller confirms, and the evidence goes to PayPal" src="docs/images/dispute-answer-light.svg">
+</picture>
+
+**[Open the interactive version](https://help.pact-pal.app/diagrams/dispute-answer.html)**
+
+PayPal sends no dispute webhooks to the app, so a Render Cron Job starts a check every 5 minutes. New disputes are matched to their deal by invoice and transaction ids, logged, and emailed to the seller with the deadline. The packet is built from the log alone, and goes to PayPal only after the seller confirms. More: [When a buyer disputes](docs/help/disputes.md).
+
+## The evidence log
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/evidence-log-dark.svg">
+  <img alt="How the evidence log stays honest: a new event's payload is hashed, combined with the previous entry's hash into the entry hash, appended to Postgres that refuses updates and deletes, and checked by walking the chain or through the evidence packet" src="docs/images/evidence-log-light.svg">
+</picture>
+
+**[Open the interactive version](https://help.pact-pal.app/diagrams/evidence-log.html)**
+
+- Each entry stores its type, who acted, the server time, a payload fingerprint, the previous entry's fingerprint and its own.
+- Editing, backdating or deleting an entry breaks the chain at that entry.
+- Postgres triggers refuse updates and deletes on the log tables.
+- Corrections are new entries. Nothing is edited.
+- **Check this log** walks the chain and shows the first broken entry, if any. Every packet explains how to repeat the check.
+
+The log has 60 event types. More: [The evidence log](docs/help/evidence-log.md) · [Data model](docs/data-model.md).
+
+## Architecture
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/system-dark.svg">
+  <img alt="PactPal system overview: sellers and buyers use the React web app, which talks to pactpal-server over an API and WebSocket; the server calls PayPal APIs, Channel3 and Resend, receives signed PayPal webhooks, serves AI assistants over MCP, starts Render Workflows that call AI models, and appends events to the evidence log in Postgres" src="docs/images/system-light.svg">
+</picture>
+
+**[Open the interactive version](https://help.pact-pal.app/diagrams/system.html)**
+
+One TypeScript monorepo: 3 apps and 19 packages, each doing one job.
+
+| Part                                                                                                     | What it does                                                            |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [`apps/web`](apps/web)                                                                                   | The website and app: React, AG Grid, AG Studio, Bryntum, Three.js       |
+| [`apps/server`](apps/server)                                                                             | Fastify API, PayPal webhooks, live chat, the MCP server, Workflow tasks |
+| [`apps/docs`](apps/docs)                                                                                 | The help site, built from Markdown                                      |
+| [`packages/ledger`](packages/ledger)                                                                     | The hash-chained evidence log and its check                             |
+| [`packages/council`](packages/council)                                                                   | The council vote: anonymised ranking, Borda count, agreement            |
+| [`packages/ai`](packages/ai)                                                                             | The five hosted models                                                  |
+| [`packages/scope-draft`](packages/scope-draft)                                                           | Agreement and timeline drafting with citations                          |
+| [`packages/claims`](packages/claims)                                                                     | Claim vs record, summary, reply, appeal                                 |
+| [`packages/qa`](packages/qa), [`watcher`](packages/watcher), [`delivery-check`](packages/delivery-check) | Buyer questions, message labels, file checks                            |
+| [`packages/paypal`](packages/paypal)                                                                     | PayPal sign-in, invoices, disputes, webhooks; MCP first, REST fallback  |
+| [`packages/timeline`](packages/timeline), [`score`](packages/score)                                      | The agreed timeline and the records score                               |
+| [`packages/pdf`](packages/pdf), [`email`](packages/email)                                                | Receipts and packets as PDF; email out and in                           |
+| [`packages/db`](packages/db), [`live`](packages/live)                                                    | Postgres tables, migrations, log guards; live chat frames               |
+| [`packages/products`](packages/products)                                                                 | Product listings through Channel3                                       |
+| [`packages/brand`](packages/brand), [`words`](packages/words), [`net`](packages/net)                     | Design tokens, shared wording, network helpers                          |
+
+Deeper: [How PactPal is built](docs/help/architecture.md) · [Decisions](docs/decisions.md) · [Code map](docs/code-map.md)
+
+## Running on Render
+
+<picture>
+  <img alt="PactPal on Render: one Blueprint in Virginia with the pactpal-server Web Service (2 instances), the pactpal-docs Static Site, Render Workflows tasks check-disputes, draft-scope, dispute councils, retention-sweep and ask-model, two Cron Jobs, and Postgres and Key Value on the private network" src="docs/images/render-services-dark.svg">
+</picture>
+
+**[Open the interactive version](https://help.pact-pal.app/diagrams/render-services.html)**
+
+Every part of PactPal runs on Render, described in one Blueprint: [`render.yaml`](render.yaml).
+
+| Render service            | Name                    | What it does                                                                          |
+| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------- |
+| Web Service, 2 instances  | `pactpal-server`        | Website, API, live chat, MCP server. Runs migrations before each deploy               |
+| Workflows                 | `pactpal-workflows`     | Background tasks, below                                                               |
+| Cron Job, every 5 min     | `pactpal-dispute-check` | Starts `check-disputes`                                                               |
+| Cron Job, daily 03:17 UTC | `pactpal-retention`     | Starts `retention-sweep`                                                              |
+| Postgres 16               | `pactpal-db`            | Deals, evidence log, files, chat, jobs. Private network only                          |
+| Key Value                 | `pactpal-kv`            | Agent call counts and cached listings, shared by both instances. Private network only |
+| Static Site               | `pactpal-docs`          | help.pact-pal.app, including the interactive diagrams                                 |
+| Environment Group         | `pactpal-shared`        | Keys shared by the web service, Workflows and Cron Jobs, kept once                    |
+
+| Workflow task                                                                      | What it does                                                                                      |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `check-disputes`                                                                   | Reads new PayPal disputes, matches and logs them, emails the seller                               |
+| `draft-scope`                                                                      | Runs the agreement council                                                                        |
+| `analyze-claim`, `draft-summary`, `draft-response`, `check-appeal`, `draft-appeal` | The dispute councils                                                                              |
+| `ask-model`                                                                        | One model call. Each council member is its own run, so models answer side by side and retry alone |
+| `retention-sweep`                                                                  | Daily clean-up of old deals, raw notifications and AI drafts                                      |
+| `seed-demo`                                                                        | Fills the sandbox with the demo stories, started by hand                                          |
+
+What this gives us:
+
+- **Two instances**, with chat between them over Postgres `LISTEN/NOTIFY` and shared limits in Key Value.
+- **Safe deploys.** Every push to `dev` redeploys. Migrations run first; if they fail, the old version keeps running.
+- **Councils that survive a slow model.** Each model call is a Workflow run with its own timeout and retries.
+- **Schedules without a server loop.** Cron Jobs start Workflow runs and exit in seconds.
+
+Deploy it yourself: [docs/deploy.md](docs/deploy.md).
+
+## Try it
+
+<!-- TODO(demo): fill in once the demo data and video are final: judge accounts, the stories to open, and what to click. -->
+
+> **Coming soon:** a short guide for judges with ready-made seller and buyer accounts and the demo deals to open.
+
+Until then: open **[pact-pal.app](https://pact-pal.app)**, choose **Sign in with PayPal** and sign in with a PayPal **sandbox** account. Everything runs on PayPal's sandbox, so no real money moves.
+
+## Run it locally
+
+Requires Node 22+ and pnpm 10+. Postgres 16 is needed for deals; set `DATABASE_URL` when you want them.
 
 ```bash
 pnpm install
-cp .env.example .env   # fill in your own sandbox credentials
-pnpm test              # ledger, council and server tests
-pnpm dev               # server on :3000, web on Vite's default port
+cp .env.example .env   # add your own sandbox and AI keys
+pnpm test
+pnpm dev               # server on :3000, web on Vite's port
 ```
 
-`GET /health` reports which environment variables are still missing.
+`GET /health` lists the settings that are still missing. Every variable is explained in [`.env.example`](.env.example).
 
-## Connect your agent (MCP)
+Useful commands:
 
-PactPal is also an MCP server, so an AI assistant can work with your deals. On the home page, under "Connect your AI agent", make an agent key, then add the server:
+| Command                                 | What it does                                 |
+| --------------------------------------- | -------------------------------------------- |
+| `pnpm verify`                           | Every check CI runs                          |
+| `pnpm sandbox:check`                    | Checks the PayPal sandbox apps, REST and MCP |
+| `pnpm sandbox:webhook --register <url>` | Registers the PayPal webhook                 |
+| `pnpm eval:scope`                       | Scores the AI drafts against known answers   |
+| `pnpm eval:injection`                   | Runs the prompt-injection test set           |
+| `pnpm graph`                            | Rebuilds the [code map](docs/code-map.md)    |
 
-```bash
-claude mcp add --transport http pactpal https://<your site>/mcp --header "Authorization: Bearer ppk_..."
-```
-
-For Claude Desktop or Cursor, add a remote server with the URL `https://<your site>/mcp` and the header `Authorization: Bearer ppk_...`. To try it by hand, run `npx @modelcontextprotocol/inspector` and connect with "Streamable HTTP" to the same URL and header.
-
-The agent can read deals and disputes, create draft deals and build evidence packets. To send an invoice or evidence to PayPal it only asks: approve the request on the deal page, then give the agent the one-time code shown there. See [docs/product.md](docs/product.md#mcp-server-for-agents).
-
-## Product listings (Channel3)
-
-For goods and digital products, paste the product's listing link on the deal's Agreement tab ("What's being sold"). PactPal reads it through Channel3 and the buyer signs the listing's details with the rest of the agreement. Set `CHANNEL3_API_KEY` (see `.env.example`); without it the box says lookup is not set up.
-
-## Deploying to Render
-
-The site lives at **https://pact-pal.app** and its help at **https://help.pact-pal.app** (Render custom domains, DNS at name.com; the old `onrender.com` page addresses move there, while PayPal notifications, `/mcp`, `/api`, `/health` and `/brand` are still answered on the old name). Everything is described in [`render.yaml`](render.yaml) (a Render Blueprint), in Virginia:
-
-| Render service         | Name                    | What it does                                                                                                                   |
-| ---------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Web Service (2 copies) | `pactpal-server`        | The website, API, live chat and MCP server; runs migrations before each deploy                                                 |
-| Workflows              | `pactpal-workflows`     | Dispute checks, scope drafts, the dispute councils and the retention clean-up; each AI model call is its own run (`ask-model`) |
-| Cron Job               | `pactpal-dispute-check` | Starts a dispute check every 5 minutes                                                                                         |
-| Cron Job               | `pactpal-retention`     | Starts the daily retention clean-up ([privacy](docs/privacy.md))                                                               |
-| Postgres 16            | `pactpal-db`            | Deals, the evidence log, files, chat and jobs                                                                                  |
-| Key Value              | `pactpal-kv`            | Agent call counts and cached product listings, shared by both copies                                                           |
-| Static Site            | `pactpal-docs`          | These docs as a website                                                                                                        |
-| Environment Group      | `pactpal-shared`        | Keys the website, Workflows and the Cron Job all need, kept once                                                               |
-
-1. In Render, create the Environment Group `pactpal-shared` (**Environment Groups → New**) with `PAYPAL_SELLER_CLIENT_ID`, `PAYPAL_SELLER_CLIENT_SECRET`, the AI keys (`GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY`), `RESEND_API_KEY`, `EMAIL_FROM`, `PUBLIC_BASE_URL`, `SELLER_KEYS_ENCRYPTION_KEY` and `RENDER_API_KEY`. Secrets cannot be written in `render.yaml`, so the group is made by hand.
-2. Choose **New → Blueprint**, pick this repository and the `dev` branch, and enter the values Render asks for (leave `PAYPAL_WEBHOOK_ID` empty at first). On `pactpal-server` this includes the AG Grid / AG Studio and Bryntum licence keys (`VITE_AG_LICENCE_KEY` for AG Studio, `VITE_AG_GRID_LICENCE_KEY` for AG Grid Enterprise, `VITE_BRYNTUM_LICENCE_KEY`): they are read while the pages are built and ship inside them, as both vendors intend, so change them and then redeploy. The current keys are trials ending 24 and 26 Dec 2026; without them the charts show the vendors' trial marks.
-3. Register the service's notification address with PayPal, then set the printed id as `PAYPAL_WEBHOOK_ID` in Render:
-
-```bash
-pnpm sandbox:webhook --register https://<your-service>.onrender.com/webhooks/paypal --send
-```
-
-`pnpm sandbox:webhook --events` shows PayPal's record of recent notifications and whether they were delivered.
-
-## Changing emails
-
-Every email's wording and look lives in [`templates/`](templates), not in code:
-
-| File                             | What it sets                                                                                                                                                |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `templates/brand.json`           | Product name, logo address, colours, footer lines, help and privacy links                                                                                   |
-| `templates/emails/layout.html`   | The design every email shares                                                                                                                               |
-| `templates/emails/<kind>.txt`    | One email: `subject:`, `tag:`, `tone:` (`ok`, `wait`, `alert`, `ai`, `info`), `heading:`, `button:` (label \| link), `fact:` lines, then `---` and the text |
-| `templates/brand/logo-email.png` | The logo emails show                                                                                                                                        |
-
-Fields such as `{{dealTitle}}` are filled in for each email; `{{#message}}…{{/message}}` shows a part only when there is a message. The same file gives the designed email and its plain-text copy. Edit, run `pnpm test` (a broken template or a field the email does not have fails it), push, and Render redeploys in a few minutes. The sandbox notice is added to every email and cannot be removed. The receipt and evidence packet PDFs are evidence, so their look is fixed in code for each document format.
+Emails are edited in [`templates/`](templates), not in code: [docs/email-templates.md](docs/email-templates.md).
 
 ## Quality
 
-Every change must pass one command, locally and in CI:
+Every change passes one command, locally and in CI:
 
 ```bash
 pnpm verify
 ```
 
-It checks formatting, types, strict linting, tests with coverage, duplicate code, architecture boundaries and known vulnerabilities. The rules are in [`docs/engineering-standards.md`](docs/engineering-standards.md).
+It checks formatting, types (strict), strict lint, tests with coverage, the build, duplicate code, architecture boundaries and known vulnerabilities. **2,091 tests in 229 files** pass, with at least 90% line, branch and function coverage required. The rules: [docs/engineering-standards.md](docs/engineering-standards.md).
 
-## Code map
+## Scope and limits
 
-[`graphify-out/`](graphify-out) holds a map of the code (files, functions, types and the links between them) built by [graphify](https://github.com/Graphify-Labs/graphify) from the source alone, offline. Open `graphify-out/graph.html` in a browser to explore it, or read `graphify-out/GRAPH_REPORT.md` for a summary.
+| Deals                                                                                             | Status    |
+| ------------------------------------------------------------------------------------------------- | --------- |
+| Services and digital work: design, writing, web and software, photo and video, consulting         | Supported |
+| Digital products: templates, presets, courses                                                     | Supported |
+| Small physical goods, handmade or made to order                                                   | Supported |
+| Deposit bookings, retainers, regulated professional services                                      | Not yet   |
+| Anything PayPal's Acceptable Use Policy prohibits, plus gift cards, crypto, vehicles, real estate | Blocked   |
 
-Requirements: Python 3.10+ and [uv](https://docs.astral.sh/uv/).
+**PactPal is not:**
 
-```bash
-uv tool install graphifyy==0.9.103   # the package name has two y's
-pnpm graph                           # rebuild the map after code changes
-graphify query "how is a ledger event appended"
-graphify explain "appendLedgerEvent()"
-graphify path "DealPage.tsx" "appendLedgerEvent()"
-```
+- **Escrow.** It never holds money.
+- **Legal advice.** It records what both sides agreed.
+- **A prediction.** The records score measures records, never the outcome.
+- **Proof of identity.** A typed name and an IP address are not proof of who someone is.
+- **Live.** It runs on PayPal's sandbox only.
 
-The map is committed and rebuilt before each commit; after a merge conflict in `graphify-out/`, run `pnpm graph` and commit the result.
+More: [Scope](docs/scope.md) · [What PactPal is and is not](docs/help/limits.md) · [Privacy](docs/privacy.md)
 
-## Disclaimer
+## Docs
 
-PactPal is a record-keeping tool, not a law firm, and nothing it produces is legal advice. It runs against the PayPal sandbox only. It reports how complete a seller's records are; it never predicts or guarantees a dispute outcome.
+| Doc                                                  | What it covers                                                                      |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [Help site](https://help.pact-pal.app)               | 20 pages for sellers, buyers and developers                                         |
+| [docs/problem-evidence.md](docs/problem-evidence.md) | The problem: posts, figures and sources                                             |
+| [docs/product.md](docs/product.md)                   | Product spec: flow, AI roles, ledger, packet, screens                               |
+| [docs/scope.md](docs/scope.md)                       | What is in and out of scope, and why                                                |
+| [docs/data-model.md](docs/data-model.md)             | Tables, the evidence log and fingerprints                                           |
+| [docs/decisions.md](docs/decisions.md)               | Design decisions and their reasons                                                  |
+| [docs/sandbox-notes.md](docs/sandbox-notes.md)       | What we learned about the PayPal sandbox                                            |
+| [docs/deploy.md](docs/deploy.md)                     | Deploying to Render                                                                 |
+| [docs/diagrams/](docs/diagrams)                      | Diagram sources; edit and rebuild with [Archify](https://github.com/tt-a1i/archify) |
+| [hackathon/demo-plan.md](hackathon/demo-plan.md)     | Demo stories and cast                                                               |
+
+## Built with
+
+TypeScript, React, Fastify, Postgres, [Render](https://render.com), PayPal APIs, Gemini, Groq, Mistral, OpenRouter, AG Grid, Bryntum, Channel3, Resend and Three.js. Diagrams by [Archify](https://github.com/tt-a1i/archify). Code map by [graphify](https://github.com/Graphify-Labs/graphify).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE).
+
+## Author
+
+Sushant Patil, [sushantpatil.me](https://www.sushantpatil.me)

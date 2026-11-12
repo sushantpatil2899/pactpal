@@ -1,0 +1,342 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "A deal from chat to paid",
+    "output": "docs/diagrams/deal-journey.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/sushantpatil2899/paypal-hackathon",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "50234bf33428a17983b1bfeb910e03a911b348ae"
+    }
+  },
+  "lanes": [
+    {
+      "id": "buyer",
+      "label": "Buyer"
+    },
+    {
+      "id": "seller",
+      "label": "Seller"
+    },
+    {
+      "id": "pactpal",
+      "label": "PactPal"
+    },
+    {
+      "id": "paypal",
+      "label": "PayPal"
+    }
+  ],
+  "phases": [
+    {
+      "id": "agree",
+      "label": "Agree",
+      "fromCol": 0,
+      "toCol": 2,
+      "variant": "emphasis"
+    },
+    {
+      "id": "pay",
+      "label": "Pay and deliver",
+      "fromCol": 3,
+      "toCol": 4
+    },
+    {
+      "id": "finish",
+      "label": "Finish or dispute",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "chat",
+    "draft",
+    "send",
+    "sign",
+    "record",
+    "invoice",
+    "pay",
+    "deliver",
+    "approve",
+    "done"
+  ],
+  "nodes": [
+    {
+      "id": "chat",
+      "lane": "seller",
+      "col": 0,
+      "type": "frontend",
+      "label": "Agree in chat",
+      "sublabel": "every message logged",
+      "sources": [
+        {
+          "path": "apps/server/src/chat/chat-routes.ts",
+          "line": 1,
+          "end_line": 157
+        }
+      ]
+    },
+    {
+      "id": "draft",
+      "lane": "pactpal",
+      "col": 1,
+      "type": "backend",
+      "label": "AI drafts terms",
+      "sublabel": "council cites the chat",
+      "tag": "5 models",
+      "sources": [
+        {
+          "path": "apps/server/src/drafting/draft-job.ts",
+          "line": 1,
+          "end_line": 127
+        }
+      ]
+    },
+    {
+      "id": "send",
+      "lane": "seller",
+      "col": 1,
+      "type": "frontend",
+      "label": "Check and send",
+      "sublabel": "seller confirms",
+      "sources": [
+        {
+          "path": "apps/server/src/deals/scope-routes.ts",
+          "line": 1,
+          "end_line": 161
+        }
+      ]
+    },
+    {
+      "id": "sign",
+      "lane": "buyer",
+      "col": 2,
+      "type": "frontend",
+      "label": "Sign",
+      "sublabel": "typed name, one page",
+      "sources": [
+        {
+          "path": "apps/server/src/deals/acceptance-routes.ts",
+          "line": 1,
+          "end_line": 439
+        }
+      ]
+    },
+    {
+      "id": "record",
+      "lane": "pactpal",
+      "col": 2,
+      "type": "security",
+      "label": "Signed record",
+      "sublabel": "receipt PDF to both",
+      "sources": [
+        {
+          "path": "apps/server/src/acceptance/receipt.ts",
+          "line": 1,
+          "end_line": 217
+        }
+      ]
+    },
+    {
+      "id": "invoice",
+      "lane": "paypal",
+      "col": 3,
+      "type": "external",
+      "label": "Invoice",
+      "sublabel": "one per payment step",
+      "sources": [
+        {
+          "path": "apps/server/src/deals/milestone-routes.ts",
+          "line": 1,
+          "end_line": 370
+        }
+      ]
+    },
+    {
+      "id": "pay",
+      "lane": "buyer",
+      "col": 3,
+      "type": "frontend",
+      "label": "Pay",
+      "sublabel": "PayPal invoice page",
+      "sources": [
+        {
+          "path": "apps/server/src/payments/payment-sync.ts",
+          "line": 141,
+          "end_line": 167
+        }
+      ]
+    },
+    {
+      "id": "deliver",
+      "lane": "seller",
+      "col": 4,
+      "type": "frontend",
+      "label": "Deliver",
+      "sublabel": "tracked link, file hash",
+      "sources": [
+        {
+          "path": "apps/server/src/deals/delivery-routes.ts",
+          "line": 1,
+          "end_line": 432
+        },
+        {
+          "path": "apps/server/src/deals/download.ts",
+          "line": 1,
+          "end_line": 73
+        }
+      ]
+    },
+    {
+      "id": "approve",
+      "lane": "buyer",
+      "col": 4,
+      "type": "frontend",
+      "label": "Approve",
+      "sublabel": "or ask for changes",
+      "sources": [
+        {
+          "path": "apps/server/src/deals/timeline-routes.ts",
+          "line": 1,
+          "end_line": 207
+        }
+      ]
+    },
+    {
+      "id": "done",
+      "lane": "seller",
+      "col": 5,
+      "type": "backend",
+      "label": "Paid and done",
+      "sublabel": "full record kept",
+      "sources": [
+        {
+          "path": "packages/ledger/src/ledger.ts",
+          "line": 9,
+          "end_line": 72
+        }
+      ]
+    },
+    {
+      "id": "dispute",
+      "lane": "paypal",
+      "col": 5,
+      "type": "external",
+      "label": "Dispute opens",
+      "sublabel": "found within 5 min",
+      "sources": [
+        {
+          "path": "apps/server/src/disputes/dispute-sync.ts",
+          "line": 1,
+          "end_line": 269
+        }
+      ]
+    },
+    {
+      "id": "packet",
+      "lane": "pactpal",
+      "col": 5,
+      "type": "security",
+      "label": "Evidence packet",
+      "sublabel": "built from the log",
+      "sources": [
+        {
+          "path": "apps/server/src/disputes/packet-service.ts",
+          "line": 1,
+          "end_line": 397
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "chat",
+      "to": "draft",
+      "label": "ask for draft",
+      "variant": "emphasis"
+    },
+    {
+      "from": "draft",
+      "to": "send",
+      "label": "draft",
+      "variant": "emphasis"
+    },
+    {
+      "from": "send",
+      "to": "sign",
+      "label": "email link",
+      "variant": "emphasis"
+    },
+    {
+      "from": "sign",
+      "to": "record",
+      "label": "signed",
+      "variant": "emphasis"
+    },
+    {
+      "from": "record",
+      "to": "invoice",
+      "variant": "emphasis"
+    },
+    {
+      "from": "invoice",
+      "to": "pay",
+      "variant": "emphasis"
+    },
+    {
+      "from": "pay",
+      "to": "deliver",
+      "label": "paid",
+      "variant": "emphasis"
+    },
+    {
+      "from": "deliver",
+      "to": "approve",
+      "variant": "emphasis"
+    },
+    {
+      "from": "approve",
+      "to": "done",
+      "label": "approved",
+      "variant": "emphasis"
+    },
+    {
+      "from": "dispute",
+      "to": "packet",
+      "label": "match deal",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Every step is logged",
+      "items": [
+        "Messages, versions, the signature, invoices, payments, downloads and approvals",
+        "Each entry is fingerprinted and chained to the one before"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "More than one payment step",
+      "items": [
+        "A deal can have a deposit, reviews and later payments",
+        "Each payment step gets its own PayPal invoice"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "When a buyer disputes",
+      "items": [
+        "PactPal matches the dispute to the deal",
+        "The seller reviews the packet, then PactPal sends it to PayPal"
+      ]
+    }
+  ]
+}

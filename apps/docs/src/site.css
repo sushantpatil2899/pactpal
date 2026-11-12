@@ -227,6 +227,15 @@ article {
   animation: rise 600ms var(--ease) both;
 }
 
+/* Diagrams are wider than the text: shrink them to the column. */
+article img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+}
+
 article h1 {
   margin: var(--space-4) 0 var(--space-24);
   font-family: "Instrument Serif", Georgia, serif;

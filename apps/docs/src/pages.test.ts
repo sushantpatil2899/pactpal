@@ -4,6 +4,7 @@ import {
   GROUPS,
   PAGES,
   anchorOf,
+  diagramPath,
   introOf,
   pageHtml,
   rewriteLinks,
@@ -51,6 +52,17 @@ describe("the help site", () => {
         "[site](https://render.com) [mail](mailto:a@b.c) [here](#top)",
     );
     expect(rewriteLinks("[help](help/privacy.md)", "docs/scope.md")).toBe("[help](privacy.html)");
+  });
+
+  it("points diagram links and images at their copies on the site", () => {
+    const markdown =
+      "![Map](../images/system-light.svg) [Open it](../diagrams/public/system.html) " +
+      "[source](../diagrams/src/system.architecture.json) [repo copy](../diagrams/system.html)";
+    expect(rewriteLinks(markdown, "docs/help/diagrams.md")).toBe(
+      "![Map](diagrams/system-light.svg) [Open it](diagrams/system.html) source repo copy",
+    );
+    expect(diagramPath("docs/images/../secret.svg")).toBeUndefined();
+    expect(diagramPath("docs/images/system-light.png")).toBeUndefined();
   });
 
   it("anchors each section heading and lists them", () => {
