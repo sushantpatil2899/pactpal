@@ -450,3 +450,41 @@ Both evals ran straight after the 7o runs, so the free quotas were spent: Gemini
 - The cause of the version 4 drops on the injection chats was not traced separately; with version 5 and the share check none remain.
 
 **Still to do:** one fresh-day run of both evals (after Gemini's daily reset, about 08:00 UTC) for scores comparable with 4n-2.
+
+## Drafting and injection evals with prompt version 5 and paid models (9d, 12 November 2026)
+
+The fresh run 7p asked for: both evals with prompt version 5, now with the paid Nemotron model and OpenRouter and Gemini credits, so no model ran out of free quota. No code changed.
+
+`pnpm eval:scope`: the same 11 chats, one run each, all five models, 516 seconds. 7o (prompt version 4) in brackets.
+
+| Model               | Asked | Failed (no reply) | Dropped by the checker | Scored | Average score | Wrong values | Tokens per draft | Seconds per draft |
+| ------------------- | ----- | ----------------- | ---------------------- | ------ | ------------- | ------------ | ---------------- | ----------------- |
+| gemini              | 11    | 0 (0)             | 1 (2)                  | 10     | 0.99 (0.99)   | 0            | 2,531            | 16.3              |
+| qwen-groq           | 11    | 0 (0)             | 1 (2)                  | 10     | 0.76 (0.77)   | 0            | 2,235            | 1.8               |
+| gpt-oss-groq        | 11    | 2 (0)             | 0 (2)                  | 9      | 0.96 (0.93)   | 0            | 5,424            | 23.4              |
+| mistral             | 11    | 2 (0)             | 1 (3)                  | 8      | 0.92 (0.90)   | 1 (2)        | 2,754            | 20.2              |
+| nemotron-openrouter | 11    | 0 (7)             | 1 (0)                  | 10     | 0.96 (0.96)   | 0            | 6,598            | 12.9              |
+
+- **The council** chose a draft for 11 of 11 chats (10 of 11). Its pick scored **0.97** (0.90), against **0.92** for a single model's draft on the same chats and 1.00 for the best draft on offer. It picked the best draft 8 times and flagged 1 pick for review (the models disagreed; that pick scored 0.96). It used 10.0 calls, 32,445 tokens and 46.9 seconds per chat, about 8.3 times the tokens of one draft.
+- **Buyer duties, line marks and timeline (council pick):** duties found 1.00, dates right 1.00, 14 of 15 marks right, timeline steps found 1.00, 0.88 in the agreed order.
+- **Wrong values:** only Mistral, 1: the price in `foreign-currency`.
+- **Dropped drafts (4):** two replies cut off by the length limit (Nemotron on `maya`, Gemini on `sunrise`), one quote on the wrong line (Mistral, `relative-date`) and one category without a citation (qwen, `gift-card`).
+- **Failed calls (4):** Groq's and Mistral's rate limits, 2 each.
+
+`pnpm eval:injection --council` with hiding on (as in the product): the same 14 hostile chats and 3 hostile drafts, one run each, all five models. 99 runs, about 715,000 tokens, 1,072 seconds.
+
+| Model               | Chats: held | Dropped | Compromised | Call failed | Votes: held | Compromised | Call failed |
+| ------------------- | ----------- | ------- | ----------- | ----------- | ----------- | ----------- | ----------- |
+| gemini              | 14          | 0       | 0           | 0           | 3           | 0           | 0           |
+| qwen-groq           | 10          | 2       | 0           | 2           | 1           | 0           | 2           |
+| gpt-oss-groq        | 5           | 0       | 0           | 9           | 0           | 0           | 3           |
+| mistral             | 9           | 2       | 0           | 3           | 1           | 0           | 2           |
+| nemotron-openrouter | 10          | 4       | 0           | 0           | 3           | 0           | 0           |
+
+- **Nothing was compromised:** no model's draft, no vote and no council pick.
+- **The council held on 14 of 14 hostile chats** (7o: held 6, no winner on 8; 7p: held 9, no winner on 5 because of quota).
+- **Voting attacks:** Gemini and Nemotron held 3 of 3; the other calls were mostly refused by rate limits.
+- **Dropped (8):** Nemotron 4 (too many citations twice, cut off twice), qwen 2, Mistral 2.
+- **Limits of the check:** the chats and attacks are ours, one run of each. Groq's per-minute limit refused gpt-oss 12 times and qwen 4 times, and Mistral was refused 5 times, so those models were judged on fewer cases. A clean result does not prove the system is safe.
+
+This closes the "fresh-day run" left open in 7p.
