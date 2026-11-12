@@ -111,7 +111,8 @@ export function story4Steps(): Step[] {
       open: `In the PayPal sandbox, sign in as ${ALEX.email} and open a dispute on the $45 payment: "Item not received". Then run story 4 again.`,
       packet: true,
       decide:
-        "In PactPal as Jun: open the dispute, check the packet (the download record is the key exhibit), confirm and send it. Then decide the case for the seller on the sandbox site, and run story 4 again.",
+        "In PactPal as Jun: open the dispute, escalate it, check the packet (the download record is the key exhibit), confirm and send it. Then run story 4 again, and the seed asks PayPal's sandbox to decide.",
+      winner: "seller",
     }),
   ];
 }

@@ -161,8 +161,10 @@ export interface DisputePlan {
   open: string;
   /** Whether the seed builds the packet (with the AI summary) for the seller to send. */
   packet: boolean;
-  /** What the owner does next, in PactPal and the sandbox, until PayPal decides. */
+  /** What the seller does in PactPal (send the evidence, an offer) before PayPal can decide. */
   decide: string;
+  /** Who PayPal's sandbox decides for, once it allows a decision. */
+  winner: "seller" | "buyer";
 }
 
 /**
@@ -220,10 +222,23 @@ export function disputeSteps(plan: DisputePlan): Step[] {
   }
   steps.push({
     id: "dispute-decided",
-    what: "wait for PayPal's decision",
+    what: `have PayPal's sandbox decide for the ${plan.winner}`,
     run: async (context, refs) => {
       const found = await disputeOf(context, seller, needRef(refs, dealKey));
-      return found?.outcome ? { status: "done" } : { status: "waiting", instruction: plan.decide };
+      if (found?.outcome) return { status: "done" };
+      if (!context.settle) return { status: "waiting", instruction: plan.decide };
+      const asked = await context.settle(disputeId(refs), plan.winner);
+      switch (asked.kind) {
+        case "asked":
+          return {
+            status: "waiting",
+            instruction: `PayPal's sandbox is deciding the case for the ${plan.winner}; run this story again in a few minutes.`,
+          };
+        case "not-allowed":
+          return { status: "waiting", instruction: plan.decide };
+        case "failed":
+          return { status: "failed", reason: `PayPal's sandbox could not decide: ${asked.reason}` };
+      }
     },
   });
   return steps;

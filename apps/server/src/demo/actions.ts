@@ -2,6 +2,7 @@ import { findUserByEmail, type Database } from "@pactpal/db";
 import { renderPdf } from "@pactpal/pdf";
 import type { FastifyInstance } from "fastify";
 import { actingAs } from "../acting-as.js";
+import type { SandboxSettle } from "../sellers/sandbox-settle.js";
 import type { RouteAnswer } from "../agents/tools.js";
 import { FILE_NAME_HEADER } from "../deals/file-routes.js";
 
@@ -14,6 +15,8 @@ export interface SeedContext {
   content: (path: string) => Buffer;
   /** Waits, for steps that wait on an AI draft; tests pass one that returns at once. */
   sleep: (ms: number) => Promise<void>;
+  /** Asks PayPal's sandbox to decide a dispute (absent without linked seller apps). */
+  settle?: SandboxSettle | undefined;
 }
 
 /** The browser name the seed's evidence entries carry, so nobody mistakes them for a person's. */

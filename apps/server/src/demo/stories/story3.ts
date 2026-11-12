@@ -124,7 +124,8 @@ export function story3Steps(): Step[] {
       open: `In the PayPal sandbox, sign in as ${TOM.email} and open a dispute on the $180 payment: "Item not as described", saying "Only 4 of the 6 photos, late, two still with shadows." Then run story 3 again.`,
       packet: false,
       decide:
-        "In PactPal as Priya: read the comparison, then offer a partial refund ($90) from the dispute page. In the sandbox, decline the offer as Tom, then decide the case for the buyer. Run story 3 again after; the appeal check then shows there is nothing new to send.",
+        "In PactPal as Priya: read the comparison, then offer a partial refund ($90) from the dispute page. In the sandbox, decline the offer as Tom, and escalate it. Then run story 3 again, and the seed asks PayPal's sandbox to decide for Tom; the appeal check then shows there is nothing new to send.",
+      winner: "buyer",
     }),
   ];
 }

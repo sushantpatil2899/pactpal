@@ -204,7 +204,8 @@ export function story2Steps(): Step[] {
       open: `In the PayPal sandbox, sign in as ${ROSA.email} and open a dispute on the stage 2 payment ($500): "Item not as described", saying "The blog was never built." Then run story 2 again.`,
       packet: true,
       decide:
-        "In PactPal as Daniel: open the dispute, untick one exhibit, confirm and send the evidence. Then decide the case for the seller on the sandbox site, and run story 2 again.",
+        "In PactPal as Daniel: open the dispute, escalate it, then untick one exhibit, confirm and send the evidence. Then run story 2 again, and the seed asks PayPal's sandbox to decide.",
+      winner: "seller",
     }),
   ];
 }

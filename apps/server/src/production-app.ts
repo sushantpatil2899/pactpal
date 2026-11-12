@@ -22,6 +22,7 @@ import type { Config, ConfigReport } from "./config.js";
 import { connectOwnApp } from "./sellers/connect-app.js";
 import { sellerKeyBox } from "./sellers/key-box.js";
 import { LinkedApps, linkedDisputeAccounts } from "./sellers/linked-apps.js";
+import { sandboxSettler } from "./sellers/sandbox-settle.js";
 import { councilClients, createDraftingRuntime } from "./drafting/runtime.js";
 import {
   inProcessChecker,
@@ -224,5 +225,7 @@ export async function productionApp(config: Config, report: ConfigReport, webDir
       },
     },
   });
-  return { app, database, members };
+  // The demo seed decides its sandbox disputes through the sellers' own linked apps (9b-2c).
+  const settle = database && sellerBox && sandboxSettler(database, sellerBox);
+  return { app, database, members, settle };
 }

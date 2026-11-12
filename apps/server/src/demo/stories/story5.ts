@@ -119,7 +119,8 @@ export function story5Steps(): Step[] {
       open: `In the PayPal sandbox, sign in as ${SAM.email} and open a dispute on the $185 payment: "Item not as described", saying "There is haze on the lens." Then run story 5 again.`,
       packet: true,
       decide:
-        "In PactPal as Lena: open the dispute, check the packet (the signed agreement quotes the haze), confirm and send it. Then decide the case for the seller on the sandbox site, and run story 5 again.",
+        "In PactPal as Lena: open the dispute, escalate it, check the packet (the signed agreement quotes the haze), confirm and send it. Then run story 5 again, and the seed asks PayPal's sandbox to decide.",
+      winner: "seller",
     }),
   ];
 }

@@ -76,7 +76,11 @@ const AI_GAP_MS = 20_000;
 export async function runSeedTask(
   input: unknown,
   wiring: {
-    app: () => Promise<{ app: SeedContext["app"]; database: Database | undefined }>;
+    app: () => Promise<{
+      app: SeedContext["app"];
+      database: Database | undefined;
+      settle?: SeedContext["settle"];
+    }>;
     clock: () => Date;
     sleep: (ms: number) => Promise<void>;
     log: { info(details: object, msg: string): void };
@@ -85,7 +89,7 @@ export async function runSeedTask(
   const { story, dryRun } = seedInputSchema.parse(input ?? {});
   const steps = STORIES[story];
   if (!steps) throw new Error(`no story ${story}`);
-  const { app, database } = await wiring.app();
+  const { app, database, settle } = await wiring.app();
   try {
     if (!database) throw new Error("The demo seed needs DATABASE_URL");
     const context: SeedContext = {
@@ -94,6 +98,7 @@ export async function runSeedTask(
       clock: wiring.clock,
       content: contentReader(demoContentDir()),
       sleep: wiring.sleep,
+      settle,
     };
     const started = wiring.clock().getTime();
     const summary = await runStory(

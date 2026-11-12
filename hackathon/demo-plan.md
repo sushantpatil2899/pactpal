@@ -186,7 +186,7 @@ Each story is one run of the `seed-demo` Workflow task with input `{"story": "1"
 1. Before the first run: all 13 people have signed in once with PayPal, every seller has linked their app; `hackathon/demo/chats/story5-listing-url.txt` holds the camera's product page address (one Channel3 knows).
 2. **"Pay stage N … as <buyer>"**: sign in to the PayPal sandbox as that buyer and pay the invoice at the link given.
 3. **"Open a dispute as <buyer>"**: in the sandbox, open it on that payment with the reason and words given.
-4. **"Send the evidence / decide"**: in PactPal as the seller, open the dispute and send the packet (or, story 3, offer the partial refund); then decide the case on the sandbox site.
+4. **"Send the evidence"**: in PactPal as the seller, escalate the dispute and send the packet (or, story 3, offer the partial refund). The next run asks PayPal's sandbox to decide for the story's winner, through the seller's own linked app; run it once more a few minutes later to see the outcome.
 5. A failed AI step (quota, a draft that did not pass PactPal's checks) is retried by running the story again; the seed waits at least 20 seconds between AI steps.
 
 Order: book first (most invoices, one pause for all of them), then stories 1 to 6.
