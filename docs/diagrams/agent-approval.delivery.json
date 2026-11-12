@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "ac981602-ca7c-4845-b86b-ec6378725dc0",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/agent-approval.sequence.json",
+  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/agent-approval.html",
+  "specification": {
+    "sha256": "f5367d6c4959e12caa4d08ede9c367f670df9dd4301ef3702261b78310131050",
+    "bytes": 4675
+  },
+  "artifact": {
+    "sha256": "32284a434d720c4d23fb0bbb053be61de5514edb08f0681fced09f62d4123ce3",
+    "bytes": 837748
+  }
+}

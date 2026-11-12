@@ -1,0 +1,566 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "PactPal on Render",
+    "output": "docs/diagrams/render-services.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/sushantpatil2899/paypal-hackathon",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "50234bf33428a17983b1bfeb910e03a911b348ae"
+    },
+    "visual_preset": "signal-flow",
+    "legend": {
+      "mode": "all",
+      "entries": {
+        "cloud": {
+          "label": "Render Web Service"
+        },
+        "frontend": {
+          "label": "Render Static Site"
+        },
+        "backend": {
+          "label": "Render Workflow task"
+        },
+        "messagebus": {
+          "label": "Render Cron Job"
+        },
+        "database": {
+          "label": "Render Postgres / Key Value"
+        },
+        "external": {
+          "label": "Outside Render"
+        },
+        "security": {
+          "visible": false
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "people",
+      "type": "external",
+      "label": "Sellers and buyers",
+      "sublabel": "browser, email links",
+      "pos": [
+        40,
+        285
+      ],
+      "size": [
+        140,
+        62
+      ]
+    },
+    {
+      "id": "docs",
+      "type": "frontend",
+      "label": "pactpal-docs",
+      "sublabel": "Static Site · help.pact-pal.app",
+      "pos": [
+        440,
+        120
+      ],
+      "size": [
+        200,
+        62
+      ],
+      "sources": [
+        {
+          "path": "render.yaml",
+          "line": 79,
+          "end_line": 110,
+          "label": "static site"
+        }
+      ],
+      "icon": "frontend"
+    },
+    {
+      "id": "server",
+      "type": "cloud",
+      "label": "pactpal-server",
+      "sublabel": "Web Service · 2 instances",
+      "pos": [
+        440,
+        285
+      ],
+      "size": [
+        200,
+        62
+      ],
+      "sources": [
+        {
+          "path": "render.yaml",
+          "line": 4,
+          "end_line": 20,
+          "label": "web service"
+        },
+        {
+          "path": "apps/server/src/index.ts",
+          "line": 1,
+          "end_line": 67,
+          "label": "server entry"
+        },
+        {
+          "path": "apps/server/src/production-app.ts",
+          "line": 70,
+          "end_line": 83,
+          "label": "starts Workflow runs"
+        }
+      ],
+      "icon": "cloud"
+    },
+    {
+      "id": "kv",
+      "type": "database",
+      "label": "pactpal-kv",
+      "sublabel": "Key Value · limits, cache",
+      "pos": [
+        230,
+        510
+      ],
+      "size": [
+        160,
+        62
+      ],
+      "sources": [
+        {
+          "path": "render.yaml",
+          "line": 68,
+          "end_line": 77,
+          "label": "key value"
+        },
+        {
+          "path": "apps/server/src/keyvalue.ts",
+          "line": 60,
+          "end_line": 70,
+          "label": "shared counters"
+        }
+      ],
+      "icon": "database"
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "pactpal-db",
+      "sublabel": "Postgres 16 · evidence log",
+      "pos": [
+        450,
+        510
+      ],
+      "size": [
+        180,
+        62
+      ],
+      "sources": [
+        {
+          "path": "render.yaml",
+          "line": 170,
+          "end_line": 180,
+          "label": "database"
+        },
+        {
+          "path": "apps/server/src/chat/bus.ts",
+          "line": 75,
+          "end_line": 86,
+          "label": "chat over LISTEN/NOTIFY"
+        }
+      ],
+      "icon": "database",
+      "brand": "postgresql"
+    },
+    {
+      "id": "cronDispute",
+      "type": "messagebus",
+      "label": "pactpal-dispute-check",
+      "sublabel": "Cron Job · every 5 min",
+      "pos": [
+        770,
+        60
+      ],
+      "size": [
+        220,
+        62
+      ],
+      "sources": [
+        {
+          "path": "render.yaml",
+          "line": 129,
+          "end_line": 146,
+          "label": "cron job"
+        },
+        {
+          "path": "apps/server/src/dispute-cron.ts",
+          "line": 1,
+          "end_line": 9
+        },
+        {
+          "path": "apps/server/src/cron-job.ts",
+          "line": 16,
+          "end_line": 28,
+          "label": "starts a run, exits"
+        }
+      ],
+      "icon": "clock"
+    },
+    {
+      "id": "taskCheck",
+      "type": "backend",
+      "label": "check-disputes",
+      "sublabel": "Workflow task · logs new disputes",
+      "pos": [
+        770,
+        180
+      ],
+      "size": [
+        220,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/workflow.ts",
+          "line": 51,
+          "end_line": 78,
+          "label": "task"
+        },
+        {
+          "path": "apps/server/src/disputes/task.ts",
+          "line": 33,
+          "end_line": 36
+        }
+      ],
+      "icon": "backend"
+    },
+    {
+      "id": "taskDraft",
+      "type": "backend",
+      "label": "draft-scope",
+      "sublabel": "Workflow task · agreement council",
+      "pos": [
+        770,
+        285
+      ],
+      "size": [
+        220,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/workflow.ts",
+          "line": 99,
+          "end_line": 112,
+          "label": "task"
+        }
+      ],
+      "icon": "backend"
+    },
+    {
+      "id": "taskCouncil",
+      "type": "backend",
+      "label": "Dispute councils",
+      "sublabel": "5 Workflow tasks · claim, reply, appeal",
+      "pos": [
+        770,
+        395
+      ],
+      "size": [
+        240,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/workflow.ts",
+          "line": 114,
+          "end_line": 139,
+          "label": "five tasks"
+        },
+        {
+          "path": "apps/server/src/disputes/claim-job.ts",
+          "line": 56,
+          "end_line": 60,
+          "label": "task names"
+        }
+      ],
+      "icon": "backend"
+    },
+    {
+      "id": "taskRetention",
+      "type": "backend",
+      "label": "retention-sweep",
+      "sublabel": "Workflow task · daily clean-up",
+      "pos": [
+        770,
+        510
+      ],
+      "size": [
+        220,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/workflow.ts",
+          "line": 141,
+          "end_line": 156,
+          "label": "task"
+        }
+      ],
+      "icon": "backend"
+    },
+    {
+      "id": "cronRetention",
+      "type": "messagebus",
+      "label": "pactpal-retention",
+      "sublabel": "Cron Job · daily 03:17 UTC",
+      "pos": [
+        770,
+        630
+      ],
+      "size": [
+        220,
+        62
+      ],
+      "sources": [
+        {
+          "path": "render.yaml",
+          "line": 148,
+          "end_line": 168,
+          "label": "cron job"
+        },
+        {
+          "path": "apps/server/src/retention-cron.ts",
+          "line": 1,
+          "end_line": 8
+        }
+      ],
+      "icon": "clock"
+    },
+    {
+      "id": "taskAsk",
+      "type": "backend",
+      "label": "ask-model",
+      "sublabel": "Workflow task · one run per model",
+      "pos": [
+        1090,
+        340
+      ],
+      "size": [
+        190,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/workflow.ts",
+          "line": 80,
+          "end_line": 97,
+          "label": "one model call per run"
+        },
+        {
+          "path": "apps/server/src/drafting/subtask-clients.ts",
+          "line": 1
+        }
+      ],
+      "icon": "backend"
+    },
+    {
+      "id": "paypal",
+      "type": "external",
+      "label": "PayPal REST API",
+      "sublabel": "Disputes API",
+      "pos": [
+        1380,
+        180
+      ],
+      "size": [
+        170,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/paypal/src/disputes.ts",
+          "line": 1
+        }
+      ],
+      "icon": "external",
+      "brand": "paypal"
+    },
+    {
+      "id": "models",
+      "type": "external",
+      "label": "AI model APIs",
+      "sublabel": "5 models, 5 families",
+      "pos": [
+        1380,
+        340
+      ],
+      "size": [
+        170,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/ai/src/registry.ts",
+          "line": 10,
+          "end_line": 55,
+          "label": "model registry"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Render · Virginia · one Blueprint (render.yaml)",
+      "wraps": [
+        "docs",
+        "server",
+        "kv",
+        "db",
+        "cronDispute",
+        "taskCheck",
+        "taskDraft",
+        "taskCouncil",
+        "taskRetention",
+        "cronRetention",
+        "taskAsk"
+      ],
+      "pad": 24
+    },
+    {
+      "kind": "region",
+      "label": "Render Workflows · pactpal-workflows",
+      "wraps": [
+        "taskCheck",
+        "taskDraft",
+        "taskCouncil",
+        "taskRetention",
+        "taskAsk"
+      ],
+      "pad": 14
+    },
+    {
+      "kind": "security-group",
+      "label": "private network only",
+      "wraps": [
+        "kv",
+        "db"
+      ],
+      "pad": 12
+    }
+  ],
+  "connections": [
+    {
+      "from": "people",
+      "to": "server",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "from": "people",
+      "to": "docs",
+      "label": "help"
+    },
+    {
+      "from": "server",
+      "to": "db",
+      "label": "SQL, live chat"
+    },
+    {
+      "from": "server",
+      "to": "kv",
+      "label": "counters"
+    },
+    {
+      "from": "server",
+      "to": "taskCheck",
+      "label": "Check now",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "from": "server",
+      "to": "taskDraft",
+      "label": "start run",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "server",
+      "to": "taskCouncil",
+      "label": "start run",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "from": "cronDispute",
+      "to": "taskCheck",
+      "label": "start run",
+      "variant": "dashed"
+    },
+    {
+      "from": "cronRetention",
+      "to": "taskRetention",
+      "label": "start run",
+      "variant": "dashed"
+    },
+    {
+      "from": "taskDraft",
+      "to": "taskAsk",
+      "label": "fan out"
+    },
+    {
+      "from": "taskCouncil",
+      "to": "taskAsk",
+      "label": "fan out"
+    },
+    {
+      "from": "taskRetention",
+      "to": "db",
+      "label": "delete expired"
+    },
+    {
+      "from": "taskCheck",
+      "to": "paypal",
+      "label": "read disputes"
+    },
+    {
+      "from": "taskAsk",
+      "to": "models",
+      "label": "model call"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "One Blueprint",
+      "items": [
+        "Every service is defined in render.yaml",
+        "Each push to dev redeploys all services",
+        "Migrations run before deploy; a failure keeps the old version"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Workflows",
+      "items": [
+        "Each AI model call is its own run, so a council's models answer side by side",
+        "A slow or failing model never blocks the others",
+        "Retries are set per task in code"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Shared and private",
+      "items": [
+        "Keys live once in the pactpal-shared Environment Group",
+        "Postgres and Key Value accept Render's private network only",
+        "All tasks read and write pactpal-db"
+      ]
+    }
+  ]
+}

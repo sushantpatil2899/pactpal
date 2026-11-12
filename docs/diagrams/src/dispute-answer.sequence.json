@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Answering a dispute from the record",
+    "output": "docs/diagrams/dispute-answer.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/sushantpatil2899/paypal-hackathon",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "50234bf33428a17983b1bfeb910e03a911b348ae"
+    }
+  },
+  "participants": [
+    {
+      "id": "cron",
+      "type": "messagebus",
+      "label": "Cron Job",
+      "sublabel": "every 5 min",
+      "sources": [
+        {
+          "path": "apps/server/src/dispute-cron.ts",
+          "line": 1,
+          "end_line": 9
+        }
+      ]
+    },
+    {
+      "id": "check",
+      "type": "backend",
+      "label": "check-disputes",
+      "sublabel": "Workflow task",
+      "sources": [
+        {
+          "path": "apps/server/src/disputes/dispute-sync.ts",
+          "line": 233,
+          "end_line": 269,
+          "label": "sync"
+        },
+        {
+          "path": "apps/server/src/disputes/match.ts",
+          "line": 30,
+          "end_line": 60,
+          "label": "match to deal"
+        }
+      ]
+    },
+    {
+      "id": "paypal",
+      "type": "external",
+      "label": "PayPal",
+      "sublabel": "Disputes API",
+      "sources": [
+        {
+          "path": "packages/paypal/src/disputes.ts",
+          "line": 384,
+          "end_line": 462,
+          "label": "evidence, appeal"
+        }
+      ]
+    },
+    {
+      "id": "log",
+      "type": "database",
+      "label": "Evidence log",
+      "sublabel": "Postgres",
+      "sources": [
+        {
+          "path": "packages/db/src/disputes.ts",
+          "line": 1,
+          "end_line": 393
+        }
+      ]
+    },
+    {
+      "id": "seller",
+      "type": "external",
+      "label": "Seller",
+      "sublabel": "email, deal page",
+      "sources": [
+        {
+          "path": "apps/server/src/email/dispute-email.ts",
+          "line": 1,
+          "end_line": 89,
+          "label": "dispute email"
+        }
+      ]
+    },
+    {
+      "id": "server",
+      "type": "backend",
+      "label": "pactpal-server",
+      "sublabel": "dispute workspace",
+      "sources": [
+        {
+          "path": "apps/server/src/disputes/packet-service.ts",
+          "line": 312,
+          "end_line": 397,
+          "label": "build packet"
+        },
+        {
+          "path": "apps/server/src/disputes/action-service.ts",
+          "line": 228,
+          "end_line": 242,
+          "label": "send to PayPal"
+        }
+      ]
+    },
+    {
+      "id": "council",
+      "type": "backend",
+      "label": "AI council",
+      "sublabel": "Workflow tasks",
+      "sources": [
+        {
+          "path": "apps/server/src/disputes/claim-job.ts",
+          "line": 56,
+          "end_line": 60,
+          "label": "council tasks"
+        },
+        {
+          "path": "packages/claims/src/comparison.ts",
+          "line": 1,
+          "end_line": 35,
+          "label": "claim vs record"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 160,
+      "to": 316,
+      "label": "Find"
+    },
+    {
+      "from": 326,
+      "to": 520,
+      "label": "Compare"
+    },
+    {
+      "from": 530,
+      "to": 700,
+      "label": "Answer"
+    }
+  ],
+  "messages": [
+    {
+      "from": "cron",
+      "to": "check",
+      "y": 170,
+      "label": "start run",
+      "variant": "dashed"
+    },
+    {
+      "from": "check",
+      "to": "paypal",
+      "y": 200,
+      "label": "list disputes",
+      "variant": "emphasis"
+    },
+    {
+      "from": "paypal",
+      "to": "check",
+      "y": 228,
+      "label": "new dispute",
+      "variant": "return"
+    },
+    {
+      "from": "check",
+      "to": "log",
+      "y": 256,
+      "label": "match deal, log it",
+      "variant": "emphasis",
+      "note": "matched by invoice and transaction ids"
+    },
+    {
+      "from": "check",
+      "to": "seller",
+      "y": 300,
+      "label": "email: deadline",
+      "variant": "dashed"
+    },
+    {
+      "from": "seller",
+      "to": "server",
+      "y": 340,
+      "label": "open dispute",
+      "variant": "default"
+    },
+    {
+      "from": "server",
+      "to": "council",
+      "y": 370,
+      "label": "start council",
+      "variant": "dashed"
+    },
+    {
+      "from": "council",
+      "to": "log",
+      "y": 400,
+      "label": "read terms and log",
+      "variant": "default"
+    },
+    {
+      "from": "council",
+      "to": "server",
+      "y": 430,
+      "label": "claim vs record",
+      "variant": "return",
+      "note": "each claim line tied to a term or log entry, or 'no record'"
+    },
+    {
+      "from": "server",
+      "to": "seller",
+      "y": 490,
+      "label": "packet preview",
+      "variant": "return"
+    },
+    {
+      "from": "seller",
+      "to": "server",
+      "y": 540,
+      "label": "confirm",
+      "variant": "security"
+    },
+    {
+      "from": "server",
+      "to": "paypal",
+      "y": 570,
+      "label": "provide evidence",
+      "variant": "emphasis",
+      "note": "packet PDF, only after the seller confirms"
+    },
+    {
+      "from": "server",
+      "to": "log",
+      "y": 630,
+      "label": "log upload",
+      "variant": "default"
+    },
+    {
+      "from": "server",
+      "to": "seller",
+      "y": 660,
+      "label": "appeal check if lost",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "check",
+      "from": 170,
+      "to": 306
+    },
+    {
+      "participant": "server",
+      "from": 340,
+      "to": 666
+    },
+    {
+      "participant": "council",
+      "from": 370,
+      "to": 436
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Packet contents",
+      "items": [
+        "Cover sheet, claim vs record, neutral summary",
+        "Timeline and exhibits from the log",
+        "Fingerprint list and how to check it"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Human in charge",
+      "items": [
+        "Nothing reaches PayPal until the seller confirms",
+        "PactPal never predicts the outcome"
+      ]
+    }
+  ]
+}

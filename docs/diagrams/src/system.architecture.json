@@ -1,0 +1,432 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "PactPal system overview",
+    "output": "docs/diagrams/system.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/sushantpatil2899/paypal-hackathon",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "50234bf33428a17983b1bfeb910e03a911b348ae"
+    }
+  },
+  "components": [
+    {
+      "id": "people",
+      "type": "external",
+      "label": "Sellers and buyers",
+      "sublabel": "browser · email links",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        140,
+        62
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "external",
+      "label": "AI assistants",
+      "sublabel": "Claude, Cursor · MCP",
+      "pos": [
+        240,
+        450
+      ],
+      "size": [
+        180,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/agents/tools.ts",
+          "line": 1,
+          "label": "agent tools"
+        }
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "PactPal web app",
+      "sublabel": "React · AG Grid · Bryntum",
+      "pos": [
+        240,
+        300
+      ],
+      "size": [
+        180,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/web/src/App.tsx",
+          "line": 1,
+          "label": "app"
+        },
+        {
+          "path": "apps/server/src/web-pages.ts",
+          "line": 1,
+          "end_line": 31,
+          "label": "served by the server"
+        }
+      ]
+    },
+    {
+      "id": "server",
+      "type": "backend",
+      "label": "pactpal-server",
+      "sublabel": "Fastify API · live chat · /mcp",
+      "pos": [
+        610,
+        280
+      ],
+      "size": [
+        210,
+        102
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/app.ts",
+          "line": 120,
+          "end_line": 140,
+          "label": "server setup"
+        },
+        {
+          "path": "apps/server/src/agents/mcp-routes.ts",
+          "line": 68,
+          "end_line": 71,
+          "label": "MCP endpoint"
+        },
+        {
+          "path": "apps/server/src/chat/live-routes.ts",
+          "line": 1,
+          "label": "live chat"
+        }
+      ]
+    },
+    {
+      "id": "channel3",
+      "type": "external",
+      "label": "Channel3",
+      "sublabel": "product listing lookup",
+      "pos": [
+        770,
+        80
+      ],
+      "size": [
+        180,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/products/src/channel3.ts",
+          "line": 25,
+          "end_line": 40,
+          "label": "URL lookup"
+        }
+      ]
+    },
+    {
+      "id": "hooks",
+      "type": "external",
+      "label": "PayPal webhooks",
+      "sublabel": "payment notifications",
+      "pos": [
+        240,
+        80
+      ],
+      "size": [
+        180,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/webhooks/paypal-webhook.ts",
+          "line": 98,
+          "end_line": 120,
+          "label": "handle event"
+        },
+        {
+          "path": "packages/paypal/src/webhooks.ts",
+          "line": 1,
+          "end_line": 20,
+          "label": "verify signature"
+        }
+      ]
+    },
+    {
+      "id": "paypal",
+      "type": "external",
+      "label": "PayPal APIs",
+      "sublabel": "Invoicing · Disputes · Login",
+      "pos": [
+        520,
+        80
+      ],
+      "size": [
+        200,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/paypal/src/fallback.ts",
+          "line": 1,
+          "end_line": 40,
+          "label": "MCP first, REST fallback"
+        },
+        {
+          "path": "packages/paypal/src/invoices.ts",
+          "line": 1,
+          "label": "invoices"
+        },
+        {
+          "path": "packages/paypal/src/disputes.ts",
+          "line": 1,
+          "label": "disputes"
+        }
+      ]
+    },
+    {
+      "id": "resend",
+      "type": "external",
+      "label": "Resend",
+      "sublabel": "email out · forwarded mail in",
+      "pos": [
+        1010,
+        80
+      ],
+      "size": [
+        200,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/email/src/resend.ts",
+          "line": 1,
+          "label": "send"
+        },
+        {
+          "path": "apps/server/src/webhooks/resend-inbound.ts",
+          "line": 1,
+          "label": "receive"
+        }
+      ]
+    },
+    {
+      "id": "workflows",
+      "type": "backend",
+      "label": "Render Workflows",
+      "sublabel": "AI councils · dispute checks",
+      "pos": [
+        930,
+        300
+      ],
+      "size": [
+        200,
+        62
+      ],
+      "sources": [
+        {
+          "path": "apps/server/src/workflow.ts",
+          "line": 1,
+          "end_line": 174,
+          "label": "tasks"
+        }
+      ]
+    },
+    {
+      "id": "models",
+      "type": "external",
+      "label": "AI models",
+      "sublabel": "5 models from 5 families",
+      "pos": [
+        1230,
+        300
+      ],
+      "size": [
+        190,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/ai/src/registry.ts",
+          "line": 10,
+          "end_line": 55,
+          "label": "model registry"
+        }
+      ]
+    },
+    {
+      "id": "ledger",
+      "type": "security",
+      "label": "Evidence log",
+      "sublabel": "append-only hash chain",
+      "pos": [
+        615,
+        470
+      ],
+      "size": [
+        200,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/ledger/src/ledger.ts",
+          "line": 122,
+          "end_line": 155,
+          "label": "append"
+        },
+        {
+          "path": "packages/ledger/src/ledger.ts",
+          "line": 156,
+          "end_line": 182,
+          "label": "verify"
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Postgres",
+      "sublabel": "deals · log · files · chat",
+      "pos": [
+        930,
+        470
+      ],
+      "size": [
+        200,
+        62
+      ],
+      "sources": [
+        {
+          "path": "packages/db/src/ledger-store.ts",
+          "line": 1,
+          "label": "log store"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Render",
+      "wraps": [
+        "server",
+        "workflows",
+        "ledger",
+        "db"
+      ],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "from": "people",
+      "to": "web",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "from": "web",
+      "to": "server",
+      "label": "API, WebSocket",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "agents",
+      "to": "server",
+      "label": "MCP, agent key",
+      "toSide": "left"
+    },
+    {
+      "from": "server",
+      "to": "paypal",
+      "label": "MCP first, REST fallback",
+      "variant": "emphasis"
+    },
+    {
+      "from": "hooks",
+      "to": "server",
+      "label": "signed webhooks",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "server",
+      "to": "channel3",
+      "label": "lookup"
+    },
+    {
+      "from": "server",
+      "to": "resend",
+      "label": "email out and in"
+    },
+    {
+      "from": "server",
+      "to": "workflows",
+      "label": "start run",
+      "variant": "dashed"
+    },
+    {
+      "from": "workflows",
+      "to": "models",
+      "label": "model call"
+    },
+    {
+      "from": "server",
+      "to": "ledger",
+      "label": "append event",
+      "variant": "emphasis"
+    },
+    {
+      "from": "ledger",
+      "to": "db",
+      "label": "stored rows",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "workflows",
+      "to": "db",
+      "label": "read, write"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "PayPal",
+      "items": [
+        "Log in with PayPal for sign-in",
+        "One invoice per agreed payment step",
+        "Disputes read, answered and appealed through the Disputes API",
+        "Webhooks are signature-checked before use"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "AI",
+      "items": [
+        "High-stakes drafts go to a council of five models",
+        "Every AI line cites the chat or the log, or stays blank",
+        "Nothing goes to a buyer or to PayPal until the seller confirms"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Evidence",
+      "items": [
+        "Every message, signature, payment, delivery and approval is logged",
+        "Each entry holds the fingerprint of the one before",
+        "Receipts and evidence packets are PDFs built from the log"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "af0fc53d-8d92-4133-aa2e-018f1633fe36",
+  "status": "current",
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/evidence-log.dataflow.json",
+  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/evidence-log.html",
+  "specification": {
+    "sha256": "61c3b7f90b5ec5df764e2437281bb301c8528dc1bb1e363bad588961c7ac75bf",
+    "bytes": 3757
+  },
+  "artifact": {
+    "sha256": "1ae65326557abb370f6a096f33822b853c525c4d7aadb0f4eeed507f82a47898",
+    "bytes": 837076
+  }
+}

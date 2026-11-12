@@ -11,3 +11,6 @@ graphify-out
 
 # Generated demo files (made by hackathon/demo/tools)
 hackathon/demo/deliverables/
+
+# Archify diagrams: generated pages and their checked sources (edit the JSON, then re-run archify finalize)
+docs/diagrams/

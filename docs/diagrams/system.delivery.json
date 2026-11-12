@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "32c32d10-accf-49d3-bca6-1fec32648747",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/system.architecture.json",
+  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/system.html",
+  "specification": {
+    "sha256": "47b317758e8b80d37bafeed8a85a6817ca5d9af9b5a77f7b1170fc099813b318",
+    "bytes": 8823
+  },
+  "artifact": {
+    "sha256": "3162e6be7be7a3c57b6cd94ea2e4e41d32c96c13b0028d81d3d430afa2269c2c",
+    "bytes": 857771
+  }
+}

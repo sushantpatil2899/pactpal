@@ -1,0 +1,70 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "How the AI council picks one draft",
+    "output": "docs/diagrams/ai-council.html",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/sushantpatil2899/paypal-hackathon",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "50234bf33428a17983b1bfeb910e03a911b348ae"
+    }
+  },
+  "lanes": [
+    { "id": "models", "label": "Five models" },
+    { "id": "code", "label": "Code checks" },
+    { "id": "seller", "label": "Seller" }
+  ],
+  "phases": [
+    { "id": "draftPhase", "label": "Draft", "fromCol": 0, "toCol": 1, "variant": "emphasis" },
+    { "id": "votePhase", "label": "Vote", "fromCol": 2, "toCol": 4 },
+    { "id": "decidePhase", "label": "Decide", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["source", "drafts", "citations", "anon", "rank", "borda", "result"],
+  "nodes": [
+    { "id": "source", "lane": "code", "col": 0, "type": "database", "label": "Numbered source", "sublabel": "chat lines, log entries",
+      "sources": [{ "path": "packages/scope-draft/src/source.ts", "line": 1 }] },
+    { "id": "drafts", "lane": "models", "col": 1, "type": "backend", "label": "Draft alone", "sublabel": "each model, in parallel", "tag": "5 families",
+      "sources": [
+        { "path": "packages/council/src/runner.ts", "line": 170, "end_line": 218, "label": "run council" },
+        { "path": "packages/ai/src/registry.ts", "line": 10, "end_line": 55, "label": "models" }
+      ] },
+    { "id": "citations", "lane": "code", "col": 2, "type": "security", "label": "Check citations", "sublabel": "every cited line must exist",
+      "sources": [
+        { "path": "packages/scope-draft/src/validate.ts", "line": 216, "end_line": 248, "label": "validate draft" },
+        { "path": "packages/council/src/anonymize.ts", "line": 6, "end_line": 33, "label": "keep valid ones" }
+      ] },
+    { "id": "dropped", "lane": "seller", "col": 2, "type": "external", "label": "Thrown out", "sublabel": "shown in the council record",
+      "sources": [{ "path": "packages/council/src/task.ts", "line": 42, "end_line": 54, "label": "answer record" }] },
+    { "id": "anon", "lane": "code", "col": 3, "type": "backend", "label": "Hide authors", "sublabel": "shuffle, relabel",
+      "sources": [{ "path": "packages/council/src/anonymize.ts", "line": 34, "end_line": 43 }] },
+    { "id": "rank", "lane": "models", "col": 3, "type": "backend", "label": "Rank the others", "sublabel": "own vote ignored",
+      "sources": [
+        { "path": "packages/council/src/rank-prompt.ts", "line": 1, "end_line": 131 },
+        { "path": "packages/council/src/ballot.ts", "line": 16, "end_line": 30, "label": "read ballot" }
+      ] },
+    { "id": "borda", "lane": "code", "col": 4, "type": "backend", "label": "Borda count", "sublabel": "one whole draft wins",
+      "sources": [{ "path": "packages/council/src/aggregate.ts", "line": 51, "end_line": 140 }] },
+    { "id": "result", "lane": "seller", "col": 5, "type": "frontend", "label": "Seller reviews", "sublabel": "edits, then confirms",
+      "sources": [{ "path": "apps/server/src/drafting/council-record.ts", "line": 1 }] },
+    { "id": "flag", "lane": "code", "col": 5, "type": "security", "label": "Low agreement", "sublabel": "flagged for review",
+      "sources": [{ "path": "packages/council/src/aggregate.ts", "line": 3, "end_line": 31, "label": "agreement score" }] }
+  ],
+  "edges": [
+    { "from": "source", "to": "drafts", "label": "same input", "variant": "emphasis" },
+    { "from": "drafts", "to": "citations", "label": "5 drafts", "variant": "emphasis" },
+    { "from": "citations", "to": "dropped", "label": "bad citation", "variant": "security", "role": "error" },
+    { "from": "citations", "to": "anon", "variant": "emphasis" },
+    { "from": "anon", "to": "rank", "variant": "emphasis" },
+    { "from": "rank", "to": "borda", "label": "rankings", "variant": "emphasis" },
+    { "from": "borda", "to": "result", "label": "winner", "variant": "emphasis" },
+    { "from": "borda", "to": "flag", "label": "votes split", "variant": "dashed", "role": "branch" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "Used for", "items": ["The agreement and timeline", "Claim vs record in a dispute", "The packet summary, the reply and the appeal"] },
+    { "dot": "rose", "title": "Rules", "items": ["A term with no source line stays blank", "Lines in a chat that give the AI orders are hidden from it", "Drafts are never stitched together"] }
+  ]
+}

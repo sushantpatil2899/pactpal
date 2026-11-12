@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "bbfacf5a-2763-40e3-a44b-37310ce30c25",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "/var/folders/mr/l4vtj4dx2sv5tc_7lfhd4s340000gn/T/pactpal-diagrams-V3M8yA/ai-council.workflow.json",
+  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/public/ai-council.html",
+  "specification": {
+    "sha256": "8947bf7357bb6f133b884a60421ae2469adfd8d39d6db4cede617833c0e40471",
+    "bytes": 3935
+  },
+  "artifact": {
+    "sha256": "6656f983a3bd255913979558dcf346531a0cd326bd3b311d412d4d9784a5f055",
+    "bytes": 842310
+  }
+}

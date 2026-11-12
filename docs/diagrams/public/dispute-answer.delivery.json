@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "ab4c1194-2414-4770-bc75-8a352ba3d4b6",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/var/folders/mr/l4vtj4dx2sv5tc_7lfhd4s340000gn/T/pactpal-diagrams-V3M8yA/dispute-answer.sequence.json",
+  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/public/dispute-answer.html",
+  "specification": {
+    "sha256": "45b130b7e837f4d7425e40c93d1dabe8f8b9432fe016efaab958390cfe0efa0a",
+    "bytes": 4160
+  },
+  "artifact": {
+    "sha256": "1d4da9fbbaa8e6a078dbfc470b3b4b3e7070ed20b367ae9e0faf560b9ca095af",
+    "bytes": 841873
+  }
+}

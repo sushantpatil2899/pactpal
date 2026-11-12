@@ -71,6 +71,12 @@ export const PAGES: readonly Page[] = [
     "The code base, the services and how a council runs",
     "Under the hood",
   ),
+  help(
+    "diagrams",
+    "PactPal in diagrams",
+    "The deal, the AI, disputes and the services, drawn",
+    "Under the hood",
+  ),
   {
     ...help(
       "product",
@@ -153,15 +159,31 @@ function resolve(from: string, target: string): string {
   return parts.join("/");
 }
 
+/** Where the build copies the diagrams: their published pages and their images. */
+export const DIAGRAM_SOURCES = [
+  { dir: "docs/diagrams/public/", ext: ".html" },
+  { dir: "docs/images/", ext: ".svg" },
+] as const;
+
+/** A diagram file's address on the site ("diagrams/system.html"), or undefined. Pure. */
+export function diagramPath(path: string): string | undefined {
+  const source = DIAGRAM_SOURCES.find(({ dir, ext }) => path.startsWith(dir) && path.endsWith(ext));
+  const name = source && path.slice(source.dir.length);
+  return name && /^[a-z0-9-]+\.[a-z]+$/.test(name) ? `diagrams/${name}` : undefined;
+}
+
 /**
  * Markdown links of `file` pointed at the site: a published page becomes its page (keeping any
- * "#part"); web and email links stay. A link to anything else in the repository keeps its words
- * and loses the link, so the public site never points into the repository. Pure.
+ * "#part") and a diagram its copy on the site; web and email links stay. A link to anything else
+ * in the repository keeps its words and loses the link, so the public site never points into the
+ * repository. Pure.
  */
 export function rewriteLinks(markdown: string, file: string): string {
   return markdown.replace(/\[([^\]]*)\]\(([^)\s]+)\)/g, (whole, text: string, target: string) => {
     if (/^(https?|mailto):/i.test(target) || target.startsWith("#")) return whole;
     const [path = "", hash] = target.split("#");
+    const diagram = diagramPath(resolve(file, path));
+    if (diagram) return `[${text}](${diagram})`;
     const page = PAGES.find((p) => p.file === resolve(file, path));
     if (!page) return text;
     return `[${text}](${page.slug}.html${hash === undefined ? "" : `#${hash}`})`;

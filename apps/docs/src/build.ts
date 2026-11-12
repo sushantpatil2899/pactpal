@@ -4,11 +4,11 @@
  * every push. A page that breaks the wording rules, or links outside the help pages, stops the
  * build.
  */
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { markSvg, tokenCss } from "@pactpal/brand";
 import { marked } from "marked";
-import { PAGES, pageHtml, rewriteLinks, wordingProblems } from "./pages.js";
+import { DIAGRAM_SOURCES, PAGES, pageHtml, rewriteLinks, wordingProblems } from "./pages.js";
 
 const root = new URL("../../../", import.meta.url);
 const dist = new URL("../dist/", import.meta.url);
@@ -75,6 +75,12 @@ copyFileSync(
   fileURLToPath(import.meta.resolve("mermaid/dist/mermaid.min.js")),
   new URL("mermaid.min.js", dist),
 );
+// The interactive diagrams and their images, each pointed at by the Diagrams page.
+mkdirSync(new URL("diagrams/", dist));
+for (const { dir, ext } of DIAGRAM_SOURCES) {
+  for (const name of readdirSync(new URL(dir, root)).filter((file) => file.endsWith(ext)))
+    copyFileSync(new URL(`${dir}${name}`, root), new URL(`diagrams/${name}`, dist));
+}
 writeFileSync(
   new URL("mark.svg", dist),
   markSvg("m").replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" '),
