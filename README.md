@@ -464,7 +464,7 @@ Code: [`channel3.ts`](packages/products/src/channel3.ts) · More: [What's being 
 
 Open **[pact-pal.app](https://pact-pal.app)** and choose **Sign in with PayPal** with a PayPal **sandbox** account. Everything runs on PayPal's sandbox, so no real money moves.
 
-**[docs/try-it.md](docs/try-it.md)** has the demo sellers and buyers with real deals, disputes and emails, five things to open, scenarios to paste and how to use your own sandbox accounts. The passwords are in the Devpost submission.
+**[docs/try-it.md](docs/try-it.md)** has the demo sellers and buyers with real deals, disputes and emails, five things to open, scenarios to paste and how to use your own sandbox accounts. The password is in the Devpost submission.
 
 ## Run it locally
 

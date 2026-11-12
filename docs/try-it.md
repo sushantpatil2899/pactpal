@@ -6,7 +6,7 @@ A guide for walking through PactPal on your own: ready-made demo accounts with r
 
 - **No real money moves.** Everything runs on PayPal's sandbox.
 - **You sign in with PayPal,** using a sandbox account. Open **[pact-pal.app](https://pact-pal.app)** and choose **Sign in with PayPal**.
-- **Passwords are in the Devpost submission** (the judges' testing section). One password is shared by every demo seller and buyer; the shared inbox has its own.
+- **One password for everything.** It's in the Devpost submission (the judges' testing section) and works for every demo seller and buyer and for the shared inbox.
 - **The accounts are shared.** What you change, other people trying PactPal will see.
 - **PayPal's sandbox sign-in** sometimes stops at a security step the first time; trying again usually works.
 
@@ -41,7 +41,7 @@ Tom's address contains `allowappeal` because PayPal's sandbox offers the seller 
 
 ## The shared inbox
 
-Every address above forwards to one inbox, **`pactpal.demo@zohomail.com`** (Zoho Mail). Sign in once to see every email PactPal sent, each addressed to its person: signing receipts, invoices, reminders, delivery notices, dispute updates and decisions.
+Every address above forwards to one inbox, **`pactpal.demo@zohomail.com`** (Zoho Mail), with the same password. Sign in once to see every email PactPal sent, each addressed to its person: signing receipts, invoices, reminders, delivery notices, dispute updates and decisions.
 
 ## Five things to open
 
