@@ -22,11 +22,11 @@ Every step is logged so nobody can quietly edit it, and if the buyer disputes, t
 
 </div>
 
-<!-- TODO(video): replace with the YouTube thumbnail and link once the demo video is published. -->
-
 ### Demo video
 
-> Coming soon (under 3 minutes).
+<a href="https://youtu.be/9FAXXCf0mRg"><img src="docs/images/demo-video-thumbnail.jpg" alt="The PactPal demo video: the PactPal logo and the words AI that seals the deal, on a dark green grid" width="100%"></a>
+
+**[Watch the demo on YouTube (2:56)](https://youtu.be/9FAXXCf0mRg)**
 
 Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.devpost.com/) hackathon. Runs on PayPal's sandbox: no real money moves.
 
@@ -207,7 +207,7 @@ Where PactPal stands on each of the hackathon's five judging criteria:
 | **Design**                       | One finished product from the first chat to the appeal, for the seller, the buyer and their AI assistants, with a help site and branded emails                                                                                                                                                    |
 | **Potential impact**             | A real problem, with sourced figures and sellers' own words ([the problem](#the-problem)), and a fix that gives sellers the "system of record" PayPal's own rules ask for                                                                                                                         |
 | **Innovation**                   | The evidence is built during the deal and signed by both sides, not gathered after a dispute. AI drafts, a council checks, and AI never creates evidence                                                                                                                                          |
-| **Presentation**                 | A demo video (coming soon), this README, and [interactive diagrams](https://help.pact-pal.app/diagrams.html)                                                                                                                                                                                      |
+| **Presentation**                 | [A demo video (2:56)](https://youtu.be/9FAXXCf0mRg), this README, and [interactive diagrams](https://help.pact-pal.app/diagrams.html)                                                                                                                                                             |
 
 PactPal is built so that PayPal and AI depend on each other: AI writes the agreement behind every PayPal invoice, and answers PayPal disputes from the record it kept. It also opens commerce to AI agents without handing them the keys. A seller's assistant can read deals, draft them and build evidence over MCP, but nothing reaches PayPal until the seller gives it a one-time code. It is aimed at the people who lose the most today: freelancers and small sellers who lose disputes they should win. And it runs on Render end to end, from one Blueprint, with Workflows running each AI model as its own task so a slow model never holds up a council.
 

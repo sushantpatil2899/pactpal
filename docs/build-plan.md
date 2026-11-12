@@ -146,6 +146,7 @@ Agreed with the owner on 10 November 2026: of the sponsors' tools, the MCP serve
 | 9k        | Sponsor licences: AG Grid / AG Studio and Bryntum keys declared on the website; Bryntum moved to version 8 Enterprise                                                                                               | ✅ built (11 Nov 2026); live check after the owner sets the keys                                                          |
 | 9i        | Site on `pact-pal.app`, help on `help.pact-pal.app`; the old address moves pages there and still answers machines                                                                                                   | ✅ built (11 Nov 2026); live once the owner's domains are verified                                                        |
 | 9d        | Eval numbers: both evals re-run with prompt version 5 and paid models (12 Nov 2026): the council's pick 0.97 vs 0.92 for one model, nothing compromised, the council held 14 of 14 hostile chats (spike-results.md) |
+| 9f        | Demo video (2:56): voiceover, the recorded deals, captions and the evidence chain; published at https://youtu.be/9FAXXCf0mRg and linked from the README                                                             |
 
 ## Where things stand (5 November 2026)
 
