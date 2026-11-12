@@ -41,11 +41,11 @@ Tom's address contains `allowappeal` because PayPal's sandbox offers the seller 
 
 ### How the inboxes work (set up 11 Nov 2026)
 
-All 13 addresses are forwards at name.com to **one Proton Mail inbox**, so judges sign in once and see every email PactPal sent, each addressed to its person. No phone number or account per person was needed. Mail for `pact-pal.app` goes to name.com's mail servers; PactPal's own sending (`send.updates.pact-pal.app`) and forwarding (`in.pact-pal.app`) are separate and unchanged.
+All 13 addresses are forwards at name.com to **one Zoho Mail inbox, `pactpal.demo@zohomail.com`** (Proton suspended the first one on 11 Nov 2026), so judges sign in once and see every email PactPal sent, each addressed to its person. No phone number or account per person was needed. Mail for `pact-pal.app` goes to name.com's mail servers; PactPal's own sending (`send.updates.pact-pal.app`) and forwarding (`in.pact-pal.app`) are separate and unchanged.
 
 ### Done by the owner
 
-1. The 13 forwards and the Proton inbox (test email received).
+1. The 13 forwards and the Zoho inbox (test email received).
 2. 5 sandbox Business accounts and, under each, one Merchant REST app with Invoicing, Customer disputes and Transaction search. The keys stay with the owner; each app is linked in PactPal while signed in as its seller.
 3. 8 sandbox Personal accounts with sandbox balance.
 4. Each of the 13 people (sellers and buyers) signs in to pact-pal.app with "Sign in with PayPal" once, with their sandbox account, before the seed adds them to a deal. A buyer the seed added by email alone could never sign in with PayPal later; the seed checks this first and names anyone missing.
