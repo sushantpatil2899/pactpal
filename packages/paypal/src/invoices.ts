@@ -16,7 +16,15 @@ export interface InvoiceDraft {
   scopeReference: string;
   /** Stable key so retries never create duplicate invoices; the send uses `${requestId}-send`. */
   requestId: string;
+  /**
+   * The seller's name for the invoice's header. Without it PayPal shows the account's invoicing
+   * default, which on sandbox accounts is "Test Store".
+   */
+  invoicerName?: string | undefined;
 }
+
+/** PayPal's limit for an invoicer's business name. */
+const MAX_INVOICER_NAME = 300;
 
 /** The invoice's note as PayPal shows it to the buyer: the agreed scope it pays for. */
 export const invoiceNote = (scopeReference: string): string => `Agreed scope: ${scopeReference}`;
@@ -165,6 +173,8 @@ export class PayPalInvoices extends PayPalOperations {
       },
     ];
 
+    const name = draft.invoicerName?.trim().slice(0, MAX_INVOICER_NAME);
+    const invoicer = name ? { invoicer: { business_name: name } } : {};
     const created = await this.fallback.run({
       operation: "create invoice",
       kind: "write",
@@ -180,6 +190,7 @@ export class PayPalInvoices extends PayPalOperations {
           path: INVOICES_PATH,
           body: {
             detail: { currency_code: unitAmount.currency_code, note },
+            ...invoicer,
             primary_recipients,
             items,
           },

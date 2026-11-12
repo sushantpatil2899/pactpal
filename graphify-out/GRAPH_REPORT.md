@@ -1,7 +1,7 @@
 # Graph Report - paypal-hackathon  (2026-11-12)
 
 ## Corpus Check
-- 810 files · ~520,353 words
+- 810 files · ~520,585 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 22 file(s) not represented in the graph (top: .css 16, (none) 5, .example 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `36245bd4`
+- Built from commit: `50234bf3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1029,7 +1029,7 @@ Nodes (17): buildApp(), closeOnSignals(), requestLog(), socketOrigin(), report, 
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `vitest` connect `vitest` to `App.tsx`, `mcp.ts`, `testId`, `DealPage.tsx`, `when`, `delivery-routes.ts`, `readLedger`, `receipt.ts`, `db/src/index.ts`, `claims/src/index.ts`, `layouts.tsx`, `db/src/migrate.ts`, `ChangeOrderPanel.tsx`, `DraftPanel.tsx`, `MessagesPage.tsx`, `appendLedgerEvent`, `vitest`, `scope-drafts.ts`, `actions.ts`, `council/src/index.ts`, `disputes/task.ts`, `qa/src/index.ts`, `net/src/index.ts`, `eval-judge.ts`, `chat-state.ts`, `scope-draft/src/testing.ts`, `scope-draft/src/index.ts`, `seed.ts`, `DealsTable.tsx`, `eval-report.ts`, `db/src/testing.ts`, `email/src/index.ts`, `buildApp`, `chat-routes.ts`, `postgres.ts`, `listing-routes.ts`, `ledger/src/index.ts`, `paypal/src/index.ts`, `deadline-rows.ts`, `resend-inbound.ts`, `retention.test.ts`, `postStep`, `.query`, `completeness.ts`, `DraftReview.tsx`, `Deadlines.tsx`, `disputes/test-support.ts`, `question-routes.ts`, `Insights.tsx`, `invoices.ts`, `draft-job.ts`, `live/src/index.ts`, `delivery-check/src/index.ts`, `ai/src/index.ts`, `SellerAppPanel.tsx`, `appeal-items.ts`, `MessagesPanel.tsx`, `sandbox-respond-report.ts`, `sandbox-webhook-report.ts`, `packet-service.ts`, `api.ts`, `render.ts`, `draft-changes.ts`, `auth/sign-in.ts`, `react`, `devDependencies`, `Ledger.tsx`, `package.json`, `config.ts`, `AgentPanel.tsx`, `Built (sub-phases 2b to 6h-1)`, `checker.ts`, `Closing.tsx`, `Secret`, `pages.ts`, `gantt-rows.ts`, `eval-runner.ts`, `brand/src/index.ts`, `listing-routes.ts`, `buildApp`, `RedisCommands`?**
-  _High betweenness centrality (0.226) - this node is a cross-community bridge._
+  _High betweenness centrality (0.229) - this node is a cross-community bridge._
 - **What connects `../../tsconfig.base.json`, `RFC-5987`, `../../tsconfig.base.json` to the rest of the system?**
   _25 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `App.tsx` be split into smaller, more focused modules?**
@@ -1039,6 +1039,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `mcp.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.07918367346938776 - nodes in this community are weakly interconnected._
 - **Why does `react` connect `react` to `App.tsx`, `AgentPanel.tsx`, `DealPage.tsx`, `when`, `receipt.ts`, `layouts.tsx`, `DeliveriesPanel.tsx`, `ChangeOrderPanel.tsx`, `DraftPanel.tsx`, `MessagesPage.tsx`, `chat-state.ts`, `Closing.tsx`, `Tour.tsx`, `DealsTable.tsx`, `web/package.json`, `deadline-rows.ts`, `brand/src/index.ts`, `postStep`, `AcceptancePanel.tsx`, `DraftReview.tsx`, `Deadlines.tsx`, `readChecked`, `Insights.tsx`, `chat-api.ts`, `SellerAppPanel.tsx`, `MessagesPanel.tsx`, `api.ts`, `pages.tsx`, `Ledger.tsx`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Should `testId` be split into smaller, more focused modules?**
   _Cohesion score 0.04957983193277311 - nodes in this community are weakly interconnected._

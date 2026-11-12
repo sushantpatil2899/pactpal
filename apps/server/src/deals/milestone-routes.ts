@@ -241,7 +241,7 @@ export const milestoneRoutes: FastifyPluginAsync<MilestoneRouteOptions> = (app, 
     const sent = await sendToPayPal(
       account.invoices,
       sending,
-      record.buyer.email,
+      { recipientEmail: record.buyer.email, invoicerName: viewer.user.displayName },
       request.log,
       key,
     );
@@ -329,7 +329,7 @@ type SendOutcome =
 async function sendToPayPal(
   invoices: InvoiceSender,
   invoice: StageInvoice,
-  recipientEmail: string,
+  people: { recipientEmail: string; invoicerName: string | undefined },
   log: FastifyBaseLogger,
   key: { dealId: string; stage: number },
 ): Promise<SendOutcome> {
@@ -337,7 +337,7 @@ async function sendToPayPal(
   let transport: "rest" | "mcp";
   try {
     const sent = await invoices.createAndSend({
-      recipientEmail,
+      ...people,
       amount: { minor: invoice.amount.minor, currency: invoice.amount.currency },
       itemName: invoice.itemName,
       description: invoice.description,

@@ -76,6 +76,8 @@ describe("milestone invoices", () => {
         amount: { minor: 12_000, currency: "USD" },
         itemName: "Stage 1 of 2: Deposit",
         requestId: `pp-${dealId}-v1-s1`,
+        // The seller's own name heads the invoice, not PayPal's default ("Test Store" in sandbox).
+        invoicerName: "Maya Seller",
       }),
     ]);
     const stage = res.json<{ stages: StageView[] }>().stages[0];

@@ -76,6 +76,30 @@ describe("PayPalInvoices.createAndSend", () => {
     });
   });
 
+  it("names the seller as the invoicer when a name is given, and leaves PayPal's default otherwise", async () => {
+    const named = setup({
+      rest: [
+        { rel: "self", href: "https://api.sandbox.paypal.com/v2/invoicing/invoices/INV2-A" },
+        undefined,
+      ],
+    });
+    await named.invoices.createAndSend({
+      ...draft,
+      invoicerName: `  Maya Lin  ${"x".repeat(400)}`,
+    });
+    const body = (named.restCalls[0] as { body: { invoicer?: { business_name: string } } }).body;
+    expect(body.invoicer?.business_name).toBe(`Maya Lin  ${"x".repeat(290)}`);
+
+    const plain = setup({
+      rest: [
+        { rel: "self", href: "https://api.sandbox.paypal.com/v2/invoicing/invoices/INV2-B" },
+        undefined,
+      ],
+    });
+    await plain.invoices.createAndSend({ ...draft, invoicerName: "   " });
+    expect(plain.restCalls[0]).not.toHaveProperty("body.invoicer");
+  });
+
   it("passes the same invoice details to the MCP tools and uses MCP when it works", async () => {
     const { invoices, restCalls, mcpCalls } = setup({ mcp: [{ id: "INV2-MCP" }, { ok: true }] });
     const sent = await invoices.createAndSend(draft);
