@@ -12,6 +12,13 @@ Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.d
 
 ---
 
+**Reading this README.** It starts with why PactPal exists, then shows what it does, then goes into how it is built. Jump to any part:
+
+- **Why:** [The problem](#the-problem) · [What PactPal is](#what-pactpal-is) · [Who it's for](#who-its-for)
+- **What:** [How it works](#how-it-works) · [Features](#features) · [Against the judging criteria](#against-the-judging-criteria)
+- **How:** [PayPal integration](#paypal-integration) · [AI](#ai) · [AI assistants (MCP)](#ai-assistants-mcp) · [Disputes](#disputes) · [The evidence log](#the-evidence-log) · [Architecture](#architecture) · [Running on Render](#running-on-render)
+- **Use it:** [Try it](#try-it) · [Run it locally](#run-it-locally) · [Quality](#quality) · [Scope and limits](#scope-and-limits) · [Docs](#docs)
+
 ## The problem
 
 Freelancers and small sellers paid through PayPal keep losing disputes they should win.
@@ -51,13 +58,40 @@ All posts, figures and sources: [docs/problem-evidence.md](docs/problem-evidence
 
 ## What PactPal is
 
-A deal space for one seller and one buyer that records the deal **while it happens**, not after a dispute.
+A deal space for one seller and one buyer that records the deal **while it happens**, not after a dispute. Two things carry it: **PayPal** and **AI**. Neither would work alone.
 
-- They agree in a live chat. AI drafts the agreement from it, citing a chat line for every term.
-- The buyer signs. PayPal invoices each agreed payment step.
-- Deliveries go through tracked links. Approvals are logged.
-- Every step is written to a hash-chained evidence log.
-- If a dispute opens, PactPal compares the claim with the record and builds the packet. The seller confirms, and PactPal sends it to PayPal.
+### PayPal: the money and the verdict
+
+- PayPal is where the buyer pays and where a dispute is decided. PactPal replaces neither. It builds the record around them.
+- Every agreed payment step becomes a **PayPal invoice** with the agreement's fingerprint in its note. A signed **PayPal webhook** marks it paid and ties the PayPal transaction to the deal.
+- Sellers sign in with **Log in with PayPal** and link their own PayPal app.
+- When a buyer disputes, PactPal answers through PayPal's **Disputes API**: evidence, an offer, acceptance or an appeal.
+- PayPal's rules ask sellers of digital goods and services for "a system of record". PactPal is that record, built on PayPal's own invoices and disputes.
+
+### AI: from a messy chat to a record PayPal can use
+
+- Deals are agreed in chat, in loose words. AI turns the chat into a clear agreement and timeline, citing the chat line behind every term.
+- During the deal, AI labels new buyer requests (in scope, an extra revision, or new work), answers buyer questions from the agreement, and checks files before delivery.
+- In a dispute, AI compares each line of the buyer's claim with the agreement and the log, and writes a neutral summary for PayPal.
+- AI drafts and checks. It never creates evidence, and the seller confirms everything before it goes anywhere.
+
+### Why they need each other
+
+Without AI, the seller would have to write a precise agreement by hand, and most don't. That is why they lose. Without PayPal, the agreement would be a document with no money attached and nowhere to be judged. Together, the chat becomes terms, the terms become PayPal invoices, the invoices and deliveries become evidence, and the evidence answers a PayPal dispute.
+
+### Why a council of five AI models, not one
+
+Agreements and dispute answers are drafted by **five models from five families** (Google, Alibaba, OpenAI, Mistral and NVIDIA) that check and rank each other. [How the vote works](#ai).
+
+1. **It catches wrong values.** One model sometimes states what the chat never said, like a due date from "by Friday". The other models rank that draft down. In one test run, Mistral alone made 4 wrong values in 11 chats; the council's pick made none.
+2. **Different blind spots.** Models from different families rarely make the same mistake on the same line.
+3. **It is harder to trick.** A line in a pasted chat that tries to give the AI orders has to fool several different models, then win their vote. Since lines that give orders are hidden from the models, no council pick has been compromised in our attack tests.
+4. **It is neutral by design.** Drafts are ranked without their authors' names, and a model's vote for its own draft is ignored. A dispute summary has to be fair to both sides.
+5. **It knows when it is unsure.** When the models disagree, the agreement score drops and the draft is flagged for the seller to look closer. A single model gives no such signal.
+6. **Anyone can inspect it.** The seller sees every model's draft, which ones were thrown out and why, and how the votes went.
+7. **No single vendor.** If one model gets worse, changes or goes down, the council keeps working.
+
+A simple fallback chain would cover outages, but none of the other six. In three test runs on 11 chats with known right answers, the council's pick beat the average single model's draft every time: **0.92 vs 0.89, 0.98 vs 0.91 and 0.90 vs 0.87**. It costs about 8 times the tokens and over a minute per draft, so it is used where the stakes are high: agreements and disputes. Quick tasks like buyer questions use one model. These are chats we wrote, one run each, so read them as a tendency. Details: [docs/spike-results.md](docs/spike-results.md#drafting-evals-single-models-against-the-council-sub-phase-3g-1-november-2026).
 
 PactPal never holds money, never gives legal advice, and never predicts an outcome.
 
@@ -143,26 +177,19 @@ PactPal never holds money, never gives legal advice, and never predicts an outco
 - A help site with 20 pages, including [the diagrams](https://help.pact-pal.app/diagrams.html)
 - Retention rules: deals are removed 210 days after their last activity
 
-## Built for the PayPal AI Hackathon
+## Against the judging criteria
 
-The hackathon has no tracks. Projects are judged on five equal criteria, and can win one main prize and one sponsor prize.
+Where PactPal stands on each of the hackathon's five judging criteria:
 
-| Judging criterion                | Where PactPal meets it                                                                                                                                                                                                                    |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Technological implementation** | Six PayPal capabilities, MCP first with REST fallback, signed webhooks, a five-model AI council with code-checked citations, and an MCP server of its own. See [PayPal](#paypal-integration), [AI](#ai) and [Architecture](#architecture) |
-| **Design**                       | One product from the first chat to the appeal, for seller, buyer and AI assistant, with a help site and branded emails                                                                                                                    |
-| **Potential impact**             | A real, sourced problem ([the problem](#the-problem)) and a fix that matches what PayPal's own rules ask for                                                                                                                              |
-| **Innovation**                   | The record is built during the deal and signed by both sides. AI drafts, but never creates evidence                                                                                                                                       |
-| **Presentation**                 | Demo video (coming soon) and [interactive diagrams](https://help.pact-pal.app/diagrams.html)                                                                                                                                              |
+| Criterion                        | Where PactPal stands                                                                                                                                                                                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Technological implementation** | Six PayPal capabilities working together: invoices, disputes, signed webhooks, sign-in, seller apps, and MCP with REST fallback. A five-model AI council with citations checked in code. An MCP server of its own. See [PayPal](#paypal-integration), [AI](#ai) and [Architecture](#architecture) |
+| **Design**                       | One finished product from the first chat to the appeal, for the seller, the buyer and their AI assistants, with a help site and branded emails                                                                                                                                                    |
+| **Potential impact**             | A real problem, with sourced figures and sellers' own words ([the problem](#the-problem)), and a fix that gives sellers the "system of record" PayPal's own rules ask for                                                                                                                         |
+| **Innovation**                   | The evidence is built during the deal and signed by both sides, not gathered after a dispute. AI drafts, a council checks, and AI never creates evidence                                                                                                                                          |
+| **Presentation**                 | A demo video (coming soon), this README, and [interactive diagrams](https://help.pact-pal.app/diagrams.html)                                                                                                                                                                                      |
 
-**Prizes we are aiming for**
-
-| Prize                            | What we built for it                                                                                                                            |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Best Use of PayPal + AI**      | AI drafts the agreement behind each PayPal invoice and answers PayPal disputes from the record                                                  |
-| **Best Use of Agentic Commerce** | An MCP server so AI assistants can work a seller's deals, with human approval by one-time code                                                  |
-| **Most Impactful**               | Small sellers lose money to disputes they should win; PactPal gives them the record PayPal asks for                                             |
-| **Best Use of Render**           | Everything runs on Render from one Blueprint, with Workflows running each AI model as its own task. See [Running on Render](#running-on-render) |
+PactPal is built so that PayPal and AI depend on each other: AI writes the agreement behind every PayPal invoice, and answers PayPal disputes from the record it kept. It also opens commerce to AI agents without handing them the keys. A seller's assistant can read deals, draft them and build evidence over MCP, but nothing reaches PayPal until the seller gives it a one-time code. It is aimed at the people who lose the most today: freelancers and small sellers who lose disputes they should win. And it runs on Render end to end, from one Blueprint, with Workflows running each AI model as its own task so a slow model never holds up a council.
 
 **Tools used, and how**
 

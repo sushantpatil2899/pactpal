@@ -76,8 +76,7 @@
           "label": "static site"
         }
       ],
-      "icon": "frontend",
-      "brand": "render"
+      "icon": "frontend"
     },
     {
       "id": "server",
@@ -112,8 +111,7 @@
           "label": "starts Workflow runs"
         }
       ],
-      "icon": "cloud",
-      "brand": "render"
+      "icon": "cloud"
     },
     {
       "id": "kv",
@@ -142,8 +140,7 @@
           "label": "shared counters"
         }
       ],
-      "icon": "database",
-      "brand": "render"
+      "icon": "database"
     },
     {
       "id": "db",
@@ -207,8 +204,7 @@
           "label": "starts a run, exits"
         }
       ],
-      "icon": "clock",
-      "brand": "render"
+      "icon": "clock"
     },
     {
       "id": "taskCheck",
@@ -236,8 +232,7 @@
           "end_line": 36
         }
       ],
-      "icon": "backend",
-      "brand": "render"
+      "icon": "backend"
     },
     {
       "id": "taskDraft",
@@ -260,8 +255,7 @@
           "label": "task"
         }
       ],
-      "icon": "backend",
-      "brand": "render"
+      "icon": "backend"
     },
     {
       "id": "taskCouncil",
@@ -290,8 +284,7 @@
           "label": "task names"
         }
       ],
-      "icon": "backend",
-      "brand": "render"
+      "icon": "backend"
     },
     {
       "id": "taskRetention",
@@ -314,8 +307,7 @@
           "label": "task"
         }
       ],
-      "icon": "backend",
-      "brand": "render"
+      "icon": "backend"
     },
     {
       "id": "cronRetention",
@@ -343,8 +335,7 @@
           "end_line": 8
         }
       ],
-      "icon": "clock",
-      "brand": "render"
+      "icon": "clock"
     },
     {
       "id": "taskAsk",
@@ -371,8 +362,7 @@
           "line": 1
         }
       ],
-      "icon": "backend",
-      "brand": "render"
+      "icon": "backend"
     },
     {
       "id": "paypal",
