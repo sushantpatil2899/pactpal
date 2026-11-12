@@ -1,7 +1,7 @@
 # Graph Report - paypal-hackathon  (2026-11-12)
 
 ## Corpus Check
-- 839 files · ~1,558,334 words
+- 839 files · ~1,558,428 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 22 file(s) not represented in the graph (top: .css 16, (none) 5, .example 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `24416b92`
+- Built from commit: `3c6789f7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -782,7 +782,7 @@ Nodes (8): A deal from chat to paid, Answering a dispute from the record, How th
 
 ### Community 131 - "Try PactPal yourself"
 Cohesion: 0.20
-Nodes (9): Before you start, Five things to open, Good to know, Scenarios to try, The demo buyers, The demo sellers, The shared inbox, Try it with your own sandbox accounts (+1 more)
+Nodes (9): Before you start, Good to know, Scenarios to try, Six things to open, The demo buyers, The demo sellers, The shared inbox, Try it with your own sandbox accounts (+1 more)
 
 ### Community 132 - "README.md"
 Cohesion: 0.12
