@@ -16,7 +16,9 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A full verify takes about 14 to 15 minutes on GitHub's runners (the tests alone about 11),
+    # so 15 cancelled a passing run at its last step (12 Nov 2026).
+    timeout-minutes: 25
     # A real Postgres for the one integration test; the other tests use an in-process copy.
     services:
       postgres:

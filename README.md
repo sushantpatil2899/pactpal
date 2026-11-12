@@ -1,12 +1,32 @@
+<div align="center">
+
+<img src="docs/images/logo.svg" width="120" alt="PactPal logo">
+
 # PactPal
 
-**AI that seals the deal.** PactPal turns a deal agreed in a chat into a signed record tied to PayPal invoices. Every step after that is logged in a record nobody can quietly edit. If the buyer disputes the payment, the record becomes a ready evidence packet.
+### AI that seals the deal.
 
-**[Live app](https://pact-pal.app)** · **[Help](https://help.pact-pal.app)** · **[Diagrams](https://help.pact-pal.app/diagrams.html)** · **[How judges can try it](#try-it)**
+Turn a deal agreed in chat into a signed record tied to PayPal invoices.<br>
+Every step is logged so nobody can quietly edit it, and if the buyer disputes, the evidence is ready.
+
+<p>
+<a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue"></a> <img alt="TypeScript: 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"> <img alt="React: 18" src="https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white"> <img alt="Fastify: 5" src="https://img.shields.io/badge/Fastify-5-000000?logo=fastify&logoColor=white"><br>
+<img alt="PayPal: Invoicing v2 · Disputes · MCP" src="https://img.shields.io/badge/PayPal-Invoicing%20v2%20%C2%B7%20Disputes%20%C2%B7%20MCP-003087?logo=paypal&logoColor=white"> <img alt="AI: 5-model council" src="https://img.shields.io/badge/AI-5--model%20council-6D5CF6"><br>
+<a href="https://github.com/sushantpatil2899/paypal-hackathon/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/sushantpatil2899/paypal-hackathon/actions/workflows/ci.yml/badge.svg?branch=dev"></a> <img alt="tests: 2,096 passing" src="https://img.shields.io/badge/tests-2%2C096%20passing-2EA44F"> <img alt="coverage: ≥90%" src="https://img.shields.io/badge/coverage-%E2%89%A590%25-2EA44F"><br>
+<a href="#running-on-render"><img alt="Render: Workflows · Cron · Postgres" src="https://img.shields.io/badge/Render-Workflows%20%C2%B7%20Cron%20%C2%B7%20Postgres-46E3B7?logo=render&logoColor=black"></a> <a href="#sponsor-tools"><img alt="Sponsors: AG Grid · Bryntum · Channel3" src="https://img.shields.io/badge/Sponsors-AG%20Grid%20%C2%B7%20Bryntum%20%C2%B7%20Channel3-0B8F8C"></a>
+</p>
+
+**[Live app](https://pact-pal.app)** · **[Help](https://help.pact-pal.app)** · **[Diagrams](https://help.pact-pal.app/diagrams.html)** · **[Try it](#try-it)** · **[Demo video](#demo-video)**
+
+<a href="https://pact-pal.app"><img src="docs/images/landing-hero.webp" alt="The PactPal landing page: AI that seals the deal. A council of AI models drafts your agreement from the chat and checks each other's work, PayPal moves the money, and every step is sealed into a chain nobody can quietly edit" width="100%"></a>
+
+</div>
 
 <!-- TODO(video): replace with the YouTube thumbnail and link once the demo video is published. -->
 
-> **Demo video:** coming soon (under 3 minutes).
+### Demo video
+
+> Coming soon (under 3 minutes).
 
 Built for the [Build What's Next with PayPal and AI](https://paypalaihackathon.devpost.com/) hackathon. Runs on PayPal's sandbox: no real money moves.
 
