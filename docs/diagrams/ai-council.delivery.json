@@ -4,14 +4,14 @@
   "status": "current",
   "command": "deliver",
   "type": "workflow",
-  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/ai-council.workflow.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/ai-council.html",
+  "input": "docs/diagrams/src/ai-council.workflow.json",
+  "output": "docs/diagrams/ai-council.html",
   "specification": {
-    "sha256": "4a83e3cf06dc82b2b19aaa18b03637e40d389019509607c84808607c8697f74e",
-    "bytes": 4576
+    "sha256": "7ed0259cd988a277de339e6b78c1815cae9a6c768c27a215ce9e8406e6e943ce",
+    "bytes": 4567
   },
   "artifact": {
-    "sha256": "a0fb42b1d3d7513ec99d980fe52c92a7da73dfbb3f63c383cb8a4566e9a34236",
-    "bytes": 845600
+    "sha256": "ccfd658ead026ffdfb0e03b8318193b2a43b68813312a7d578ff453a114a9ff4",
+    "bytes": 845465
   }
 }

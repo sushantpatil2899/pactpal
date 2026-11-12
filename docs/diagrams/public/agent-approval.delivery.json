@@ -4,8 +4,8 @@
   "status": "current",
   "command": "deliver",
   "type": "sequence",
-  "input": "/var/folders/mr/l4vtj4dx2sv5tc_7lfhd4s340000gn/T/pactpal-diagrams-V3M8yA/agent-approval.sequence.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/public/agent-approval.html",
+  "input": "agent-approval.sequence.json",
+  "output": "docs/diagrams/public/agent-approval.html",
   "specification": {
     "sha256": "4258382126de9349c21035c666fa5603b26ff928d626a0823f7c4c7af8594473",
     "bytes": 3440

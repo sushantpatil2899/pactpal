@@ -4,14 +4,14 @@
   "status": "current",
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/agent-approval.sequence.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/agent-approval.html",
+  "input": "docs/diagrams/src/agent-approval.sequence.json",
+  "output": "docs/diagrams/agent-approval.html",
   "specification": {
-    "sha256": "f5367d6c4959e12caa4d08ede9c367f670df9dd4301ef3702261b78310131050",
-    "bytes": 4675
+    "sha256": "8b5233f7da2e7a45d9c11eb9455a4a4801f7e629c30fe52fa1be4301d7cca3e0",
+    "bytes": 4666
   },
   "artifact": {
-    "sha256": "32284a434d720c4d23fb0bbb053be61de5514edb08f0681fced09f62d4123ce3",
-    "bytes": 837748
+    "sha256": "326ef589867b2060234404236c9d8f9b7fce934aa6773098e0a9a9512f7836d0",
+    "bytes": 837667
   }
 }

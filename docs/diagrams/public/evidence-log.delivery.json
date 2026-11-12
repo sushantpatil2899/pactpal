@@ -4,8 +4,8 @@
   "status": "current",
   "command": "deliver",
   "type": "dataflow",
-  "input": "/var/folders/mr/l4vtj4dx2sv5tc_7lfhd4s340000gn/T/pactpal-diagrams-V3M8yA/evidence-log.dataflow.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/public/evidence-log.html",
+  "input": "evidence-log.dataflow.json",
+  "output": "docs/diagrams/public/evidence-log.html",
   "specification": {
     "sha256": "9c2b117ada6a57a1b33aa09c9b1cd929c04f61b1dbefda40822ad7bcee0be5e1",
     "bytes": 3036

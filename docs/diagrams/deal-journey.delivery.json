@@ -4,14 +4,14 @@
   "status": "current",
   "command": "deliver",
   "type": "workflow",
-  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/deal-journey.workflow.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/deal-journey.html",
+  "input": "docs/diagrams/src/deal-journey.workflow.json",
+  "output": "docs/diagrams/deal-journey.html",
   "specification": {
-    "sha256": "a0e42fb1e0b3d0b26767dd7aa1ea8b69870bce253c075a36a62e490486c59efb",
-    "bytes": 7082
+    "sha256": "ab95d830f2f4117376de8165dfc23862fb19fe19cce2511290adf4d075dc05a1",
+    "bytes": 7073
   },
   "artifact": {
-    "sha256": "ae8030f13aacf08c027c8764eecfd3b1a8285d781db0370670f4c7f580f10549",
-    "bytes": 851232
+    "sha256": "915fcfb6742c4b9cba8c4ef76148b52c8a6816fc37dd93781035c22ae0342cea",
+    "bytes": 851088
   }
 }

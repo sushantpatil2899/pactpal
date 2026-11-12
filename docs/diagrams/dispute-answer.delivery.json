@@ -4,14 +4,14 @@
   "status": "current",
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/dispute-answer.sequence.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/dispute-answer.html",
+  "input": "docs/diagrams/src/dispute-answer.sequence.json",
+  "output": "docs/diagrams/dispute-answer.html",
   "specification": {
-    "sha256": "2baefe9ef29e6c23f73191af078e9870f80576d29a2ff32e827de4075fe639c9",
-    "bytes": 6095
+    "sha256": "a96864ccf390c13ea61f8692ea7ecc254e340c3a6e1990202304a646b40707f0",
+    "bytes": 6086
   },
   "artifact": {
-    "sha256": "9b6f673c4ac4702c9d5f9b9e091af0bb22702487f474368f4433bb2af16a4da3",
-    "bytes": 844821
+    "sha256": "5486cb4e68365da19f103336d9b073dd9384904244d68f3cd01736d0529608ff",
+    "bytes": 844704
   }
 }

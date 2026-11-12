@@ -4,8 +4,8 @@
   "status": "current",
   "command": "deliver",
   "type": "workflow",
-  "input": "/var/folders/mr/l4vtj4dx2sv5tc_7lfhd4s340000gn/T/pactpal-diagrams-V3M8yA/deal-journey.workflow.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/public/deal-journey.html",
+  "input": "deal-journey.workflow.json",
+  "output": "docs/diagrams/public/deal-journey.html",
   "specification": {
     "sha256": "8d0fd81e44601574a0526110aa45fe8718ef19f2c26b47c8ca6093fc144f05f3",
     "bytes": 4891

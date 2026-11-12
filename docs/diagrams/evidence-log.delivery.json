@@ -4,14 +4,14 @@
   "status": "current",
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/evidence-log.dataflow.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/evidence-log.html",
+  "input": "docs/diagrams/src/evidence-log.dataflow.json",
+  "output": "docs/diagrams/evidence-log.html",
   "specification": {
-    "sha256": "61c3b7f90b5ec5df764e2437281bb301c8528dc1bb1e363bad588961c7ac75bf",
-    "bytes": 3757
+    "sha256": "fef4aa6f07b79d81130b2b2668e278b5ddbd04482bb48fd2acb796af6efcad9e",
+    "bytes": 3748
   },
   "artifact": {
-    "sha256": "1ae65326557abb370f6a096f33822b853c525c4d7aadb0f4eeed507f82a47898",
-    "bytes": 837076
+    "sha256": "7f316999b38693194068eb672fdd9e02d1ae6f4b4ea3f832715f9f362a7f4298",
+    "bytes": 836959
   }
 }

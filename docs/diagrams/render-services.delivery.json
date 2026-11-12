@@ -4,14 +4,14 @@
   "status": "current",
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/src/render-services.architecture.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/render-services.html",
+  "input": "docs/diagrams/src/render-services.architecture.json",
+  "output": "docs/diagrams/render-services.html",
   "specification": {
-    "sha256": "1377206e1d3df99c286d5ad9aa36a333b8fded91593124263cc96fe00cb7dd95",
-    "bytes": 11576
+    "sha256": "9750930dd5c9c19bbd035f6db2b128f288390b38d99a5e7483cb96542b9b4510",
+    "bytes": 11567
   },
   "artifact": {
-    "sha256": "ee594430fcd279a303a465ce750deaf01495dd5806e8ae6f519430711fcf2d3a",
-    "bytes": 873612
+    "sha256": "79fe8042ede677c6953e8323bfac483de34f7368c5e529b8fa28f40e312d5a7a",
+    "bytes": 873378
   }
 }

@@ -4,8 +4,8 @@
   "status": "current",
   "command": "deliver",
   "type": "architecture",
-  "input": "/var/folders/mr/l4vtj4dx2sv5tc_7lfhd4s340000gn/T/pactpal-diagrams-V3M8yA/system.architecture.json",
-  "output": "/Users/sushantpatil/Documents/Independent Projects/paypal-hackathon/docs/diagrams/public/system.html",
+  "input": "system.architecture.json",
+  "output": "docs/diagrams/public/system.html",
   "specification": {
     "sha256": "6b8364d6ba71da0f32327efa5679d852d8a434d4dc5ab8c4e279f9ce1492feae",
     "bytes": 5607
