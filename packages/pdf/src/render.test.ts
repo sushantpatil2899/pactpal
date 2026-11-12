@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { PDFDocument } from "pdf-lib";
-import { describe, expect, it } from "vitest";
+import { PDFDocument, PDFFont, StandardFonts } from "pdf-lib";
+import { describe, expect, it, vi } from "vitest";
 import { renderPdf, type Block, type PdfDocumentInput } from "./index.js";
 import { pdfTextLines as linesOf } from "./testing.js";
 
@@ -106,6 +106,35 @@ describe("renderPdf", () => {
     ).toHaveLength(2000);
     expect(lines.filter((line) => /^x+$/.test(line)).join("")).toBe("x".repeat(400));
     expect(lines.filter((line) => /^f+$/.test(line)).join("")).toBe("f".repeat(300));
+  });
+
+  it("breaks a long word with kerning exactly where measuring each piece again would", async () => {
+    // Kerned pairs (AV, VA, To, Wa) make a character's width depend on the one before it.
+    const word = "AVAToWa.".repeat(300);
+    const { bytes } = await renderPdf(doc([{ kind: "paragraph", text: word }]));
+    const lines = linesOf(bytes).filter((line) => /^[AVToWa.]+$/.test(line));
+    expect(lines.join("")).toBe(word);
+    const font = (await PDFDocument.create()).embedStandardFont(StandardFonts.Helvetica);
+    const width = (text: string) => font.widthOfTextAtSize(text, 10.5);
+    lines.forEach((line, n) => {
+      expect(width(line)).toBeLessThanOrEqual(500);
+      // No line ends early: the next line's first character would not have fitted.
+      const next = lines[n + 1];
+      if (next !== undefined) expect(width(line + next.charAt(0))).toBeGreaterThan(500);
+    });
+  });
+
+  it("measures a long word once per character, not once per character per line", async () => {
+    // A 1 MB HTML file with embedded photos took 20 seconds when each piece was measured again.
+    const measure = vi.spyOn(PDFFont.prototype, "widthOfTextAtSize");
+    const word = "QmFrZXJ5".repeat(25_000);
+    try {
+      await renderPdf(doc([{ kind: "paragraph", text: word }]));
+      const measured = measure.mock.calls.reduce((sum, [text]) => sum + text.length, 0);
+      expect(measured).toBeLessThan(word.length * 10);
+    } finally {
+      measure.mockRestore();
+    }
   });
 
   it("keeps a heading with what follows it", async () => {

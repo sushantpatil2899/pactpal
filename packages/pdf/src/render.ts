@@ -102,16 +102,38 @@ function textsOf(block: Block): string[] {
   }
 }
 
-/** Splits a word that is wider than `width` into pieces that fit. */
-function breakWord(word: string, fits: (text: string) => boolean): string[] {
+/**
+ * Splits a word that is too wide into pieces that fit, keeping a running width instead of
+ * measuring each growing piece again (a 1 MB HTML file with embedded photos took 20 seconds).
+ * Widths are whole font units, so the total is exact: a character adds the width of it and the
+ * one before it together, less the one before (its own width plus their kerning).
+ */
+function breakWord(
+  word: string,
+  units: (text: string) => number,
+  fits: (units: number) => boolean,
+): string[] {
+  const known = new Map<string, number>();
+  const measure = (text: string) => {
+    const width = known.get(text) ?? units(text);
+    known.set(text, width);
+    return width;
+  };
   const pieces: string[] = [];
   let piece = "";
+  let width = 0;
+  let previous = "";
   for (const char of word) {
-    if (piece !== "" && !fits(piece + char)) {
+    const added = piece === "" ? measure(char) : measure(previous + char) - measure(previous);
+    if (piece !== "" && !fits(width + added)) {
       pieces.push(piece);
       piece = "";
+      width = measure(char);
+    } else {
+      width += added;
     }
     piece += char;
+    previous = char;
   }
   return [...pieces, piece];
 }
@@ -189,7 +211,10 @@ class Layout {
 
   /** The text as lines that fit `width`, breaking at spaces and inside over-long words. */
   wrap(text: string, style: Style, width: number): string[] {
-    const fits = (line: string) => style.font.widthOfTextAtSize(line, style.size) <= width;
+    // pdf-lib's width is whole font units times size / 1000; measuring at 1000 gives the units.
+    const units = (line: string) => style.font.widthOfTextAtSize(line, 1000);
+    const fitsUnits = (total: number) => total * (style.size / 1000) <= width;
+    const fits = (line: string) => fitsUnits(units(line));
     return text
       .split("\n")
       .map((paragraph) => drawable(paragraph, this.characters))
@@ -203,7 +228,7 @@ class Layout {
             continue;
           }
           if (line !== "") lines.push(line);
-          const pieces = fits(word) ? [word] : breakWord(word, fits);
+          const pieces = fits(word) ? [word] : breakWord(word, units, fitsUnits);
           lines.push(...pieces.slice(0, -1));
           line = pieces.at(-1) ?? "";
         }
