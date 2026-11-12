@@ -182,6 +182,11 @@ class Layout {
     this.y -= points;
   }
 
+  /** The width of text as it will be drawn (characters the font cannot draw become "?"). */
+  width(text: string, style: Style): number {
+    return style.font.widthOfTextAtSize(drawable(text, this.characters), style.size);
+  }
+
   /** The text as lines that fit `width`, breaking at spaces and inside over-long words. */
   wrap(text: string, style: Style, width: number): string[] {
     const fits = (line: string) => style.font.widthOfTextAtSize(line, style.size) <= width;
@@ -332,9 +337,7 @@ function drawBlock(layout: Layout, block: Block): void {
       layout.gap(4);
       return;
     case "fields": {
-      const widest = Math.max(
-        ...block.rows.map((row) => bold.widthOfTextAtSize(row.label, SIZE.normal)),
-      );
+      const widest = Math.max(...block.rows.map((row) => layout.width(row.label, strong)));
       const labelWidth = Math.min(widest + 12, CONTENT_WIDTH * 0.4);
       for (const row of block.rows) {
         layout.columns([
@@ -354,8 +357,7 @@ function drawBlock(layout: Layout, block: Block): void {
       const all = [block.columns, ...block.rows, ...(block.footer ? [block.footer] : [])];
       const natural = block.columns.map(
         (_, c) =>
-          Math.max(...all.map((row) => bold.widthOfTextAtSize(row[c] ?? "", SIZE.normal))) +
-          CELL_PADDING * 2,
+          Math.max(...all.map((row) => layout.width(row[c] ?? "", strong))) + CELL_PADDING * 2,
       );
       const widths = columnWidths(natural);
       const starts = widths.map((_, c) => widths.slice(0, c).reduce((sum, w) => sum + w, 0));

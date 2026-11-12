@@ -160,6 +160,22 @@ describe("renderPdf", () => {
     expect(lines).toContain(note);
   });
 
+  it("measures field labels and table cells as drawn, so no character makes it fail", async () => {
+    const { bytes, replacedCharacters } = await renderPdf(
+      doc(
+        [
+          { kind: "fields", rows: [{ label: "Non\u2011breaking", value: "ok" }] },
+          { kind: "table", columns: ["Step", "Note"], rows: [["1", "re\u2011checked \u{1F600}"]] },
+        ],
+        { replacedCharactersNote: "Note" },
+      ),
+    );
+    expect(replacedCharacters).toBe(true);
+    const lines = linesOf(bytes);
+    expect(lines).toContain("Non?breaking");
+    expect(lines.join(" ")).toContain("re?checked ?");
+  });
+
   it("adds no note when every character can be drawn, or when no note is given", async () => {
     const plain = await renderPdf(
       doc([{ kind: "paragraph", text: "Crème brûlée\tand\r\nmore" }], {
